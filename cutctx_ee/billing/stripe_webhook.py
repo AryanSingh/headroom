@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
+STRIPE_WEBHOOK_TOLERANCE_SECONDS = int(os.environ.get("STRIPE_WEBHOOK_TOLERANCE_SECONDS", "300"))
 
 # Map Stripe Price IDs -> Cutctx tiers
 PRICE_TO_TIER: dict[str, str] = {
@@ -51,12 +52,32 @@ class LicenseRecord:
 
 
 def verify_stripe_signature(payload: bytes, sig_header: str) -> bool:
-    """Constant-time Stripe webhook signature verification."""
+    """Constant-time Stripe webhook signature verification with replay tolerance."""
     if not STRIPE_WEBHOOK_SECRET:
         raise ValueError("STRIPE_WEBHOOK_SECRET not configured")
-    parts = dict(item.split("=", 1) for item in sig_header.split(","))
-    timestamp = parts.get("t", "")
+    parts: dict[str, str] = {}
+    for item in sig_header.split(","):
+        if "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        parts[key.strip()] = value.strip()
+    timestamp_raw = parts.get("t", "")
     v1 = parts.get("v1", "")
+    if not timestamp_raw or not v1:
+        return False
+    try:
+        timestamp = int(timestamp_raw)
+    except ValueError:
+        return False
+    now = int(time.time())
+    if abs(now - timestamp) > STRIPE_WEBHOOK_TOLERANCE_SECONDS:
+        logger.warning(
+            "Stripe webhook signature rejected due to timestamp tolerance: now=%s ts=%s tolerance=%s",
+            now,
+            timestamp,
+            STRIPE_WEBHOOK_TOLERANCE_SECONDS,
+        )
+        return False
     signed = f"{timestamp}.".encode() + payload
     expected = hmac.new(STRIPE_WEBHOOK_SECRET.encode(), signed, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, v1)

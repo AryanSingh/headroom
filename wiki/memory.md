@@ -148,6 +148,24 @@ Memory works with ALL providers routing through the proxy:
 
 ---
 
+### Session-Sticky Memory Tool Injection
+
+When memory tools are injected into a session through the proxy, Cutctx keeps the
+tool-definition bytes stable for the rest of that session. That means if memory is
+enabled on turn 1 and later disabled mid-session, the proxy still replays the same golden memory-tool definitions so provider prefix caches keep seeing the same bytes.
+
+This behavior is controlled by two environment variables:
+
+- CUTCTX_TOOL_INJECTION_STICKY — enabled by default; set to disabled only for
+  explicit diagnostic rollback or shadow tracing.
+- CUTCTX_TOOL_TRACKER_MAX_SESSIONS — bounds the in-memory LRU of sticky sessions.
+  The tracker also persists to a JSON file so a proxy restart can preserve an active
+  session’s golden tool definitions.
+
+The sticky path is provider-aware: Anthropic and OpenAI sessions are tracked
+independently, and if the client already supplies a tool with the same name, Cutctx
+does not duplicate it.
+
 ## Quick Start
 
 ```python

@@ -68,6 +68,99 @@ from cutctx.proxy.handlers.openai.utils import (  # noqa: E402
 
 
 class OpenAIChatMixin:
+    @staticmethod
+    def _model_routing_chat_response_text(payload: dict[str, Any] | None) -> str:
+        if not isinstance(payload, dict):
+            return ""
+        choices = payload.get("choices")
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+            return ""
+        message = choices[0].get("message", {})
+        if not isinstance(message, dict):
+            return ""
+        content = message.get("content", "")
+        return content if isinstance(content, str) else ""
+
+    async def _maybe_model_routing_chat_shadow(
+        self,
+        *,
+        request_id: str,
+        source_model: str,
+        candidate_model: str,
+        url: str,
+        headers: dict[str, Any],
+        candidate_body: dict[str, Any],
+        routing_metadata: dict[str, Any] | None,
+        messages: list[dict[str, Any]],
+        candidate_json: dict[str, Any] | None,
+        client: str | None = None,
+        telemetry_tags: dict[str, Any] | None = None,
+    ) -> None:
+        """Replay a sampled Chat Completions request on its requested model."""
+
+        if (
+            not routing_metadata
+            or source_model == candidate_model
+            or routing_metadata.get("target_model") != candidate_model
+        ):
+            return
+        from cutctx.proxy.model_routing_evals import maybe_run_model_routing_shadow
+        from cutctx.proxy.savings_tracker import estimate_request_cost_usd
+
+        candidate_usage = candidate_json.get("usage", {}) if candidate_json else {}
+        candidate_total = int(candidate_usage.get("prompt_tokens", 0) or 0)
+        candidate_details = candidate_usage.get("prompt_tokens_details") or {}
+        candidate_cached = int(candidate_details.get("cached_tokens", 0) or 0)
+        candidate_uncached = max(0, candidate_total - candidate_cached)
+        candidate_cost = estimate_request_cost_usd(
+            candidate_model,
+            input_tokens=candidate_total,
+            cache_read_tokens=candidate_cached,
+            uncached_input_tokens=candidate_uncached,
+        )
+
+        async def baseline_call() -> tuple[str, float]:
+            baseline_body = copy.deepcopy(candidate_body)
+            baseline_body["model"] = source_model
+            response = await self._retry_request(
+                "POST",
+                url,
+                headers,
+                baseline_body,
+                telemetry_tags=telemetry_tags,
+            )
+            if response.status_code >= 400:
+                raise RuntimeError(f"model-routing shadow returned HTTP {response.status_code}")
+            payload = response.json()
+            usage = payload.get("usage", {}) if isinstance(payload, dict) else {}
+            total = int(usage.get("prompt_tokens", 0) or 0)
+            details = usage.get("prompt_tokens_details") or {}
+            cached = int(details.get("cached_tokens", 0) or 0)
+            cost = estimate_request_cost_usd(
+                source_model,
+                input_tokens=total,
+                cache_read_tokens=cached,
+                uncached_input_tokens=max(0, total - cached),
+            )
+            return self._model_routing_chat_response_text(payload), cost
+
+        await maybe_run_model_routing_shadow(
+            request_id=request_id,
+            messages=messages,
+            source_model=source_model,
+            candidate_model=candidate_model,
+            scorer=str(routing_metadata.get("scorer", "heuristic")),
+            confidence=float(routing_metadata.get("confidence", 0.0) or 0.0),
+            candidate_response=self._model_routing_chat_response_text(candidate_json),
+            candidate_cost_usd=candidate_cost,
+            baseline_call=baseline_call,
+            category="openai_chat_completions",
+            segments={
+                "client": client or "openai",
+                "task_type": "openai_chat_completions",
+            },
+        )
+
     async def handle_openai_chat(
         self,
         request: Request,
@@ -92,7 +185,10 @@ class OpenAIChatMixin:
         from cutctx.utils import extract_user_query
 
         start_time = time.time()
-        request_id = getattr(getattr(request, "state", None), "cutctx_request_id", None) or await self._next_request_id()
+        request_id = (
+            getattr(getattr(request, "state", None), "cutctx_request_id", None)
+            or await self._next_request_id()
+        )
 
         # Phase F PR-F1: classify auth mode at request entry. The result
         # is stored on `request.state` so downstream handlers (cache
@@ -136,7 +232,7 @@ class OpenAIChatMixin:
             batch_decision = batch_router.route(
                 request_body=body,
                 headers=request.headers,
-                origin=request.headers.get("x-cutctx-origin")
+                origin=request.headers.get("x-cutctx-origin"),
             )
             if batch_decision.action == "enqueued":
                 return JSONResponse(
@@ -145,10 +241,11 @@ class OpenAIChatMixin:
                         "id": batch_decision.queue_id,
                         "status": "in_progress",
                         "metadata": batch_decision.metadata,
-                    }
+                    },
                 )
 
         model = body.get("model", "unknown")
+        requested_model = model
         messages = body.get("messages", [])
         request_savings_metadata = extract_savings_metadata(
             request_headers=request.headers,
@@ -372,7 +469,10 @@ class OpenAIChatMixin:
                 raise HTTPException(
                     status_code=429,
                     detail=f"Rate limited. Retry after {wait_seconds:.1f}s",
-                    headers={"Retry-After": str(max(1, int(wait_seconds))), "X-Request-ID": request_id},
+                    headers={
+                        "Retry-After": str(max(1, int(wait_seconds))),
+                        "X-Request-ID": request_id,
+                    },
                 )
 
         # Check cache
@@ -542,6 +642,7 @@ class OpenAIChatMixin:
         memoization_tokens_saved = 0
         if getattr(self, "memoizer", None):
             from cutctx.proxy.memoizer import record_tool_results_from_messages
+
             memoization_hits, memoization_tokens_saved = record_tool_results_from_messages(
                 self.memoizer, messages, openai_session_id
             )
@@ -608,9 +709,7 @@ class OpenAIChatMixin:
         )
         _decision.apply_to_tags(tags)
         if not _decision.should_compress:
-            logger.info(
-                f"[{request_id}] Compression skipped: reason={_decision.decline_reason}"
-            )
+            logger.info(f"[{request_id}] Compression skipped: reason={_decision.decline_reason}")
             self.metrics.record_compression_declined(_decision.decline_reason or "unknown")
         if _decision.should_compress:
             try:
@@ -948,9 +1047,7 @@ class OpenAIChatMixin:
             )
 
             _canary_arm = str(
-                ((request_savings_metadata or {}).get("savings_canary") or {}).get(
-                    "arm", "control"
-                )
+                ((request_savings_metadata or {}).get("savings_canary") or {}).get("arm", "control")
             )
 
             tool_scaffolding_tokens = estimate_tool_scaffolding_tokens(
@@ -1007,12 +1104,8 @@ class OpenAIChatMixin:
             if body.get("messages"):
                 body["messages"] = compress_tool_results(
                     body["messages"],
-                    max_array_items_for_positional=25
-                    if _canary_arm == "mutable_tail"
-                    else 10,
-                    min_fields_for_positional=2
-                    if _canary_arm == "mutable_tail"
-                    else 3,
+                    max_array_items_for_positional=25 if _canary_arm == "mutable_tail" else 10,
+                    min_fields_for_positional=2 if _canary_arm == "mutable_tail" else 3,
                 )
                 optimized_messages = body["messages"]
             if schema_tokens_saved > 0:
@@ -1296,15 +1389,25 @@ class OpenAIChatMixin:
                             tokens_saved=tokens_saved,
                             attempted_input_tokens=total_input_tokens + tokens_saved,
                             self_hosted_prefix_cache_hits=int(
-                                (outcome_savings_metadata or {}).get("prefix_cache_self_hosted", {}).get("tokens", 0)
-                                or (outcome_savings_metadata or {}).get("vllm_apc", {}).get("tokens", 0)
+                                (outcome_savings_metadata or {})
+                                .get("prefix_cache_self_hosted", {})
+                                .get("tokens", 0)
+                                or (outcome_savings_metadata or {})
+                                .get("vllm_apc", {})
+                                .get("tokens", 0)
                                 or 0
                             ),
                             model_routing_tokens_saved=int(
-                                (outcome_savings_metadata or {}).get("model_routing", {}).get("tokens", 0) or 0
+                                (outcome_savings_metadata or {})
+                                .get("model_routing", {})
+                                .get("tokens", 0)
+                                or 0
                             ),
                             model_routing_usd_saved=float(
-                                (outcome_savings_metadata or {}).get("model_routing", {}).get("usd", 0.0) or 0.0
+                                (outcome_savings_metadata or {})
+                                .get("model_routing", {})
+                                .get("usd", 0.0)
+                                or 0.0
                             ),
                             memoization_hits=memoization_hits,
                             memoization_tokens_saved=memoization_tokens_saved,
@@ -1336,6 +1439,7 @@ class OpenAIChatMixin:
                     )
             except CCRException as e:
                 import traceback
+
                 traceback.print_exc()
                 logger.error(f"[{request_id}] CCR error: {e}")
                 # Preserve the original exception message to allow clients to debug
@@ -1353,6 +1457,7 @@ class OpenAIChatMixin:
                 )
             except Exception as e:
                 import traceback
+
                 traceback.print_exc()
                 logger.error(f"[{request_id}] Backend error: {e}")
                 return JSONResponse(
@@ -1607,6 +1712,25 @@ class OpenAIChatMixin:
                     except Exception as e:
                         logger.warning(f"[{request_id}] Memory tool handling failed: {e}")
 
+                routing_metadata = (
+                    request_savings_metadata.get("model_routing")
+                    if isinstance(request_savings_metadata, dict)
+                    else None
+                )
+                await self._maybe_model_routing_chat_shadow(
+                    request_id=request_id,
+                    source_model=requested_model,
+                    candidate_model=model,
+                    url=url,
+                    headers=headers,
+                    candidate_body=body,
+                    routing_metadata=routing_metadata,
+                    messages=original_client_messages,
+                    candidate_json=resp_json,
+                    telemetry_tags=tags,
+                    client=client,
+                )
+
                 # Cache
                 if self.cache and response.status_code == 200:
                     await self.cache.set(
@@ -1662,15 +1786,23 @@ class OpenAIChatMixin:
                         cache_write_tokens=cache_write_tokens,
                         uncached_input_tokens=uncached_input_tokens,
                         self_hosted_prefix_cache_hits=int(
-                            (outcome_savings_metadata or {}).get("prefix_cache_self_hosted", {}).get("tokens", 0)
+                            (outcome_savings_metadata or {})
+                            .get("prefix_cache_self_hosted", {})
+                            .get("tokens", 0)
                             or (outcome_savings_metadata or {}).get("vllm_apc", {}).get("tokens", 0)
                             or 0
                         ),
                         model_routing_tokens_saved=int(
-                            (outcome_savings_metadata or {}).get("model_routing", {}).get("tokens", 0) or 0
+                            (outcome_savings_metadata or {})
+                            .get("model_routing", {})
+                            .get("tokens", 0)
+                            or 0
                         ),
                         model_routing_usd_saved=float(
-                            (outcome_savings_metadata or {}).get("model_routing", {}).get("usd", 0.0) or 0.0
+                            (outcome_savings_metadata or {})
+                            .get("model_routing", {})
+                            .get("usd", 0.0)
+                            or 0.0
                         ),
                         memoization_hits=memoization_hits,
                         memoization_tokens_saved=memoization_tokens_saved,
@@ -1723,6 +1855,7 @@ class OpenAIChatMixin:
                 )
         except Exception as e:
             import traceback
+
             traceback.print_exc()
 
             fallback_provider = getattr(self.config, "fallback_provider", None)

@@ -84,14 +84,6 @@ style={{ opacity: 0, width: 0, height: 0 }}
 
 function getFlagEnabled(stats, configFlags, ...keys) {
   for (const key of keys) {
-    if (stats?.config?.[key] != null) {
-      return Boolean(stats.config[key]);
-    }
-
-    if (configFlags?.config?.[key] != null) {
-      return Boolean(configFlags.config[key]);
-    }
-
     if (configFlags?.live_toggleable?.[key]?.enabled != null) {
       return Boolean(configFlags.live_toggleable[key].enabled);
     }
@@ -99,12 +91,24 @@ function getFlagEnabled(stats, configFlags, ...keys) {
     if (configFlags?.restart_required?.[key]?.enabled != null) {
       return Boolean(configFlags.restart_required[key].enabled);
     }
+
+    if (configFlags?.config?.[key] != null) {
+      return Boolean(configFlags.config[key]);
+    }
+
+    if (stats?.config?.[key] != null) {
+      return Boolean(stats.config[key]);
+    }
   }
 
   return null;
 }
 
-export default function Capabilities() {
+function isRestartRequired(configFlags, key) {
+  return Boolean(configFlags?.restart_required?.[key]);
+}
+
+export default function Capabilities({ searchQuery = '' }) {
   const { stats, loading, error, configFlags, configFlagsError, refresh } = useDashboardData();
   const [updating, setUpdating] = useState({});
   const [optimisticState, setOptimisticState] = useState({});
@@ -130,11 +134,16 @@ export default function Capabilities() {
   const proxyCompressionSaved = Number(stats?.tokens?.proxy_compression_saved || 0);
 
   const surfaceFlags = {
-    rate_limiter: getFlagEnabled(stats, configFlags, 'rate_limiter', 'rate_limit_enabled'),
-    cache: getFlagEnabled(stats, configFlags, 'cache', 'cache_enabled'),
-    ccr: getFlagEnabled(stats, configFlags, 'ccr', 'ccr_context_tracking'),
-    memory: getFlagEnabled(stats, configFlags, 'memory', 'episodic_memory_enabled'),
-    firewall: getFlagEnabled(stats, configFlags, 'firewall', 'firewall_enabled'),
+    rate_limit_enabled: getFlagEnabled(stats, configFlags, 'rate_limit_enabled', 'rate_limiter'),
+    cache_enabled: getFlagEnabled(stats, configFlags, 'cache_enabled', 'cache'),
+    ccr_context_tracking: getFlagEnabled(stats, configFlags, 'ccr_context_tracking', 'ccr'),
+    episodic_memory_enabled: getFlagEnabled(
+      stats,
+      configFlags,
+      'episodic_memory_enabled',
+      'memory',
+    ),
+    firewall_enabled: getFlagEnabled(stats, configFlags, 'firewall_enabled', 'firewall'),
   };
 
   const handleToggle = async (key, currentValue) => {
@@ -195,8 +204,8 @@ export default function Capabilities() {
         stats?.rate_limiter != null
           ? `${formatInteger(stats?.rate_limiter?.tokens_per_minute || 0)} tokens / min`
           : 'This proxy is not exposing live rate limiter metrics',
-      status: surfaceFlags.rate_limiter ?? stats?.rate_limiter != null,
-      configKey: surfaceFlags.rate_limiter == null ? null : 'rate_limiter',
+      status: surfaceFlags.rate_limit_enabled ?? stats?.rate_limiter != null,
+      configKey: surfaceFlags.rate_limit_enabled == null ? null : 'rate_limit_enabled',
     },
     {
       label: 'Response cache',
@@ -205,15 +214,15 @@ export default function Capabilities() {
         stats?.cache != null
           ? `${formatInteger(stats?.cache?.entries || 0)} entries · ${formatInteger(stats?.cache?.total_misses || 0)} misses · ${formatInteger(stats?.cache?.tokens_avoided || 0)} tokens avoided`
           : 'This proxy is not exposing response cache metrics',
-      status: surfaceFlags.cache ?? stats?.cache != null,
-      configKey: surfaceFlags.cache == null ? null : 'cache',
+      status: surfaceFlags.cache_enabled ?? stats?.cache != null,
+      configKey: surfaceFlags.cache_enabled == null ? null : 'cache_enabled',
     },
     {
       label: 'CCR store',
       value: formatInteger(stats?.compression?.ccr_entries || 0),
       detail: `${formatInteger(stats?.compression?.ccr_retrievals || 0)} retrievals · ${formatInteger(stats?.compression?.original_tokens_cached || 0)} original tokens stored`,
-      status: surfaceFlags.ccr ?? stats?.compression != null,
-      configKey: surfaceFlags.ccr == null ? null : 'ccr',
+      status: surfaceFlags.ccr_context_tracking ?? stats?.compression != null,
+      configKey: surfaceFlags.ccr_context_tracking == null ? null : 'ccr_context_tracking',
     },
     {
       label: 'Episodic memory',
@@ -222,8 +231,10 @@ export default function Capabilities() {
         stats?.memory != null
           ? 'Cross-session context enabled'
           : 'This proxy is not exposing episodic memory metrics',
-      status: surfaceFlags.memory ?? stats?.memory != null,
-      configKey: surfaceFlags.memory == null ? null : 'memory',
+      status: surfaceFlags.episodic_memory_enabled ?? stats?.memory != null,
+      configKey: surfaceFlags.episodic_memory_enabled == null
+        ? null
+        : 'episodic_memory_enabled',
     },
     {
       label: 'Firewall',
@@ -232,10 +243,29 @@ export default function Capabilities() {
         stats?.firewall != null
           ? 'Outbound prompt scanning'
           : 'This proxy is not exposing firewall scan metrics',
-      status: surfaceFlags.firewall ?? stats?.firewall != null,
-      configKey: surfaceFlags.firewall == null ? null : 'firewall',
+      status: surfaceFlags.firewall_enabled ?? stats?.firewall != null,
+      configKey: surfaceFlags.firewall_enabled == null ? null : 'firewall_enabled',
     },
   ].filter(Boolean);
+
+  const query = searchQuery.trim().toLowerCase();
+  const filteredGroups = capabilityGroups
+    .map((group) => {
+      if (!query) {
+        return group;
+      }
+
+      const matchedItems = group.items.filter(
+        (item) => item.name.toLowerCase().includes(query) || item.detail.toLowerCase().includes(query),
+      );
+
+      if (matchedItems.length === 0 && !group.title.toLowerCase().includes(query)) {
+        return null;
+      }
+
+      return { ...group, items: matchedItems.length > 0 ? matchedItems : group.items };
+    })
+    .filter(Boolean);
 
   return (
     <section className="page-stack">
@@ -283,6 +313,7 @@ export default function Capabilities() {
               isToggleable && surface.configKey in optimisticState
                 ? optimisticState[surface.configKey]
                 : backendState;
+            const restartRequired = isRestartRequired(configFlags, surface.configKey);
 
             return (
               <article key={surface.label} className="metric-card metric-card-compact">
@@ -297,23 +328,40 @@ export default function Capabilities() {
                       <ToggleSwitch
                         checked={Boolean(toggleState)}
                         onChange={() => handleToggle(surface.configKey, Boolean(toggleState))}
-disabled={loading || updating[surface.configKey]}
-label={`${toggleState ? "Disable" : "Enable"} ${surface.label}`}
-/>
+                        disabled={loading || restartRequired || updating[surface.configKey]}
+                        label={restartRequired
+                          ? surface.label + ' requires a proxy restart'
+                          : (toggleState ? 'Disable ' : 'Enable ') + surface.label}
+                      />
                     </div>
                   ) : !loading && 'status' in surface ? (
                     liveStatus(Boolean(surface.status))
                   ) : null}
                 </div>
                 <div className="metric-value">{loading ? '—' : surface.value}</div>
-                <div className="metric-footnote">{surface.detail}</div>
+                <div className="metric-footnote">
+                  {surface.detail}
+                  {restartRequired ? ' · Restart required to apply changes' : ''}
+                </div>
               </article>
             );
           })}
         </div>
       </div>
 
-      {capabilityGroups.map((group) => {
+      {filteredGroups.length === 0 && query ? (
+        <div className="panel">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Search</div>
+              <h2>No capability matches</h2>
+            </div>
+            <p>Try a broader query or clear the search box to see all capability groups.</p>
+          </div>
+        </div>
+      ) : null}
+
+      {filteredGroups.map((group) => {
         const Icon = icons[group.title] || Boxes;
         const iconColors = {
           'Core Deployment Modes': { bg: 'rgba(14, 165, 233, 0.1)', color: '#0ea5e9' },

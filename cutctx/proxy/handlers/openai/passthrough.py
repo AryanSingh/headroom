@@ -327,6 +327,7 @@ class OpenAIPassthroughMixin:
                 output_tokens = stream_state["output_tokens"] or 0
                 cache_read_tokens = stream_state["cache_read_input_tokens"] or 0
                 cache_write_tokens = stream_state["cache_creation_input_tokens"] or 0
+                total_latency_ms = (time.time() - start_time) * 1000
                 uncached_input_tokens = max(
                     0,
                     input_tokens - cache_read_tokens - cache_write_tokens,
@@ -350,8 +351,8 @@ class OpenAIPassthroughMixin:
                             "cache_creation_ephemeral_1h_input_tokens"
                         ],
                         uncached_input_tokens=uncached_input_tokens,
-                        total_latency_ms=(time.time() - start_time) * 1000,
-                        ttfb_ms=stream_state["ttfb_ms"] or 0,
+                        total_latency_ms=total_latency_ms,
+                        ttfb_ms=stream_state["ttfb_ms"] or total_latency_ms,
                         tags=tags,
                         client=client,
                         savings_metadata=request_savings_metadata,

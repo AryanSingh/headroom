@@ -32,9 +32,11 @@ def test_model_routing_initializes_from_env_on_runtime_boot(monkeypatch) -> None
         assert stats.status_code == 200, stats.text
         payload = stats.json()
         assert payload["config"]["orchestrator"] is True
+        assert payload["config"]["orchestrator_mode"] == "custom"
         assert payload["model_routing"]["requested"] is True
         assert payload["model_routing"]["available"] is True
         assert payload["model_routing"]["configured_routes"] == 1
+        assert payload["model_routing"]["mode"] == "custom"
 
 
 def test_model_routing_preset_initializes_on_runtime_boot() -> None:
@@ -57,7 +59,9 @@ def test_model_routing_preset_initializes_on_runtime_boot() -> None:
         assert stats.status_code == 200, stats.text
         payload = stats.json()
         assert payload["config"]["orchestrator"] is True
+        assert payload["config"]["orchestrator_mode"] == "balanced"
         assert payload["model_routing"]["requested"] is True
         assert payload["model_routing"]["available"] is True
         assert payload["model_routing"]["configured_routes"] >= 2
         assert payload["model_routing"]["preset"] == "codex-gpt54mini-high"
+        assert payload["model_routing"]["mode"] == "balanced"

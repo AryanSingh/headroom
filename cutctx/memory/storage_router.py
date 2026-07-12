@@ -282,6 +282,16 @@ class TeamSyncWrapper:
         self._trigger_sync()
         return res
 
+    async def update_memory(self, *args: Any, **kwargs: Any) -> Any:
+        res = await self._backend.update_memory(*args, **kwargs)
+        self._trigger_sync()
+        return res
+
+    async def delete_memory(self, *args: Any, **kwargs: Any) -> Any:
+        res = await self._backend.delete_memory(*args, **kwargs)
+        self._trigger_sync()
+        return res
+
     def _trigger_sync(self) -> None:
         if self._syncing:
             return

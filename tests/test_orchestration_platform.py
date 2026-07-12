@@ -229,6 +229,149 @@ def test_same_model_on_multiple_accounts_requires_an_exact_deployment() -> None:
     assert len([model for model in registry.list() if model.id == "shared-model"]) == 2
     decision = DeterministicRoutingEngine(config, registry).route(RoutingRequest(role="worker"))
     assert decision.account_id == "account-a"
+
+
+def test_explicit_equivalent_deployments_select_best_reliability_in_strict_mode() -> None:
+    primary = _model("openai", "shared-model", account_id="account-a")
+    primary.latency_ms = 900
+    primary.metadata.update(
+        {"health_score": 0.8, "rate_limit_headroom": 0.2, "budget_headroom": 0.7}
+    )
+    equivalent = _model("openai", "shared-model", account_id="account-b")
+    equivalent.latency_ms = 120
+    equivalent.metadata.update(
+        {"health_score": 0.99, "rate_limit_headroom": 0.9, "budget_headroom": 0.9}
+    )
+    config = OrchestrationConfig(
+        roles=[Role(id="worker", name="Worker")],
+        bindings=[
+            RouteBinding(
+                id="worker-equivalents",
+                role="worker",
+                model="openai:account-a:shared-model",
+                equivalent_deployments=["openai:account-b:shared-model"],
+            )
+        ],
+        settings=RoutingSettings(mode="strict"),
+    )
+    engine = _engine(config, primary, equivalent)
+
+    decision = engine.route(RoutingRequest(role="worker"))
+
+    assert decision.actual_model == "shared-model"
+    assert decision.account_id == "account-b"
+    assert decision.fallback_used is False
+    assert decision.reason == "equivalent_deployment_selected"
+    assert decision.selection_evidence["strategy"] == "equivalent_reliability"
+    assert decision.selection_evidence["selected"] == "openai:account-b:shared-model"
+
+
+def test_equivalent_set_cannot_substitute_a_different_model() -> None:
+    primary = _model("openai", "model-a", account_id="account-a", available=False)
+    different = _model("openai", "model-b", account_id="account-b")
+    config = OrchestrationConfig(
+        roles=[Role(id="worker", name="Worker")],
+        bindings=[
+            RouteBinding(
+                id="invalid-equivalent",
+                role="worker",
+                model="openai:account-a:model-a",
+                equivalent_deployments=["openai:account-b:model-b"],
+            )
+        ],
+        settings=RoutingSettings(mode="strict"),
+    )
+    engine = _engine(config, primary, different)
+
+    with pytest.raises(RoutingUnavailableError) as error:
+        engine.route(RoutingRequest(role="worker"))
+
+    assert error.value.reason == "unavailable"
+
+
+def test_unavailable_primary_can_use_explicit_same_model_equivalent_but_not_fallback() -> None:
+    primary = _model("openai", "shared-model", account_id="account-a", available=False)
+    equivalent = _model("openai", "shared-model", account_id="account-b")
+    fallback = _model("anthropic", "different-model")
+    config = OrchestrationConfig(
+        roles=[Role(id="worker", name="Worker")],
+        bindings=[
+            RouteBinding(
+                id="worker-equivalents",
+                role="worker",
+                model="openai:account-a:shared-model",
+                equivalent_deployments=["openai:account-b:shared-model"],
+                fallback_chain=["anthropic:different-model"],
+            )
+        ],
+        settings=RoutingSettings(mode="strict"),
+    )
+    decision = _engine(config, primary, equivalent, fallback).route(RoutingRequest(role="worker"))
+
+    assert decision.account_id == "account-b"
+    assert decision.fallback_used is False
+    assert decision.provider == "openai"
+
+
+def test_runtime_signal_updates_are_bounded_atomic_and_change_equivalent_selection() -> None:
+    registry = DynamicModelRegistry()
+    registry.register(_model("openai", "shared-model", account_id="account-a"))
+    registry.register(_model("openai", "shared-model", account_id="account-b"))
+    registry.update_runtime_signals(
+        "openai:account-a:shared-model",
+        health_score=0.7,
+        latency_ms=700,
+        rate_limit_headroom=0.1,
+        budget_headroom=0.1,
+    )
+    updated = registry.update_runtime_signals(
+        "openai:account-b:shared-model",
+        health_score=2.0,
+        latency_ms=80,
+        rate_limit_headroom=5.0,
+        budget_headroom=0.8,
+    )
+    assert updated.metadata["health_score"] == 1.0
+    assert updated.metadata["rate_limit_headroom"] == 1.0
+
+    config = OrchestrationConfig(
+        roles=[Role(id="worker", name="Worker")],
+        bindings=[
+            RouteBinding(
+                id="runtime-ranked",
+                role="worker",
+                model="openai:account-a:shared-model",
+                equivalent_deployments=["openai:account-b:shared-model"],
+            )
+        ],
+    )
+    decision = DeterministicRoutingEngine(config, registry).route(RoutingRequest(role="worker"))
+    assert decision.account_id == "account-b"
+
+    with pytest.raises(ValueError, match="finite"):
+        registry.update_runtime_signals("openai:account-b:shared-model", health_score=float("nan"))
+
+
+def test_malformed_cached_runtime_signals_use_safe_defaults() -> None:
+    primary = _model("openai", "shared-model", account_id="account-a")
+    primary.metadata.update({"health_score": "not-a-number", "rate_limit_headroom": None})
+    equivalent = _model("openai", "shared-model", account_id="account-b")
+    equivalent.metadata.update({"health_score": 0.5, "rate_limit_headroom": 0.5})
+    config = OrchestrationConfig(
+        roles=[Role(id="worker", name="Worker")],
+        bindings=[
+            RouteBinding(
+                id="safe-defaults",
+                role="worker",
+                model="openai:account-a:shared-model",
+                equivalent_deployments=["openai:account-b:shared-model"],
+            )
+        ],
+    )
+
+    decision = _engine(config, primary, equivalent).route(RoutingRequest(role="worker"))
+    assert decision.actual_model == "shared-model"
+    assert decision.selection_evidence["scores"]
     assert decision.actual_model == "shared-model"
     assert decision.fallback_used is False
     assert decision.fallback_trigger is None
@@ -363,6 +506,29 @@ def test_sensitive_custom_headers_must_use_encrypted_credentials(tmp_path: Path)
         service.replace_config(service.config)
 
 
+def test_config_rejects_known_equivalent_that_changes_model_identity(tmp_path: Path) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    invalid = OrchestrationConfig(
+        providers=service.config.providers,
+        models=[
+            _model("openai", "model-a", account_id="openai-main"),
+            _model("openai", "model-b", account_id="openai-main"),
+        ],
+        roles=[Role(id="worker", name="Worker")],
+        bindings=[
+            RouteBinding(
+                id="bad-equivalence",
+                role="worker",
+                model="openai:openai-main:model-a",
+                equivalent_deployments=["openai:openai-main:model-b"],
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="changes model identity"):
+        service.replace_config(invalid)
+
+
 def test_replace_config_validates_effective_layers_before_persisting(tmp_path: Path) -> None:
     global_path = tmp_path / "global.json"
     project_path = tmp_path / "project.json"
@@ -442,9 +608,7 @@ def test_credential_write_preserves_layered_config_boundaries(tmp_path: Path) ->
         telemetry=ExecutionTelemetryStore(),
     )
 
-    assert service.put_credential(
-        "shared-openai", {"api_key": "test-secret"}, layer="project"
-    ) == (
+    assert service.put_credential("shared-openai", {"api_key": "test-secret"}, layer="project") == (
         "provider:shared-openai"
     )
 
@@ -457,7 +621,9 @@ def test_credential_write_preserves_layered_config_boundaries(tmp_path: Path) ->
     assert service.config.settings.mode == "strict"
 
 
-def test_provider_accounts_and_credentials_persist_across_restarts(tmp_path: Path, monkeypatch) -> None:
+def test_provider_accounts_and_credentials_persist_across_restarts(
+    tmp_path: Path, monkeypatch
+) -> None:
     state_dir = tmp_path / "state"
     workspace_a = tmp_path / "workspace-a"
     workspace_b = tmp_path / "workspace-b"
@@ -480,9 +646,12 @@ def test_provider_accounts_and_credentials_persist_across_restarts(tmp_path: Pat
 
     assert stored_account["id"] == account_id
     assert reference == "provider:openai-main"
-    assert json.loads((state_dir / "user.json").read_text(encoding="utf-8"))["providers"][0][
-        "credential_ref"
-    ] == reference
+    assert (
+        json.loads((state_dir / "user.json").read_text(encoding="utf-8"))["providers"][0][
+            "credential_ref"
+        ]
+        == reference
+    )
     assert not (workspace_a / ".cutctx" / "orchestration.json").exists()
 
     monkeypatch.chdir(workspace_b)
@@ -901,7 +1070,9 @@ def test_direct_execution_route_is_explicitly_opt_in(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_workflow_execution_uses_role_bound_service_and_persists_output(tmp_path: Path) -> None:
+async def test_workflow_execution_uses_role_bound_service_and_persists_output(
+    tmp_path: Path,
+) -> None:
     service = _service(tmp_path, {"openai": {"answer": "implemented"}, "anthropic": {}})
     store = WorkflowStateStore(tmp_path / "workflows.json")
     spec = WorkflowSpec(
@@ -1086,6 +1257,22 @@ def test_provider_health_only_changes_the_matching_account_models() -> None:
     assert account_b is not None and account_b.available is True
 
 
+@pytest.mark.asyncio
+async def test_account_health_probe_updates_reliability_and_latency_signals(tmp_path: Path) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    await service.refresh_models("openai-main")
+
+    result = await service.test_account("openai-main")
+    model = service.model_registry.get("openai:openai-main:openai-model")
+
+    assert result["ok"] is True
+    assert model is not None
+    assert model.available is True
+    assert model.reliability == 1.0
+    assert model.latency_ms == pytest.approx(1.0)
+    assert model.metadata["health_score"] == 1.0
+
+
 def test_disabled_explicit_provider_account_cannot_execute(tmp_path: Path) -> None:
     service = _service(tmp_path, {"openai": {}, "anthropic": {}})
     decision = service.route(RoutingRequest(role="worker"))
@@ -1211,7 +1398,9 @@ async def test_streaming_falls_back_when_account_setup_fails_before_first_byte(
 
 
 @pytest.mark.asyncio
-async def test_streaming_uses_a_total_attempt_deadline_not_per_chunk_timeout(tmp_path: Path) -> None:
+async def test_streaming_uses_a_total_attempt_deadline_not_per_chunk_timeout(
+    tmp_path: Path,
+) -> None:
     service = _service(tmp_path, {"openai": {}, "anthropic": {}})
     service.config.settings.timeout_seconds = 0.025
 

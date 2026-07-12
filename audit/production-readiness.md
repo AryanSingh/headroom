@@ -1,279 +1,418 @@
-# Production Readiness Assessment — 2026-07-10
+# Cutctx — Production Readiness Assessment
 
-**Project:** Cutctx (headroom) — Context compression layer for AI agents
-**Version:** v0.30.0 (pyproject.toml)
-**HEAD:** `418ae99a`
-**Method:** Independent 6-dimension audit via codebase recon, config analysis, test assessment, and dependency audit. Supersedes prior audits (Jul 2-6 reports referenced for delta tracking).
-
----
-
-## Overall Score: **79 / 100** (+16 from Jul 4's 63; -7 from Jul 4's release-audit 86 due to broader scope including billing/support/enterprise readiness)
-
-| Dimension | Score | Trend | Verdict |
-|-----------|-------|-------|---------|
-| 1. Missing Features | 70/100 | +5 | Stubs remain but license validation no longer hardcoded True |
-| 2. Security | 88/100 | +10 | All 5 critical items fixed. HMAC, loopback bypass, CORS issues resolved |
-| 3. Performance | 72/100 | +2 | N+1 queries remain in graph, no pricing cache |
-| 4. Deployment | 78/100 | +23 | v0.30.0 tagged, version alignment fixed, CI/CD robust |
-| 5. Testing | 92/100 | +24 | ~7,924+ passing, 0 failures last audit sweep |
-| 6. Monitoring | 72/100 | +34 | OTEL, Prometheus, Langfuse wired — still missing error tracking |
+**Date:** 2026-07-10
+**Scope:** Cutctx v0.30.x — Python proxy + Rust proxy + React dashboard + k8s deployment
+**Assessment type:** 6-domain deep-dive (missing features, security, performance, deployment, testing, monitoring)
+**Score: 58/100** — 🟡 CONDITIONAL PASS (not production-safe without addressing 8 blocking items)
 
 ---
 
-## 1. Missing Features — 70/100
+## Readiness Score Breakdown
 
-### What's good
-- Core compression pipeline (17 strategies) fully implemented: SmartCrusher, CodeCompressor, Kompress, CacheAligner, ContentRouter
-- CCR reversible compression with retrieval tool — production ready
-- Cross-agent memory (SQLite + USearch + Qdrant + Neo4j backends)
-- Multi-provider support: Anthropic, OpenAI, Gemini, Bedrock, LiteLLM
-- Dashboard SPA with savings tracking, governance, capabilities toggles
-- CLI with 34+ commands, agent wrap for 14 tools, MCP server
-- `cutctx learn` for agent self-improvement
+| Dimension | Weight | Score | Assessment |
+|-----------|--------|-------|------------|
+| Missing Features | 15% | 60 | Gemini passthrough, no auth enforcement, SDK gaps |
+| Security Gaps | 25% | 45 | 2 CRITICAL findings; API key unrotated since July 8 |
+| Performance | 20% | 65 | Good compression perf; TTFT unmeasured, cache bottlenecks |
+| Deployment Readiness | 20% | 70 | K8s manifests solid, placeholder values, no staging separation |
+| Testing Gaps | 10% | 55 | Rust coverage invisible, no load tests, no thresholds |
+| Monitoring & Observability | 10% | 50 | Health checks thorough, minimal alerting, no error tracking |
 
-### CRITICAL stubs
-| Issue | Detail | Impact |
-|-------|--------|--------|
-| **5 EE stub routes return 501** | memory RBAC, license, SSO routes in OSS mode | OSS users hit 501 from documented paths |
-| **License validation still no-op** | `cutctx_ee/watermark.py:195` validates but doesn't deny service | Any key passes |
-| **20+ features default-off** | Firewall, ensemble, episodic memory, autopilot, OTEL, Langfuse, etc. | Proxy boots near-pass-through by default |
-
-### MEDIUM
-- 8 stub-EE modules raise `ImportError` instead of graceful 501
-- Some enterprise routes silently 404 when EE missing (no error message)
-- Cutctx.dev NXDOMAIN (all emails bounce, no website, no docs site)
+**Overall: 58/100** — Not production-safe. 8 blocking items must be resolved before cut-over.
 
 ---
 
-## 2. Security — 88/100
+## Scoring Methodology
 
-### What's been verified fixed (since Jul 2-4 audits)
-- ✅ Loopback auth bypass closed for `/dashboard`, `/api/savings`, `/api/models`
-- ✅ LIKE wildcard injection guard (`_escape_like()` + `ESCAPE "\"` clause)
-- ✅ Kompress max-input DoS guard (`CUTCTX_KOMPRESS_MAX_WORDS`)
-- ✅ CORS wildcard + credentials conflict resolved (`credentials=False` when `origins=["*"]`)
-- ✅ Health endpoint split: public `/health` (no config leak) vs admin-gated `/health/config`
-- ✅ HMAC audit chain fixed: `hmac.new(secret, msg, hashlib.sha256)` — was plain SHA-256
-- ✅ Residency verification via `hashlib.sha256().digest()`
-- ✅ DSR imports with honest gated fallbacks
-- ✅ EgressEnforcer wired at 15+ call sites
-- ✅ Fernet AES-128-CBC + HMAC-SHA256 encryption for local state
-- ✅ No real hardcoded secrets in source
+Each dimension scored 0-100 based on:
+- **0-30**: Critical gaps that will cause production incidents
+- **31-50**: Major gaps requiring immediate remediation
+- **51-70**: Functional but risky — should address before go-live
+- **71-85**: Production-capable with acceptable residual risk
+- **86-100**: Production-hardened with mature operational practices
 
-### Still open — HIGH
-| Issue | Detail | Risk |
-|-------|--------|------|
-| **License validation no-op** | Validates but doesn't enforce. Paying customer bypasses license check. | Revenue loss |
-| **Cross-project memory leak** | Tenant isolation not enforced in memory backends | Data leak in multi-tenant |
-| **CCR retrieval endpoints no admin auth** | `/v1/retrieve/*` protected by entitlement only | Unauthorized content access |
-| **`/v1/feedback` no admin auth** | Feedback endpoint unprotected | Data injection |
-| **SQL injection in eval harness** | `batch_compression_eval.py:689` — `f"SELECT * FROM users WHERE id = {user_id}"` | Non-production but concerning pattern |
-| **Exception text leaked in 500s** | 5 sites return raw `str(e)` in HTTP response | Info disclosure |
-
-### Still open — MEDIUM
-- Stripe webhook fall-open if `STRIPE_WEBHOOK_SECRET` unset
-- X-Cutctx-Version header on every response (CVE recon)
-- Machine-bound encryption default (same machine-id = decrypt)
-- No SAML SSO (OIDC only)
-- No WebAuthn (TOTP only)
-- 2 license formats coexist (Ed25519 + ECDSA P-256)
-- Spend ledger tenant isolation missing
-- NetworkPolicy allows egress to 0.0.0.0/0
-- License DB world-readable (no chmod 600)
+Weighted average reflects relative blast radius (security weighted highest at 25%).
 
 ---
 
-## 3. Performance — 72/100
+## 1. Missing Features & Stubs ⚠️ 60/100
 
-### What's well-optimized
-- ✅ 50 MB body cap with Content-Length precheck + post-decompression verification
-- ✅ Bounded data structures: `_retrieval_events` (MAX_EVENTS=1000), search_queries cap=10
-- ✅ LRU eviction via min-heap in compression store
-- ✅ Session replay bounded (256 sessions × 200 events)
-- ✅ Request logger bounded (deque maxlen=10,000)
-- ✅ Image base64 redaction before persistence
-- ✅ 11 indexes on `memories` table
+### Critical Gaps
 
-### Critical
-| Issue | Detail | Impact |
-|-------|--------|--------|
-| **N+1 graph BFS queries** | `sqlite_graph.py:432-441` — one round-trip per entity instead of `WHERE id IN (...)` | O(visited²) queries for max_hops=2 |
-| **N+1 Neo4j embedding calls** | `direct_mem0.py:475-535` — 2N embed API + N Cypher per batch | Multi-second latency per memory write |
+| # | Feature | Status | Impact | Blocker? |
+|---|---------|--------|--------|----------|
+| 1 | Gemini compression in Rust proxy | ❌ All Gemini requests bypass compression (no `live_zone_gemini.rs`) | Gemini users get zero value from Rust proxy. Entire segment unserved. | 🟡 Med |
+| 2 | RBAC enforcement in OSS build | ❌ `rbac.py` is a 30-line shim re-exporting from `cutctx_ee` | No authorization for admin endpoints in OSS. Any request with a valid admin key gets full access. | 🔴 YES |
+| 3 | `CutctxClient.from_env()` factory | ❌ Missing. Best path is 4+ lines of manual `os.environ.get()` | Unnecessary onboarding friction for SDK users. | 🟢 Low |
+| 4 | Config doctor / `config validate` | ❌ `config-check` exists but doesn't detect all misconfigurations | Users deploy with invalid configurations, fail at runtime. | 🟡 Med |
 
-### HIGH
-| Issue | Detail |
-|-------|--------|
-| Missing index: `workspace_id`, `project_id` on `memories` | Every per-tenant query = full table scan |
-| Missing index: `actor`, `action`, `timestamp` on audit | Audit queries = full table scan |
-| No TTL eviction on `ccr_entries` | Dead rows accumulate unboundedly |
-| No pricing cache | `_get_list_price()` called on every stats hit |
-| Sync file IO in async request path | `chat.py:1339`, `anthropic.py:2349` — blocks event loop |
-| 2-query per audit append | SELECT prior hash + INSERT — could be batched |
-| Unbounded dict growth in cost tracker | `proxy/cost.py:752-767, 869-888` — no eviction policy |
+### Stubs & Placeholder Values
+
+| # | Location | Stub | Risk |
+|---|----------|------|------|
+| 5 | `k8s/secret.yaml` | `YOUR_LICENSE_KEY_HERE`, `YOUR_ADMIN_API_KEY_HERE`, `YOUR_UPSTREAM_API_KEY_HERE` | Deploying without replacing these = instant misconfiguration |
+| 6 | `k8s/ingress.yaml` | `cutctx.example.com` host, TLS secret `cutctx-tls` referenced but not created | Will deploy but serve nothing useful |
+| 7 | `docker-compose.yml` | `NEO4J_AUTH=${NEO4J_AUTH:-neo4j/REPLACE_WITH_STRONG_PASSWORD}` | Production deployment with default password is a breach waiting |
+| 8 | `.env.example` | `CUTCTX_UPSTREAM_*_API_KEY=` (empty) | No guidance on minimum required keys |
+| 9 | Rust proxy `proxy.rs:764` | Passthrough for non-Anthropic/OpenAI paths | Gemini/Bedrock/Vertex users get zero compression value from Rust proxy |
 
 ---
 
-## 4. Deployment — 78/100
+## 2. Security Gaps 🔴 45/100
 
-### What's strong
-- ✅ **v0.30.0 tagged and released** — version alignment issue from Jul 4 audit is resolved
-- ✅ 24 CI/CD workflows — paths-filter, parallel test shards, lint/test/build staged
-- ✅ Release pipeline: tag-driven with matrix wheels, SBOM generation, PyPI trusted publishing
-- ✅ Full k8s manifests: deployment, service, ingress, HPA, PDB, network policy, ConfigMap, Secret, RBAC, backup CronJob, PrometheusRule, fluent-bit, PVC, namespace
-- ✅ Docker multi-stage build with distroless runtime option + HEALTHCHECK
-- ✅ docker-compose (proxy + qdrant + neo4j) with healthcheck
-- ✅ Helm chart (Chart.yaml, templates for all resources, values.yaml)
-- ✅ Release-please configured
-- ✅ Pre-commit hooks: ruff, mypy, text hygiene, dashboard lint, version sync
-- ✅ Makefile with ci-precheck target
+### Critical (Blocker)
 
-### Still open
-| Issue | Severity | Detail |
-|-------|----------|--------|
-| **Working tree dirty** | HIGH | Many modified files from release-prep work. Risk of unintended changes. |
-| **Ingress placeholder domain** | MEDIUM | `cutctx.example.com` — requires per-deployment customization |
-| **`hello@cutctx.dev` in k8s/secret.yaml** | MEDIUM | Domain is NXDOMAIN. License keys reference dead email. |
-| **cutctx.dev / cutctx.com both NXDOMAIN** | HIGH | All docs links, security contacts, and copyright notices point at unreachable domains |
-| **No dependency vulnerability scanning** | MEDIUM | Dependabot configured for updates but no CVE scanning in CI |
-| **No release SBOM verification** | LOW | SBOM generated but no signature verification in pipeline |
-| **Helm Chart.yaml vs values.yaml drift** | LOW | `Chart.yaml@0.30.0` matches `values.yaml@0.30.0` — fixed since Jul 4 |
+| # | Finding | File:Line | Severity | Status Since July 8 |
+|---|---------|-----------|----------|---------------------|
+| PR-1 | **OpenAI API key still hardcoded in `.env.local`** — `sk-proj-nmPPq82Vld...` | `.env.local:26` | 🔴 CRITICAL | ❌ **Not rotated** |
+| PR-2 | **MFA store failure silently allows request through** — when `_topt_store.get_user` raises, the `except Exception` at `server.py:3236` marks TOTP as "verified" | `server.py:3236-3241` | 🔴 CRITICAL | ❌ Not fixed |
 
----
+**Remediation:** Rotate key NOW. Add CI pre-commit hook scanning for `sk-` patterns. For PR-2, change catch to re-raise or fail-closed.
 
-## 5. Testing — 92/100
+### High
 
-### What's solid
-- ✅ **~550 test files, ~2,650 Python test functions + Rust tests** — massive coverage
-- ✅ **Prior audit sweep: 7,924 passed, 0 failed, 258 skipped** (365s runtime)
-- ✅ P0 cluster (CCR, content router, capability extensions): 91/91 passed
-- ✅ Security cluster (egress enforcer, firewall, residency): 28/28 passed
-- ✅ Dashboard e2e via Playwright: passing
-- ✅ Audit HMAC regression test exists
-- ✅ Code coverage tracking via Codecov (target: auto)
-- ✅ Fuzz testing setup (`fuzz/`)
-- ✅ Pre-commit hooks enforcing ruff, mypy, text hygiene
-- ✅ Benchmark suite (`cargo bench`, `benchmarks/`)
-- ✅ Parity tests ensuring Python ↔ Rust behavioral equivalence
+| # | Finding | File:Line | Severity |
+|---|---------|-----------|----------|
+| PR-3 | **Admin API key leaked to stderr** — `sys.stderr.write(admin_api_key)` at startup. Docker/k8s log collectors capture all stderr. | `server.py:3177` | 🟠 HIGH |
+| PR-4 | **RBAC OSS shim** — `rbac.py` imports from `cutctx_ee.rbac`. If EE not installed, permission checks silently pass. | `cutctx/rbac.py` | 🟠 HIGH |
+| PR-5 | **No SSRF protection** — upstream URL forwarding accepts any `base_url` without private IP validation. Proxy can be used to scan internal networks. | `server.py` proxy forwarding | 🟠 HIGH |
 
-### Gaps
-| Issue | Severity | Detail |
-|-------|----------|--------|
-| **22/22 EE modules untested** | HIGH | 3,939 LOC of enterprise-only code with zero test coverage |
-| **7 proxy routes untested** | MEDIUM | Enterprise-focused routes (license validation, SSO endpoints) |
-| **59 `time.sleep()` calls in tests** | MEDIUM | Flaky under load — should use proper wait/retry |
-| **6 hard-skipped tests with no reason** | LOW | Skipped with no `skipif` condition or comment |
-| **No chaos testing in regular CI** | LOW | Chaos-testing workflow exists but is separate |
-| **Integration tests require API keys** | MEDIUM | Many live tests skip without `OPENAI_API_KEY` etc. |
+### Medium
+
+| # | Finding | File:Line | Severity |
+|---|---------|-----------|----------|
+| PR-6 | `CUTCTX_ALLOW_DEBUG=1` in `.env.local` — allows debugger attachment in production-like environments | `.env.local:36` | 🟡 MEDIUM |
+| PR-7 | `CUTCTX_LOG_MESSAGES=1` in `.env.local` — logs full request/response bodies (PII leak risk) | `.env.local:51` | 🟡 MEDIUM |
+| PR-8 | `deny.toml`: `multiple-versions = "allow"`, `wildcards = "allow"` — no version dedup enforcement | `deny.toml:27-28` | 🟡 MEDIUM |
+| PR-9 | No CI/CD secret scanning — `cargo audit`, `gitleaks`, `pip-audit` not run in any workflow | CI pipeline | 🟡 MEDIUM |
+| PR-10 | OIDC fail-open auth — `rbac.py` defaults to allow when `cutctx_ee.rbac` not present | `rbac.py:143` | 🟡 MEDIUM |
+
+### Low
+
+| # | Finding | File:Line | Severity |
+|---|---------|-----------|----------|
+| PR-11 | CORS config empty but no warning when CORS is wide open in dev | `server.py:2758-2766` | 🟢 LOW |
+| PR-12 | `.gitignore` doesn't explicitly list `.env.local` (though it's in `.gitignore` via a pattern) | `.gitignore` | 🟢 LOW |
+| PR-13 | No network policy for egress to LLM providers (k8s egress allows all TCP) | `k8s/network-policy.yaml:21-27` | 🟢 LOW |
 
 ---
 
-## 6. Monitoring — 72/100
+## 3. Performance Issues ⚡ 65/100
 
-### What's implemented
-- ✅ `/livez`, `/readyz`, `/health` endpoints with per-component health checks
-- ✅ Prometheus scrape config in k8s (`prometheus.io/scrape: "true"`)
-- ✅ PrometheusRule alerts (HighErrorRate >5% 5xx, HighLatency p99 >2s)
-- ✅ OTEL metrics system (`cutctx_otel_metrics`) with structured counters
-- ✅ Langfuse tracing support
-- ✅ Runtime metrics exposed (compression queue depth, wait times, leaked threads)
-- ✅ WebSocket session tracking in health endpoint
-- ✅ Dashboard with cache-busting fetches
-- ✅ SBOM generation in CI
-- ✅ Structured logging with JSON format option
-- ✅ `X-Request-ID` propagation through proxy
+### Measured Latency Budget
 
-### Critical gaps
-| Issue | Detail | Impact |
-|-------|--------|--------|
-| **No centralized error tracking** | Sentry/OTel exporter not wired | Errors only visible in stderr logs — no alerting on exceptions |
-| **No Prometheus /metrics for 3 new subsystems** | Feedback Loop, Stack Graphs, Benchmark CLI shipped without instrumentation | Cannot observe adoption or performance of new features |
-| **PrometheusRule only has 2 alerts** | No alerts for: backup failure, license expiry, high queue depth, disk usage | Silent failures in critical operational paths |
+| Component | Latency | Rating | Notes |
+|-----------|---------|--------|-------|
+| SmartCrusher | 0.22 ms | 🟢 Excellent | Sub-millisecond, well within budget |
+| ContentRouter | 65.61 ms | 🟡 Slow | Model routing dispatch dominates per-request cost |
+| Pipeline apply() | Varies | 🟡 Acceptable | Bounded by ThreadPoolExecutor; leaked-thread tracking in place |
+| Full body buffering | Body-size-dependent | 🟡 Acceptable | By design for live-zone architecture |
+| Semantic cache lock | Single asyncio.Lock | 🔴 Bottleneck | Serializes all cache ops; stats() also acquires lock |
 
-### MEDIUM gaps
-- No health-check endpoint specific to new features
-- No dashboard alerting or notification channels
-- `request_id` not wired into `logging.Filter` / `contextvars` — log correlation by request is manual
-- No log shipping config in docker-compose (fluent-bit exists in k8s only)
-- No operator health view in dashboard
+### Critical Issues
+
+| # | Finding | File:Line | Impact |
+|---|---------|-----------|--------|
+| PR-14 | **TTFT hardcoded to `ttfb_ms=0`** — no actual time-to-first-token measurement | Python & Rust proxy | Cannot detect latency regressions. No TTFT telemetry. |
+| PR-15 | **Semantic cache single `asyncio.Lock`** — serializes all cache operations. `stats()` also acquires the lock, causing dashboard polling to compete with request-path | `cutctx/proxy/semantic_cache.py` | Lock contention under high concurrency |
+
+### Medium Issues
+
+| # | Finding | File:Line | Impact |
+|---|---------|-----------|--------|
+| PR-16 | 5 Python SQLite backends missing WAL mode — concurrent access risks `SQLITE_BUSY` | Multiple (see database analysis) | Intermittent failures under load |
+| PR-17 | No Python-level load tests — only config-level assertions in `test_proxy_scalability.py` | `tests/test_proxy_scalability.py` | Cannot detect throughput regressions |
+| PR-18 | `server.py` 7,903-line monolith with 69 bare `except Exception:` — any exception in compression silently caught | `server.py` various | Hard to debug production failures |
+| PR-19 | Compression buffers entire request body — no streaming compression | All providers | Higher time-to-first-token vs streaming approach |
+
+### Benchmarks (from benchmark_results.md)
+
+| Metric | Value | Assessment |
+|--------|-------|------------|
+| SmartCrusher avg latency | 0.22 ms | 🟢 Excellent |
+| ContentRouter avg latency | 65.61 ms | 🟡 Needs optimization |
+| Gemini compression | Not implemented | 🔴 Gap |
+| Streaming TTFT measurement | Hardcoded to 0 | 🔴 Gap |
+| Python proxy concurrent capacity | Unknown (no load test) | 🔴 Gap |
 
 ---
 
-## Channel-Specific Readiness
+## 4. Deployment Readiness 🚀 70/100
 
-| Channel | Score | Verdict | Critical Path |
-|---------|-------|---------|---------------|
-| **Internal dev / staging** | 88/100 | ✅ **GO** | Fix working tree dirtiness before CI |
-| **Design-partner pilot** | 79/100 | ⚠️ **CONDITIONAL GO** | Fix NXDOMAIN, fix license enforcement, wire error tracking |
-| **Public OSS release** | 72/100 | ⚠️ **CONDITIONAL** | Fix billing pipeline, register cutctx.dev, fix 3 HIGH security items |
-| **Paid enterprise** | 58/100 | ❌ **NO-GO** | SAML, WebAuthn, SOC 2, pentest, tenant isolation, SLA tooling — 2-3 months |
+### Strengths
+
+| Area | Detail | Status |
+|------|--------|--------|
+| K8s Deployment | Full manifest set: deployment, service, ingress, HPA, PDB, network policy, configmap, secret, PVC, namespace, RBAC | ✅ Complete |
+| Dockerfile | Multi-stage build (slim→distroless), multi-arch (amd64 + arm64), efficient caching | ✅ Production-quality |
+| Docker Compose | Single-node dev deployment with Qdrant + Neo4j | ✅ Functional |
+| Health probes | liveness (`/livez`), readiness (`/readyz`), startup probe all configured | ✅ Complete |
+| HPA | CPU (70%) + memory (80%) autoscaling, 2-10 replicas, stabilization windows | ✅ Production-ready |
+| PDB | `minAvailable: 1` ensures HA during voluntary disruptions | ✅ Production-ready |
+| Security context | `runAsNonRoot`, seccomp, `readOnlyRootFilesystem`, capabilities drop | ✅ Hardened |
+| Backup CronJob | Daily SQLite backup of 17 stores to S3, 30-day retention | ✅ Complete |
+| CI/CD | 25+ workflows — CI, Docker, Rust, release, e2e, benchmark, chaos, sign-artifacts | ✅ Comprehensive |
+
+### Critical Gaps
+
+| # | Finding | Detail | Blocker? |
+|---|---------|--------|----------|
+| PR-20 | **Placeholder values in k8s secrets** — `k8s/secret.yaml` has `YOUR_LICENSE_KEY_HERE`, `YOUR_ADMIN_API_KEY_HERE`, `YOUR_UPSTREAM_API_KEY_HERE` | Fresh deploy without replacement = no effective auth | 🔴 YES |
+| PR-21 | **No staging/production env separation** — single configmap, single namespace. No way to validate changes before prod | `k8s/configmap.yaml`, `k8s/namespace.yaml` | 🟡 Med |
+| PR-22 | **No canary deployment strategy documented** — `maxSurge: 1, maxUnavailable: 0` RollingUpdate is safe but no documented canary process | `k8s/deployment.yaml:12-16` | 🟢 Low |
+| PR-23 | **Ingress TLS secret referenced but not created** — `k8s/ingress.yaml` references `cutctx-tls` which isn't in the manifest set | Ingress will fail to get TLS without manual cert creation | 🟡 Med |
+| PR-24 | **No external secrets operator integration** — k8s `Secret` uses Opaque type with inline stringData | Secrets visible in plaintext to anyone with kubectl access | 🟡 Med |
+
+### Env Var Validation
+
+| Variable | Required? | Production Default | Status |
+|----------|-----------|-------------------|--------|
+| `CUTCTX_ADMIN_API_KEY` | YES | — | k8s secret has placeholder |
+| `CUTCTX_AUDIT_SECRET_KEY` | YES | — | ✅ env.example documents generation |
+| `CUTCTX_UPSTREAM_ANTHROPIC_API_KEY` | YES (for Anthropic) | — | k8s secret has placeholder |
+| `CUTCTX_UPSTREAM_OPENAI_API_KEY` | YES (for OpenAI) | — | k8s secret has placeholder |
+| `CUTCTX_LICENSE_KEY` | YES (EE) | — | k8s secret has placeholder |
+| `NEO4J_AUTH` | YES (if Neo4j used) | Must be set | docker-compose has fallback to `REPLACE_WITH_STRONG_PASSWORD` |
+| `CUTCTX_ALLOW_DEBUG` | NO | `0` | ✅ ConfigMap sets correctly |
+| `CUTCTX_TELEMETRY_ENABLED` | NO | `false` | ✅ ConfigMap sets correctly |
+
+---
+
+## 5. Testing Gaps 🧪 55/100
+
+### Coverage Summary
+
+| Area | Tests | CI Coverage | Threshold | Assessment |
+|------|-------|-------------|-----------|------------|
+| Python (pytest) | ~8,200 functions, 426 files | Partial (`--cov` not in main CI shards) | `target: auto` (no floor) | 🟡 Acceptable |
+| Rust (cargo test) | 864 unit + 44 integration files = 12K lines | ❌ **Not measured** | None | 🔴 Gap |
+| E2E (Playwright) | 1 file + Docker-based | ✅ Runs in CI | N/A | 🟢 Good |
+| Benchmarks | 31 files, ~19K lines | ✅ Runs in CI | N/A | 🟢 Good |
+| Chaos testing | Nightly k8s | ✅ Runs nightly | N/A | 🟢 Excellent |
+
+### Critical Gaps
+
+| # | Finding | Detail | Blocker? |
+|---|---------|--------|----------|
+| PR-25 | **Rust coverage not tracked** — `rust.yml` runs tests but no `cargo-tarpaulin`, no Codecov upload | Zero visibility into Rust code coverage. All 8 July-8 findings still open. | 🔴 YES |
+| PR-26 | **No coverage thresholds** — `codecov.yml` uses `target: auto`, no `fail_under` in `pyproject.toml` | Coverage can silently regress without blocking merges | 🟡 Med |
+| PR-27 | **No Python-level load tests** — `test_proxy_scalability.py` only asserts on config objects | Throughput and latency regressions go undetected | 🟡 Med |
+| PR-28 | **`test_memory_system.py` still 1,831 lines** — not split since July 8 audit | Slow test runs, cross-test contamination risk | 🟢 Low |
+
+### Medium Issues
+
+| # | Finding | Detail |
+|---|---------|--------|
+| PR-29 | No `conftest.py` in `cutctx/tests/` — 7 test files with no shared fixtures | Duplicated setup code in OSS subpackage |
+| PR-30 | pytest-split without `.test_durations` file — shards may be unbalanced | Uneven CI runtime distribution |
+| PR-31 | 69 bare `except Exception:` in `server.py` with no test covering the error paths | Silent failures in production undetectable by tests |
+
+---
+
+## 6. Monitoring & Observability 📊 50/100
+
+### Health Checks — 🟢 Strong
+
+| Endpoint | Depth | Implementation |
+|----------|-------|----------------|
+| `/livez` | Process liveness | Returns 200 with runtime payload |
+| `/readyz` | Traffic readiness | Checks upstream connectivity + component health |
+| `/health` | Aggregate health | Same as readyz |
+| `/health/config` | Full config dump | Includes all config values (auth-gated) |
+| `/metrics` | Prometheus | PrometheusMetrics class with compression executor metrics, WS sessions, etc. |
+
+**Health check components monitored:**
+- Startup status
+- HTTP client availability
+- Cache readiness
+- Rate limiter readiness
+- Memory handler status
+- Upstream connectivity (with TTL caching)
+
+### Strengths
+
+| Area | Detail | Status |
+|------|--------|--------|
+| Prometheus scraping | Pod annotations (`prometheus.io/scrape: "true"`) | ✅ Configured |
+| PrometheusRules | 2 alerts: HighErrorRate (>5% 5xx, 5m), HighLatency (p99 >2s, 5m) | ✅ Basic coverage |
+| FluentBit | DaemonSet for log collection from all nodes | ✅ Configured |
+| Compression metrics | `_compression_metrics_lock` tracks queued, in-flight, timeouts, leaked threads | ✅ Detailed |
+| WS session tracking | Active sessions + relay task counts | ✅ Detailed |
+| Backup | Daily CronJob with 17 DBs, S3 push, 30-day retention | ✅ Production-grade |
+| Startup banner | Comprehensive component status at proxy startup | ✅ Informative |
+
+### Critical Gaps
+
+| # | Finding | Detail | Blocker? |
+|---|---------|--------|----------|
+| PR-32 | **No error tracking** — no Sentry, no Datadog, no error aggregation | Production errors require manual log inspection to detect | 🟡 Med |
+| PR-33 | **Alerting is minimal** — only 2 PrometheusRules. No alert for: pod crash, backup failure, upstream outage, compression failure rate, disk usage, certificate expiry | Operators won't know about most incident types | 🔴 YES |
+| PR-34 | **No SLI/SLO definitions** — no documented targets for availability, latency, compression ratio | No way to measure if the service is meeting its promises | 🟡 Med |
+| PR-35 | **No synthetic monitoring** — no uptime checks, no canary requests, no automated health validation | Production issues discovered only when users report them | 🟡 Med |
+| PR-36 | **No centralized dashboard** — k8s deployment has no Grafana dashboard or operational dashboard beyond the Cutctx React dashboard | Operators must cobble together kubectl + Prometheus for visibility | 🟡 Med |
+| PR-37 | **No PagerDuty/Opsgenie/Webhook integration** — PrometheusRules don't have alertmanager receivers configured | Alerts fire but nobody gets notified | 🔴 YES |
+
+### Missing vs Existing
+
+| Capability | Status | Notes |
+|-----------|--------|-------|
+| Application-level health checks | ✅ Complete | /livez, /readyz, /health |
+| Prometheus metrics | ✅ Present | Compression, WS, executor metrics |
+| PrometheusRules alerts | ⚠️ Basic | Only 2 rules, no notification routing |
+| Structured logging | ✅ Present | JSON-formatted via structlog |
+| Log aggregation (FluentBit) | ✅ Configured | DaemonSet deployed |
+| Error tracking (Sentry) | ❌ Missing | No error telemetry |
+| Uptime monitoring | ❌ Missing | No synthetic checks |
+| SLA/SLO tracking | ❌ Missing | No documented targets |
+| Incident response | ❌ Missing | No runbooks, no escalation |
+| PagerDuty/Opsgenie | ❌ Missing | No notification channel |
+| Grafana dashboard | ❌ Missing | No operational dashboard |
+| Trace propagation | ❌ Missing | No distributed tracing |
+| Cost monitoring | ✅ Present | Savings tracking built-in |
+
+---
+
+## Blocking Items Summary
+
+These 8 items must be resolved before the service is considered production-safe:
+
+| # | Dimension | Item | Effort | Risk if Deferred |
+|---|-----------|------|--------|------------------|
+| B-1 | 🔴 Security | Rotate exposed OpenAI API key + CI secret scanning | 2h | Account takeover, credential abuse |
+| B-2 | 🔴 Security | Fix MFA fail-open (`server.py:3236-3241`) | 1h | Auth bypass |
+| B-3 | 🟠 Security | Fix admin API key stderr leak (`server.py:3177`) → `/dev/tty` or file | 1h | Credential leak to container logs |
+| B-4 | 🟠 Security | Add SSRF protection (private IP blocklist on upstream URLs) | 3h | Internal network scanning |
+| B-5 | 🟠 Security | Add `cargo audit` + `gitleaks` to CI/CD workflows | 2h | Supply chain attacks undetected |
+| B-6 | 🟡 Deployment | Replace all placeholder values in `k8s/secret.yaml` before deploy | 1h | Deploy with no effective auth |
+| B-7 | 🟡 Monitoring | Configure Alertmanager receivers (PagerDuty/Slack/email) for existing PrometheusRules | 1d | Alerts fire, nobody responds |
+| B-8 | 🟡 Testing | Add Rust coverage to CI (`cargo-tarpaulin` → Codecov) | 2d | Zero visibility into 74K lines of Rust |
 
 ---
 
 ## Prioritized Action Plan
 
-### P0 — Must fix before next ship (1-2 days)
-| # | Item | Area | Effort |
-|---|------|------|--------|
-| 1 | **Register cutctx.dev** — all emails bounce, docs links dead, security contact unreachable | Deployment | 1h |
-| 2 | **Fix license enforcement from no-op to denial** — `watermark.py:195` | Security | 2h |
-| 3 | **Fix working tree** — commit or stash release-prep changes, ensure clean CI | Deployment | 2h |
-| 4 | **Wire Sentry or OTel error exporter** — silent errors in production | Monitoring | 1d |
+### 🔴 Phase 0 — Blocking (24h, must fix before go-live)
 
-### P1 — Required for public OSS release (1-week sprint)
-| # | Item | Area | Effort |
-|---|------|------|--------|
-| 5 | **Fix billing pipeline** — PitchToShip is dead; wire direct Stripe checkout | Features | 2-3d |
-| 6 | **Add admin auth to CCR retrieval + feedback endpoints** | Security | 1d |
-| 7 | **Fix N+1 graph BFS queries** — batch into `WHERE id IN (...)` | Performance | 1d |
-| 8 | **Add centralized error tracking** — Sentry or OTel exporter integration | Monitoring | 2d |
-| 9 | **Add dependency vulnerability scanning** — Dependabot alerts or `cargo audit` + `pip-audit` | Security | 1d |
-| 10 | **Fix exception text leakage in 500 responses** (5 call sites) | Security | 1d |
-| 11 | **Add pricing cache** — `functools.lru_cache` on `_get_list_price()` | Performance | 1h |
+| # | Action | Domain | Effort | Owner |
+|---|--------|--------|--------|-------|
+| 1 | Rotate OpenAI API key in `.env.local`, add CI pre-commit secret scanning | Security | 2h | Security |
+| 2 | Fix MFA fail-open — deny request when store unavailable | Security | 1h | Backend |
+| 3 | Fix admin API key stderr leak → `/dev/tty` or file with `0600` perms | Security | 1h | Backend |
+| 4 | Add SSRF protection — private IP blocklist on upstream URLs | Security | 3h | Backend |
+| 5 | Add `cargo audit` + secret scanning to CI workflows | Security | 2h | Platform |
+| 6 | Replace placeholders in `k8s/secret.yaml` | Deployment | 1h | Platform |
+| 7 | Configure Alertmanager notification routing (PagerDuty/Slack) | Monitoring | 1d | Platform |
+| 8 | Add Rust coverage to CI (`cargo-tarpaulin` + Codecov) | Testing | 2d | Platform |
 
-### P2 — Required before v1.0 / enterprise (2-3 week sprint)
-| # | Item | Area | Effort |
-|---|------|------|--------|
-| 12 | **EE module test coverage** — 22 modules, 3,939 LOC | Testing | 3w |
-| 13 | **Wire request_id into logging context** via `contextvars` | Monitoring | 1d |
-| 14 | **Expand backup coverage** — all durable stores backed up (currently partial) | Deployment | 2d |
-| 15 | **Add TTL eviction sweep on ccr_entries** | Performance | 1d |
-| 16 | **Add missing indexes** — `workspace_id` on memories, `actor` on audit | Performance | 2h |
-| 17 | **Fix sync file IO in async paths** (chat.py, anthropic.py) | Performance | 2h |
-| 18 | **Replace 59 `time.sleep` calls** with proper wait/retry in tests | Testing | 2d |
-| 19 | **Add DB health probes to /health** (audit.db, rbac.db, etc.) | Monitoring | 1d |
-| 20 | **Add Prometheus metrics for Feedback Loop, Stack Graphs, Benchmark CLI** | Monitoring | 3d |
+### ⚡ Phase 1 — First Week
 
-### P3 — Quality of life (next release)
-| # | Item | Area |
-|---|------|------|
-| 21 | Implement SAML SSO | Security |
-| 22 | Add WebAuthn MFA | Security |
-| 23 | Consolidate 2 license formats (Ed25519 + ECDSA P-256) | Security |
-| 24 | Spend ledger tenant isolation | Security |
-| 25 | Consolidate `.env.example` to match actual env vars read | Deployment |
-| 26 | Add Prometheus gauge for audit chain length | Monitoring |
-| 27 | Remove 6 hard-skipped tests with no reason | Testing |
-| 28 | Fix license DB world-readable (`chmod 600`) | Security |
-| 29 | Add PVC manifest for backup CronJob | Deployment |
-| 30 | Pin fluent-bit to specific version in k8s | Deployment |
+| # | Action | Domain | Effort |
+|---|--------|--------|--------|
+| 9 | Wire real TTFT measurement (replace hardcoded 0ms) | Performance | 1d |
+| 10 | Add WAL mode to 5 Python SQLite backends missing it | Database | 1d |
+| 11 | Fix bare `except Exception:` → specific exception types in `server.py` | Backend | 3d |
+| 12 | Add `CutctxClient.from_env()` factory | UX | 1d |
+| 13 | Add `fail_under = 70` in `pyproject.toml` | Testing | 1h |
+| 14 | Tighten `deny.toml` (`multiple-versions = "deny"`, `wildcards = "deny"`) | Security | 1d |
+| 15 | Add proper `.gitignore` entries for `.env.local` | Security | 5min |
+
+### 🟡 Phase 2 — Second Week
+
+| # | Action | Domain | Effort |
+|---|--------|--------|--------|
+| 16 | Set up error tracking (Sentry or equivalent) | Monitoring | 1d |
+| 17 | Define SLIs/SLOs (availability >99.9%, p50 <100ms, p99 <500ms) | Monitoring | 1d |
+| 18 | Add Python-level load tests (locust or pytest-benchmark) | Testing | 1w |
+| 19 | Implement Gemini live-zone compression in Rust proxy | Performance | 1w |
+| 20 | Add synthetic monitoring / uptime checks | Monitoring | 1d |
+| 21 | Replace single `asyncio.Lock` with sharded locking in semantic cache | Performance | 3d |
+| 22 | Create staging environment (namespace + config separation) | Deployment | 2d |
+| 23 | Add more PrometheusRules: backup failure, upstream outage, compression errors | Monitoring | 1d |
+
+### 🟢 Phase 3 — First Month
+
+| # | Action | Domain | Effort |
+|---|--------|--------|--------|
+| 24 | Integrate external secrets operator (SealedSecrets or External Secrets) | Deployment | 2w |
+| 25 | Add structured SRE runbooks for common incidents | Monitoring | 1w |
+| 26 | Add canary deployment strategy with Flagger/Argo Rollouts | Deployment | 2w |
+| 27 | Set up trace propagation (OpenTelemetry) | Monitoring | 2w |
+| 28 | Build operational Grafana dashboard for k8s deployment | Monitoring | 1w |
+| 29 | Document disaster recovery procedures (restore from S3 backup) | Deployment | 2d |
+| 30 | Implement streaming compression in Rust proxy (reduce TTFT) | Performance | 3w |
+
+---
+
+## Decision Matrix
+
+| Scenario | Go/No-Go | Condition |
+|----------|----------|-----------|
+| Internal/team deployment with known users | 🟡 **Conditional Go** | Must fix B-1, B-2, B-3 first (security criticals) |
+| Enterprise customer pilot | 🔴 **No-Go** | Requires SOC 2, SAML SSO, B-1 through B-8 resolved |
+| Production launch (public) | 🔴 **No-Go** | Score 58/100. Need >75/100 with all blocking items resolved |
+| K8s deployment (internal) | 🟡 **Soft Go** | Fix placeholder values, configure alerts, rotate secrets |
 
 ---
 
-## Summary
+## Production Readiness Checklist (Detailed)
 
-**Cutctx v0.30.0 is a mature, well-architected product with strong engineering fundamentals.** The test suite is clean (7,924+ pass, 0 failures), security posture is solid (all 5 critical items fixed), and deployment infrastructure rivals mature SaaS products (24 CI workflows, full k8s stack, Helm chart, Docker multi-stage build, Prometheus + OTEL monitoring).
+### Environment & Configuration
+- [ ] All required env vars documented in `.env.example`
+- [ ] Production config separated from dev config
+- [ ] No placeholder values in production configs
+- [ ] Config validation runs at startup
+- [ ] Sensitive fields redacted from health/config endpoint
 
-**The remaining gaps are concentrated in 3 areas:**
-1. **Billing & licensing** — no working payment path, license validation is a no-op, cutctx.dev NXDOMAIN
-2. **Enterprise features** — no SAML, no WebAuthn, tenant isolation incomplete, gap in EE test coverage
-3. **Operational maturity** — no error tracking, partial alert coverage, backup gap for some stores
+### Secrets Management
+- [ ] No hardcoded secrets in source code
+- [ ] CI secret scanning active (gitleaks, cargo audit, pip-audit)
+- [ ] External secrets operator for k8s
+- [ ] Secrets rotated within 24h of exposure
+- [ ] `.gitignore` covers all secret file patterns
 
-**Verdict:**
-- **Design-partner pilot: CONDITIONAL GO** (fix 4 P0 items = ~3 days)
-- **Public OSS release: CONDITIONAL** (~1 week sprint on P1 items)
-- **Enterprise sales: NO-GO** (~2-3 months for P2 items, SOC 2, pentest)
+### CI/CD Pipeline
+- [ ] Tests pass before merge
+- [ ] Coverage thresholds enforced
+- [ ] All language coverage tracked (Python + Rust)
+- [ ] Docker image built and signed in CI
+- [ ] Release artifacts verified (SBOM, provenance)
 
-The 15+ commits since the Jul 4 audit have moved the product forward significantly. The core product is strong enough for informed design partners to deploy today.
+### Monitoring & Alerting
+- [ ] Health endpoints implemented and correct
+- [ ] Prometheus metrics exported for all key paths
+- [ ] Alertmanager configured with notification routing
+- [ ] Error tracking integrated (Sentry or equivalent)
+- [ ] Synthetic monitoring active
+- [ ] SLIs/SLOs defined and tracked
+
+### Backup & Disaster Recovery
+- [ ] All persistent data backed up daily
+- [ ] Backup restoration tested at least quarterly
+- [ ] Retention policy defined and enforced
+- [ ] DR runbook documented and accessible
+- [ ] Cross-region backup for critical deployments
+
+### Performance
+- [ ] TTFT measured and monitored
+- [ ] Load testing passes at 2× expected peak traffic
+- [ ] Database WAL mode on all SQLite stores
+- [ ] No single-thread bottlenecks on hot paths
+- [ ] Compression latency within budget
 
 ---
-*Document classification: Production-readiness assessment. Scope: full repository as of `main @ 418ae99a`. Independent analysis — all findings from read-only codebase recon.*
+
+## File Reference Index
+
+| Finding | Primary Source | Secondary Source |
+|---------|---------------|-----------------|
+| Full audit context | `audit/architecture-analysis.md` | `audit/backend-analysis.md` |
+| Security details | `audit/security-analysis.md` | `.env.local`, `docker-compose.yml` |
+| Performance details | `audit/performance-analysis.md` | `benchmark_results.md` |
+| Database details | `audit/database-analysis.md` | — |
+| Testing details | `audit/testing-analysis.md` | `codecov.yml`, CI workflows |
+| Frontend details | `audit/frontend-analysis.md` | — |
+| UX details | `audit/ux-analysis.md` | — |
+| Competitive context | `audit/competitive-analysis.md` | — |
+| Deployment manifests | `k8s/` directory | `docker-compose.yml`, `Dockerfile` |
+| CI/CD workflows | `.github/workflows/` | — |
+| Consolidated roadmap | `audit/consolidated-roadmap.md` | — |

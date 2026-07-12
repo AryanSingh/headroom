@@ -2127,7 +2127,11 @@ def _proxy_config_from_env() -> ProxyConfig:
         bedrock_region=_get_env_str("CUTCTX_BEDROCK_REGION", "us-west-2"),
         bedrock_profile=os.environ.get("AWS_PROFILE"),
         anyllm_provider=_get_env_str("CUTCTX_ANYLLM_PROVIDER", "openai"),
-        disable_kompress=_get_env_bool("CUTCTX_DISABLE_KOMPRESS", False),
+        deterministic_mode=_get_env_bool("CUTCTX_DETERMINISTIC_MODE", False),
+        disable_kompress=(
+            _get_env_bool("CUTCTX_DISABLE_KOMPRESS", False)
+            or _get_env_bool("CUTCTX_DETERMINISTIC_MODE", False)
+        ),
         max_connections=_get_env_int("CUTCTX_MAX_CONNECTIONS", 500),
         max_keepalive_connections=_get_env_int("CUTCTX_MAX_KEEPALIVE", 100),
         http2=_get_env_bool("CUTCTX_HTTP2", True),
@@ -2477,11 +2481,19 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         model_router_config = getattr(model_router, "config", None)
         model_router_enabled = bool(getattr(model_router_config, "enabled", False))
         model_router_routes = list(getattr(model_router_config, "routes", []) or [])
+        from cutctx.proxy.model_router import model_routing_mode_for_state
+
+        model_router_mode = model_routing_mode_for_state(
+            enabled=model_router_enabled,
+            preset=getattr(proxy.config, "model_routing_preset", None),
+            route_count=len(model_router_routes),
+        )
         model_routing_status = {
             "requested": model_router_enabled,
             "available": model_router is not None,
             "configured_routes": len(model_router_routes),
             "preset": getattr(proxy.config, "model_routing_preset", None),
+            "mode": model_router_mode,
             "reason": (
                 "router_uninitialized"
                 if model_router is None
@@ -2788,6 +2800,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "firewall": bool(getattr(config, "firewall_enabled", False)),
             "rate_limiter": bool(getattr(config, "rate_limit_enabled", False)),
             "orchestrator": bool(getattr(config, "orchestrator_enabled", False)),
+            "orchestrator_mode": model_routing_status["mode"],
         },
         "telemetry": telemetry_stats,
         "feedback": feedback_stats,
@@ -3740,6 +3753,15 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     async def get_config_flags(request: Request):
         """Get live intelligence layer feature flags."""
         await _require_local_admin_auth(request)
+        from cutctx.proxy.model_router import model_routing_mode_for_state
+
+        model_router = getattr(proxy, "_model_router", None)
+        router_config = getattr(model_router, "config", None)
+        orchestrator_mode = model_routing_mode_for_state(
+            enabled=bool(getattr(config, "orchestrator_enabled", False)),
+            preset=getattr(config, "model_routing_preset", None),
+            route_count=len(getattr(router_config, "routes", []) or []),
+        )
         return {
             "cache": getattr(config, "cache_enabled", False),
             "ccr": getattr(config, "ccr_context_tracking", False) or getattr(config, "ccr_handle_responses", False),
@@ -3747,6 +3769,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "firewall": getattr(config, "firewall_enabled", False),
             "rate_limiter": getattr(config, "rate_limiter_enabled", False),
             "orchestrator": getattr(config, "orchestrator_enabled", False),
+            "orchestrator_mode": orchestrator_mode,
         }
 
     @app.post("/admin/config/flags")
@@ -3754,6 +3777,49 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         """Update live intelligence layer feature flags at runtime."""
         await _require_local_admin_auth(request)
         payload = await request.json()
+
+        from cutctx.proxy.model_router import (
+            ModelRouter,
+            ModelRouterConfig,
+            model_routing_mode_for_state,
+            model_routing_preset_for_mode,
+            normalize_model_routing_mode,
+        )
+
+        def _apply_orchestrator_mode(mode: str) -> None:
+            normalized = normalize_model_routing_mode(mode)
+            current_router = getattr(proxy, "_model_router", None)
+            current_config = getattr(current_router, "config", None)
+
+            if normalized == "off":
+                config.orchestrator_enabled = False
+                if current_config is not None:
+                    current_config.enabled = False
+                return
+
+            preset = model_routing_preset_for_mode(
+                normalized,
+                current_preset=getattr(config, "model_routing_preset", None),
+            )
+            if preset is not None:
+                preset_config = ModelRouterConfig.from_preset_name(preset)
+                if preset_config is not None:
+                    config.model_routing_preset = preset
+                    preset_config.enabled = True
+                    proxy._model_router = ModelRouter(config=preset_config)
+                    config.orchestrator_enabled = True
+                    return
+
+            if current_config is not None:
+                current_config.enabled = True
+                config.orchestrator_enabled = True
+                return
+
+            fallback_config = ModelRouterConfig.codex_gpt54mini_high_preset()
+            fallback_config.enabled = True
+            config.model_routing_preset = "codex-gpt54mini-high"
+            proxy._model_router = ModelRouter(config=fallback_config)
+            config.orchestrator_enabled = True
 
         if "cache" in payload:
             config.cache_enabled = bool(payload["cache"])
@@ -3778,25 +3844,18 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             config.firewall_enabled = bool(payload["firewall"])
         if "rate_limiter" in payload:
             config.rate_limit_enabled = bool(payload["rate_limiter"])
+        if "orchestrator_mode" in payload:
+            _apply_orchestrator_mode(str(payload["orchestrator_mode"]))
         if "orchestrator" in payload:
-            config.orchestrator_enabled = bool(payload["orchestrator"])
-            desired = bool(payload["orchestrator"])
-            try:
-                from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
+            _apply_orchestrator_mode("balanced" if bool(payload["orchestrator"]) else "off")
 
-                preset = getattr(config, "model_routing_preset", None) or "codex-gpt54mini-high"
-                preset_config = ModelRouterConfig.from_preset_name(preset)
-                if preset_config is not None:
-                    config.model_routing_preset = preset
-                    preset_config.enabled = desired
-                    proxy._model_router = ModelRouter(config=preset_config)
-                elif hasattr(proxy, "_model_router") and proxy._model_router is not None:
-                    proxy._model_router.config.enabled = desired
-                else:
-                    proxy._model_router = ModelRouter()
-                    proxy._model_router.config.enabled = desired
-            except Exception:
-                logger.debug("ModelRouter runtime toggle failed", exc_info=True)
+        model_router = getattr(proxy, "_model_router", None)
+        router_config = getattr(model_router, "config", None)
+        orchestrator_mode = model_routing_mode_for_state(
+            enabled=bool(getattr(config, "orchestrator_enabled", False)),
+            preset=getattr(config, "model_routing_preset", None),
+            route_count=len(getattr(router_config, "routes", []) or []),
+        )
 
         logger.info("Runtime configuration updated: %s", payload)
         return {
@@ -3808,6 +3867,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "firewall": bool(getattr(config, "firewall_enabled", False)),
                 "rate_limiter": bool(getattr(config, "rate_limit_enabled", False)),
                 "orchestrator": bool(getattr(config, "orchestrator_enabled", False)),
+                "orchestrator_mode": orchestrator_mode,
             },
             "payload": payload,
         }
@@ -4285,6 +4345,14 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help=(
+            "Use deterministic rule-based compression only, disabling the ML compressor. "
+            "Equivalent to --disable-kompress. Also settable via CUTCTX_DETERMINISTIC_MODE=1."
+        ),
+    )
+    parser.add_argument(
         "--disable-kompress",
         action="store_true",
         help=(
@@ -4553,7 +4621,12 @@ if __name__ == "__main__":
     optimize = env_optimize if not args.no_optimize else False
     cache_enabled = env_cache if not args.no_cache else False
     rate_limit_enabled = env_rate_limit if not args.no_rate_limit else False
-    disable_kompress = args.disable_kompress or _get_env_bool("CUTCTX_DISABLE_KOMPRESS", False)
+    deterministic_mode = args.deterministic or _get_env_bool("CUTCTX_DETERMINISTIC_MODE", False)
+    disable_kompress = (
+        args.disable_kompress
+        or _get_env_bool("CUTCTX_DISABLE_KOMPRESS", False)
+        or deterministic_mode
+    )
 
     # Set OpenRouter API key from env variable only.
     # Removed writing from CLI args into process environment.
@@ -4598,6 +4671,7 @@ if __name__ == "__main__":
         or str(_hr_paths.request_history_path()),
         log_full_messages=args.log_messages or _get_env_bool("CUTCTX_LOG_MESSAGES", False),
         code_aware_enabled=code_aware_enabled,
+        deterministic_mode=deterministic_mode,
         disable_kompress=disable_kompress,
         # Connection pool settings
         max_connections=_get_env_int("CUTCTX_MAX_CONNECTIONS", args.max_connections),

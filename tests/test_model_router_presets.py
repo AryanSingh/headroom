@@ -204,3 +204,11 @@ class TestPresetSelection:
         cfg = ModelRouterConfig.from_preset_name("codex-opencode-slim")
         assert cfg is not None
         assert cfg.routes == ModelRouterConfig.codex_gpt54mini_high_preset().routes
+
+    def test_claude_three_tier_eval_is_explicit_and_evidence_gated(self) -> None:
+        cfg = ModelRouterConfig.from_preset_name("claude-three-tier-eval")
+        assert cfg is not None
+        assert cfg.require_calibrated_scorer is True
+        opus = next(route for route in cfg.routes if route.source == "claude-opus-4-5")
+        assert opus.target == "claude-haiku-4-5"
+        assert opus.medium_target == "claude-sonnet-4-5"

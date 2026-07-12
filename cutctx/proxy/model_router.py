@@ -45,15 +45,95 @@ import os
 import re
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any
+from typing import Any, Literal, Protocol
 
 logger = logging.getLogger("cutctx.proxy.model_router")
+
+ModelRoutingMode = Literal["off", "balanced", "aggressive", "custom"]
+MODEL_ROUTING_SCORER_ARTIFACT_ENV = "CUTCTX_MODEL_ROUTING_SCORER_ARTIFACT"
+
+_BALANCED_PRESET_NAMES = {
+    "codex-gpt54mini-high",
+    "codex-opencode-slim",
+    "oh-my-opencode-slim",
+}
+_AGGRESSIVE_PRESET_NAMES = {"economy"}
+_OFF_MODE_NAMES = {"", "off", "disabled", "false", "0", "none"}
+
+
+def normalize_model_routing_mode(mode: str | None) -> str:
+    """Normalize a routing mode or preset string to a dashboard mode."""
+    normalized = (mode or "").strip().lower()
+    if normalized in _OFF_MODE_NAMES:
+        return "off"
+    if normalized in {"balanced", "default"} | _BALANCED_PRESET_NAMES:
+        return "balanced"
+    if normalized in {"aggressive"} | _AGGRESSIVE_PRESET_NAMES:
+        return "aggressive"
+    return "custom"
+
+
+def model_routing_preset_for_mode(
+    mode: str | None,
+    *,
+    current_preset: str | None = None,
+) -> str | None:
+    """Map a dashboard mode back to the preset string to persist."""
+    normalized = normalize_model_routing_mode(mode)
+    if normalized == "off":
+        return current_preset
+    if normalized == "balanced":
+        return "codex-gpt54mini-high"
+    if normalized == "aggressive":
+        return "economy"
+    return current_preset
+
+
+def model_routing_mode_for_state(
+    *,
+    enabled: bool,
+    preset: str | None,
+    route_count: int | None = None,
+) -> str:
+    """Infer the effective routing mode from runtime state."""
+    if not enabled:
+        return "off"
+    normalized_preset = (preset or "").strip().lower()
+    if normalized_preset in _BALANCED_PRESET_NAMES:
+        return "balanced"
+    if normalized_preset in _AGGRESSIVE_PRESET_NAMES:
+        return "aggressive"
+    if normalized_preset in _OFF_MODE_NAMES:
+        return "custom" if route_count and route_count > 0 else "off"
+    if route_count and route_count > 0:
+        return "custom"
+    return "balanced"
 
 
 class TaskComplexity(IntEnum):
     LOW = 1
     MEDIUM = 2
     HIGH = 3
+
+
+@dataclass(frozen=True)
+class TaskComplexityAssessment:
+    """An explainable complexity score used before a model downgrade.
+
+    ``confidence`` is confidence in the tier assignment, not predicted answer
+    quality.  A custom scorer can use embeddings or a trained model later,
+    while the default stays deterministic and dependency-free.
+    """
+
+    complexity: TaskComplexity
+    confidence: float
+    source: str = "heuristic"
+
+
+class TaskComplexityScorer(Protocol):
+    """Pluggable scorer contract for model-routing eligibility."""
+
+    def assess(self, messages: list[dict[str, Any]]) -> TaskComplexityAssessment: ...
 
 
 def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
@@ -70,6 +150,20 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
 
     last_user_message = next((m for m in reversed(messages) if m.get("role") == "user"), None)
     if not last_user_message:
+        return TaskComplexity.HIGH
+
+    if any(
+        message.get("role") == "tool"
+        or (
+            isinstance(message.get("content"), list)
+            and any(
+                isinstance(block, dict)
+                and block.get("type") in {"tool_use", "tool_result", "function_call_output"}
+                for block in message.get("content", [])
+            )
+        )
+        for message in messages
+    ):
         return TaskComplexity.HIGH
 
     raw_content = last_user_message.get("content", "")
@@ -202,6 +296,56 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
     return TaskComplexity.MEDIUM
 
 
+def assess_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexityAssessment:
+    """Return the deterministic tier together with its routing confidence.
+
+    The legacy classifier remains the source of truth for the tier so this is
+    safe to introduce without changing existing presets.  Confidence lets an
+    operator opt into abstention for borderline classifications and gives a
+    future trained scorer one small, stable interface to replace.
+    """
+
+    complexity = classify_task_complexity(messages)
+    if complexity == TaskComplexity.HIGH:
+        return TaskComplexityAssessment(complexity, 1.0)
+
+    last_user = next((m for m in reversed(messages) if m.get("role") == "user"), {})
+    content = last_user.get("content", "")
+    if not isinstance(content, str):
+        return TaskComplexityAssessment(TaskComplexity.HIGH, 1.0)
+    normalized = content.strip().lower()
+
+    if complexity == TaskComplexity.MEDIUM:
+        return TaskComplexityAssessment(complexity, 0.85)
+    if normalized in {"hi", "hello", "hey", "thanks", "thank you", "ok", "okay"}:
+        return TaskComplexityAssessment(complexity, 1.0)
+    explicit_low_signals = (
+        "typo",
+        "docstring",
+        "type hint",
+        "lint",
+        "rename",
+        "format",
+        "summar",
+        "explain",
+        "what is",
+        "how do i",
+        "where is",
+        "list",
+        "show",
+        "give me",
+    )
+    confidence = 0.9 if any(signal in normalized for signal in explicit_low_signals) else 0.75
+    return TaskComplexityAssessment(complexity, confidence)
+
+
+class HeuristicTaskComplexityScorer:
+    """Dependency-free default scorer used by existing deployments."""
+
+    def assess(self, messages: list[dict[str, Any]]) -> TaskComplexityAssessment:
+        return assess_task_complexity(messages)
+
+
 @dataclass
 class ModelRoute:
     """A single source -> target downgrade mapping."""
@@ -254,6 +398,11 @@ class ModelRouterConfig:
     # AND (tool_calls / num_messages) < tool_complexity_threshold.
     cache_read_threshold: float = 0.5
     tool_complexity_threshold: float = 2.0
+    # Confidence below this value abstains from an automatic downgrade.  The
+    # default preserves current routing behavior; operators can raise it while
+    # calibrating a custom or trained scorer.
+    minimum_confidence: float = 0.0
+    require_calibrated_scorer: bool = False
     # Targets explicitly verified for account-scoped subscription transports.
     # Generic routes leave this empty and retain the requested model.
     transport_safe_targets: set[str] = field(default_factory=set)
@@ -294,6 +443,8 @@ class ModelRouterConfig:
             routes=routes,
             cache_read_threshold=float(payload.get("cache_read_threshold", 0.5)),
             tool_complexity_threshold=float(payload.get("tool_complexity_threshold", 2.0)),
+            minimum_confidence=float(payload.get("minimum_confidence", 0.0)),
+            require_calibrated_scorer=bool(payload.get("require_calibrated_scorer", False)),
             transport_safe_targets=set(payload.get("transport_safe_targets", [])),
         )
 
@@ -450,6 +601,40 @@ class ModelRouterConfig:
         return cls.codex_gpt54mini_high_preset()
 
     @classmethod
+    def claude_three_tier_eval_preset(cls) -> ModelRouterConfig:
+        """Evidence-gated Claude Opus→Sonnet→Haiku routing graph."""
+
+        return cls(
+            enabled=True,
+            downgrade_when="low_complexity",
+            require_calibrated_scorer=True,
+            routes=[
+                ModelRoute(
+                    source="claude-opus-4-5",
+                    target="claude-haiku-4-5",
+                    medium_target="claude-sonnet-4-5",
+                    source_cost_per_mtok=15.0,
+                    target_cost_per_mtok=0.8,
+                    medium_target_cost_per_mtok=3.0,
+                ),
+                ModelRoute(
+                    source="claude-opus-4-5-20250514",
+                    target="claude-haiku-4-5",
+                    medium_target="claude-sonnet-4-5",
+                    source_cost_per_mtok=15.0,
+                    target_cost_per_mtok=0.8,
+                    medium_target_cost_per_mtok=3.0,
+                ),
+                ModelRoute(
+                    source="claude-sonnet-4-5",
+                    target="claude-haiku-4-5",
+                    source_cost_per_mtok=3.0,
+                    target_cost_per_mtok=0.8,
+                ),
+            ],
+        )
+
+    @classmethod
     def subrequest_haiku_preset(cls) -> ModelRouterConfig:
         """Routes internal subrequests (tool-loop helpers, summarization calls)
         to Haiku-tier models. Direct downgrade to Haiku, skipping intermediate
@@ -543,7 +728,21 @@ class ModelRouterConfig:
             "oh-my-opencode-slim",
         }:
             return cls.codex_gpt54mini_high_preset()
+        if normalized == "claude-three-tier-eval":
+            return cls.claude_three_tier_eval_preset()
         return None
+
+    @classmethod
+    def from_mode_name(
+        cls,
+        mode: str | None,
+        *,
+        current_preset: str | None = None,
+    ) -> ModelRouterConfig | None:
+        preset = model_routing_preset_for_mode(mode, current_preset=current_preset)
+        if preset is None:
+            return None
+        return cls.from_preset_name(preset)
 
 
 @dataclass
@@ -563,6 +762,8 @@ class RoutingDecision:
     usd_saved: float = 0.0
     reason: str = "no_route"
     request_overrides: dict[str, Any] | None = None
+    confidence: float | None = None
+    scorer: str | None = None
 
 
 class ModelRouter:
@@ -572,8 +773,39 @@ class ModelRouter:
     request-time entry point.
     """
 
-    def __init__(self, config: ModelRouterConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: ModelRouterConfig | None = None,
+        *,
+        scorer: TaskComplexityScorer | None = None,
+    ) -> None:
         self.config = config or ModelRouterConfig.from_env()
+        self.scorer = scorer or self._configured_scorer()
+        artifact = getattr(self.scorer, "artifact", None)
+        artifact_threshold = float(getattr(artifact, "minimum_confidence", 0.0) or 0.0)
+        self.minimum_confidence = max(self.config.minimum_confidence, artifact_threshold)
+
+    @staticmethod
+    def _configured_scorer() -> TaskComplexityScorer:
+        artifact_path = os.environ.get(MODEL_ROUTING_SCORER_ARTIFACT_ENV, "").strip()
+        if not artifact_path:
+            return HeuristicTaskComplexityScorer()
+        try:
+            from cutctx.proxy.model_routing_training import (
+                LinearCalibratedTaskComplexityScorer,
+                LinearRoutingArtifact,
+            )
+
+            artifact = LinearRoutingArtifact.load(artifact_path)
+            return LinearCalibratedTaskComplexityScorer(
+                artifact,
+                source=f"linear-calibrated:{artifact_path}",
+            )
+        except Exception as exc:  # noqa: BLE001 - fail closed to deterministic scorer
+            logger.warning(
+                "Failed to load model-routing scorer artifact %r: %s", artifact_path, exc
+            )
+            return HeuristicTaskComplexityScorer()
 
     def maybe_route(
         self,
@@ -584,6 +816,8 @@ class ModelRouter:
         tool_calls: int = 0,
         num_messages: int = 0,
         task_complexity: TaskComplexity | None = None,
+        task_assessment: TaskComplexityAssessment | None = None,
+        client: str | None = None,
     ) -> RoutingDecision:
         """Decide whether to downgrade this request to a cheaper
         model.
@@ -593,10 +827,18 @@ class ModelRouter:
         model name). The caller is responsible for actually
         overriding the upstream call.
         """
+        assessment = task_assessment
+        if assessment is not None:
+            task_complexity = assessment.complexity
         if not self.config.enabled:
             return RoutingDecision(
                 source_model=requested_model,
                 reason="router_disabled",
+            )
+        if self.config.require_calibrated_scorer and getattr(self.scorer, "artifact", None) is None:
+            return RoutingDecision(
+                source_model=requested_model,
+                reason="calibrated_scorer_required",
             )
         # Find a route for the requested model.
         route = self._find_route(requested_model)
@@ -605,6 +847,13 @@ class ModelRouter:
                 source_model=requested_model,
                 reason="no_route_for_model",
             )
+        if assessment is not None and assessment.complexity == TaskComplexity.HIGH:
+            return RoutingDecision(
+                source_model=requested_model,
+                reason="workload_not_downgradeable",
+                confidence=assessment.confidence,
+                scorer=assessment.source,
+            )
         # Workload classifier.
         if not self._is_downgradeable(
             cache_read_tokens=cache_read_tokens,
@@ -612,10 +861,15 @@ class ModelRouter:
             tool_calls=tool_calls,
             num_messages=num_messages,
         ):
-            return RoutingDecision(
-                source_model=requested_model,
-                reason="workload_not_downgradeable",
-            )
+            if task_complexity in {TaskComplexity.LOW, TaskComplexity.MEDIUM}:
+                pass
+            else:
+                return RoutingDecision(
+                    source_model=requested_model,
+                    reason="workload_not_downgradeable",
+                    confidence=assessment.confidence if assessment else None,
+                    scorer=assessment.source if assessment else None,
+                )
         target_model = route.target
         target_cost_override = route.target_cost_per_mtok
         if task_complexity == TaskComplexity.MEDIUM:
@@ -623,9 +877,23 @@ class ModelRouter:
                 return RoutingDecision(
                     source_model=requested_model,
                     reason="workload_not_downgradeable",
+                    confidence=assessment.confidence if assessment else None,
+                    scorer=assessment.source if assessment else None,
                 )
             target_model = route.medium_target
             target_cost_override = route.medium_target_cost_per_mtok
+        minimum_confidence = self._minimum_confidence_for(
+            client=client,
+            source_model=requested_model,
+            target_model=target_model,
+        )
+        if assessment is not None and assessment.confidence < minimum_confidence:
+            return RoutingDecision(
+                source_model=requested_model,
+                reason="confidence_below_threshold",
+                confidence=assessment.confidence,
+                scorer=assessment.source,
+            )
 
         # Compute the savings. Both costs are USD per million
         # input tokens (LiteLLM convention).
@@ -638,6 +906,8 @@ class ModelRouter:
             return RoutingDecision(
                 source_model=requested_model,
                 reason="cost_lookup_failed",
+                confidence=assessment.confidence if assessment else None,
+                scorer=assessment.source if assessment else None,
             )
         # The caller computes the actual token savings in a follow-up
         # step once the request has completed.
@@ -649,12 +919,34 @@ class ModelRouter:
             usd_saved=0.0,  # filled by caller after the request
             reason="downgrade_applied",
             request_overrides=self._request_overrides_for_target(target_model),
+            confidence=assessment.confidence if assessment else None,
+            scorer=assessment.source if assessment else None,
         )
 
     def _request_overrides_for_target(self, target_model: str) -> dict[str, Any] | None:
         if target_model == "gpt-5.4-mini":
             return {"reasoning": {"effort": "high"}}
         return None
+
+    def _minimum_confidence_for(
+        self,
+        *,
+        client: str | None,
+        source_model: str,
+        target_model: str,
+    ) -> float:
+        artifact = getattr(self.scorer, "artifact", None)
+        thresholds = getattr(artifact, "segment_thresholds", {})
+        if not isinstance(thresholds, dict):
+            return self.minimum_confidence
+        model_pair = f"{source_model}->{target_model}"
+        pair_threshold = (thresholds.get("model_pair") or {}).get(model_pair)
+        normalized_client = (client or "").strip().lower()
+        client_threshold = (thresholds.get("client") or {}).get(normalized_client)
+        for value in (pair_threshold, client_threshold):
+            if value is not None:
+                return max(self.config.minimum_confidence, float(value))
+        return self.minimum_confidence
 
     def finalize_savings(
         self,
@@ -690,6 +982,8 @@ class ModelRouter:
             tokens_saved=input_tokens,
             usd_saved=usd_saved,
             reason=decision.reason,
+            confidence=decision.confidence,
+            scorer=decision.scorer,
         )
 
     def _find_route(self, model: str) -> ModelRoute | None:
@@ -710,13 +1004,13 @@ class ModelRouter:
             return True
         if self.config.downgrade_when == "low_cache_read":
             if attempted_input_tokens <= 0:
-                return True  # no data; default to downgradeable
+                return False  # no data; fail closed on ambiguous turns
             cache_share = cache_read_tokens / max(attempted_input_tokens, 1)
             if cache_share > self.config.cache_read_threshold:
                 return False
         if self.config.downgrade_when == "low_complexity":
             if num_messages <= 0:
-                return True
+                return False
             tool_ratio = tool_calls / max(num_messages, 1)
             if tool_ratio > self.config.tool_complexity_threshold:
                 return False
@@ -726,8 +1020,13 @@ class ModelRouter:
         """Check if the text content of the messages is simple enough to downgrade."""
         if self.config.downgrade_when != "low_complexity":
             return True
-        complexity = classify_task_complexity(messages)
-        return complexity != TaskComplexity.HIGH
+        if not messages:
+            return False
+        assessment = self.scorer.assess(messages)
+        return (
+            assessment.complexity != TaskComplexity.HIGH
+            and assessment.confidence >= self.minimum_confidence
+        )
 
     def _lookup_costs(self, source: str, target: str) -> tuple[float | None, float | None]:
         """Look up LiteLLM-published input costs (USD per
@@ -771,6 +1070,11 @@ def prepare_model_routing(
 ) -> tuple[str, dict[str, dict[str, Any]] | None]:
     """Apply an enabled router and attach placeholder routing metadata."""
 
+    from cutctx.proxy.model_routing_trace import (
+        ModelRoutingDecisionTrace,
+        attach_model_routing_trace,
+    )
+
     updated_metadata = dict(request_savings_metadata or {})
     routing_context = updated_metadata.pop("__orchestration__", {})
     role_alias = ""
@@ -794,23 +1098,89 @@ def prepare_model_routing(
                 request_id=request_id,
             )
         )
+        transport_account_id = getattr(handler, "_orchestration_account_id", None)
+        transport_state = {
+            "provider": transport_provider,
+            "provider_proven": not transport_provider
+            or orchestration_decision.provider == transport_provider,
+            "account_id": transport_account_id,
+            "account_proven": not orchestration_decision.account_id
+            or orchestration_decision.account_id == transport_account_id,
+            "implicit_downgrade_allowed": implicit_downgrade_allowed,
+        }
         if transport_provider and orchestration_decision.provider != transport_provider:
+            trace = ModelRoutingDecisionTrace(
+                request_id=request_id,
+                mechanism="deterministic_orchestration",
+                requested_model=requested_model,
+                effective_model=requested_model,
+                assigned_model=orchestration_decision.assigned_model,
+                provider=orchestration_decision.provider,
+                account_id=orchestration_decision.account_id,
+                role=orchestration_decision.role,
+                binding_id=orchestration_decision.binding_id,
+                policy=orchestration_decision.policy,
+                mode=orchestration_decision.mode,
+                reason="transport_mismatch",
+                applied=False,
+                candidates=list(orchestration_decision.candidates),
+                rejected_candidates=[
+                    {"model": orchestration_decision.actual_model, "reason": "transport_mismatch"}
+                ],
+                required_capabilities=sorted(orchestration_decision.required_capabilities),
+                fallback_used=orchestration_decision.fallback_used,
+                fallback_trigger=orchestration_decision.fallback_trigger,
+                fallback_from=orchestration_decision.fallback_from,
+                attempted_deployments=list(orchestration_decision.attempted_deployments),
+                transport=transport_state,
+                selection_evidence=dict(getattr(orchestration_decision, "selection_evidence", {})),
+            )
             raise RoutingUnavailableError(
                 "The assigned provider cannot be executed through this compatibility endpoint; "
                 "use a canonical executor configured for the assigned provider",
                 assigned_model=orchestration_decision.assigned_model,
                 reason="transport_mismatch",
+                decision_trace=trace.to_dict(),
             )
-        transport_account_id = getattr(handler, "_orchestration_account_id", None)
         if (
             orchestration_decision.account_id
             and orchestration_decision.account_id != transport_account_id
         ):
+            trace = ModelRoutingDecisionTrace(
+                request_id=request_id,
+                mechanism="deterministic_orchestration",
+                requested_model=requested_model,
+                effective_model=requested_model,
+                assigned_model=orchestration_decision.assigned_model,
+                provider=orchestration_decision.provider,
+                account_id=orchestration_decision.account_id,
+                role=orchestration_decision.role,
+                binding_id=orchestration_decision.binding_id,
+                policy=orchestration_decision.policy,
+                mode=orchestration_decision.mode,
+                reason="account_transport_mismatch",
+                applied=False,
+                candidates=list(orchestration_decision.candidates),
+                rejected_candidates=[
+                    {
+                        "model": orchestration_decision.actual_model,
+                        "reason": "account_transport_mismatch",
+                    }
+                ],
+                required_capabilities=sorted(orchestration_decision.required_capabilities),
+                fallback_used=orchestration_decision.fallback_used,
+                fallback_trigger=orchestration_decision.fallback_trigger,
+                fallback_from=orchestration_decision.fallback_from,
+                attempted_deployments=list(orchestration_decision.attempted_deployments),
+                transport=transport_state,
+                selection_evidence=dict(getattr(orchestration_decision, "selection_evidence", {})),
+            )
             raise RoutingUnavailableError(
                 "The assigned provider account cannot be proven through this compatibility "
                 "endpoint; configure the endpoint for the exact account",
                 assigned_model=orchestration_decision.assigned_model,
                 reason="account_transport_mismatch",
+                decision_trace=trace.to_dict(),
             )
         target_model = orchestration_decision.actual_model
         updated_metadata["model_routing"] = {
@@ -834,11 +1204,66 @@ def prepare_model_routing(
         if not implicit_downgrade_allowed and target_model != requested_model:
             updated_metadata["model_routing"]["target_model"] = requested_model
             updated_metadata["model_routing"]["reason"] = "downgrade_blocked_unproven_transport"
+            attach_model_routing_trace(
+                updated_metadata,
+                ModelRoutingDecisionTrace(
+                    request_id=request_id,
+                    mechanism="deterministic_orchestration",
+                    requested_model=requested_model,
+                    effective_model=requested_model,
+                    assigned_model=orchestration_decision.assigned_model,
+                    provider=orchestration_decision.provider,
+                    account_id=orchestration_decision.account_id,
+                    role=orchestration_decision.role,
+                    binding_id=orchestration_decision.binding_id,
+                    policy=orchestration_decision.policy,
+                    mode=orchestration_decision.mode,
+                    reason="downgrade_blocked_unproven_transport",
+                    applied=False,
+                    candidates=list(orchestration_decision.candidates),
+                    rejected_candidates=[{"model": target_model, "reason": "unproven_wire_mode"}],
+                    required_capabilities=sorted(orchestration_decision.required_capabilities),
+                    fallback_used=orchestration_decision.fallback_used,
+                    fallback_trigger=orchestration_decision.fallback_trigger,
+                    fallback_from=orchestration_decision.fallback_from,
+                    attempted_deployments=list(orchestration_decision.attempted_deployments),
+                    transport=transport_state,
+                    selection_evidence=dict(
+                        getattr(orchestration_decision, "selection_evidence", {})
+                    ),
+                ),
+            )
             return requested_model, updated_metadata
         if target_model == "gpt-5.4-mini":
             updated_metadata["model_routing"]["request_overrides"] = {
                 "reasoning": {"effort": "high"}
             }
+        attach_model_routing_trace(
+            updated_metadata,
+            ModelRoutingDecisionTrace(
+                request_id=request_id,
+                mechanism="deterministic_orchestration",
+                requested_model=requested_model,
+                effective_model=target_model,
+                assigned_model=orchestration_decision.assigned_model,
+                provider=orchestration_decision.provider,
+                account_id=orchestration_decision.account_id,
+                role=orchestration_decision.role,
+                binding_id=orchestration_decision.binding_id,
+                policy=orchestration_decision.policy,
+                mode=orchestration_decision.mode,
+                reason=orchestration_decision.reason,
+                applied=target_model != requested_model,
+                candidates=list(orchestration_decision.candidates),
+                required_capabilities=sorted(orchestration_decision.required_capabilities),
+                fallback_used=orchestration_decision.fallback_used,
+                fallback_trigger=orchestration_decision.fallback_trigger,
+                fallback_from=orchestration_decision.fallback_from,
+                attempted_deployments=list(orchestration_decision.attempted_deployments),
+                transport=transport_state,
+                selection_evidence=dict(getattr(orchestration_decision, "selection_evidence", {})),
+            ),
+        )
         return target_model, updated_metadata
     canary_model_routing = False
     try:
@@ -876,12 +1301,8 @@ def prepare_model_routing(
         return requested_model, updated_metadata or request_savings_metadata
 
     try:
-        task_complexity = classify_task_complexity(messages) if messages else None
-        # If text downgrade check fails, abort routing
-        if messages and hasattr(router, "is_text_downgradeable"):
-            if not router.is_text_downgradeable(messages):
-                return requested_model, updated_metadata or request_savings_metadata
-
+        task_assessment = router.scorer.assess(messages) if messages else None
+        task_complexity = task_assessment.complexity if task_assessment else None
         decision = router.maybe_route(
             requested_model,
             cache_read_tokens=cache_read_tokens,
@@ -889,17 +1310,77 @@ def prepare_model_routing(
             tool_calls=tool_calls,
             num_messages=num_messages,
             task_complexity=task_complexity,
+            task_assessment=task_assessment,
+            client=client,
         )
-    except Exception:  # noqa: BLE001
-        return requested_model, updated_metadata or request_savings_metadata
+    except Exception as exc:  # noqa: BLE001
+        attach_model_routing_trace(
+            updated_metadata,
+            ModelRoutingDecisionTrace(
+                request_id=request_id,
+                mechanism="optimization_preset",
+                requested_model=requested_model,
+                effective_model=requested_model,
+                reason="router_error",
+                applied=False,
+                rejected_candidates=[{"model": requested_model, "reason": type(exc).__name__}],
+                transport={
+                    "provider": transport_provider,
+                    "implicit_downgrade_allowed": implicit_downgrade_allowed,
+                },
+            ),
+        )
+        return requested_model, updated_metadata
 
     if not decision.routing_applied or not decision.target_model:
-        return requested_model, updated_metadata or request_savings_metadata
+        attach_model_routing_trace(
+            updated_metadata,
+            ModelRoutingDecisionTrace(
+                request_id=request_id,
+                mechanism="optimization_preset",
+                requested_model=requested_model,
+                effective_model=requested_model,
+                reason=decision.reason,
+                applied=False,
+                scorer=decision.scorer,
+                confidence=decision.confidence,
+                candidates=[requested_model],
+                rejected_candidates=[{"model": requested_model, "reason": decision.reason}],
+                transport={
+                    "provider": transport_provider,
+                    "implicit_downgrade_allowed": implicit_downgrade_allowed,
+                },
+            ),
+        )
+        return requested_model, updated_metadata
 
     if not implicit_downgrade_allowed:
         safe_targets = set(getattr(router.config, "transport_safe_targets", set()))
         if decision.target_model not in safe_targets:
-            return requested_model, updated_metadata or request_savings_metadata
+            attach_model_routing_trace(
+                updated_metadata,
+                ModelRoutingDecisionTrace(
+                    request_id=request_id,
+                    mechanism="optimization_preset",
+                    requested_model=requested_model,
+                    effective_model=requested_model,
+                    reason="downgrade_blocked_unproven_transport",
+                    applied=False,
+                    scorer=decision.scorer,
+                    confidence=decision.confidence,
+                    candidates=[requested_model, decision.target_model],
+                    rejected_candidates=[
+                        {"model": decision.target_model, "reason": "target_not_transport_safe"}
+                    ],
+                    transport={
+                        "provider": transport_provider,
+                        "implicit_downgrade_allowed": False,
+                        "safe_targets": sorted(safe_targets),
+                        "target_proven": False,
+                    },
+                ),
+            )
+            return requested_model, updated_metadata
 
     updated_metadata["model_routing"] = {
         "source_model": decision.source_model or requested_model,
@@ -908,8 +1389,33 @@ def prepare_model_routing(
         "tokens_saved": 0,
         "usd_saved": 0.0,
     }
+    if decision.confidence is not None:
+        updated_metadata["model_routing"]["confidence"] = decision.confidence
+    if decision.scorer:
+        updated_metadata["model_routing"]["scorer"] = decision.scorer
     if decision.request_overrides:
         updated_metadata["model_routing"]["request_overrides"] = decision.request_overrides
+    attach_model_routing_trace(
+        updated_metadata,
+        ModelRoutingDecisionTrace(
+            request_id=request_id,
+            mechanism="optimization_preset",
+            requested_model=requested_model,
+            effective_model=decision.target_model,
+            reason=decision.reason,
+            applied=True,
+            scorer=decision.scorer,
+            confidence=decision.confidence,
+            candidates=[requested_model, decision.target_model],
+            transport={
+                "provider": transport_provider,
+                "implicit_downgrade_allowed": implicit_downgrade_allowed,
+                "target_proven": implicit_downgrade_allowed
+                or decision.target_model
+                in set(getattr(router.config, "transport_safe_targets", set())),
+            },
+        ),
+    )
     return decision.target_model, updated_metadata
 
 
@@ -917,6 +1423,15 @@ __all__ = [
     "ModelRouter",
     "ModelRouterConfig",
     "ModelRoute",
+    "ModelRoutingMode",
+    "MODEL_ROUTING_SCORER_ARTIFACT_ENV",
+    "HeuristicTaskComplexityScorer",
     "RoutingDecision",
+    "TaskComplexityAssessment",
+    "TaskComplexityScorer",
+    "assess_task_complexity",
+    "model_routing_mode_for_state",
+    "model_routing_preset_for_mode",
+    "normalize_model_routing_mode",
     "prepare_model_routing",
 ]

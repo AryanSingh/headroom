@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import tempfile
 import time
 from pathlib import Path
@@ -171,11 +173,37 @@ class TestStripeWebhook:
     def test_verify_stripe_signature(self):
         from cutctx.billing.stripe_webhook import verify_stripe_signature
 
-        with patch.dict("os.environ", {"STRIPE_WEBHOOK_SECRET": "whsec_test"}):
-            # The actual verification requires proper HMAC
-            # Just verify the function exists and can be called
-            with pytest.raises((ValueError, Exception)):
-                verify_stripe_signature(b"payload", "t=123,v1=bad")
+        with patch("cutctx.billing.stripe_webhook.STRIPE_WEBHOOK_SECRET", "whsec_test"):
+            with patch("cutctx.billing.stripe_webhook.time.time", return_value=1_700_000_000):
+                assert not verify_stripe_signature(b"payload", "t=123,v1=bad")
+
+    def test_verify_stripe_signature_rejects_old_timestamp(self):
+        from cutctx.billing.stripe_webhook import verify_stripe_signature
+
+        with patch("cutctx.billing.stripe_webhook.STRIPE_WEBHOOK_SECRET", "whsec_test"):
+            with patch("cutctx.billing.stripe_webhook.time.time", return_value=1_700_000_000):
+                payload = b"{}"
+                timestamp = 1_700_000_000 - 1_000
+                signature = hmac.new(
+                    b"whsec_test",
+                    f"{timestamp}.".encode() + payload,
+                    hashlib.sha256,
+                ).hexdigest()
+                assert not verify_stripe_signature(payload, f"t={timestamp},v1={signature}")
+
+    def test_verify_stripe_signature_accepts_fresh_timestamp(self):
+        from cutctx.billing.stripe_webhook import verify_stripe_signature
+
+        with patch("cutctx.billing.stripe_webhook.STRIPE_WEBHOOK_SECRET", "whsec_test"):
+            with patch("cutctx.billing.stripe_webhook.time.time", return_value=1_700_000_000):
+                payload = b'{"ok":true}'
+                timestamp = 1_700_000_000
+                signature = hmac.new(
+                    b"whsec_test",
+                    f"{timestamp}.".encode() + payload,
+                    hashlib.sha256,
+                ).hexdigest()
+                assert verify_stripe_signature(payload, f"t={timestamp},v1={signature}")
 
     def test_handle_checkout_completed(self):
         from cutctx.billing.stripe_webhook import handle_checkout_completed
@@ -277,6 +305,22 @@ class TestStripeWebhook:
 
 
 class TestLicenseDB:
+    def test_initializes_with_wal_and_busy_timeout(self):
+        from cutctx.billing.license_db import LicenseDB
+
+        with tempfile.NamedTemporaryFile(suffix=".db") as f:
+            db = LicenseDB(Path(f.name))
+            try:
+                journal_mode = db._conn.execute("PRAGMA journal_mode").fetchone()[0]
+                busy_timeout = db._conn.execute("PRAGMA busy_timeout").fetchone()[0]
+                synchronous = db._conn.execute("PRAGMA synchronous").fetchone()[0]
+            finally:
+                db.close()
+
+        assert str(journal_mode).lower() == "wal"
+        assert int(busy_timeout) == 5000
+        assert int(synchronous) == 1
+
     def test_upsert_and_get(self, monkeypatch):
         from cutctx.billing.license_db import LicenseDB
         from cutctx.billing.stripe_webhook import LicenseRecord, generate_license_key

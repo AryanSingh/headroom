@@ -294,7 +294,11 @@ def test_codex_proxy_base_url_and_launch_env() -> None:
     assert proxy_base_url(9999) == "http://127.0.0.1:9999/v1"
     assert env["OPENAI_API_KEY"] == "sk-test"
     assert env["OPENAI_BASE_URL"] == "http://127.0.0.1:9999/v1"
-    assert lines == ["OPENAI_BASE_URL=http://127.0.0.1:9999/v1"]
+    assert env["CUTCTX_CONTEXT_BUDGET_ENABLED"] == "1"
+    assert lines == [
+        "OPENAI_BASE_URL=http://127.0.0.1:9999/v1",
+        "CUTCTX_CONTEXT_BUDGET_ENABLED=1",
+    ]
 
 
 def test_codex_launch_env_routes_messages_through_cutctx(

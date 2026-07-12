@@ -25,6 +25,20 @@ test.describe('Overview Metrics & Panels', () => {
           summary: { cost: { without_cutctx_usd: 1.50, with_cutctx_usd: 0.25, total_saved_usd: 1.25 } },
           tokens: { saved: 5000, savings_usd: 1.25, savings_percent: 12.5 },
           requests: { total: 125, failed: 2, cached: 15 },
+          persistent_savings: {
+            lifetime: {
+              requests: 125,
+              tokens_saved: 5000,
+              total_input_tokens: 40000,
+              total_savings_usd: 1.25,
+            },
+            display_session: {
+              requests: 20,
+              tokens_saved: 800,
+              total_input_tokens: 6000,
+              total_savings_usd: 0.2,
+            },
+          },
           router: {
             route_counts: {
               user_msg: 100,
@@ -55,6 +69,125 @@ test.describe('Overview Metrics & Panels', () => {
     await expect(diagnosticsPanel).toBeVisible();
     await expect(diagnosticsPanel.getByText('small: 20')).toBeVisible();
     await expect(diagnosticsPanel.getByText('content_blocks: 5')).toBeVisible();
+  });
+
+  test('overview search filters summary panels as well as requests', async ({ page }) => {
+    await page.route('**/stats?*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          summary: { cost: { without_cutctx_usd: 8.0, with_cutctx_usd: 2.0, total_saved_usd: 6.0 } },
+          tokens: {
+            saved: 3000,
+            savings_usd: 6.0,
+            savings_percent: 30,
+            total_before_compression: 10000,
+          },
+          requests: { total: 40, failed: 1, cached: 7 },
+          prefix_cache: {
+            diagnostics: {
+              findings: [
+                {
+                  code: 'cache-reuse-low',
+                  title: 'Cache reuse is low',
+                  detail: 'Prompt cache could save more.',
+                  recommendation: 'Repeat a request.',
+                  severity: 'info',
+                },
+              ],
+              by_provider: [
+                {
+                  provider: 'anthropic',
+                  status: 'degraded',
+                  reason: 'cache busts',
+                  requests: 10,
+                  hit_rate: 10,
+                  bust_count: 2,
+                },
+              ],
+            },
+          },
+          knowledge_graph: {
+            status: 'ready',
+            requested: true,
+            available: true,
+            active: true,
+            interceptor_registered: true,
+            version: '1.2.3',
+            node_count: 12,
+            edge_count: 18,
+          },
+          feature_availability: {
+            model_routing: { available: true, reason: 'enabled' },
+            audio: { available: true, compression: 'pass-through', reason: 'pass-through' },
+          },
+          intelligence: {
+            autopilot: {
+              enabled: true,
+              min_level: 1,
+              max_level: 5,
+              hysteresis_window: 10,
+              task_levels: {
+                summarize: 4,
+              },
+              task_stats: {
+                summarize: {
+                  signal_count: 3,
+                  adjustment_count: 1,
+                },
+              },
+              recent_levels: [4, 4, 5],
+              recent_adjustments: [
+                {
+                  task_type: 'summarize',
+                  old_level: 3,
+                  new_level: 4,
+                  signal_kind: 'quality_drop',
+                },
+              ],
+            },
+            policies: {
+              enabled: true,
+              count: 2,
+              total_samples: 9,
+              by_aggressiveness: {
+                aggressive: 2,
+              },
+              by_algorithm_hint: {
+                gpt_54_mini_high: 4,
+              },
+            },
+          },
+          recent_requests: [
+            {
+              request_id: 'req-1',
+              timestamp: '2026-07-02T04:30:00Z',
+              model: 'gpt-5.4',
+              input_tokens_original: 206658,
+              total_saved_tokens: 205112,
+              tokens_saved: 952,
+              cache_saved_tokens: 204160,
+            },
+          ],
+          persistent_savings: {
+            lifetime: { requests: 40, tokens_saved: 3000, total_input_tokens: 10000, total_savings_usd: 6.0 },
+            display_session: { requests: 10, tokens_saved: 1000, total_input_tokens: 3000, total_savings_usd: 1.2 },
+          },
+        }),
+      });
+    });
+
+    await page.goto('/dashboard');
+    const search = page.locator('input[aria-label="Search"]');
+    await expect(search).toBeVisible();
+    await search.fill('autopilot');
+
+    await expect(page.getByText('Compression autopilot', { exact: true })).toBeVisible();
+    await expect(page.getByText('Savings by client', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Feature availability', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Knowledge graph status', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Learned policies', { exact: true })).toHaveCount(0);
   });
 
   test('gracefully handles 500 Internal Server Error', async ({ page }) => {

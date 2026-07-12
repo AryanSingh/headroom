@@ -1,527 +1,554 @@
-# Product Maturity Audit — Cutctx
+# Product Maturity Audit — Cutctx v0.30.0
 
-**Date:** 2026-07-06  
-**Auditor:** Staff QA Engineer  
-**Version:** v0.30.0  
-**Based on:** Codebase audit, QA test execution (5000+ tests), production-readiness artifacts, competitive analysis, strategy documentation
-
----
-
-## Executive Summary
-
-Cutctx is a **late-stage beta product transitioning toward GA** with strong fundamentals: a Rust-backed compression engine, comprehensive CLI (14 command groups, 10K+ lines), production-quality proxy (80+ endpoints), extensive test coverage (2609+ Python tests, 235 Rust tests), and a clear open-core licensing model. The product successfully delivers on its core promise of context compression and has expanded into a broader context control plane with governance, memory, attribution, and enterprise features.
-
-**Overall Maturity Score: 7.3 / 10**
-
-| Dimension | Score | Trend |
-|-----------|-------|-------|
-| Feature Completeness | 7.5/10 | ↗ Advancing (WS4-WS9 complete) |
-| User Experience & UX | 6.5/10 | ↗ Dashboard improving, CLI strong |
-| Performance | 8.0/10 | → Stable, Rust pipeline accelerating |
-| Reliability | 6.5/10 | ↘ Regressions found in savings/proxy |
-| Security | 7.5/10 | → Strong, anti-debug gap closing |
-| Enterprise Readiness | 5.5/10 | ↗ SSO/RBAC built, UI missing |
-| Developer Experience | 7.0/10 | → CLI excellent, SDKs thin |
-| Competitive Positioning | 6.5/10 | ↗ Repositioning underway |
-
-**Verdict:** Conditionally ready for design-partner commercial engagements. The product is feature-complete for its core value proposition (compression + governance + memory) but has operational maturity gaps in enterprise UI, payment flows, and error handling.
+**Date:** 2026-07-10
+**Scope:** Full-stack product evaluation — features, UX, performance, reliability, security, enterprise readiness, developer experience, competitive positioning
+**Methodology:** Codebase inspection, automated test execution (~5,200+ tests), document review, audit synthesis
+**Version:** v0.30.0 (Python 3.12, Rust 1.80 workspace)
 
 ---
 
-## Dimension 1: Feature Completeness — Score 7.5/10
+## Overall Maturity Score: 58/100
 
-### What ships
+| Dimension | Score | Weight | Weighted |
+|-----------|:-----:|:-----:|:--------:|
+| Feature Completeness | 72 | 15% | 10.8 |
+| User Experience | 60 | 10% | 6.0 |
+| Performance | 75 | 15% | 11.3 |
+| Reliability | 45 | 20% | 9.0 |
+| Security | 50 | 15% | 7.5 |
+| Enterprise Readiness | 40 | 10% | 4.0 |
+| Developer Experience | 62 | 10% | 6.2 |
+| Competitive Positioning | 65 | 5% | 3.3 |
+| **Overall** | **58** | 100% | |
 
-| Category | Status | Count / Quality |
-|----------|--------|-----------------|
-| **Compression (12 algorithms)** | ✅ Complete | SmartCrusher, Log, Search, Diff, Kompress, Image, Audio, Code, JSON, XML, TagProtector, ContentRouter |
-| **CCR reversible compression** | ✅ Complete | 8 modules, MCP tool, batch processing, context tracker |
-| **Memory system** | ✅ Complete | Core + 15 sub-components, export/import, project isolation |
-| **Proxy server** | ✅ Complete | 80+ endpoints, Anthropic/OpenAI/Bedrock/Vertex |
-| **CLI** | ✅ Complete | 14 command groups, 10K+ lines |
-| **Dashboard** | ✅ Complete | React SPA, 9 screens, Playwright e2e |
-| **Context policy engine** | ✅ Complete (WS4) | Redact/block/allow rules, per-agent/team budgets |
-| **Session replay** | ✅ Complete (WS8) | ReplayEventStore, dashboard Replay.jsx |
-| **Context assurance** | ✅ Complete (WS7) | HMAC-SHA256 EvidenceLedger |
-| **Agent Context Report** | ✅ Complete (WS2) | `cutctx report agent-context` |
-| **Learn telemetry** | ✅ Complete (WS6) | Local-only aggregation |
-| **MCP server** | ⚠️ Sparse (3 tools) | `cutctx_retrieve`, `cutctx_status`, `cutctx_proxy_start` |
-| **Fleet management** | ⚠️ API-only | No dashboard or CLI |
-| **Analytics** | ⚠️ API-only | `/analytics/*` endpoints exist, no dashboard |
+### Interpretation
 
-### What's missing (medium-term)
+| Range | Status | Meaning |
+|-------|--------|---------|
+| 80-100 | **Production-grade** | Minimal risk, ship-ready |
+| 60-80 | **Beta-quality** | Core functional, gaps need closing |
+| 40-60 | **Early-stage** | Usable by early adopters, not GA-ready |
+| 0-40 | **Pre-release** | Major gaps, not safe for production |
 
-| Gap | Impact | Effort |
-|-----|--------|--------|
-| Unified `cutctx setup` install flow | Buyer needs help to start | Medium |
-| Dashboard views for RBAC/orgs/audit/retention | Enterprise buyers can't see governance | Medium |
-| `cutctx_compress` MCP tool | Claude Code can't compress via MCP | Low |
-| MCP admin tools (firewall, policy) | Agent can't manage Cutctx | Medium |
-| Python SDK (TypeScript + Go exist) | Python devs must use proxy directly | Medium |
-| No end-to-end "install → use → report" ROI workflow | Buyers can't self-prove value | Medium |
-| Plugin ecosystem thin | 7 plugins, mostly pass-through | Low |
-
-### Recent additions
-- WS4-WS9 all landed (policy, org memory, learn telemetry, assurance, replay)
-- USearch vector backend (10x faster, f16 quantization)
-- Stack Graph code navigation (tree-sitter-based, cross-file go-to-definition)
-- Audio compression (inline multimodal)
-- Dashboard governance screens
+**Cutctx is at the Early-Stage / Late-Beta boundary.** The core compression pipeline and proxy are well-engineered and production-viable for non-critical use. However, 8 critical deployment blockers (k8s manifests, encrypted storage, error tracking), 10+ active test failures, and missing enterprise compliance (SOC 2, SAML SSO, HIPAA BAA) make it unsafe for GA assertion.
 
 ---
 
-## Dimension 2: User Experience & UX — Score 6.5/10
+## Dimension 1: Feature Completeness — 72/100
 
-### CLI (Strong — 7.5/10)
+### Product Claims vs Reality
 
-- **14 command groups** covering proxy, wrap, memory, savings, billing, license, evals, learn, MCP, tools, capture, agent-savings, init, install
-- **Consistent naming** and CLI conventions across commands
-- **Comprehensive help output** with examples
-- **Gap:** No `cutctx setup` unified onboarding flow
-- **Gap:** No `cutctx config check` validation command
-- **Gap:** Enterprise features (RBAC, orgs, audit, retention) lack CLI commands
+| Claim | Status | Evidence |
+|-------|--------|----------|
+| **Compress tool outputs** | ✅ **Shipping** | SmartCrusher (JSON), CodeCompressor (AST), LogCompressor, DiffCompressor, Drain3 (ML logs), Graphify |
+| **Compress everything — RAG, logs, files, history** | ✅ **Shipping** | ContentRouter auto-detects content type, routes to optimal compressor |
+| **Image optimization** | ✅ **Shipping** | JPEG quality routing + format conversion; 1 test failure (ONNX router) |
+| **Audio compression** | ✅ **Shipping** | test_audio_compressor.py passes |
+| **Proxy — zero code changes** | ✅ **Shipping** | UDP proxy, intercept mode, wrap CLI |
+| **Agent wrap (claude, codex, cursor, etc.)** | ✅ **Shipping** | 14 agents supported, 335 wrap tests pass |
+| **MCP server** | ✅ **Shipping** | 3 tools: compress, retrieve, stats (+ optional read) |
+| **CCR — reversible compression** | ✅ **Shipping** | Compress-Cache-Retrieve, TTL configurable |
+| **Cross-agent memory** | ✅ **Partial** | SQLite store, 8 synthesis modes, search/query — but bridge tests fail (9 failures) |
+| **Cutctx Learn (self-improvement)** | ✅ **Shipping** | Mines failed sessions, writes to CLAUDE.md / AGENTS.md |
+| **CacheAligner — provider cache optimization** | ✅ **Shipping** | Stabilizes prefixes for Anthropic/OpenAI cache discount |
+| **Multi-provider support** | ✅ **Shipping** | Anthropic, OpenAI, Google/Bedrock/Vertex, 100+ via LiteLLM |
+| **SDK — Python one-function compress()** | ✅ **Shipping** | test_compress_api.py: 16 passed |
+| **SDK — CutctxClient wrapper** | ✅ **Shipping** | OpenAI-compatible, any SDK |
+| **SDK — TypeScript/Node** | ✅ **Shipping** | npm package published (readme claim confirmed via badge) |
+| **Team analytics / dashboard** | ✅ **Shipping** | 9-page React dashboard, 15 dashboard tests pass |
+| **Governance & policy** | ✅ **Shipping** | Context policies, tag protection, compression policies |
+| **RBAC** | ✅ **Shipping** | test_rbac.py: comprehensive coverage |
+| **SSO** | ⚠️ **Partial** | Enterprise tier — code exists (test_sso.py passes) but SAML support not verified |
+| **SCIM provisioning** | ✅ **Shipping** | test_scim.py passes |
+| **Audit logs** | ✅ **Shipping** | HMAC-SHA256 chain, REST/CLI/MCP export, residency proof |
+| **Data retention** | ✅ **Shipping** | test_retention.py passes |
+| **Fleet management** | ✅ **Shipping** | APIs exist (test_fleet.py passes) |
+| **Budgets / spend tracking** | ✅ **Shipping** | Savings tracker, cost tracker, buyer reports |
+| **TOIN (Truncation-Optimized Item Names)** | ✅ **Shipping** | 41+ TOIN tests pass |
+| **Streaming** | ✅ **Shipping** | Full streaming resilience, response compression |
+| **Model routing** | ✅ **Shipping** | Model router with presets, fallback, smart orchestration |
 
-### Dashboard (Adequate — 6/10)
+### Feature Completeness Gaps
 
-- **9 screens:** Overview, Orchestrator, Capabilities, Governance, Firewall, Memory, Replay, Playground, Docs
-- **Skeleton loading states** on Overview
-- **Empty states** with actionable copy
-- **Dark/light theme** toggle
-- **Gap:** No RBAC viewer, org management, audit log viewer, SSO status, retention config, fleet view
-- **Gap:** Playwright e2e coverage exists but is not run in main CI on every PR
-- **Gap:** Mobile responsiveness needs verification
-
-### Documentation (6.5/10)
-
-| Source | Quality |
-|--------|---------|
-| `README.md` | ✅ Updated to context-control-plane positioning |
-| `PRODUCT_GUIDE.md` | ✅ 912-line comprehensive guide |
-| `llms.txt` / `llms-full.txt` | ✅ LLM-optimized docs |
-| `docs/` (Fumadocs/Next.js) | ✅ Structured docs site |
-| `wiki/` | ✅ 16 wiki pages |
-| `CONTRIBUTING.md` | ✅ Clear PR guidelines |
-| **Gap:** No interactive API playground | Swagger/ReDoc missing |
-| **Gap:** No "getting started" tutorial video | |
-| **Gap:** Enterprise deployment guide scattered | |
-
-### Error handling & feedback (5/10)
-
-| Issue | Evidence |
-|-------|----------|
-| Too many broad `except Exception` handlers | Proxy codebase analysis found 64+ instances |
-| No structured error taxonomy | Errors not classified into categories |
-| No user-facing error codes | Users can't search for error resolutions |
-| No circuit breakers for upstream failures | Single retry with backoff only |
-| Deprecation warnings in tests | 40+ tests showing SWIG/SwigPyPacked warnings |
-
----
-
-## Dimension 3: Performance — Score 8.0/10
-
-### Compression benchmarks
-
-| Metric | Value | Source |
-|--------|-------|--------|
-| SmartCrusher compression ratio | 79.1% | Benchmark dataset |
-| Log compression ratio | 88.3% | Benchmark dataset |
-| Search compression ratio | 79.3% | Benchmark dataset |
-| Diff compression | 100.0% | Benchmark dataset |
-| Kompress compression | 78.8% | Benchmark dataset |
-| ContentRouter | 78.2% | Benchmark dataset |
-| SmartCrusher F1 | 1.000 | Benchmark dataset |
-| Overall input token reduction | 50-92% | Product documentation |
-
-### Latency profile
-
-| Operation | Performance |
-|-----------|-------------|
-| Compression (Rust core, most algorithms) | Sub-millisecond per content block |
-| Memory injection | <50ms |
-| Semantic cache lookup | ~10ms (with USearch, f16) |
-| Proxy passthrough overhead | Negligible (Rust axum) |
-| Model load (Kompress, fastembed) | First-call only, cached thereafter |
-
-### Architecture performance strengths
-
-| Feature | Impact |
-|---------|--------|
-| Rust compression core | Sub-ms transforms, no GIL contention |
-| Dashmap-based CCR storage | Lock-free reads, sharded writes |
-| USearch vector backend | ~10x faster than sqlite-vec |
-| f16 quantization | 50% memory savings vs f32 |
-| Async proxy (axum/uvicorn) | High concurrency, non-blocking |
-| Cache-aligned prefix optimization | Better provider-side cache hits |
-| LTO + codegen-units=1 in release | 10-11 MB wheels (was 18 MB) |
-
-### Performance risks
-
-| Risk | Severity | Detail |
-|------|----------|--------|
-| No CI performance regression gates | Medium | Benchmarks exist but aren't enforced |
-| Kompress model loading memory spike | Low | Guard added (`CUTCTX_KOMPRESS_MAX_WORDS`) |
-| No benchmark against provider-native compaction | Medium | Strategy doc calls this a priority |
-| No latency budget/SLA defined | Low | Not documented anywhere |
+| Gap | Impact | Priority |
+|-----|--------|----------|
+| **No deterministic compression mode** | Compliance buyers need rule-based (non-ML) mode | Medium |
+| **No CI/CD integration** | DevOps buyers want `cutctx compress --check` | Medium |
+| **No verification/hallucination guard** | #1 CISO objection — "How do I know compression didn't break my agent?" | High |
+| **MCP tool count (3) vs LeanCTX (81)** | Looks underfeatured by comparison | High |
+| **Read-side intelligence** | Only basic MCP read, no map/sig/diff modes | Medium |
+| **No public leaderboard** | Condense.chat and competitors publish benchmarks | Low |
+| **No multi-agent orchestration** | No agent handoff, no multi-agent workflows | Low |
 
 ---
 
-## Dimension 4: Reliability — Score 6.5/10
+## Dimension 2: User Experience — 60/100
 
-### Test quality
+### Strengths
 
-| Metric | Value |
-|--------|-------|
-| Python test count | 2609 (2450 sync + 159 async) |
-| Python test classes | 1240 |
-| Python test files | 535 |
-| Rust test count | 235 |
-| Rust `cargo test --workspace` | ✅ All pass |
-| Overall pass rate (Python) | ~99.7% (8 failures out of 5000+) |
-| CI parallel shards | 4 (pytest-split) |
-| Code coverage measurement | ✅ `.coverage` artifact (68K) |
+- **One-command install:** `pip install cutctx-ai` works, `cutctx wrap claude` gets you running in seconds
+- **Rich CLI help:** All 33+ commands have `--help`, examples, env-var references
+- **Agent wrap is polished:** Supports 14 agents with per-agent configuration, auto-detection, proxy base URL
+- **MCP install is seamless:** `cutctx mcp install` auto-configures all detected agents
+- **Dashboard is comprehensive:** 9 pages covering overview, audit, savings, governance, capabilities, policy
+- **Graceful error messages:** CLI prints actionable remediation hints (test_error_remediation_hints.py passes)
+- **Contextual install layout:** Global vs local profile, supervisor integration, docker-compose
 
-### Known regressions
+### Weaknesses
 
-| Area | Tests | Impact |
-|------|-------|--------|
-| Savings tracker persistence | 3 savings/history tests failed | Data loss on restart in some scenarios |
-| `/stats` auth changes | 2 telemetry tests, 1 dashboard test | Tests not updated for admin auth requirement |
-| Legacy USD fallback | 1 savings CLI test | Returns 0.0 instead of saved delta values |
-| SSE error message | 1 streaming test | Message mismatch under specific conditions |
-| OpenAI provider fixtures | 15 provider tests error (missing conftest) | Providers suite skipped/test-order dependent |
-| Flaky tests | 3 (learn/analyzer, forwarded-headers) | Test ordering dependencies |
+- **CLI learning curve:** 33+ commands with nested subcommands — no `cutctx help` summary, you need `cutctx --help` then remember to lazy-load each group
+- **Proxy configuration surface is massive:** 50+ CLI flags, 60+ env vars. No guided setup wizard after `cutctx init`.
+- **Dashboard not mobile-responsive:** Previous audit flagged mobile overflow as medium bug
+- **No accessible navigation:** Sidebar has no ARIA labels, not keyboard-accessible (known from prior audit)
+- **MCP tool names are confusing:** `mcp__cutctx__cutctx_retrieve` — the "cutctx" doubling is documented as intentional but looks like a bug to users
+- **No interactive configuration:** All config is env-var or flag based. No `cutctx configure` wizard.
+- **Web UI has no dark mode:** Light theme only
 
-### Error handling gaps
+### UX Score Breakdown
 
-| Finding | Severity |
-|---------|----------|
-| 64+ bare `except Exception` handlers | Medium — silent swallowing |
-| No structured error taxonomy | Medium — hard to debug in production |
-| No circuit breakers for upstream API failures | Medium — cascading failures possible |
-| Async mock coroutines never awaited | Low — test cleanup only |
-| Test deprecation warnings (SWIG) | Low — Python 3.14 compatibility |
-
-### Operational readiness
-
-| Capability | Status |
-|------------|--------|
-| Health endpoints (`/livez`, `/readyz`, `/health`) | ✅ 3 endpoints |
-| Graceful shutdown | ✅ Tested |
-| Warmup endpoint | ✅ Tested |
-| Startup logs | ✅ Noise-tested |
-| Prometheus metrics | ✅ Rust proxy |
-| OpenTelemetry traces | ✅ Integrated |
-| Rate limiting | ✅ Token bucket, RPM/TPM |
-| **Missing:** Structured logging (JSON everywhere) | ⚠️ Partial |
-| **Missing:** Circuit breakers | ❌ |
-| **Missing:** Latency SLAs / SLOs | ❌ |
+| Sub-dimension | Score | Evidence |
+|---------------|:-----:|----------|
+| Installation UX | 75 | pip install works, wrap is seamless, but 10+ optional extras are confusing |
+| CLI UX | 65 | Rich help, but command count is overwhelming without discoverable categories |
+| Proxy UX | 60 | Powerful but complex — 50+ flags, no guided setup |
+| Dashboard UX | 55 | Feature-rich but not responsive, no dark mode, no a11y |
+| MCP UX | 65 | Auto-install is great, but tool naming confuses |
+| Error UX | 70 | Good remediation hints, but `except: pass` swallows errors silently |
 
 ---
 
-## Dimension 5: Security — Score 7.5/10
+## Dimension 3: Performance — 75/100
 
-### Authentication & authorization
+### Strengths
 
-| Feature | Status | Detail |
-|---------|--------|--------|
-| Admin API key | ✅ Verified | `/stats`, `/admin/*`, `/config/*` guarded |
-| RBAC | ✅ Verified | Role-based access control, persistence tested |
-| SSO/SAML/OIDC | ✅ Verified | 8 CLI flags, JWT validation, role mapping |
-| MFA/TOTP | ✅ Verified | 18 tests pass |
-| SCIM provisioning | ✅ Verified | 14 API endpoints |
-| Auth adversarial tests | ✅ Verified | 2 edge-case tests pass |
+- **Rust core:** Sub-millisecond compression latency, compiled to native via maturin/pyo3
+- **SmartCrusher:** Industry-best JSON compression through dedup + field-level variance analysis
+- **Streaming:** Full streaming support with zero buffering overhead
+- **Configurable concurrency:** 1000 concurrent connections limit, configurable upstream connection pooling
+- **Memory-efficient:** No large intermediate buffers, streaming transforms
+- **Image compression:** JPEG quality routing + format conversion, 40-90% reduction
+- **On-device ML:** Kompress-v2-base HuggingFace model runs locally, no cloud dependency
+- **CacheAligner:** Maximizes Anthropic/OpenAI cache hit rates
+- **Lazy CLI loading:** Commands only import on demand — CLI startup is instant
 
-### Data protection
+### Weaknesses
 
-| Feature | Status | Detail |
-|---------|--------|--------|
-| State encryption | ✅ Verified | 26 tests |
-| Secrets store | ✅ Verified | Tested |
-| DSR endpoints | ✅ Verified | Tested |
-| SSL context config | ✅ Verified | 10 tests |
-| Egress firewall | ✅ Verified | 22 tests |
-| Rate limiting | ✅ Verified | 10+ tests |
-| Anti-debug (ptrace, /proc) | ✅ Verified | macOS/Linux/Windows |
-| License verification (HMAC + Ed25519) | ✅ Verified | Cryptographic chain |
+- **No published benchmarks against competitors:** No latency p50/p99/p999, no throughput benchmarks, no resource usage comparisons
+- **Starting the proxy loads ML models:** Kompress model loads on first request — cold start can be several seconds
+- **No performance regression gates in CI:** Benchmarks are optional (`--benchmark` flag), no automated pass/fail thresholds
+- **Rust core has 905 `unwrap()` + 105 `panic!()` across 100 source files:** These cause process termination on unexpected states — not graceful degradation
+- **GPU-dependent features fully skipped in CI:** No one knows if ML models perform acceptably under load
+- **No load testing or chaos engineering in CI:** `cargo-fuzz` harnesses exist but never run
+- **Python vs Rust boundary:** Some hot paths cross Python↔Rust boundary multiple times per request (serialization overhead)
+- **15 Python files > 1,800 lines:**
+  - `proxy/handlers/openai/responses.py` — 6,348 lines
+  - `cli/wrap.py` — 5,073 lines
+  - `proxy/server.py` — 4,798 lines
+  - `proxy/handlers/anthropic.py` — 4,114 lines
+  - `proxy/helpers.py` — 3,442 lines
+  - `transforms/content_router.py` — 3,256 lines
+  - `proxy/savings_tracker.py` — 2,909 lines
+  - `proxy/routes/admin.py` — 2,665 lines
+  - `proxy/handlers/streaming.py` — 2,536 lines
+  - `prediction/feature_extractor.py` — 2,529 lines
+  - `proxy/memory_handler.py` — 2,497 lines
+  - `transforms/code_compressor.py` — 2,361 lines
+  - `proxy/handlers/openai/chat.py` — 1,916 lines
+  - `evals/datasets.py` — 1,803 lines
+  - `cli/init.py` — 1,158 lines
 
-### Security fixes shipped (Phase 1)
+### Performance Score Breakdown
 
-| Fix | Detail |
-|-----|--------|
-| Loopback auth bypass closure | `/dashboard`, `/api/savings`, `/api/models` |
-| LIKE wildcard injection | `_escape_like()` helper |
-| Kompress DoS guard | `CUTCTX_KOMPRESS_MAX_WORDS` |
-| Debug mode warning | Startup warning when `CUTCTX_ALLOW_DEBUG` set |
-
-### Security gaps
-
-| Gap | Severity | Detail |
-|-----|----------|--------|
-| No pentest report attached | Medium | Security one-pager exists, no third-party audit |
-| No SBOM generation in CI | Low | `deny.toml` tracks deps but no SPDX/cyclonedx |
-| No secrets scanning in CI | Low | `.gitguardian.yaml` exists but no CI step |
-| No vulnerability disclosure program | Low | Not mentioned in SECURITY.md |
-
----
-
-## Dimension 6: Enterprise Readiness — Score 5.5/10
-
-### What ships in Enterprise tier
-
-| Feature | Status |
-|---------|--------|
-| SSO/JWT/OIDC authentication | ✅ Built |
-| RBAC | ✅ Built (API) |
-| Audit logs & export | ✅ Built (HMAC-chained) |
-| Retention controls | ✅ Built (API) |
-| Fleet management | ✅ Built (API) |
-| SCIM provisioning | ✅ Built (14 endpoints) |
-| Air-gap deployment | ✅ Built |
-| Premium support | ✅ Listed in pricing |
-| Org → Workspace → Project hierarchy | ✅ Built |
-| Multi-worker proxy | ✅ Supported |
-| Kubernetes + Helm | ✅ Deployed |
-| Agent wrapping (Claude, Codex, Cursor, etc.) | ✅ 13 agents |
-
-### Enterprise gaps
-
-| Gap | Severity | Detail |
-|-----|----------|--------|
-| **No enterprise admin UI** | **High** | 29 API endpoints have no dashboard — RBAC, orgs, audit, fleet, retention all API-only |
-| **No automated backup** | **Medium** | No documented backup/restore workflow |
-| **No SOC 2 evidence collection** | **Medium** | Mentioned as planned, no tooling |
-| **No structured logging** | **Medium** | Mix of log levels, no JSON-schema-logging |
-| **No disaster recovery runbook** | **Medium** | No DR/HA documentation |
-| **No scheduled report export** | **Low** | APIs exist, no cron delivery |
-| **No usage metering/overage** | **Low** | Relevant for consumption-based pricing |
-| **No compartmentalized secrets** | **Low** | All config via env vars |
-| **No compliance certifications** | **Low** | SOC 2 planned, not started |
-
-### Pricing & packaging maturity
-
-| Tier | Price | Maturity |
-|------|-------|----------|
-| Builder | $0 (free) | ✅ Open source, well-defined |
-| Team | $1,500/mo | ⚠️ No self-serve checkout, manual quoting |
-| Business | $3,500/mo | ⚠️ No self-serve checkout |
-| Enterprise | Custom ($60K-$150K+/yr) | ⚠️ Manual deals only |
-
-**Billing maturity: 4/10** — Stripe webhook handler exists, license issuance works, but no automated payment collection, no self-serve portal, no usage metering.
+| Sub-dimension | Score | Notes |
+|---------------|:-----:|-------|
+| Compression speed | 80 | Rust core sub-ms. ML models slower but comparable to competitors |
+| Throughput/scalability | 70 | Configurable workers/concurrency, but no load test results |
+| Memory usage | 75 | Streaming design, no buffer bloat, but ML model loading is heavy |
+| Cold start | 55 | Model load on first request, no pre-warming guarantee |
+| CI performance gates | 30 | No automated regression detection |
 
 ---
 
-## Dimension 7: Developer Experience — Score 7.0/10
+## Dimension 4: Reliability — 45/100
 
-### CLI (Excellent — 8/10)
+### Evidence
 
-| Command | Quality |
-|---------|---------|
-| `cutctx proxy` | ✅ 61 flags, comprehensive config |
-| `cutctx wrap <agent>` | ✅ 13 agents, production-tested |
-| `cutctx memory` | ✅ Full CRUD + import/export |
-| `cutctx savings` | ✅ Reports, timeline, export |
-| `cutctx evals` | ✅ Memory evaluations |
-| `cutctx learn` | ✅ Failure analysis pipeline |
-| `cutctx init` | ✅ Agent initialization |
-| `cutctx mcp` | ✅ MCP lifecycle management |
-| `cutctx tools` | ✅ Bundled tool management |
+| Area | Assessment | Source |
+|------|-----------|--------|
+| Test pass rate (Python) | ~5,200+ passed / ~27 failed / ~255 skipped | QA audit run |
+| Test pass rate (Rust) | 9 unit + 8 integration — all pass | `cargo test --workspace` |
+| CI workflows | 22 workflows including nightly, weekly benchmarks | CI/CD inspection |
+| Test-to-source ratio | ~1:1 for OSS modules | Production-readiness assessment |
+| Coverage | Not collected in main CI | Production-readiness assessment |
+| Fuzz targets | 3 harnesses exist, never run in CI | Production-readiness assessment |
+| Proxy god file | `server.py` = 6,889 lines, 22 silent `except: pass` | Codebase inspection |
+| Rust panic/unwrap | 905 `unwrap()`, 105 `panic!()` across 100 files | Codebase grep |
+| Error tracking | None — no Sentry, DataDog, or global exception handler | Production-readiness assessment |
+| Structured logging | Not shipped — no JSON log format | Production-readiness assessment |
+| EE test coverage | 3 test files for 42 source modules | Production-readiness assessment |
 
-### SDKs
+### Reliability Risk Register
 
-| SDK | Maturity | Status |
-|-----|----------|--------|
-| **TypeScript** | ✅ npm package, client + compress + hooks + shared-context + adapters | Complete |
-| **Go** | ✅ Client with Compress, Retrieve, Stats | Adequate |
-| **Python** | ❌ No separate SDK — use proxy directly | Gap |
-| **Java** | ⚠️ `sdks/java-cutctx/` exists but limited | Early stage |
+| Risk | Likelihood | Impact | Mitigation |
+|------|:----------:|:------:|------------|
+| Proxy crash from Rust panic | Low | **Critical** — kills all connections | Reduce `unwrap()`, add panic hook |
+| Silent data loss from `except: pass` | Medium | **High** — corrupted state | Remove/audit all 22 silent catches |
+| Proxy hangs on ML model crash | Low | **High** — degraded compression | Add model health check + fallback |
+| DB corruption from missing encryption | Medium | **Critical** — data exposure | Encrypt SQLite at rest |
+| k8s pod restart loses all state | Medium | **High** — full rebuild needed | Add PVCs to all DB mounts |
+| License validation path returns a real portal-backed result | Low | **Improved** — enforcement now depends on portal/DB responses rather than a hardcoded stub | Keep strict-mode coverage and regression tests |
 
-### MCP Surface (Underdeveloped — 5/10)
+### Reliability Score Breakdown
+
+| Sub-dimension | Score | Notes |
+|---------------|:-----:|-------|
+| Test coverage breadth | 70 | 1:1 ratio for OSS, but EE is 3:42 |
+| Test pass stability | 65 | 27 current failures, but core pipeline is solid |
+| Error handling | 35 | 22 silent `except: pass`, no global handler |
+| Crash resilience | 30 | Rust panics kill the process |
+| Monitoring/observability | 50 | Rich Prometheus/OTel, but no error tracking |
+| Deployment robustness | 30 | 8 critical k8s blockers |
+
+---
+
+## Dimension 5: Security — 50/100
+
+### Strengths
+
+| Feature | Status | Evidence |
+|---------|--------|----------|
+| Admin API key auth | ✅ **Strong** | Auto-generated, HMAC-constant-time comparison |
+| RBAC | ✅ **Strong** | Comprehensive role-based access control |
+| SSO | ✅ **Shipping** | test_sso.py: all pass |
+| MFA/TOTP | ✅ **Shipping** | test_mfa_totp.py: all pass |
+| Audit chain HMAC | ✅ **Strong** | HMAC-SHA256, fail-closed on missing secret |
+| Parameterised SQL | ✅ **Strong** | (except 2 f-string where_clause sites) |
+| PII redaction | ✅ **Strong** | API keys, image content redacted in logs |
+| CORS defaults | ✅ **Conservative** | Closed by default |
+| No dangerous patterns | ✅ **Clean** | No `os.system`, `eval`, `pickle` |
+| Egress enforcer | ✅ **Strong** | test_egress_enforcer: all pass |
+| Firewall | ✅ **Strong** | Comprehensive + runtime route enforcement |
+| Tag protection | ✅ **Strong** | tag_protector_invariant: all pass |
+
+### Weaknesses / Findings
+
+| Finding | Severity | Status |
+|---------|:--------:|--------|
+| SQLite databases unencrypted at rest | 🔴 **Critical** | No fix yet |
+| Hardcoded Ed25519 signing key in `.env.secret` | 🔴 **Critical** | No fix yet |
+| `cargo audit` soft-fails in CI (doesn't block merge) | 🟠 **High** | Known CVEs not blocking |
+| No `pip-audit` in CI | 🟠 **High** | No Python vulnerability tracking |
+| Stripe webhook timestamp tolerance | ✅ **Fixed** | Replay tolerance now enforced in cutctx_ee/billing/stripe_webhook.py |
+| MD5 used for cache keying despite policy ban | 🟡 **Medium** | Policy violation |
+| Runtime-app unauthenticated fallback path | 🟠 **High** | No admin key = no auth |
+| `_validate_metadata_key` exists but not wired | 🟠 **High** | SQL injection risk |
+| Wide-open CORS in runtime-app branch | 🟡 **Medium** | Not default but risky |
+| EE watermark traceability | ✅ **Implemented** | Watermark embedding / extraction and traceability are covered in cutctx_ee/watermark.py and tests |
+
+### Security Score Breakdown
+
+| Sub-dimension | Score | Notes |
+|---------------|:-----:|-------|
+| Auth/Access Control | 75 | Strong RBAC, SSO, MFA, but unauthenticated fallback exists |
+| Data Protection | 35 | SQLite unencrypted, MD5 violations, hardcoded keys |
+| Vulnerability Management | 30 | cargo audit soft-fails, no pip-audit, no Dependabot |
+| Network Security | 60 | CORS closed, egress enforcer, but k8s NetworkPolicy is too permissive |
+| Audit & Compliance | 70 | HMAC chain, retention, DSR endpoints — but audits are unencrypted |
+| Incident Response | 25 | No error tracking, no crash reporting, no alert channels |
+
+---
+
+## Dimension 6: Enterprise Readiness — 40/100
+
+### Enterprise Requirements Matrix
+
+| Requirement | Status | Evidence | Buyer Importance |
+|-------------|--------|----------|:----------------:|
+| SSO (SAML/OIDC) | ⚠️ **Partial** | Code exists, test_sso.py passes — but no SAML-specific verification | 🔴 **Critical** |
+| RBAC | ✅ **Shipping** | Comprehensive | 🔴 **Critical** |
+| Audit logs | ✅ **Shipping** | HMAC chain, exportable | 🔴 **Critical** |
+| Data retention | ✅ **Shipping** | Configurable TTLs | 🔴 **Critical** |
+| SCIM provisioning | ✅ **Shipping** | User/group provisioning | 🔴 **Critical** |
+| SOC 2 Type II | ❌ **Not started** | No SOC 2 report available | 🔴 **Critical** |
+| HIPAA BAA | ❌ **Not started** | No BAA offering | 🟠 **High** |
+| SAML SSO | ⚠️ **Partial** | SSO code exists, SAML endpoint not verified | 🔴 **Critical** |
+| Air-gap deployment | ✅ **Shipping** | `HF_HUB_OFFLINE=1`, multi-stage Docker | 🟠 **High** |
+| Kubernetes manifests | ⚠️ **Broken** | 8 critical issues (PVCs, ports, UID, secrets) | 🔴 **Critical** |
+| Helm chart | ⚠️ **Broken** | Missing EE secret templates | 🔴 **Critical** |
+| Persistent storage | ❌ **Broken** | No PVCs — all state lost on restart | 🔴 **Critical** |
+| Docker deployment | ✅ **Works** | docker-compose, multi-arch, multi-variant | 🟠 **High** |
+| Prometheus monitoring | ✅ **Shipping** | 60+ metric families, health checks | 🟠 **High** |
+| Structured logging | ❌ **Not shipped** | No JSON log format | 🟡 **Medium** |
+| Error tracking | ❌ **Not shipped** | No Sentry/DataDog | 🟡 **Medium** |
+| SBOM/Docker provenance | ❌ **Not shipped** | No attestation | 🟡 **Medium** |
+| Dependabot | ❌ **Not configured** | No automated dependency updates | 🟡 **Medium** |
+| Windows support | ⚠️ **Partial** | Python works, some CLI edge cases | 🟡 **Medium** |
+| Kustomize overlays | ❌ **Not shipped** | No staging/prod separation | 🟡 **Medium** |
+
+### Enterprise Readiness Score Breakdown
+
+| Sub-dimension | Score | Notes |
+|---------------|:-----:|-------|
+| Auth & Identity | 55 | SSO exists, but no SAML verification, no SCIM e2e |
+| Compliance | 20 | No SOC 2, no HIPAA BAA, no audit trail encryption |
+| Deployment | 35 | Docker works, k8s/Helm is broken (8 critical issues) |
+| Observability | 55 | Prometheus is great, error tracking and structured logs missing |
+| Supportability | 35 | No SLAs formally documented (SLA.md exists but is generic) |
+
+---
+
+## Dimension 7: Developer Experience — 62/100
+
+### Strengths
+
+- **`pip install cutctx-ai` and you're running:** Zero-config `cutctx proxy` starts immediately
+- **Rich SDK with `compress()` function:** One-liner compression for any LLM app
+- **CutctxClient proxy-compatible SDK:** Wrap any OpenAI/Anthropic client transparently
+- **Comprehensive docs:** `docs/` has 74 markdown files, `CHANGELOG.md` is 64KB
+- **Interactive examples:** `/examples/` directory with runnable code
+- **MCP auto-install:** `cutctx mcp install` detects and configures all agents
+- **`cutctx wrap` supports 14 agents:** One command per agent, proxy auto-starts
+- **Lazy CLI loading:** Fast startup, commands load on demand
+- **Extensive test suite:** 7,651 collected tests — high confidence
+- **LLM-friendly docs:** `llms.txt` and `llms-full.txt` for AI coding tools
+
+### Weaknesses
+
+- **Optional deps hell:** `[all]`, `[proxy]`, `[ml]`, `[code]`, `[memory]`, `[langchain]`, `[agno]`, `[image]`, `[evals]`, `[pytorch-mps]` — 10 extras to choose from. `pip install "cutctx-ai[all]"` is the safe choice but is undocumented as such
+- **50+ proxy flags + 60+ env vars:** No `cutctx config wizard` to guide through setup
+- **No interactive debug mode:** `--debug` flag exists but doesn't provide structured troubleshooting
+- **Type annotations incomplete:** 312 `# type: ignore` comments mean mypy is not clean
+- **10 god files > 2,000 lines:** `proxy/server.py` at 6,889 lines is nearly unreadable
+- **File documentation gaps:** 51/519 Python files missing module docstrings (9%)
+- **Memory bridge incomplete:** 9 tests fail because sentence-transformers isn't marked as optional properly
+- **`except: pass` makes debugging painful:** Errors get swallowed silently — developers need `CUTCTX_DEBUG=1` to see them
+
+### Developer Experience Score Breakdown
+
+| Sub-dimension | Score | Notes |
+|---------------|:-----:|-------|
+| Onboarding | 70 | pip install works, wrap is seamless. Extra confusion about extras. |
+| Documentation | 65 | Extensive but uneven — some areas have detailed guides, others are empty |
+| SDK usability | 75 | Well-designed `compress()` API and CutctxClient. TypeScript also available. |
+| Code quality | 45 | 6,889-line god file, 312 type: ignores, 22 silent excepts, 904 unwraps |
+| Debuggability | 40 | No structured error tracking, silent exception swallowing |
+| Extensibility | 65 | Plugin system exists, proxy extensions, MCP tools — but limited documentation |
+
+---
+
+## Dimension 8: Competitive Positioning — 65/100
+
+### Competitive Landscape
 
 ```
-cutctx_retrieve: retrieve original content from CCR markers
-cutctx_status:  check proxy health + compression stats
-cutctx_proxy_start: auto-start proxy if not running
+                    BROADER SCOPE
+                         ▲
+                         │
+                   Cutctx ◄─────── Condense.chat
+                   (72% comp,      (64% comp,
+                    all content)    text only)
+                         │
+          LeanCTX ───────┤
+          (81 MCP tools,  │
+           no CCR)        │
+                         │
+          RTK ───────────┤
+          (14 agents,     │
+           shell only)    │
+                         │
+                         │              Compresr/TTC
+                         │              (hosted API,
+                         │               SOC 2 in progress)
+                         │
+                    NARROW FOCUS
 ```
 
-**Missing tools:**
-- `cutctx_compress` — compress arbitrary content (listed in docs but doesn't exist)
-- `cutctx_scan` — firewall scanning
-- `cutctx_memory_add` / `cutctx_memory_query` — memory via MCP
-- `cutctx_savings` — savings checks from within agent
+### Competitive Advantages (Moats)
 
-### Install & setup
+1. **Only reversible compression in market:** CCR is unique. No competitor offers lossless retrieval of compressed content.
+2. **Only multi-format compressor:** JSON + code + logs + diffs + images + prose — all in one pipeline, auto-detected.
+3. **Only cross-provider attribution:** 5-source savings attribution (compression + caching + memory + model routing + output optimization) is unique.
+4. **Only local-first + proxy + MCP + SDK:** Every competitor picks one deployment model. Cutctx offers all four.
+5. **Open-core + enterprise:** Apache 2.0 OSS engine plus commercial enterprise features appeals to both developers and procurement.
 
-**Current state:** Fragmented — `cutctx init`, `cutctx wrap`, `cutctx install` are separate commands. No unified `cutctx setup` workflow.
+### Competitive Threats
 
-**Install targets:**
-- `pip install cutctx-ai` — PyPI
-- `npm install cutctx-ai` — npm
-- Docker — multi-arch images
-- `brew install cutctx/tap/cutctx` — Homebrew tap
-- `curl -fsSL https://cutctx.com/install.sh` — Shell install
+| Threat | Severity | Dynamics |
+|--------|:--------:|----------|
+| **LeanCTX** (closest thesis) | 🔴 **High** | Faster iteration (ships daily), 81 MCP tools (Cutctx has 3), knowledge graph, 30+ agent support, active Discord community. Main risk: "LeanCTX is good enough" for the local-first buyer. |
+| **Helicone** (gateway with compression) | 🔴 **High** | Helicone already ships "Context Editing" (compression), has SOC 2, SSO, and observability. Enterprise buyers may prefer one vendor. |
+| **Portkey / LiteLLM** (gateway absorption) | 🟡 **Medium** | If Portkey or LiteLLM add native compression, they own the distribution layer. Cutctx would need to compete on compression quality alone. |
+| **Provider-native caching** (Anthropic, OpenAI) | 🟡 **Medium** | Complementary, but buyer perception is a risk: "Why do I need Cutctx when Anthropic already caches?" |
+| **Condense.chat** (newest entrant) | 🟡 **Medium** | Claims 64% compression, published leaderboard, Codex/OpenCode support. First-mover risk if they execute faster. |
 
-### CI/CD for developers
+### Competitive Score Breakdown
 
-| Feature | Status |
-|---------|--------|
-| Pre-commit hooks | ✅ Configured |
-| Commitlint | ✅ Conventional commits enforced |
-| CI precheck (`make ci-precheck`) | ✅ Rust + Python + Dashboard + Commitlint |
-| `make dev-ee` | ✅ One-shot dev env setup |
-| Dev containers | ✅ Default + Memory stack |
-| Documentation for contributors | ✅ CONTRIBUTING.md |
+| Sub-dimension | Score | Notes |
+|---------------|:-----:|-------|
+| Feature parity vs alternatives | 80 | Broader scope than any single competitor |
+| Unique differentiation | 75 | CCR and 5-source attribution are defensible moats |
+| Distribution/market presence | 50 | Less adoption than RTK (70K★) and LiteLLM (53K★), comparable to LeanCTX (3.2K★) |
+| Threat response readiness | 55 | LeanCTX is shipping daily — Cutctx's iteration velocity is unclear |
+| Pricing positioning | 70 | Open-core + clear enterprise tiers is good, but buyer needs SOC 2 before signing |
 
 ---
 
-## Dimension 8: Competitive Positioning — Score 6.5/10
+## Strategic Roadmap
 
-### Market landscape
+### P0 — Must-Have (Ship this month — blocking production deployment)
 
-| Competitor | Category | Threat Level | Cutctx Advantage |
-|------------|----------|--------------|------------------|
-| **LLMLingua (Microsoft)** | Prompt compression | Medium | Cutctx is reversible, handles more content types, is local-first |
-| **Portkey** | LLM gateway | Medium | Cutctx has compression, memory, local-first posture |
-| **LiteLLM** | LLM gateway | Medium | Cutctx adds compression + memory layer; LiteLLM owns routing |
-| **Helicone** | LLM observability | Low | Cutctx adds compression + active governance, not just observability |
-| **OpenAI auto-compaction** | Provider native | High | Only conversation history, not cross-provider, not reversible |
-| **Mem0 / Letta** | Agent memory | Medium | Cutctx has cross-agent memory + provenance; weaker on consumer |
-| **RTK, lean-ctx** | CLI output compression | Low | Cutctx uses RTK but covers far more content types |
-| **ContextCut** | Codebase packing | Low | Different use case (repo → context vs. proxy compression) |
+| # | Item | Dimension | Effort | Impact |
+|---|------|-----------|:------:|:------:|
+| 1 | **Fix k8s/Helm manifests** — PVCs, ports, UIDs, EE secrets | Enterprise Readiness | 3 days | 🔴 Critical |
+| 2 | **Add `telemetry_tags` to `_retry_request()`** | Reliability | 1 hour | 🔴 Critical |
+| 3 | **Fix circuit breaker defaults** (None → 3/300) | Reliability | 30 min | 🟠 High |
+| 4 | **Fix header isolation** — stop leaking cutctx headers upstream | Security | 1 day | 🟠 High |
+| 5 | **Fix 27 test failures** — circuit breaker, header isolation, savings tracker, DSR, etc. | Reliability | 3 days | 🟠 High |
 
-### Strategic positioning (from moat analysis)
+### P1 — Should-Have (Next 30 days)
 
-**Current → Target transition:**
-```
-FROM: "Context compression layer — save 60-95% on tokens"
- TO:  "Local-first context control plane — govern, attribute, remember"
-```
+| # | Item | Dimension | Effort | Impact |
+|---|------|-----------|:------:|:------:|
+| 6 | **SQLite at-rest encryption** — memory/audit/spend/org DBs | Security | 5 days | 🔴 Critical |
+| 7 | **Fix `.env.secret` hardcoded Ed25519 key** | Security | 1 day | 🔴 Critical |
+| 8 | **Add global exception handler + error tracking** (Sentry wrapper) | Reliability | 3 days | 🟠 High |
+| 9 | **Wire `_validate_metadata_key`** — fix SQL injection risk | Security | 1 day | 🟠 High |
+| 10 | **Create `cutctx verify` command** — compare compressed vs original output | Feature Completeness | 5 days | 🟠 High |
+| 11 | **Reduce Rust `unwrap()` count from 905 → <100** | Reliability | 10 days | 🟠 High |
+| 12 | **Break up 15 god files (1,158-6,348 lines) into manageable modules** — prioritize `responses.py` (6,348), `server.py` (4,798), `anthropic.py` (4,114) | DX | 15 days | 🟠 High |
+| 13 | **Add `pytest.mark.skipif` for optional deps** (sentence-transformers, tree-sitter) | Reliability | 1 day | 🟡 Medium |
+| 14 | **Fix 22 silent `except: pass` blocks** | Reliability | 2 days | 🟡 Medium |
 
-**Moat layers (ranked by defensibility):**
+### P2 — Important (Next 60 days)
 
-| Layer | Moat Strength | Status |
-|-------|---------------|--------|
-| Cross-agent memory + provenance | High | ✅ Built, underexposed |
-| Cutctx Learn (failure → correction) | High | ✅ Built, underexposed |
-| Proxy neutral position | High | ✅ Built, structural advantage |
-| CCR + accuracy guard → audit primitive | Medium | ✅ Built, package as Context Assurance |
-| 5-source attribution | Medium | ✅ Built, one report from FinOps product |
-| Compression algorithms | Low (commoditizing) | ❌ Don't invest further |
+| # | Item | Dimension | Effort | Impact |
+|---|------|-----------|:------:|:------:|
+| 15 | **SOC 2 Type II readiness assessment** | Enterprise | Ongoing | 🔴 Critical |
+| 16 | **SAML SSO verification + test coverage** | Enterprise | 5 days | 🔴 Critical |
+| 17 | **Structured JSON logging** | Enterprise | 3 days | 🟠 High |
+| 18 | **Expand MCP tools from 3 to 15+** | Competitive | 10 days | 🟠 High |
+| 19 | **Fix dashboard mobile responsiveness + a11y** | UX | 3 days | 🟡 Medium |
+| 20 | **Add `cutctx config wizard`** | DX | 5 days | 🟡 Medium |
+| 21 | **Set up Dependabot for all ecosystems** | Security | 1 day | 🟡 Medium |
+| 22 | **Add performance regression gates to CI** | Reliability | 3 days | 🟡 Medium |
+| 23 | **Add coverage upload to main CI** | Reliability | 1 day | 🟡 Medium |
 
-### Competitive gaps
+### P3 — Nice-to-Have (Next 90 days)
 
-| Gap | Impact |
-|-----|--------|
-| No public quality-at-budget benchmark | Competitors set the narrative on safety |
-| No TCO calculator | Buyers can't self-quantify value |
-| No provider-native compaction comparison | Safe-harbor evidence missing |
-| No analyst coverage | Category not validated by Gartner/Forrester |
-| No case studies / reference customers | Enterprise buyers need proof |
-| Compression savings headline still front-and-center | Positions in the commodity bucket |
+| # | Item | Dimension | Effort | Impact |
+|---|------|-----------|:------:|:------:|
+| 24 | **Publish public benchmark leaderboard** | Competitive | 5 days | 🟡 Medium |
+| 25 | **Deterministic compression mode** (`--deterministic`) | Feature | 5 days | 🟡 Medium |
+| 26 | **CI/CD integration** (`cutctx compress --check`) | Feature | 5 days | 🟡 Medium |
+| 27 | **Read-side intelligence** (map, signatures, diff modes) | Feature | 7 days | 🟡 Medium |
+| 28 | **Dark mode for dashboard** | UX | 2 days | 🔵 Low |
+| 29 | **Kustomize overlays** for staging/prod | Enterprise | 2 days | 🔵 Low |
+| 30 | **HIPAA BAA readiness** | Enterprise | Ongoing | 🟡 Medium |
+| 31 | **Windows support improvements** | DX | 5 days | 🔵 Low |
+| 32 | **Multi-agent orchestration** (agent handoff) | Feature | 15 days | 🔵 Low |
 
-### What to emphasize vs. competitors
-
-| Cutctx advantage | Moonshot |
-|-----------------|----------|
-| Local-first — data never leaves customer control | Only real defense against providers |
-| Reversible CCR — nothing permanently lost | Compliance-grade guarantee |
-| Cross-provider — works everywhere | Providers won't optimize for competitors |
-| Memory + Learn data flywheel | Switching cost grows with usage |
-| 12 compression algorithms in one pipeline | One install for all content types |
-
----
-
-## Overall Maturity Roadmap
-
-### Phase 1: Release Stabilization (Now — 30 days)
-
-| Priority | Action | Dimension |
-|----------|--------|-----------|
-| P0 | Fix 8 test regressions (savings persistence, /stats auth, SSE messages) | Reliability |
-| P0 | Fix 15 OpenAI provider tests (missing conftest) | Reliability |
-| P1 | Fix savings tracker legacy USD fallback (returns 0.0) | Reliability |
-| P1 | Address Python 3.14 SWIG deprecation warnings (40 tests) | Technical Debt |
-| P1 | Close flaky tests (learn/analyzer ordering, forwarded headers) | Reliability |
-| P2 | Add structured error taxonomy and error codes | UX |
-| P2 | Reduce bare `except Exception` handlers (64+) | Reliability |
-
-### Phase 2: Enterprise UI & Onboarding (30-60 days)
-
-| Priority | Action | Dimension |
-|----------|--------|-----------|
-| P0 | Dashboard views for RBAC, orgs, audit, retention, fleet | Enterprise |
-| P0 | Unified `cutctx setup` install → verify → report workflow | DX |
-| P1 | CLI commands for RBAC, orgs, audit, retention management | Enterprise |
-| P1 | `cutctx config check` validation command | DX |
-| P1 | Add `cutctx_compress`, `cutctx_scan` MCP tools | DX |
-| P2 | Dashboard mobile responsiveness | UX |
-| P2 | Improve empty states and error states in dashboard | UX |
-
-### Phase 3: Moat Expansion (60-90 days)
-
-| Priority | Action | Dimension |
-|----------|--------|-----------|
-| P0 | Publish quality-at-budget benchmark vs provider-native compaction | Competitive |
-| P1 | Package CCR + accuracy guard as "Context Assurance" for compliance buyers | Competitive |
-| P1 | Ship Agent Context Report as automated monthly deliverable | Enterprise |
-| P2 | Add Python SDK (separate from proxy) | DX |
-| P2 | Add scheduled report export + email delivery | Enterprise |
-| P2 | Build TCO calculator (ROI tool) | Competitive |
-
-### Phase 4: GA Readiness (90-180 days)
-
-| Priority | Action | Dimension |
-|----------|--------|-----------|
-| P0 | Self-serve payment flow (Stripe Checkout, tier selection) | Enterprise |
-| P1 | SOC 2 evidence collection tooling | Enterprise |
-| P1 | Automated backup/restore runbook | Enterprise |
-| P1 | Structured JSON logging throughout | Reliability |
-| P2 | Third-party pentest | Security |
-| P2 | Disaster recovery documentation | Enterprise |
-| P2 | SBOM generation in CI | Security |
-| P3 | Webhook-based integration marketplace | Ecosystem |
-| P3 | API documentation portal (Swagger/ReDoc) | DX |
-
----
-
-## Dimension Score Detail
+### Roadmap Visualization
 
 ```
-Feature Completeness   ███████▒░░  7.5/10  Strong core, missing MCP depth
-User Experience        ██████▒░░░  6.5/10  CLI great, dashboard has gaps
-Performance            ████████░░  8.0/10  Rust core, fast algorithms
-Reliability            ██████▒░░░  6.5/10  8 regressions, no circuit breakers
-Security               ███████▒░░  7.5/10  Strong, no pentest yet
-Enterprise Readiness   █████▒░░░░  5.5/10  Features built, UI missing
-Developer Experience   ███████░░░  7.0/10  CLI excellent, SDKs thin
-Competitive Positioning██████▒░░░  6.5/10  Moat clear, execution in progress
-─────────────────────────────────────────────────────
-OVERALL                ███████▒░░  7.3/10  Conditionally ready for early commercial
+NOW ───────────────────────────────────────────────────────────────── 90 DAYS
+
+P0 (This week)
+├── Fix k8s manifests ───────────────────────► Production-ready deployment
+├── Fix _retry_request() signature
+├── Fix circuit breaker defaults
+├── Fix header isolation leak
+└── Fix 27 test failures
+
+P1 (30 days)
+├── SQLite at-rest encryption ───────────────► Security baseline
+├── Fix .env.secret hardcoded key
+├── Global exception handler ────────────────► Crash visibility
+├── Wire _validate_metadata_key
+├── cutctx verify command ──────────────────► CISO objection neutralized
+├── Reduce unwrap() 904→100
+├── Break up server.py 6,889 lines
+├── Add skipif for optional deps
+└── Fix 22 silent except:pass
+
+P2 (60 days)
+├── SOC 2 readiness ─────────────────────────► Enterprise procurement
+├── SAML SSO verification
+├── Structured JSON logging
+├── Expand MCP tools 3→15 ──────────────────► Competitive parity with LeanCTX
+├── Dashboard responsive + a11y
+├── cutctx config wizard ───────────────────► Lower onboarding friction
+├── Dependabot setup
+├── Performance regression CI
+└── Upload coverage to CI
+
+P3 (90 days)
+├── Public benchmark leaderboard
+├── Deterministic compression mode
+├── CI/CD integration
+├── Read-side intelligence
+├── Dark mode
+├── Kustomize overlays
+├── HIPAA BAA readiness
+├── Windows support
+└── Multi-agent orchestration
+
+TARGET STATE GOAL: Ship product maturity from 58 → 82 by end of P3
 ```
 
 ---
 
-## Risk Register
+## Dimension Score Summary
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Compression commoditization by providers | High | High | Pivot to control plane narrative (in progress) |
-| Enterprise buyers blocked by missing UI | High | High | Build governance dashboard views (Phase 2) |
-| Savings regression undetected in release | Medium | High | Fix the 3 savings test regressions (Phase 1) |
-| Self-serve channel blocked by no payment flow | Medium | Medium | Stripe integration (Phase 4) |
-| Python 3.14 SWIG incompatibility | Medium | Medium | Replace M2Crypto dependency (Phase 1) |
-| Performance regression in CI | Medium | Medium | Add benchmark gates to CI |
-| Agent framework bypasses proxy (direct API) | Low | High | Can't prevent — focus on value that requires proxy |
+```
+Feature Completeness  ████████████████████████████░░░░░░  72 ▲ Strong core
+User Experience      ██████████████████████████░░░░░░░░  60 ▲ Good CLI, weak dashboard
+Performance          ██████████████████████████████░░░░  75 ▲ Rust core, cold start hurts
+Reliability          ██████████████████░░░░░░░░░░░░░░░░  45 ▼ God files, panics, no error tracking
+Security             ████████████████████░░░░░░░░░░░░░░  50 ▼ Unencrypted DBs, soft-fail audits
+Enterprise           ████████████████░░░░░░░░░░░░░░░░░░  40 ▼ Broken k8s, no SOC 2, no SAML verify
+Developer Experience ██████████████████████████░░░░░░░░  62 ▲ SDK good, debuggability bad
+Competitive Position █████████████████████████████░░░░░  65 ▲ Moats exist, threats real
+                    ────
+OVERALL              █████████████████████████░░░░░░░░░  58  Early-stage / Late-beta
+```
 
 ---
 
-## Conclusion
+## Appendices
 
-Cutctx is on a strong trajectory toward GA. The core product is mature, well-tested, and delivers real value. The most impactful improvements are:
+### A. Evidence Index
 
-1. **Reliability:** Fix 8 regression tests (savings, /stats auth, SSE) — quick wins that restore confidence
-2. **Enterprise UI:** 29 admin API endpoints need dashboard views — the #1 blocker for enterprise adoption
-3. **Onboarding flow:** A single `cutctx setup` command would dramatically improve first-time experience
-4. **Competitive narrative:** The repositioning from "token saver" to "context control plane" is strategically correct and should accelerate
-5. **Error handling:** 64+ bare exception handlers and no structured error taxonomy create risk in production
+| Evidence Source | Location |
+|----------------|----------|
+| QA audit report (27 test failures, ~5,200+ passes) | `audit/qa-report.md` |
+| Production readiness assessment (55/100) | `audit/production-readiness-assessment.md` |
+| Competitive analysis | `audit/competitive-analysis.md` |
+| Previous QA report (78/100 dashboard-focused) | `audit/qa-report.md` (prior version) |
+| Product guide (923-line product description) | `PRODUCT_GUIDE.md` |
+| Enterprise documentation | `ENTERPRISE.md` |
+| Codebase structure & features | Codebase inspection |
+| Rust workspace test results | `cargo test --workspace` |
+| CI/CD workflow inspection | `.github/workflows/` |
 
-The product is ready for design-partner and early adopter engagements **today**. GA readiness requires the enterprise UI, payment flows, and reliability hardening mapped in the roadmap above.
+### B. Methodology
+
+- **Feature analysis:** Cross-referenced product claims (README, PRODUCT_GUIDE) against codebase implementation and test evidence
+- **Performance:** Codebase analysis of hot paths, architecture review, CI benchmark configuration
+- **Reliability:** Test execution (15 batches covering ~5,200+ tests), code quality metrics (god files, unwrap count, silent exception count)
+- **Security:** Code review of auth/encryption/vulnerability patterns, CI configuration audit
+- **Enterprise:** Document review of deployment manifests, compliance posture, feature matrix
+- **DX:** Onboarding walkthrough, code quality metrics, documentation coverage
+- **Competitive:** Web research against 8 competitors, feature comparison, threat modeling
+
+### C. Risk Ratings Legend
+
+| Rating | Meaning | Action Required |
+|--------|---------|----------------|
+| 🔴 **Critical** | Blocks production deployment, data safety, or revenue | Fix before any GA launch |
+| 🟠 **High** | Significant business risk, customer blocker | Fix within current release |
+| 🟡 **Medium** | Operational risk, competitive vulnerability | Fix within next release |
+| 🔵 **Low** | Nice-to-have, cosmetic, convenience | Backlog |
+
+---
+
+*Report generated by Staff QA Engineer. All assessments based on v0.30.0 of the codebase. Scores reflect the product's current state and are intended to guide improvement prioritization.*

@@ -26,7 +26,19 @@ Supported values are `rtk` and `lean-ctx`; unset defaults to `rtk`.
 |------|----------|----------|
 | `audit` | Observes and logs, no modifications | Production monitoring, baseline measurement |
 | `optimize` | Applies safe, deterministic transforms | Production optimization |
+| `deterministic_mode` | Disables the ML compressor and keeps rule-based transforms | Predictable compression / privacy-sensitive deployments |
 | `simulate` | Returns plan without API call | Testing, cost estimation |
+
+## Compatibility aliases
+
+Cutctx still accepts a small set of legacy mode aliases for backward compatibility.
+They normalize to the canonical `token` / `cache` values:
+
+- `token_mode`
+- `token_savings`
+- `cost_savings`
+- `cache_mode`
+- `token_cutctx`
 
 ## SDK Configuration
 
@@ -197,6 +209,9 @@ cutctx proxy \
 # Disable optimization (passthrough mode)
 cutctx proxy --no-optimize
 
+# Disable ML compression only (deterministic rule-based compression)
+cutctx proxy --deterministic
+
 # Disable semantic caching
 cutctx proxy --no-cache
 
@@ -215,6 +230,7 @@ cutctx proxy --learn --min-evidence 3
 | `CUTCTX_HOST` | Proxy bind host | `127.0.0.1` |
 | `CUTCTX_PORT` | Proxy bind port | `8787` |
 | `CUTCTX_MODE` | Proxy optimization mode: `token` or `cache` | `token` |
+| `CUTCTX_DETERMINISTIC_MODE` | Alias for disabling the ML compressor (`--deterministic`) | `false` |
 | `CUTCTX_WORKERS` | Uvicorn worker count | `1` |
 | `CUTCTX_LIMIT_CONCURRENCY` | Maximum concurrent connections before 503 | `1000` |
 | `CUTCTX_MAX_CONNECTIONS` | Maximum upstream HTTP connections | `500` |
@@ -230,6 +246,9 @@ cutctx proxy --learn --min-evidence 3
 | `CUTCTX_SAVINGS_PATH` | Override persistent savings file location. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
 | `CUTCTX_TOIN_PATH` | Override TOIN telemetry file location. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
 | `CUTCTX_SUBSCRIPTION_STATE_PATH` | Override subscription tracker state file. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
+| `CUTCTX_TOOL_INJECTION_STICKY` | Controls session-sticky memory tool replay. `enabled` keeps injected memory tool bytes stable for the rest of the session; `disabled` reverts to explicit per-turn injection for diagnostics or rollback. | `enabled` |
+| `CUTCTX_TOOL_TRACKER_MAX_SESSIONS` | Maximum number of sticky-memory sessions kept in the bounded LRU tracker before the oldest session is evicted. | `1000` |
+| `CUTCTX_TOOL_TRACKER_PATH` | Optional JSON persistence path for sticky-memory session state. Defaults under the workspace dir when unset. | derived from `${CUTCTX_WORKSPACE_DIR}` |
 | `CUTCTX_TELEMETRY` | Set to `off` to disable anonymous telemetry | `on` |
 | `CUTCTX_MEMORY_INJECTION_MODE` | Memory-context routing mode: `live_zone_tail` (default) or `disabled`. The legacy `system_prompt` mode was retired by PR-A2; supplying it raises. | `live_zone_tail` |
 | `CUTCTX_PROXY_PYTHON_FORWARDER_MODE` | Python forwarder serialization mode. `byte_faithful` (default) forwards original request bytes verbatim when no transform mutated the body and re-serializes canonically only when needed — keeps Anthropic prompt-cache hit-rate intact. `legacy_json_kwarg` is an explicit operator opt-in for emergency rollback to the historical `httpx ... json=body` behavior. NOT a fallback — only flip on explicit operator decision. | `byte_faithful` |

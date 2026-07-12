@@ -245,6 +245,25 @@ class TestCLIProxyEnvVars:
         assert result.exit_code == 0, result.output
         assert captured_config["config"].disable_kompress is True
 
+    def test_deterministic_mode_from_env(self, runner):
+        """CUTCTX_DETERMINISTIC_MODE should map to the same compression switch."""
+        captured_config = {}
+
+        def mock_run_server(config, **kwargs):
+            captured_config["config"] = config
+
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
+            result = runner.invoke(
+                main,
+                ["proxy"],
+                env={"CUTCTX_DETERMINISTIC_MODE": "1"},
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == 0, result.output
+        assert captured_config["config"].deterministic_mode is True
+        assert captured_config["config"].disable_kompress is True
+
     def test_disable_kompress_from_cli_flag(self, runner):
         """--disable-kompress should disable Kompress ML compression."""
         captured_config = {}
@@ -260,6 +279,24 @@ class TestCLIProxyEnvVars:
             )
 
         assert result.exit_code == 0, result.output
+        assert captured_config["config"].disable_kompress is True
+
+    def test_deterministic_mode_from_cli_flag(self, runner):
+        """--deterministic should map to the same compression switch."""
+        captured_config = {}
+
+        def mock_run_server(config, **kwargs):
+            captured_config["config"] = config
+
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
+            result = runner.invoke(
+                main,
+                ["proxy", "--deterministic"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == 0, result.output
+        assert captured_config["config"].deterministic_mode is True
         assert captured_config["config"].disable_kompress is True
 
     def test_code_aware_flag_overrides_env_var(self, runner):
@@ -736,4 +773,14 @@ class TestArgparseBackendValidation:
         with patch.dict(os.environ, {"CUTCTX_DISABLE_KOMPRESS": "1"}):
             config = _proxy_config_from_env()
 
+        assert config.disable_kompress is True
+
+    def test_proxy_config_from_env_reads_deterministic_mode(self):
+        """The direct server env path should honor CUTCTX_DETERMINISTIC_MODE."""
+        from cutctx.proxy.server import _proxy_config_from_env
+
+        with patch.dict(os.environ, {"CUTCTX_DETERMINISTIC_MODE": "1"}):
+            config = _proxy_config_from_env()
+
+        assert config.deterministic_mode is True
         assert config.disable_kompress is True

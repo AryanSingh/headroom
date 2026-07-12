@@ -374,6 +374,15 @@ def _selected_context_tool() -> str:
     ),
 )
 @click.option(
+    "--deterministic",
+    is_flag=True,
+    envvar="CUTCTX_DETERMINISTIC_MODE",
+    help=(
+        "Use deterministic rule-based compression only, disabling the ML compressor. "
+        "Equivalent to --disable-kompress. Env: CUTCTX_DETERMINISTIC_MODE=1."
+    ),
+)
+@click.option(
     "--query-aware",
     "query_aware_compression",
     is_flag=True,
@@ -890,6 +899,7 @@ def proxy(
     budget: float | None,
     code_aware_flag: bool | None,
     disable_kompress: bool,
+    deterministic: bool,
     query_aware_compression: bool,
     selective_filter: bool,
     selective_filter_threshold: float | None,
@@ -1080,6 +1090,8 @@ def proxy(
     if memory_qdrant_api_key is not None:
         qdrant_overrides["memory_qdrant_api_key"] = memory_qdrant_api_key
 
+    deterministic_mode = deterministic or _get_env_bool("CUTCTX_DETERMINISTIC_MODE", False)
+
     config = ProxyConfig(
         host=host,
         port=port,
@@ -1147,7 +1159,8 @@ def proxy(
             else os.environ.get("CUTCTX_CODE_AWARE_ENABLED", "").strip().lower()
             in ("true", "1", "yes", "on")
         ),
-        disable_kompress=disable_kompress,
+        deterministic_mode=deterministic_mode,
+        disable_kompress=disable_kompress or deterministic_mode,
         query_aware_compression=query_aware_compression,
         model_routing_preset=model_routing_preset or os.environ.get("CUTCTX_MODEL_ROUTING_PRESET") or None,
         selective_filter=selective_filter,

@@ -15,6 +15,7 @@ and other desktop AI tools will route through cutctx automatically.
 
 from __future__ import annotations
 
+import os
 import sys
 
 import click
@@ -28,6 +29,10 @@ def intercept_group() -> None:
 
     Enable with: CUTCTX_EXPERIMENTAL=1
     """
+    if os.environ.get("CUTCTX_EXPERIMENTAL") != "1":
+        raise click.ClickException(
+            "cutctx intercept is experimental; set CUTCTX_EXPERIMENTAL=1 to use it."
+        )
 
 
 @intercept_group.command("install")

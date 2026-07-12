@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "cases": [
+    {"id":"codex_status","client":"codex","prompt":"Show git status.","expected_tier":"mini","category":"repository_lookup"},
+    {"id":"codex_file_location","client":"codex","prompt":"Where is the proxy entrypoint?","expected_tier":"mini","category":"repository_lookup"},
+    {"id":"codex_explain_term","client":"codex","prompt":"What is a circuit breaker?","expected_tier":"mini","category":"informational"},
+    {"id":"codex_architecture","client":"codex","prompt":"Design the multi-region orchestration architecture and migration plan.","expected_tier":"strong","category":"design"},
+    {"id":"codex_debug","client":"codex","prompt":"Debug the websocket race that loses tool results.","expected_tier":"strong","category":"debugging"},
+    {"id":"codex_security","client":"codex","prompt":"Audit authorization across all services and implement fixes.","expected_tier":"strong","category":"security"},
+    {"id":"codex_patch","client":"codex","prompt":"Apply this patch:\n*** Begin Patch\n*** End Patch","expected_tier":"strong","category":"code"},
+    {"id":"codex_contextual","client":"codex","prompt":"Explain the first one.","expected_tier":"luna","category":"contextual","messages":[{"role":"user","content":"Inspect both routing modules."},{"role":"assistant","content":"I found two."},{"role":"user","content":"Explain the first one."}]},
+    {"id":"claude_greeting","client":"claude","prompt":"hello","expected_tier":"mini","category":"conversation"},
+    {"id":"claude_docstring","client":"claude","prompt":"Add a docstring to this helper.","expected_tier":"mini","category":"small_edit"},
+    {"id":"claude_summary","client":"claude","prompt":"Summarize the supported providers.","expected_tier":"mini","category":"informational"},
+    {"id":"claude_tool_result","client":"claude","prompt":"Fix the failure using this tool output.","expected_tier":"strong","category":"tool_use","messages":[{"role":"user","content":"Inspect the test."},{"role":"assistant","content":"Running it."},{"role":"tool","content":"Traceback: database unavailable"},{"role":"user","content":"Fix the failure using this tool output."}]},
+    {"id":"claude_production","client":"claude","prompt":"Fix the production billing outage and deploy safely.","expected_tier":"strong","category":"production"},
+    {"id":"claude_multimodal","client":"claude","prompt":"analyze image","expected_tier":"strong","category":"multimodal","messages":[{"role":"user","content":[{"type":"image","source":"redacted"},{"type":"text","text":"Analyze this."}]}]},
+    {"id":"claude_reference","client":"claude","prompt":"Summarize that.","expected_tier":"luna","category":"contextual","messages":[{"role":"user","content":"Describe the release."},{"role":"assistant","content":"It had three stages."},{"role":"user","content":"Summarize that."}]},
+    {"id":"claude_migration","client":"claude","prompt":"Plan and execute a database migration with rollback.","expected_tier":"strong","category":"migration"},
+    {"id":"opencode_list","client":"opencode","prompt":"List the files in this directory.","expected_tier":"mini","category":"repository_lookup"},
+    {"id":"opencode_restart","client":"opencode","prompt":"Give me the proxy restart command.","expected_tier":"mini","category":"informational"},
+    {"id":"opencode_format","client":"opencode","prompt":"Format the code.","expected_tier":"mini","category":"small_edit"},
+    {"id":"opencode_refactor","client":"opencode","prompt":"Refactor all routing modules and preserve API compatibility.","expected_tier":"strong","category":"implementation"},
+    {"id":"opencode_release","client":"opencode","prompt":"Run tests, commit, push, and publish the release.","expected_tier":"strong","category":"release"},
+    {"id":"opencode_code_block","client":"opencode","prompt":"Explain this:\n```typescript\nthrow new Error('x')\n```","expected_tier":"strong","category":"code"},
+    {"id":"opencode_ambiguous","client":"opencode","prompt":"fix it","expected_tier":"strong","category":"ambiguous"},
+    {"id":"opencode_prior_reference","client":"opencode","prompt":"Rewrite the previous response neutrally.","expected_tier":"luna","category":"contextual"}
+  ]
+}

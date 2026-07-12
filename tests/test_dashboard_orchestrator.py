@@ -29,9 +29,12 @@ def test_legacy_admin_config_flags_orchestrator_surface() -> None:
         )
         assert response.status_code == 200
         assert response.json()["config"]["orchestrator"] is True
+        assert response.json()["config"]["orchestrator_mode"] == "balanced"
 
         stats2 = client.get("/stats", headers={"x-cutctx-admin-key": "admin_12345"})
-        assert stats2.json()["config"]["orchestrator"] is True
+        payload2 = stats2.json()
+        assert payload2["config"]["orchestrator"] is True
+        assert payload2["model_routing"]["mode"] == "balanced"
 
         response2 = client.post(
             "/admin/config/flags",
@@ -123,7 +126,48 @@ def test_config_flags_enable_orchestrator_uses_configured_preset_routes() -> Non
 
         payload = stats.json()
         assert payload["config"]["orchestrator"] is True
+        assert payload["config"]["orchestrator_mode"] == "balanced"
         assert payload["model_routing"]["preset"] == "codex-gpt54mini-high"
+        assert payload["model_routing"]["mode"] == "balanced"
         assert payload["model_routing"]["configured_routes"] == len(
             ModelRouterConfig.codex_gpt54mini_high_preset().routes
         )
+
+
+def test_config_flags_supports_balanced_and_aggressive_modes() -> None:
+    config = ProxyConfig(
+        backend="mock",
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        admin_api_key="admin_12345",
+    )
+    app = create_app(config)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/config/flags",
+            json={"orchestrator_mode": "balanced"},
+            headers={"x-cutctx-admin-key": "admin_12345"},
+        )
+        assert response.status_code == 200
+        assert response.json()["applied_live"]["orchestrator_mode"]["mode"] == "balanced"
+
+        stats = client.get("/stats", headers={"x-cutctx-admin-key": "admin_12345"})
+        payload = stats.json()
+        assert payload["config"]["orchestrator"] is True
+        assert payload["model_routing"]["mode"] == "balanced"
+        assert payload["model_routing"]["preset"] == "codex-gpt54mini-high"
+
+        response = client.post(
+            "/config/flags",
+            json={"orchestrator_mode": "aggressive"},
+            headers={"x-cutctx-admin-key": "admin_12345"},
+        )
+        assert response.status_code == 200
+        assert response.json()["applied_live"]["orchestrator_mode"]["mode"] == "aggressive"
+
+        stats = client.get("/stats", headers={"x-cutctx-admin-key": "admin_12345"})
+        payload = stats.json()
+        assert payload["config"]["orchestrator"] is True
+        assert payload["model_routing"]["mode"] == "aggressive"
+        assert payload["model_routing"]["preset"] == "economy"

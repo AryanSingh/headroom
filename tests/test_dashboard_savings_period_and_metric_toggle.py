@@ -206,15 +206,13 @@ def test_attribution_metric_toggle_switches_between_tokens_and_cost() -> None:
             client_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by client", exact=True))
 
             expect(client_panel.locator(".source-meta").first).to_contain_text("tokens")
-            first_row_tokens_mode = client_panel.locator(".source-row").first.inner_text()
-            assert "4,528,851 tokens" in first_row_tokens_mode
+            expect(client_panel.locator(".source-row").first).to_contain_text("4,528,851 tokens", timeout=5000)
 
             toggle.get_by_role("button", name="Cost").click()
 
             # Cost view relabels with $ first and re-sorts by usd descending.
             expect(client_panel.locator(".source-meta").first).to_contain_text("$")
-            first_row_cost_mode = client_panel.locator(".source-row").first.inner_text()
-            assert "$9.058" in first_row_cost_mode
+            expect(client_panel.locator(".source-row").first).to_contain_text("$9.058", timeout=5000)
         finally:
             browser.close()
 
@@ -284,6 +282,56 @@ def test_session_view_prefers_explicit_created_observed_fields_and_shows_decline
             browser.close()
 
 
+def test_lifetime_savings_source_rows_do_not_duplicate_normalization() -> None:
+    """Guards the lifetime source list against duplicate normalization rows."""
+    mock_history = _base_mock_history()
+    mock_stats = {
+        "persistent_savings": mock_history["lifetime"],
+        "cost": {
+            "savings_by_source": {
+                "tokens": {
+                    "cutctx_compression": 4_528_851,
+                    "provider_prompt_cache": 1_200_000,
+                    "normalization": 250_000,
+                },
+                "usd": {
+                    "cutctx_compression": 9.058,
+                    "provider_prompt_cache": 2.4,
+                    "normalization": 0.75,
+                },
+            },
+        },
+        "savings_by_source": {
+            "tokens": {
+                "cutctx_compression": 4_528_851,
+                "provider_prompt_cache": 1_200_000,
+                "normalization": 250_000,
+            },
+            "usd": {
+                "cutctx_compression": 9.058,
+                "provider_prompt_cache": 2.4,
+                "normalization": 0.75,
+            },
+        },
+    }
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(channel="chrome")
+        try:
+            page = browser.new_page(viewport={"width": 1400, "height": 1000}, color_scheme="dark")
+            _install_dashboard_routes(page, mock_history, mock_stats)
+
+            page.goto("http://cutctx.local/dashboard/savings", wait_until="load")
+
+            source_panel = page.locator(".panel").filter(
+                has=page.get_by_text("Savings by source", exact=True)
+            )
+            expect(source_panel.get_by_text("Tokenizer normalization", exact=True)).to_have_count(1, timeout=5000)
+            expect(source_panel.locator(".source-row")).to_have_count(3, timeout=5000)
+        finally:
+            browser.close()
+
+
 def test_overview_page_attribution_toggle_switches_between_tokens_and_cost() -> None:
     """The Overview/Dashboard page has its own separate SavingsPanel and
     attribution rows (sourced from /stats's persistent_savings.clients/models,
@@ -317,15 +365,13 @@ def test_overview_page_attribution_toggle_switches_between_tokens_and_cost() -> 
             # Default view is tokens-first labeling, sorted by tokens desc.
             client_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by client", exact=True))
             expect(client_panel.locator(".source-meta").first).to_contain_text("tokens")
-            first_row_tokens_mode = client_panel.locator(".source-row").first.inner_text()
-            assert "7,457,726 tokens" in first_row_tokens_mode
+            expect(client_panel.locator(".source-row").first).to_contain_text("7,457,726 tokens", timeout=5000)
 
             toggle.get_by_role("button", name="Cost").click()
 
             # Cost view relabels with $ first; requests count is preserved.
             expect(client_panel.locator(".source-meta").first).to_contain_text("$")
-            first_row_cost_mode = client_panel.locator(".source-row").first.inner_text()
-            assert "$14.92" in first_row_cost_mode
-            assert "403 requests" in first_row_cost_mode
+            expect(client_panel.locator(".source-row").first).to_contain_text("$14.92", timeout=5000)
+            expect(client_panel.locator(".source-row").first).to_contain_text("403 requests", timeout=5000)
         finally:
             browser.close()

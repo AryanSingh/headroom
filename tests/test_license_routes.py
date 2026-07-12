@@ -11,6 +11,12 @@ class CheckoutSeatRequest(BaseModel):
     lease_duration: float = 3600.0
 
 
+class StartTrialRequest(BaseModel):
+    trial_token: str
+    customer_email: str
+    duration: float = 14 * 86400.0
+
+
 async def test_checkout_seat_fails_when_no_seats_available(monkeypatch):
     """Test that checkout-seat rejects requests when no seats are available."""
 
@@ -160,3 +166,40 @@ async def test_checkout_seat_rejected_when_license_revoked(monkeypatch):
     detail = exc_info.value.detail
     message = detail["message"] if isinstance(detail, dict) else detail
     assert message == "License revoked"
+
+
+async def test_start_trial_fails_when_trial_token_already_used(monkeypatch):
+    """Test that start-trial rejects duplicate tokens instead of pretending success."""
+
+    class MockLicenseDB:
+        def start_trial(self, trial_token: str, customer_email: str, duration: float) -> bool:
+            return False
+
+    def mock_get_license_db():
+        return MockLicenseDB()
+
+    monkeypatch.setattr("cutctx_ee.billing.license_db.get_license_db", mock_get_license_db)
+
+    from cutctx.proxy.routes.license import create_license_router
+
+    router = create_license_router()
+    start_trial_func = None
+    for route in router.routes:
+        if hasattr(route, "path") and "/start-trial" in route.path:
+            start_trial_func = route.endpoint
+            break
+
+    assert start_trial_func is not None, "start_trial endpoint not found"
+
+    req = StartTrialRequest(
+        trial_token="used-token",
+        customer_email="user@example.com",
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await start_trial_func(req)
+
+    assert exc_info.value.status_code == 409
+    detail = exc_info.value.detail
+    message = detail["message"] if isinstance(detail, dict) else detail
+    assert message == "Trial already started"

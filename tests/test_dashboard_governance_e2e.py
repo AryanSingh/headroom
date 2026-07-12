@@ -193,11 +193,12 @@ def test_governance_ui_e2e() -> None:
             "$16.25"
         )
 
-        orchestrator_row = page.locator(".feature-config-row").filter(has_text="Easy-task routing")
-        expect(orchestrator_row).to_contain_text("Easy-task routing")
-        expect(orchestrator_row).to_contain_text("Send easy Codex tasks to GPT-5.4 mini and keep harder tasks on GPT-5.5.")
+        orchestrator_row = page.locator(".feature-config-row").filter(has_text="Routing mode")
+        expect(orchestrator_row).to_contain_text("Routing mode")
+        expect(orchestrator_row).to_contain_text("Choose Off, Balanced, or Aggressive on the dedicated routing page.")
         expect(orchestrator_row).to_contain_text("CUTCTX_MODEL_ROUTING_PRESET=codex-gpt54mini-high")
-        expect(orchestrator_row.locator(".feature-toggle")).to_be_enabled()
+        expect(orchestrator_row).to_contain_text("Open routing page")
+        expect(orchestrator_row.locator(".feature-toggle")).to_have_count(0)
 
         episodic_row = page.locator(".feature-config-row").filter(has_text="Episodic memory")
         expect(episodic_row).to_contain_text("Business")

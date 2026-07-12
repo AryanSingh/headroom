@@ -14,7 +14,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from cutctx.proxy.model_router import TaskComplexity, classify_task_complexity
+from cutctx.proxy.model_router import TaskComplexity, assess_task_complexity
 
 
 @dataclass
@@ -25,6 +25,7 @@ class RoutingCase:
     category: str
     expect_luna: bool = False
     messages: list[dict[str, str]] | None = None
+    client: str = "generic"
 
 
 CASES = [
@@ -39,18 +40,35 @@ CASES = [
     RoutingCase("type_hint", "Add type hints to this function.", True, "small_edit"),
     RoutingCase("format", "Format this code.", True, "small_edit"),
     RoutingCase("architecture", "Design a multi-region failover architecture.", False, "design"),
-    RoutingCase("security_review", "Audit the authentication flow for vulnerabilities.", False, "security"),
-    RoutingCase("debug", "Debug why the websocket reconnect loop drops events.", False, "debugging"),
-    RoutingCase("implementation", "Implement durable workflow cancellation.", False, "implementation"),
+    RoutingCase(
+        "security_review", "Audit the authentication flow for vulnerabilities.", False, "security"
+    ),
+    RoutingCase(
+        "debug", "Debug why the websocket reconnect loop drops events.", False, "debugging"
+    ),
+    RoutingCase(
+        "implementation", "Implement durable workflow cancellation.", False, "implementation"
+    ),
     RoutingCase("migration", "Plan and execute the database migration.", False, "migration"),
-    RoutingCase("benchmark", "Run the full benchmark suite and optimize the weakest path.", False, "evaluation"),
+    RoutingCase(
+        "benchmark",
+        "Run the full benchmark suite and optimize the weakest path.",
+        False,
+        "evaluation",
+    ),
     RoutingCase("release", "Prepare, commit, push, and release all files.", False, "release"),
     RoutingCase("production", "Fix the production billing failure.", False, "production"),
-    RoutingCase("code_block", "Explain this:\n```python\nraise RuntimeError('x')\n```", False, "code"),
+    RoutingCase(
+        "code_block", "Explain this:\n```python\nraise RuntimeError('x')\n```", False, "code"
+    ),
     RoutingCase("patch", "Apply this patch:\n*** Begin Patch\n*** End Patch", False, "code"),
     RoutingCase("stack", "Investigate this stack trace and propose a fix.", False, "debugging"),
-    RoutingCase("large_scope", "Update all modules and services for the new API.", False, "implementation"),
-    RoutingCase("tool_context", "Use the deployment tool to publish the release.", False, "tool_use"),
+    RoutingCase(
+        "large_scope", "Update all modules and services for the new API.", False, "implementation"
+    ),
+    RoutingCase(
+        "tool_context", "Use the deployment tool to publish the release.", False, "tool_use"
+    ),
     RoutingCase("ambiguous_fix", "Fix it.", False, "ambiguous"),
     RoutingCase(
         "followup_explanation",
@@ -93,15 +111,36 @@ CASES = [
 ]
 
 
+def load_versioned_cases() -> list[RoutingCase]:
+    path = Path(__file__).parent / "fixtures" / "model_routing_quality_v2.json"
+    payload = json.loads(path.read_text())
+    if payload.get("schema_version") != 2:
+        raise ValueError("Unsupported model-routing quality corpus version")
+    return [
+        RoutingCase(
+            id=str(item["id"]),
+            prompt=str(item["prompt"]),
+            expect_mini=item["expected_tier"] == "mini",
+            expect_luna=item["expected_tier"] == "luna",
+            category=str(item["category"]),
+            messages=item.get("messages"),
+            client=str(item["client"]),
+        )
+        for item in payload["cases"]
+    ]
+
+
 def evaluate() -> dict[str, object]:
     rows: list[dict[str, object]] = []
     tp = tn = fp = fn = 0
     tier_correct = 0
     luna_total = 0
     luna_correct = 0
-    for case in CASES:
+    all_cases = [*CASES, *load_versioned_cases()]
+    for case in all_cases:
         messages = case.messages or [{"role": "user", "content": case.prompt}]
-        complexity = classify_task_complexity(messages)
+        assessment = assess_task_complexity(messages)
+        complexity = assessment.complexity
         predicted_mini = complexity == TaskComplexity.LOW
         predicted_tier = {
             TaskComplexity.LOW: "mini",
@@ -128,25 +167,47 @@ def evaluate() -> dict[str, object]:
                 "expected_tier": expected_tier,
                 "predicted_tier": predicted_tier,
                 "complexity": complexity.name.lower(),
+                "confidence": assessment.confidence,
+                "scorer": assessment.source,
                 "correct": predicted_tier == expected_tier,
             }
         )
 
     positive_recall = tp / max(tp + fn, 1)
     strong_model_recall = tn / max(tn + fp, 1)
+    per_client: dict[str, dict[str, float | int]] = {}
+    per_category: dict[str, dict[str, float | int]] = {}
+    for dimension, target in (("client", per_client), ("category", per_category)):
+        values = sorted({str(row[dimension]) for row in rows})
+        for value in values:
+            selected = [row for row in rows if row[dimension] == value]
+            unsafe = sum(
+                row["predicted_tier"] == "mini" and row["expected_tier"] != "mini"
+                for row in selected
+            )
+            target[value] = {
+                "cases": len(selected),
+                "tier_accuracy": sum(bool(row["correct"]) for row in selected) / len(selected),
+                "unsafe_downgrades": unsafe,
+                "unsafe_downgrade_rate": unsafe / len(selected),
+            }
     return {
-        "schema_version": 1,
-        "cases": len(CASES),
+        "schema_version": 2,
+        "corpus_version": 2,
+        "cases": len(all_cases),
         "confusion_matrix": {"tp": tp, "tn": tn, "fp": fp, "fn": fn},
         "metrics": {
-            "accuracy": (tp + tn) / len(CASES),
+            "accuracy": (tp + tn) / len(all_cases),
             "balanced_accuracy": (positive_recall + strong_model_recall) / 2,
             "mini_candidate_recall": positive_recall,
             "strong_model_recall": strong_model_recall,
             "luna_candidate_recall": luna_correct / max(luna_total, 1),
-            "tier_accuracy": tier_correct / len(CASES),
+            "tier_accuracy": tier_correct / len(all_cases),
             "unsafe_downgrade_rate": fp / max(tn + fp, 1),
+            "mean_confidence": sum(float(row["confidence"]) for row in rows) / len(rows),
         },
+        "per_client": per_client,
+        "per_category": per_category,
         "rows": rows,
     }
 

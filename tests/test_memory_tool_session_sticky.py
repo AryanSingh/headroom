@@ -175,6 +175,32 @@ def test_provider_isolation_anthropic_vs_openai_same_session_id() -> None:
     assert o_golden == [("memory_save", b"openai-bytes")]
 
 
+def test_singleton_survives_proxy_restart_for_existing_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Persisted memory-tool state should survive a fresh tracker instance."""
+
+    persist_path = tmp_path / "session_tool_tracker.json"
+    monkeypatch.setenv("CUTCTX_TOOL_TRACKER_PATH", str(persist_path))
+
+    session_id = "sess-persist-memory-tools"
+    tracker_a = SessionToolTracker(max_sessions=10, persist_path=persist_path)
+    tracker_a.record_injection(
+        provider="openai",
+        session_id=session_id,
+        tool_name="memory_save",
+        tool_definition_bytes=b'{"name":"memory_save","x":1}',
+    )
+
+    _reset_session_tool_tracker_for_test()
+
+    tracker_b = get_session_tool_tracker()
+    assert tracker_b.should_inject("openai", session_id) is True
+    assert tracker_b.get_golden_definitions("openai", session_id) == [
+        ("memory_save", b'{"name":"memory_save","x":1}'),
+    ]
+
+
 def test_lru_eviction_at_max_sessions() -> None:
     """Bounded LRU pops oldest session when overflowing."""
     tracker = SessionToolTracker(max_sessions=2)

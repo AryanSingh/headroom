@@ -580,6 +580,12 @@ function getRequestIndirectSaved(request) {
   );
 }
 
+function searchMatches(query, ...values) {
+  const normalizedQuery = String(query ?? '').trim().toLowerCase();
+  return normalizedQuery === ''
+    || values.some((value) => String(value ?? '').toLowerCase().includes(normalizedQuery));
+}
+
 function getBucketRequestCount(entry) {
   const requestCount = entry?.requests ?? entry?.request_count ?? entry?.count ?? null;
   if (requestCount != null) {
@@ -1066,10 +1072,18 @@ function AttributionMetricToggle({ metric, onChange }) {
   );
 }
 
-function SavingsPanel({ title, eyebrow, rows, totalTokens, totalUsd, metric, emptyIcon, emptyTitle, emptyDescription }) {
+function SavingsPanel({ title, eyebrow, rows, totalTokens, totalUsd, metric, emptyIcon, emptyTitle, emptyDescription, searchQuery = '' }) {
+  const normalizedQuery = String(searchQuery ?? '').trim().toLowerCase();
+  const visibleRows = normalizedQuery
+    ? rows.filter((row) =>
+        searchMatches(normalizedQuery, title, eyebrow, row.label, row.key, row.requests, row.tokens, row.usd))
+    : rows;
+  if (normalizedQuery !== '' && visibleRows.length === 0) {
+    return null;
+  }
   const byUsd = metric === 'usd';
   const total = byUsd ? totalUsd : totalTokens;
-  const sortedRows = [...rows].sort((a, b) => (byUsd ? b.usd - a.usd : b.tokens - a.tokens));
+  const sortedRows = [...visibleRows].sort((a, b) => (byUsd ? b.usd - a.usd : b.tokens - a.tokens));
 
   return (
     <section className="panel">
@@ -1253,11 +1267,12 @@ function CompressionDeclineStrip({ stats }) {
   );
 }
 
-function RouterDiagnosticsPanel({ routeCounts }) {
+function RouterDiagnosticsPanel({ routeCounts, searchQuery = '' }) {
   if (!routeCounts || Object.keys(routeCounts).length === 0) {
     return null;
   }
 
+  const normalizedQuery = String(searchQuery ?? '').trim().toLowerCase();
   // Group metrics
   const protectionKeys = ['user_msg', 'system_msg', 'recent_code'];
   const constraintKeys = ['small', 'ratio_too_high', 'already_compressed'];
@@ -1275,6 +1290,36 @@ function RouterDiagnosticsPanel({ routeCounts }) {
     return null;
   }
 
+  const panelMatches =
+    normalizedQuery === '' ||
+    ['router', 'diagnostics', 'bypassed', 'messages', 'compression', 'constraints'].some((value) =>
+      value.includes(normalizedQuery),
+    ) ||
+    Object.keys(routeCounts).some((key) => String(key).toLowerCase().includes(normalizedQuery));
+
+  const protectionVisible =
+    protectionTotal > 0 &&
+    (normalizedQuery === '' ||
+      protectionKeys.some((key) =>
+        searchMatches(normalizedQuery, key, routeCounts[key], 'protection', 'user', 'system'),
+      ));
+  const constraintVisible =
+    constraintTotal > 0 &&
+    (normalizedQuery === '' ||
+      constraintKeys.some((key) =>
+        searchMatches(normalizedQuery, key, routeCounts[key], 'constraint', 'savings', 'compression'),
+      ));
+  const formatVisible =
+    formatTotal > 0 &&
+    (normalizedQuery === '' ||
+      formatKeys.some((key) =>
+        searchMatches(normalizedQuery, key, routeCounts[key], 'format', 'analysis', 'tool'),
+      ));
+
+  if (normalizedQuery !== '' && !panelMatches && !protectionVisible && !constraintVisible && !formatVisible) {
+    return null;
+  }
+
   return (
     <section className="panel panel-compact">
       <div className="section-heading">
@@ -1286,7 +1331,7 @@ function RouterDiagnosticsPanel({ routeCounts }) {
       </div>
 
       <div className="diagnostic-stack">
-        {protectionTotal > 0 && (
+        {protectionVisible && (
           <div className="diagnostic-card severity-info">
             <div className="diagnostic-title-row">
               <strong>User / System Protection</strong>
@@ -1299,7 +1344,7 @@ function RouterDiagnosticsPanel({ routeCounts }) {
           </div>
         )}
 
-        {constraintTotal > 0 && (
+        {constraintVisible && (
           <div className="diagnostic-card severity-medium">
             <div className="diagnostic-title-row">
               <strong>Compression Constraints</strong>
@@ -1312,7 +1357,7 @@ function RouterDiagnosticsPanel({ routeCounts }) {
           </div>
         )}
 
-        {formatTotal > 0 && (
+        {formatVisible && (
           <div className="diagnostic-card severity-high">
             <div className="diagnostic-title-row">
               <strong>Format Constraints</strong>
@@ -1329,12 +1374,40 @@ function RouterDiagnosticsPanel({ routeCounts }) {
   );
 }
 
-function DiagnosticsPanel({ prefixCache }) {
+function DiagnosticsPanel({ prefixCache, searchQuery = '' }) {
   const diagnostics = prefixCache?.diagnostics || {};
   const findings = Array.isArray(diagnostics.findings) && diagnostics.findings.length > 0
     ? diagnostics.findings
     : buildDiagnosticsFallback(prefixCache);
   const providerStates = Array.isArray(diagnostics.by_provider) ? diagnostics.by_provider : [];
+  const normalizedQuery = String(searchQuery ?? '').trim().toLowerCase();
+  const filteredFindings = normalizedQuery
+    ? findings.filter((finding) =>
+        searchMatches(
+          normalizedQuery,
+          finding.code,
+          finding.title,
+          finding.detail,
+          finding.recommendation,
+          finding.severity,
+        ))
+    : findings;
+  const filteredProviders = normalizedQuery
+    ? providerStates.filter((provider) =>
+        searchMatches(
+          normalizedQuery,
+          provider.provider,
+          provider.status,
+          provider.reason,
+          provider.hit_rate,
+          provider.bust_count,
+          provider.requests,
+        ))
+    : providerStates;
+
+  if (normalizedQuery !== '' && filteredFindings.length === 0 && filteredProviders.length === 0) {
+    return null;
+  }
 
   return (
     <section className="panel panel-compact">
@@ -1346,7 +1419,7 @@ function DiagnosticsPanel({ prefixCache }) {
         </div>
       </div>
 
-      {findings.length === 0 ? (
+      {filteredFindings.length === 0 ? (
         <EmptyState
           icon={Sparkles}
           title="No diagnostics yet"
@@ -1354,7 +1427,7 @@ function DiagnosticsPanel({ prefixCache }) {
         />
       ) : (
         <div className="diagnostic-stack">
-          {findings.map((finding) => (
+          {filteredFindings.map((finding) => (
             <div
               key={finding.code || finding.title}
               className={`diagnostic-card severity-${finding.severity || 'info'}`}
@@ -1370,9 +1443,9 @@ function DiagnosticsPanel({ prefixCache }) {
             </div>
           ))}
 
-          {providerStates.length > 0 ? (
+          {filteredProviders.length > 0 ? (
             <div className="provider-status-grid">
-              {providerStates.map((provider) => (
+              {filteredProviders.map((provider) => (
                 <div key={provider.provider} className="provider-status-card">
                   <div className="provider-status-header">
                     <strong>{provider.provider}</strong>
@@ -1463,11 +1536,27 @@ for (const [key, value] of Object.entries(featureAvailability)) {
 return Array.from(normalized.entries());
 }
 
-function FeatureAvailabilityPanel({ featureAvailability }) {
+function FeatureAvailabilityPanel({ featureAvailability, searchQuery = '' }) {
 const entries = normalizeFeatureAvailability(featureAvailability);
 if (entries.length === 0) {
   return null;
 }
+  const normalizedQuery = String(searchQuery ?? '').trim().toLowerCase();
+  const filteredEntries = normalizedQuery
+    ? entries.filter(([key, value]) =>
+        searchMatches(
+          normalizedQuery,
+          key,
+          getStrategyLabel(key),
+          value?.reason,
+          value?.install_hint,
+          value?.compression,
+          value?.available ? 'available' : 'missing',
+        ))
+    : entries;
+  if (normalizedQuery !== '' && filteredEntries.length === 0) {
+    return null;
+  }
   const availableCount = entries.filter(
     ([, value]) => value?.available && value?.compression !== 'pass-through',
   ).length;
@@ -1485,7 +1574,7 @@ if (entries.length === 0) {
         </span>
       </div>
       <div className="graphify-kv-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-        {entries.map(([key, val]) => {
+        {filteredEntries.map(([key, val]) => {
           const isAudio = val?.compression === 'pass-through';
           const available = val?.available;
           const pillClass = isAudio ? 'status-pill status-info' : available ? 'status-pill status-ready' : 'status-pill status-degraded';
@@ -1518,9 +1607,26 @@ function formatKnowledgeGraphStatus(knowledgeGraph) {
   }
 }
 
-function GraphStatusPanel({ knowledgeGraph }) {
+function GraphStatusPanel({ knowledgeGraph, searchQuery = '' }) {
   const status = knowledgeGraph?.status || 'disabled';
   const countsAvailable = Number(knowledgeGraph?.node_count || 0) > 0 || Number(knowledgeGraph?.edge_count || 0) > 0;
+  const normalizedQuery = String(searchQuery ?? '').trim().toLowerCase();
+  const panelText = [
+    status,
+    formatKnowledgeGraphStatus(knowledgeGraph),
+    knowledgeGraph?.reason,
+    knowledgeGraph?.version,
+    knowledgeGraph?.available ? 'available' : 'unavailable',
+    knowledgeGraph?.requested ? 'requested' : 'not requested',
+    knowledgeGraph?.active ? 'active' : 'inactive',
+    knowledgeGraph?.interceptor_registered ? 'registered' : 'not registered',
+    knowledgeGraph?.node_count,
+    knowledgeGraph?.edge_count,
+  ];
+
+  if (normalizedQuery !== '' && !panelText.some((value) => String(value ?? '').toLowerCase().includes(normalizedQuery))) {
+    return null;
+  }
 
   return (
     <section className="panel panel-compact">
@@ -1670,9 +1776,33 @@ function getPoliciesSummary(stats) {
   };
 }
 
-function AutopilotPanel({ autopilot }) {
+function AutopilotPanel({ autopilot, searchQuery = '' }) {
   const statusLabel = autopilot.enabled ? 'Active' : 'Disabled';
   const latestAdjustment = autopilot.latestAdjustment;
+  const normalizedQuery = String(searchQuery ?? '').trim().toLowerCase();
+  const panelText = [
+    'autopilot',
+    'compression autopilot',
+    statusLabel,
+    autopilot.enabled ? 'enabled' : 'disabled',
+    autopilot.minLevel,
+    autopilot.maxLevel,
+    autopilot.hysteresisWindow,
+    latestAdjustment?.task_type,
+    latestAdjustment?.signal_kind,
+    latestAdjustment?.old_level,
+    latestAdjustment?.new_level,
+    ...autopilot.taskRows.flatMap((row) => [row.taskType, row.label, row.level, row.signals, row.adjustments]),
+  ];
+  if (normalizedQuery !== '' && !panelText.some((value) => String(value ?? '').toLowerCase().includes(normalizedQuery))) {
+    return null;
+  }
+  const filteredTaskRows =
+    normalizedQuery === ''
+      ? autopilot.taskRows
+      : autopilot.taskRows.filter((row) =>
+          searchMatches(normalizedQuery, row.taskType, row.label, row.level, row.signals, row.adjustments),
+        );
 
   return (
     <section className="panel panel-compact">
@@ -1694,7 +1824,7 @@ function AutopilotPanel({ autopilot }) {
           <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
             Enable <code>CUTCTX_AUTOPILOT=1</code> to adapt compression aggressiveness from recent quality signals.
           </p>
-        ) : autopilot.taskRows.length === 0 ? (
+        ) : filteredTaskRows.length === 0 ? (
           <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
             Autopilot is enabled and waiting for enough request flow to establish task-level setpoints.
           </p>
@@ -1722,7 +1852,7 @@ function AutopilotPanel({ autopilot }) {
             </div>
 
             <div style={{ display: 'grid', gap: '10px' }}>
-              {autopilot.taskRows.map((row) => (
+              {filteredTaskRows.map((row) => (
                 <div
                   key={row.taskType}
                   style={{
@@ -1755,7 +1885,28 @@ function AutopilotPanel({ autopilot }) {
   );
 }
 
-function PoliciesPanel({ policies }) {
+function PoliciesPanel({ policies, searchQuery = '' }) {
+  const normalizedQuery = String(searchQuery ?? '').trim().toLowerCase();
+  const filteredAggressivenessRows =
+    normalizedQuery === ''
+      ? policies.aggressivenessRows
+      : policies.aggressivenessRows.filter((row) =>
+          searchMatches(normalizedQuery, row.label, row.count, 'aggressiveness'),
+        );
+  const filteredAlgorithmRows =
+    normalizedQuery === ''
+      ? policies.algorithmRows
+      : policies.algorithmRows.filter((row) => searchMatches(normalizedQuery, row.label, row.count, 'algorithm'));
+
+  if (
+    normalizedQuery !== '' &&
+    filteredAggressivenessRows.length === 0 &&
+    filteredAlgorithmRows.length === 0 &&
+    !searchMatches(normalizedQuery, policies.enabled ? 'active' : 'disabled', policies.count, policies.totalSamples)
+  ) {
+    return null;
+  }
+
   return (
     <section className="panel panel-compact">
       <div className="section-heading">
@@ -1793,9 +1944,9 @@ function PoliciesPanel({ policies }) {
               </div>
             </div>
 
-            {policies.aggressivenessRows.length > 0 ? (
+            {filteredAggressivenessRows.length > 0 ? (
               <div style={{ display: 'grid', gap: '10px' }}>
-                {policies.aggressivenessRows.map((row) => (
+                {filteredAggressivenessRows.map((row) => (
                   <div
                     key={row.label}
                     style={{
@@ -1815,9 +1966,9 @@ function PoliciesPanel({ policies }) {
               </div>
             ) : null}
 
-            {policies.algorithmRows.length > 0 ? (
+            {filteredAlgorithmRows.length > 0 ? (
               <div style={{ display: 'grid', gap: '10px' }}>
-                {policies.algorithmRows.map((row) => (
+                {filteredAlgorithmRows.map((row) => (
                   <div
                     key={row.label}
                     style={{
@@ -2147,7 +2298,7 @@ function RequestTraceInspector({ request, trace, loading, error, onClose }) {
   );
 }
 
-export default function Overview() {
+export default function Overview({ searchQuery = '' }) {
   const {
     stats,
     historyData,
@@ -2220,6 +2371,10 @@ export default function Overview() {
 
   const loading = contextLoading || (durationLoading && !durationData);
   const error = contextError || durationError;
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const matchesQuery = (...values) =>
+    normalizedQuery === '' ||
+    values.some((value) => String(value ?? '').toLowerCase().includes(normalizedQuery));
 
   const summary = stats?.summary || {};
   const cost = stats?.cost || summary?.cost || {};
@@ -2318,7 +2473,20 @@ export default function Overview() {
     Array.isArray(stats?.recent_requests) && stats.recent_requests.length > 0
       ? stats.recent_requests
       : persistentHistory;
-  const traceableRequests = recentRequests.filter(
+  const filteredRecentRequests = normalizedQuery
+    ? recentRequests.filter((request) =>
+        matchesQuery(
+          request?.request_id,
+          request?.model,
+          request?.client,
+          request?.client_id,
+          request?.provider,
+          request?.status,
+          request?.timestamp,
+        )
+      )
+    : recentRequests;
+  const traceableRequests = filteredRecentRequests.filter(
     (request) => request?.request_id && !request?.synthetic,
   );
   // A request summary can outlive the detailed trace (for example after a proxy
@@ -2372,14 +2540,20 @@ export default function Overview() {
   const activeClientRows = clientRows;
   const modelRows = duration === 'lifetime' ? buildModelRows(stats) : [];
   const activeModelRows = modelRows;
+  const filteredSourceRows = normalizedQuery
+    ? activeSourceRows.filter((row) => matchesQuery(row?.label, row?.key))
+    : activeSourceRows;
+  const filteredClientRows = normalizedQuery
+    ? activeClientRows.filter((row) => matchesQuery(row?.label, row?.key))
+    : activeClientRows;
+  const filteredModelRows = normalizedQuery
+    ? activeModelRows.filter((row) => matchesQuery(row?.label, row?.key))
+    : activeModelRows;
   const totalSourceTokens =
     activeSourceRows.reduce((sum, row) => sum + row.tokens, 0) ||
     Number(tokens.total_before_compression || 0);
   const totalSourceUsd = activeSourceRows.reduce((sum, row) => sum + row.usd, 0);
   const sourceByUsd = attributionMetric === 'usd';
-  const sortedSourceRows = [...activeSourceRows].sort((a, b) =>
-    sourceByUsd ? b.usd - a.usd : b.tokens - a.tokens,
-  );
   const totalActiveSourceValue = sourceByUsd ? totalSourceUsd : totalSourceTokens;
   const totalClientTokens =
     activeClientRows.reduce((sum, row) => sum + row.tokens, 0) || totalSourceTokens;
@@ -2473,7 +2647,7 @@ export default function Overview() {
             label="Tokens saved"
             value={formatNumber(effectiveTokensSaved)}
             footnote={`${formatPercent(effectiveSavingsPercent)} total reduction`}
-            sparkline={recentRequests.slice(0, 10).map((request) => getRequestTotalSaved(request))}
+            sparkline={filteredRecentRequests.slice(0, 10).map((request) => getRequestTotalSaved(request))}
             sparklineColor="var(--accent)"
           />
           <MetricCard
@@ -2554,11 +2728,15 @@ export default function Overview() {
 
             {loading ? (
               <SkeletonBar />
-            ) : activeSourceRows.length === 0 ? (
+            ) : filteredSourceRows.length === 0 ? (
               <EmptyState
                 icon={Sparkles}
-                title="No savings data yet"
-                description="Savings attribution will populate as requests flow through compression, cache, routing, and optimization channels."
+                title={normalizedQuery ? "No matching savings data" : "No savings data yet"}
+                description={
+                  normalizedQuery
+                    ? "Try a broader search term to match source labels and keys."
+                    : "Savings attribution will populate as requests flow through compression, cache, routing, and optimization channels."
+                }
               />
             ) : (
               <>
@@ -2574,7 +2752,10 @@ export default function Overview() {
                 </div>
 
                 <div className="source-stack">
-                  {sortedSourceRows.map((row) => {
+                  {filteredSourceRows
+                    .slice()
+                    .sort((a, b) => (sourceByUsd ? b.usd - a.usd : b.tokens - a.tokens))
+                    .map((row) => {
                     const value = sourceByUsd ? row.usd : row.tokens;
                     const percent = totalActiveSourceValue > 0 ? (value / totalActiveSourceValue) * 100 : 0;
                     return (
@@ -2605,33 +2786,35 @@ export default function Overview() {
           <SavingsPanel
             title="Savings by client"
             eyebrow="Attribution"
-            rows={activeClientRows}
+            rows={filteredClientRows}
             totalTokens={totalClientTokens}
             totalUsd={totalClientUsd}
             metric={attributionMetric}
             emptyIcon={Sparkles}
             emptyTitle="No client data yet"
             emptyDescription="Client-level attribution appears once requests include client tags."
+            searchQuery={normalizedQuery}
           />
 
           <SavingsPanel
             title="Savings by model"
             eyebrow="Attribution"
-            rows={activeModelRows}
+            rows={filteredModelRows}
             totalTokens={totalModelTokens}
             totalUsd={totalModelUsd}
             metric={attributionMetric}
             emptyIcon={Layers}
             emptyTitle="No model data yet"
             emptyDescription="Model-level attribution appears once requests flow through the proxy."
+            searchQuery={normalizedQuery}
           />
 
-          <DiagnosticsPanel prefixCache={prefixCache} />
-          <RouterDiagnosticsPanel routeCounts={stats?.router?.route_counts} />
-          <GraphStatusPanel knowledgeGraph={knowledgeGraph} />
-          <FeatureAvailabilityPanel featureAvailability={featureAvailability} />
-          <AutopilotPanel autopilot={autopilot} />
-          <PoliciesPanel policies={policies} />
+          <DiagnosticsPanel prefixCache={prefixCache} searchQuery={normalizedQuery} />
+          <RouterDiagnosticsPanel routeCounts={stats?.router?.route_counts} searchQuery={normalizedQuery} />
+          <GraphStatusPanel knowledgeGraph={knowledgeGraph} searchQuery={normalizedQuery} />
+          <FeatureAvailabilityPanel featureAvailability={featureAvailability} searchQuery={normalizedQuery} />
+          <AutopilotPanel autopilot={autopilot} searchQuery={normalizedQuery} />
+          <PoliciesPanel policies={policies} searchQuery={normalizedQuery} />
         </div>
 
         <section className="panel">
@@ -2644,11 +2827,15 @@ export default function Overview() {
 
           {loading ? (
             <div className="skeleton" style={{ height: '260px', borderRadius: 'var(--radius-lg)' }} />
-          ) : recentRequests.length === 0 ? (
+          ) : filteredRecentRequests.length === 0 ? (
             <EmptyState
               icon={Inbox}
-              title="No requests yet"
-              description="Start using the proxy to see request activity here."
+              title={normalizedQuery ? "No matching requests" : "No requests yet"}
+              description={
+                normalizedQuery
+                  ? "Try a broader search term to match models, request IDs, clients, providers, or timestamps."
+                  : "Start using the proxy to see request activity here."
+              }
             />
           ) : (
             <div className="table-shell request-table-shell">
@@ -2664,7 +2851,7 @@ export default function Overview() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentRequests.map((request, index) => {
+                  {filteredRecentRequests.map((request, index) => {
                     const indirect = getRequestIndirectSaved(request);
                     const inputTokens = request.input_tokens_original;
                     // Cap displayed savings at input size — provider cache credits

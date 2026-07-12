@@ -226,6 +226,17 @@ Set `CUTCTX_SAVINGS_PATH` to override the location directly, or set
 `/dashboard` uses this endpoint directly for its historical view, including the
 daily/weekly/monthly rollups and built-in JSON / CSV export buttons.
 
+## Dashboard surface
+
+The production dashboard is mounted at `/dashboard`, and the React app also
+accepts the legacy `/admin` basename when it is embedded behind that path.
+The dashboard refreshes stats every 5 seconds, history every 60 seconds, and
+the request feed every 5 seconds while that panel is open.
+
+The dashboard bundle includes a commented-out production obfuscation hook in
+`dashboard/vite.config.js`. In the current build, source maps are disabled but
+the obfuscator plugin is not active.
+
 ```bash
 curl "http://localhost:8787/stats-history?format=csv&series=weekly"
 curl "http://localhost:8787/stats-history?format=csv&series=monthly"

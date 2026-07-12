@@ -247,6 +247,7 @@ cutctx savings --by-source --format json`}
             headers={['Variable', 'Default', 'Description']}
             rows={[
               ['`CUTCTX_DISABLE_KOMPRESS`', 'false', 'Disable the ML model compressor (use rule-based algorithms only)'],
+              ['`CUTCTX_DETERMINISTIC_MODE`', 'false', 'Alias for disable-kompress; use deterministic rule-based compression only'],
               ['`CUTCTX_USE_SEMANTIC_COMPRESSION`', 'false', 'Enable neural semantic compression for additional token savings on prose-heavy content'],
               ['`CUTCTX_ACCURACY_GUARD`', 'strict', 'Accuracy guard level: strict, balanced, off'],
               ['`CUTCTX_CODE_AWARE_ENABLED`', 'false', 'Enable AST-aware code compressor'],
@@ -257,7 +258,7 @@ cutctx savings --by-source --format json`}
               ['`CUTCTX_DRAIN3`', 'false', 'Enable Drain3 ML log template mining'],
               ['`CUTCTX_KNOWLEDGE_GRAPH`', 'false', 'Enable knowledge-graph compression (Graphify)'],
               ['`CUTCTX_DIFFTASTIC`', 'false', 'Enable structural diff compression via difftastic'],
-              ['`CUTCTX_USE_LLMLINGUA`', 'false', 'Use LLMLingua-2 for plain-text compression'],
+              ['`CUTCTX_USE_LLMLINGUA`', 'false', 'Use LLMLingua-2 for optional plain-text compression'],
               ['`CUTCTX_QUERY_AWARE`', 'false', 'Adapt compression aggressiveness to detected query type'],
               ['`CUTCTX_SELECTIVE_FILTER`', 'false', 'Drop low-relevance message turns before compression'],
             ]}

@@ -183,6 +183,11 @@ class ProxyConfig:
     # Code-aware compression (disabled by default — use code graph tools instead)
     code_aware_enabled: bool = False
 
+    # Explicit deterministic mode alias for users who want rule-based-only
+    # compression without using the historical "disable kompress" wording.
+    # CLI: --deterministic; env: CUTCTX_DETERMINISTIC_MODE=1.
+    deterministic_mode: bool = False
+
     # Disable Kompress ML compression while keeping structural compressors
     # such as SmartCrusher, log/search/diff, and schema compaction enabled.
     # CLI: --disable-kompress; env: CUTCTX_DISABLE_KOMPRESS=1.

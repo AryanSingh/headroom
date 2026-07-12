@@ -37,10 +37,12 @@ class RoutingUnavailableError(RuntimeError):
         *,
         assigned_model: str | None = None,
         reason: str = "unavailable",
+        decision_trace: dict | None = None,
     ) -> None:
         super().__init__(message)
         self.assigned_model = assigned_model
         self.reason = reason
+        self.decision_trace = decision_trace
 
 
 class DeterministicRoutingEngine:
@@ -84,6 +86,7 @@ class DeterministicRoutingEngine:
             required.update(binding.required_capabilities)
             primary = binding.model
             fallbacks = [*binding.fallback_chain, *self.config.settings.global_fallback_chain]
+            equivalents = list(binding.equivalent_deployments)
             reason = "deterministic_assignment"
         elif request.role:
             raise RoutingUnavailableError(
@@ -95,14 +98,24 @@ class DeterministicRoutingEngine:
                 request.requested_model, request.requested_provider
             )
             fallbacks = list(self.config.settings.global_fallback_chain)
+            equivalents = []
             reason = "manual_model"
         else:
             raise RoutingUnavailableError("No role or model was requested", reason="missing_route")
 
+        equivalent_candidates = self._validated_equivalents(primary, equivalents)
         candidates = self._deduplicate(
-            [primary] if mode == RoutingMode.STRICT.value else [primary, *fallbacks]
+            [primary, *equivalent_candidates]
+            if mode == RoutingMode.STRICT.value
+            else [primary, *equivalent_candidates, *fallbacks]
         )
-        selected, rejected_reason = self._first_eligible(candidates, required)
+        selected, rejected_reason, selection_evidence = self._select_primary_or_equivalent(
+            primary,
+            equivalent_candidates,
+            required,
+        )
+        if selected is None and mode != RoutingMode.STRICT.value:
+            selected, rejected_reason = self._first_eligible(fallbacks, required)
         if selected is None:
             if mode == RoutingMode.STRICT.value:
                 raise RoutingUnavailableError(
@@ -123,7 +136,15 @@ class DeterministicRoutingEngine:
         # (``provider:account:model``), while ``ModelRecord.key`` intentionally
         # omits the account.  Compare deployment identities so a successful
         # exact-account assignment is not incorrectly reported as a fallback.
-        fallback_used = selected.deployment_key != primary
+        equivalent_deployment_keys = {
+            model.deployment_key
+            for key in equivalent_candidates
+            if (model := self.registry.get(key)) is not None
+        }
+        fallback_used = (
+            selected.deployment_key != primary
+            and selected.deployment_key not in equivalent_deployment_keys
+        )
         return RoutingDecision(
             request_id=request_id,
             role=role.id if role else request.role,
@@ -134,7 +155,13 @@ class DeterministicRoutingEngine:
             binding_id=binding.id if binding else None,
             mode=mode,
             policy=policy,
-            reason=reason if not fallback_used else f"fallback:{rejected_reason or 'unavailable'}",
+            reason=(
+                "equivalent_deployment_selected"
+                if selected.deployment_key != primary and not fallback_used
+                else reason
+                if not fallback_used
+                else f"fallback:{rejected_reason or 'unavailable'}"
+            ),
             fallback_used=fallback_used,
             fallback_trigger=(rejected_reason or FallbackTrigger.UNAVAILABLE.value)
             if fallback_used
@@ -143,6 +170,7 @@ class DeterministicRoutingEngine:
             candidates=candidates,
             attempted_deployments=[selected.deployment_key],
             required_capabilities=required,
+            selection_evidence=selection_evidence,
         )
 
     def fallback(self, decision: RoutingDecision, trigger: str) -> RoutingDecision:
@@ -271,6 +299,115 @@ class DeterministicRoutingEngine:
                 continue
             return model, None
         return None, last_reason
+
+    def _validated_equivalents(self, primary: str, equivalents: list[str]) -> list[str]:
+        primary_model = self.registry.get(primary)
+        if primary_model is None:
+            return []
+        return [
+            key
+            for key in equivalents
+            if (candidate := self.registry.get(key)) is not None
+            and candidate.key == primary_model.key
+            and candidate.deployment_key != primary_model.deployment_key
+        ]
+
+    def _select_primary_or_equivalent(
+        self,
+        primary: str,
+        equivalents: list[str],
+        required: set[str],
+    ) -> tuple[ModelRecord | None, str | None, dict[str, object]]:
+        keys = self._deduplicate([primary, *equivalents])
+        eligible: list[ModelRecord] = []
+        rejected: list[dict[str, str]] = []
+        last_reason: str | None = None
+        for key in keys:
+            model, reason = self._first_eligible([key], required)
+            if model is None:
+                last_reason = reason
+                rejected.append({"model": key, "reason": reason or "unavailable"})
+            else:
+                eligible.append(model)
+        if not eligible:
+            return None, last_reason, {"strategy": "equivalent_reliability", "rejected": rejected}
+        primary_model = self.registry.get(primary)
+        scored = [
+            (self._reliability_score(model, is_primary=model is primary_model), model)
+            for model in eligible
+        ]
+        scored.sort(key=lambda item: (float(item[0]["score"]), item[1].deployment_key))
+        _score, selected = scored[-1]
+        return (
+            selected,
+            None,
+            {
+                "strategy": "equivalent_reliability",
+                "selected": selected.deployment_key,
+                "scores": [
+                    {"deployment": model.deployment_key, **components}
+                    for components, model in reversed(scored)
+                ],
+                "rejected": rejected,
+            },
+        )
+
+    @staticmethod
+    def _reliability_score(
+        model: ModelRecord,
+        *,
+        is_primary: bool,
+    ) -> dict[str, float]:
+        metadata = model.metadata if isinstance(model.metadata, dict) else {}
+        reliability_default = model.reliability if model.reliability is not None else 1.0
+        health = DeterministicRoutingEngine._bounded_runtime_signal(
+            metadata.get("health_score", reliability_default), 1.0
+        )
+        rate_headroom = DeterministicRoutingEngine._bounded_runtime_signal(
+            metadata.get("rate_limit_headroom", 1.0), 1.0
+        )
+        budget_headroom = DeterministicRoutingEngine._bounded_runtime_signal(
+            metadata.get("budget_headroom", 1.0), 1.0
+        )
+        latency_value = (
+            model.latency_ms if model.latency_ms is not None else metadata.get("latency_ms", 1000.0)
+        )
+        latency = max(
+            DeterministicRoutingEngine._finite_runtime_signal(latency_value, 1000.0),
+            0.0,
+        )
+        latency_score = 1.0 / (1.0 + latency / 1000.0)
+        total = (
+            health * 0.4
+            + rate_headroom * 0.25
+            + budget_headroom * 0.2
+            + latency_score * 0.15
+            + (1e-9 if is_primary else 0.0)
+        )
+        return {
+            "score": total,
+            "health": health,
+            "rate_limit_headroom": rate_headroom,
+            "budget_headroom": budget_headroom,
+            "latency_score": latency_score,
+        }
+
+    @staticmethod
+    def _finite_runtime_signal(value: object, default: float) -> float:
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return default
+        if parsed != parsed or parsed in {float("inf"), float("-inf")}:
+            return default
+        return parsed
+
+    @staticmethod
+    def _bounded_runtime_signal(value: object, default: float) -> float:
+        return min(
+            max(DeterministicRoutingEngine._finite_runtime_signal(value, default), 0.0),
+            1.0,
+        )
 
     def _has_enabled_account(self, model: ModelRecord) -> bool:
         return any(

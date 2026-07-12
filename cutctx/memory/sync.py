@@ -210,35 +210,69 @@ async def sync_team_memory(
             server_deltas = data.get("server_deltas", [])
             new_watermark = data.get("new_watermark", watermark)
 
-            # Merge server deltas into local DB
+            shared_user_id = f"team_{org_id}"
+            local_memories = await backend.get_user_memories(shared_user_id, limit=5000)
+            local_by_server_id: dict[str, Any] = {}
+            for memory in local_memories:
+                metadata = getattr(memory, "metadata", None)
+                if not isinstance(metadata, dict):
+                    continue
+                server_id = metadata.get("server_id")
+                if server_id:
+                    local_by_server_id[str(server_id)] = memory
+
+            # Merge server deltas into local DB.
+            # Team memories are keyed by the remote record id so repeated
+            # syncs upsert the same local row instead of duplicating it.
             for _s_delta in server_deltas:
-                action = _s_delta.get("action", "upsert")
+                action = str(_s_delta.get("action", "upsert")).lower()
                 server_id = _s_delta.get("id")
 
-                shared_user_id = f"team_{org_id}"
-
                 try:
-                    if action == "delete" and server_id:
-                        # Find local memory by server_id and delete it
-                        local_memories = await backend.get_user_memories(shared_user_id)
-                        for m in local_memories:
-                            if m.metadata.get("server_id") == server_id:
-                                await backend.delete_memory(m.id)
-                    else:
-                        content = _s_delta.get("content")
-                        if not content:
-                            continue
+                    if not server_id:
+                        continue
 
-                        await backend.save_memory(
+                    server_key = str(server_id)
+                    existing = local_by_server_id.get(server_key)
+
+                    if action == "delete":
+                        if existing is not None:
+                            await backend.delete_memory(existing.id)
+                            local_by_server_id.pop(server_key, None)
+                        continue
+
+                    content = _s_delta.get("content")
+                    if not content:
+                        continue
+
+                    metadata = _s_delta.get("metadata", {})
+                    if not isinstance(metadata, dict):
+                        metadata = {}
+                    metadata = {
+                        **metadata,
+                        "sync_source": "team_sync",
+                        "server_id": server_key,
+                    }
+
+                    if existing is None:
+                        created = await backend.save_memory(
                             content=content,
                             user_id=shared_user_id,
                             importance=_s_delta.get("importance", 0.5),
-                            metadata={
-                                **_s_delta.get("metadata", {}),
-                                "sync_source": "team_sync",
-                                "server_id": server_id,
-                            },
+                            metadata=metadata,
                         )
+                        local_by_server_id[server_key] = created
+                        continue
+
+                    if getattr(existing, "content", None) != content:
+                        updated = await backend.update_memory(
+                            existing.id,
+                            content,
+                            reason="team_sync",
+                            user_id=shared_user_id,
+                        )
+                        if updated is not None:
+                            local_by_server_id[server_key] = updated
                 except Exception as e:
                     logger.warning(f"Failed to apply server delta: {e}")
 

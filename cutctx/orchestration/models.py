@@ -120,6 +120,9 @@ class RouteBinding:
     role: str | None = None
     selectors: dict[str, str] = field(default_factory=dict)
     fallback_chain: list[str] = field(default_factory=list)
+    # Explicitly interchangeable deployments of the same provider/model.
+    # These may differ by account or region, but never by model identity.
+    equivalent_deployments: list[str] = field(default_factory=list)
     required_capabilities: set[str] = field(default_factory=set)
     enabled: bool = True
 
@@ -177,6 +180,7 @@ class RoutingDecision:
     candidates: list[str] = field(default_factory=list)
     attempted_deployments: list[str] = field(default_factory=list)
     required_capabilities: set[str] = field(default_factory=set)
+    selection_evidence: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

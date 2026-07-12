@@ -54,6 +54,7 @@ from cutctx.proxy.tool_surface import (
 )
 
 logger = logging.getLogger("cutctx.proxy")
+_MISSING_ROUTING_FIELD = object()
 
 _CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS = frozenset(
     # Fields the chatgpt.com/backend-api/codex/responses endpoint rejects.
@@ -165,7 +166,9 @@ def _compute_responses_ws_conversation_session_id(
         return fallback_session_id
 
     payload = body if isinstance(body, dict) else {}
-    response_body = payload.get("response") if isinstance(payload.get("response"), dict) else payload
+    response_body = (
+        payload.get("response") if isinstance(payload.get("response"), dict) else payload
+    )
     if not isinstance(response_body, dict):
         response_body = {}
 
@@ -602,7 +605,9 @@ def _chat_completions_response_to_responses_payload(
     if not isinstance(usage, dict):
         usage = {}
     prompt_details = usage.get("prompt_tokens_details") or {}
-    cached_tokens = prompt_details.get("cached_tokens", 0) if isinstance(prompt_details, dict) else 0
+    cached_tokens = (
+        prompt_details.get("cached_tokens", 0) if isinstance(prompt_details, dict) else 0
+    )
 
     return {
         "id": response_body.get("id") or f"resp_{uuid.uuid4().hex[:24]}",
@@ -842,6 +847,93 @@ from cutctx.proxy.handlers.openai.utils import (  # noqa: E402
 
 
 class OpenAIResponsesMixin:
+    @staticmethod
+    def _model_routing_responses_text(payload: dict[str, Any] | None) -> str:
+        if not isinstance(payload, dict):
+            return ""
+        output = payload.get("output")
+        if not isinstance(output, list):
+            return ""
+        texts: list[str] = []
+        for item in output:
+            if not isinstance(item, dict):
+                continue
+            content = item.get("content")
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if not isinstance(block, dict):
+                    continue
+                text = block.get("text")
+                if isinstance(text, str):
+                    texts.append(text)
+        return "\n".join(texts).strip()
+
+    async def _maybe_model_routing_responses_shadow(
+        self,
+        *,
+        request_id: str,
+        source_model: str,
+        candidate_model: str,
+        url: str,
+        headers: dict[str, Any],
+        candidate_body: dict[str, Any],
+        routing_metadata: dict[str, Any] | None,
+        messages: list[dict[str, Any]],
+        candidate_json: dict[str, Any] | None,
+        original_reasoning: Any,
+        client: str | None = None,
+    ) -> None:
+        """Replay a sampled Responses request on its requested model."""
+
+        if (
+            not routing_metadata
+            or source_model == candidate_model
+            or routing_metadata.get("target_model") != candidate_model
+        ):
+            return
+        from cutctx.proxy.model_routing_evals import maybe_run_model_routing_shadow
+        from cutctx.proxy.savings_tracker import estimate_request_cost_usd
+
+        def cost_for(model_name: str, payload: dict[str, Any] | None) -> float:
+            usage = payload.get("usage", {}) if payload else {}
+            total = int(usage.get("input_tokens", 0) or 0)
+            details = usage.get("input_tokens_details") or {}
+            cached = int(details.get("cached_tokens", 0) or 0)
+            return estimate_request_cost_usd(
+                model_name,
+                input_tokens=total,
+                cache_read_tokens=cached,
+                uncached_input_tokens=max(0, total - cached),
+            )
+
+        async def baseline_call() -> tuple[str, float]:
+            baseline_body = copy.deepcopy(candidate_body)
+            baseline_body["model"] = source_model
+            if original_reasoning is _MISSING_ROUTING_FIELD:
+                baseline_body.pop("reasoning", None)
+            else:
+                baseline_body["reasoning"] = copy.deepcopy(original_reasoning)
+            response = await self._retry_request("POST", url, headers, baseline_body)
+            if response.status_code >= 400:
+                raise RuntimeError(f"model-routing shadow returned HTTP {response.status_code}")
+            payload = response.json()
+            return self._model_routing_responses_text(payload), cost_for(source_model, payload)
+
+        await maybe_run_model_routing_shadow(
+            request_id=request_id,
+            messages=messages,
+            source_model=source_model,
+            candidate_model=candidate_model,
+            scorer=str(routing_metadata.get("scorer", "heuristic")),
+            confidence=float(routing_metadata.get("confidence", 0.0) or 0.0),
+            candidate_response=self._model_routing_responses_text(candidate_json),
+            candidate_cost_usd=cost_for(candidate_model, candidate_json),
+            baseline_call=baseline_call,
+            category="openai_responses",
+            segments={"client": client or "openai", "task_type": "openai_responses"},
+        )
+
     def _openai_responses_unit_cache(self) -> tuple[Any, OrderedDict[str, Any]]:
         with _OPENAI_RESPONSES_UNIT_CACHE_INIT_LOCK:
             lock = getattr(self, "_openai_responses_unit_cache_lock", None)
@@ -1494,9 +1586,7 @@ class OpenAIResponsesMixin:
                 compacted_tools, tools_modified, tools_before_bytes, tools_after_bytes = (
                     compress_tool_schemas(
                         _tools_list,
-                        max_description_length=120
-                        if canary_arm == "tool_api_slimming"
-                        else 200,
+                        max_description_length=120 if canary_arm == "tool_api_slimming" else 200,
                         aggressive=canary_arm == "tool_api_slimming",
                     )
                 )
@@ -1551,12 +1641,8 @@ class OpenAIResponsesMixin:
                     **working,
                     "input": compress_tool_results(
                         working["input"],
-                        max_array_items_for_positional=25
-                        if canary_arm == "mutable_tail"
-                        else 10,
-                        min_fields_for_positional=2
-                        if canary_arm == "mutable_tail"
-                        else 3,
+                        max_array_items_for_positional=25 if canary_arm == "mutable_tail" else 10,
+                        min_fields_for_positional=2 if canary_arm == "mutable_tail" else 3,
                     ),
                 }
         except Exception:
@@ -1816,7 +1902,10 @@ class OpenAIResponsesMixin:
             )
             return payload, False, 0, [], 0
 
-        if len(original_text.encode("utf-8", errors="replace")) < self.OPENAI_RESPONSES_ROUTER_MIN_BYTES:
+        if (
+            len(original_text.encode("utf-8", errors="replace"))
+            < self.OPENAI_RESPONSES_ROUTER_MIN_BYTES
+        ):
             return payload, False, 0, [], 0
 
         try:
@@ -1887,10 +1976,16 @@ class OpenAIResponsesMixin:
                 tokens_after,
                 strategy,
             )
-        return payload, True, tokens_before - tokens_after, [
-            f"router:openai:responses:user_input:{strategy}",
-            strategy,
-        ], tokens_before
+        return (
+            payload,
+            True,
+            tokens_before - tokens_after,
+            [
+                f"router:openai:responses:user_input:{strategy}",
+                strategy,
+            ],
+            tokens_before,
+        )
 
     async def handle_openai_responses(
         self,
@@ -1916,7 +2011,10 @@ class OpenAIResponsesMixin:
         from cutctx.utils import extract_user_query
 
         start_time = time.time()
-        request_id = getattr(getattr(request, "state", None), "cutctx_request_id", None) or await self._next_request_id()
+        request_id = (
+            getattr(getattr(request, "state", None), "cutctx_request_id", None)
+            or await self._next_request_id()
+        )
 
         # Phase F PR-F1: classify auth mode at request entry. The result
         # is stored on `request.state` so downstream handlers (cache
@@ -1956,6 +2054,10 @@ class OpenAIResponsesMixin:
             )
 
         model = body.get("model", "unknown")
+        requested_model = model
+        original_reasoning = (
+            copy.deepcopy(body["reasoning"]) if "reasoning" in body else _MISSING_ROUTING_FIELD
+        )
         stream = body.get("stream", False)
         _bypass = self._cutctx_bypass_enabled(request.headers)
         if _bypass:
@@ -2146,7 +2248,10 @@ class OpenAIResponsesMixin:
                 raise HTTPException(
                     status_code=429,
                     detail=f"Rate limited. Retry after {wait_seconds:.1f}s",
-                    headers={"Retry-After": str(max(1, int(wait_seconds))), "X-Request-ID": request_id},
+                    headers={
+                        "Retry-After": str(max(1, int(wait_seconds))),
+                        "X-Request-ID": request_id,
+                    },
                 )
 
         # Token counting on converted messages
@@ -2663,9 +2768,7 @@ class OpenAIResponsesMixin:
                     detail={
                         "error": {
                             "type": "context_too_large",
-                            "message": (
-                                "cutctx: context too large — compact context and retry."
-                            ),
+                            "message": ("cutctx: context too large — compact context and retry."),
                         }
                     },
                 )
@@ -2860,6 +2963,25 @@ class OpenAIResponsesMixin:
                         logger.warning(
                             f"[{request_id}] Memory tool handling failed (responses): {e}"
                         )
+
+                routing_metadata = (
+                    request_savings_metadata.get("model_routing")
+                    if isinstance(request_savings_metadata, dict)
+                    else None
+                )
+                await self._maybe_model_routing_responses_shadow(
+                    request_id=request_id,
+                    source_model=requested_model,
+                    candidate_model=model,
+                    url=url,
+                    headers=headers,
+                    candidate_body=body,
+                    routing_metadata=routing_metadata,
+                    messages=routing_messages,
+                    candidate_json=resp_json,
+                    original_reasoning=original_reasoning,
+                    client=client,
+                )
 
                 if self.cost_tracker:
                     cache_write_tokens = _infer_openai_cache_write_tokens(
@@ -3303,6 +3425,7 @@ class OpenAIResponsesMixin:
         # Safety net for clients that don't forward auth headers via WebSocket upgrade.
         if "authorization" not in _lower_headers:
             from cutctx.proxy.auth_keyring import get_api_key
+
             api_key = get_api_key("openai")
             if api_key:
                 upstream_headers["Authorization"] = f"Bearer {api_key}"
@@ -3755,15 +3878,12 @@ class OpenAIResponsesMixin:
                 # leak upstream. The sanitizer deliberately preserves the
                 # requested model.
                 if is_chatgpt_auth:
-                    body, _ws_stripped_fields = _sanitize_chatgpt_subscription_responses_body(
-                        body
-                    )
+                    body, _ws_stripped_fields = _sanitize_chatgpt_subscription_responses_body(body)
                     if isinstance(body.get("response"), dict):
                         body["response"]["model"] = body.get("model", ws_model)
                     if _ws_stripped_fields:
                         logger.info(
-                            "[%s] WS /v1/responses stripped unsupported subscription "
-                            "fields: %s",
+                            "[%s] WS /v1/responses stripped unsupported subscription fields: %s",
                             request_id,
                             ", ".join(_ws_stripped_fields),
                         )
@@ -4390,11 +4510,7 @@ class OpenAIResponsesMixin:
                 _first_upstream_body = json.loads(first_msg_raw)
             except json.JSONDecodeError:
                 _first_upstream_body = None
-            if (
-                self.config.optimize
-                and not _ws_bypass
-                and isinstance(_first_upstream_body, dict)
-            ):
+            if self.config.optimize and not _ws_bypass and isinstance(_first_upstream_body, dict):
                 _guard_inner = (
                     _first_upstream_body["response"]
                     if isinstance(_first_upstream_body.get("response"), dict)
@@ -4605,7 +4721,9 @@ class OpenAIResponsesMixin:
                                     tool_choice=inner_payload.get("tool_choice")
                                     if isinstance(inner_payload, dict)
                                     else None,
-                                    messages=inner_payload if isinstance(inner_payload, dict) else None,
+                                    messages=inner_payload
+                                    if isinstance(inner_payload, dict)
+                                    else None,
                                 )
                                 frame_surface_saved = frame_surface_result.tokens_saved
                                 if frame_surface_result.modified and isinstance(
@@ -4753,9 +4871,7 @@ class OpenAIResponsesMixin:
                                 if frame_routed:
                                     _rewrite_started = time.perf_counter()
                                     rewritten = json.dumps(parsed_frame)
-                                    _rewrite_ms = (
-                                        time.perf_counter() - _rewrite_started
-                                    ) * 1000.0
+                                    _rewrite_ms = (time.perf_counter() - _rewrite_started) * 1000.0
                                     _record_ws_compression_timing(
                                         "compression_payload_rewrite_json_dump",
                                         _rewrite_ms,
@@ -4793,8 +4909,7 @@ class OpenAIResponsesMixin:
                                     await websocket.close(
                                         code=1009,
                                         reason=(
-                                            "cutctx: context too large — "
-                                            "compact context and retry"
+                                            "cutctx: context too large — compact context and retry"
                                         ),
                                     )
                                 with contextlib.suppress(Exception):
@@ -4877,8 +4992,7 @@ class OpenAIResponsesMixin:
                                 await websocket.close(
                                     code=1009,
                                     reason=(
-                                        "cutctx: context too large — "
-                                        "compact context and retry"
+                                        "cutctx: context too large — compact context and retry"
                                     ),
                                 )
                             with contextlib.suppress(Exception):
@@ -5615,9 +5729,7 @@ class OpenAIResponsesMixin:
                 )
                 ws_input_tokens_total += int(fallback_summary.get("input_tokens", 0) or 0)
                 ws_output_tokens_total += int(fallback_summary.get("output_tokens", 0) or 0)
-                ws_cache_read_tokens_total += int(
-                    fallback_summary.get("cache_read_tokens", 0) or 0
-                )
+                ws_cache_read_tokens_total += int(fallback_summary.get("cache_read_tokens", 0) or 0)
                 ws_cache_write_tokens_total += int(
                     fallback_summary.get("cache_write_tokens", 0) or 0
                 )
@@ -6034,9 +6146,7 @@ class OpenAIResponsesMixin:
                         usage_payload = chunk_event.get("usage")
                         if isinstance(usage_payload, dict):
                             usage = _openai_chat_usage_to_responses_usage(usage_payload)
-                            fallback_summary["input_tokens"] = _usage_int(
-                                usage.get("input_tokens")
-                            )
+                            fallback_summary["input_tokens"] = _usage_int(usage.get("input_tokens"))
                             fallback_summary["output_tokens"] = _usage_int(
                                 usage.get("output_tokens")
                             )
@@ -6045,9 +6155,11 @@ class OpenAIResponsesMixin:
                                 fallback_summary["cache_read_tokens"] = _usage_int(
                                     details.get("cached_tokens")
                                 )
-                            fallback_summary["cache_write_tokens"] = _infer_openai_cache_write_tokens(
-                                fallback_summary["input_tokens"],
-                                fallback_summary["cache_read_tokens"],
+                            fallback_summary["cache_write_tokens"] = (
+                                _infer_openai_cache_write_tokens(
+                                    fallback_summary["input_tokens"],
+                                    fallback_summary["cache_read_tokens"],
+                                )
                             )
                             fallback_summary["uncached_input_tokens"] = max(
                                 0,

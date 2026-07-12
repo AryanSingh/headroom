@@ -13,6 +13,7 @@ const STANDARD_FLAG_KEYS = new Set([
   'autopilot_enabled',
   'episodic_memory_enabled',
   'audit_enabled',
+  'orchestrator_mode',
 ]);
 
 const LEGACY_FLAG_KEYS = new Set([
@@ -106,14 +107,16 @@ function chooseConfigEndpoints(updates) {
   // canonical feature-flags endpoint: it installs the active routing preset
   // and reports the runtime state.  The admin endpoint remains a fallback for
   // older proxies, but must not be the first response that wins.
-  if (keys.includes('orchestrator')) {
+  if (keys.includes('orchestrator') || keys.includes('orchestrator_mode')) {
     return ['/config/flags', '/admin/config/flags'];
   }
   if (keys.every((key) => STANDARD_FLAG_KEYS.has(key))) {
     return ['/config/flags', '/admin/config/flags'];
   }
   if (keys.every((key) => LEGACY_FLAG_KEYS.has(key))) {
-    return ['/admin/config/flags', '/config/flags'];
+    // The canonical endpoint normalizes compatibility aliases and reports
+    // whether a requested change is live or restart-required.
+    return ['/config/flags', '/admin/config/flags'];
   }
   return ['/config/flags', '/admin/config/flags'];
 }

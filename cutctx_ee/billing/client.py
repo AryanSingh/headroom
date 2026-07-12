@@ -16,6 +16,11 @@ _CRL_CACHE: dict[str, set[str] | float] = {"revoked": set(), "expires_at": 0.0}
 _DEFAULT_PORTAL_URL = "https://pitchtoship.com"
 
 
+def _response_is_json(resp: httpx.Response) -> bool:
+    content_type = resp.headers.get("content-type", "").lower()
+    return "json" in content_type
+
+
 def _strict_mode() -> bool:
     """Return True when the proxy is in strict-license mode.
 
@@ -102,7 +107,10 @@ def activate_instance(license_key: str, instance_id: str) -> bool:
             json={"license_key": license_key, "instance_id": instance_id},
             timeout=5.0,
         )
-        return resp.status_code == 200
+        if resp.status_code != 200 or not _response_is_json(resp):
+            return False
+        payload = resp.json()
+        return isinstance(payload, dict) and payload.get("status") in {"ok", "activated"}
     except Exception:
         return True  # Fail open
 
@@ -117,7 +125,10 @@ def checkout_seat(license_key: str, user_id: str) -> bool:
         )
         if resp.status_code == 429:
             return False
-        return True
+        if resp.status_code != 200 or not _response_is_json(resp):
+            return False
+        payload = resp.json()
+        return isinstance(payload, dict) and payload.get("status") in {"ok", "seat_leased"}
     except Exception:
         return True
 
@@ -134,7 +145,10 @@ def start_trial(trial_token: str, customer_email: str, duration: float = 14 * 86
             },
             timeout=5.0,
         )
-        return resp.status_code == 200
+        if resp.status_code != 200 or not _response_is_json(resp):
+            return False
+        payload = resp.json()
+        return isinstance(payload, dict) and payload.get("status") == "ok"
     except Exception:
         return True  # Fail open
 
@@ -147,8 +161,10 @@ def is_trial_active(trial_token: str) -> bool:
             json={"trial_token": trial_token},
             timeout=5.0,
         )
-        if resp.status_code == 200:
-            return resp.json().get("active", True)
+        if resp.status_code == 200 and _response_is_json(resp):
+            payload = resp.json()
+            if isinstance(payload, dict):
+                return bool(payload.get("active", True))
         return True  # Fail open
     except Exception:
         return True  # Fail open

@@ -22,10 +22,12 @@ from typing import Any
 
 import pytest
 
+from cutctx.memory.storage_router import TeamSyncWrapper
 from cutctx.memory.sync import (
     sync,
     sync_export,
     sync_import,
+    sync_team_memory,
 )
 from cutctx.memory.sync_adapters.claude_code import (
     ClaudeCodeAdapter,
@@ -381,6 +383,156 @@ class TestLineageAndGovernance:
         assert "last_sync" in state[key]
         assert "agent_fingerprint" in state[key]
         assert "db_fingerprint" in state[key]
+
+
+class TestTeamSyncWrapper:
+    @pytest.fixture
+    def backend(self):
+        class BackendStub:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
+
+            async def save_memory(self, *args: Any, **kwargs: Any) -> str:
+                self.calls.append(("save", args, kwargs))
+                return "saved"
+
+            async def update_memory(self, *args: Any, **kwargs: Any) -> str:
+                self.calls.append(("update", args, kwargs))
+                return "updated"
+
+            async def delete_memory(self, *args: Any, **kwargs: Any) -> str:
+                self.calls.append(("delete", args, kwargs))
+                return "deleted"
+
+        return BackendStub()
+
+    def test_update_and_delete_trigger_team_sync(self, backend, monkeypatch):
+        triggered: list[str] = []
+
+        class DummyTask:
+            def __init__(self, coro):
+                self.coro = coro
+                try:
+                    while True:
+                        coro.send(None)
+                except StopIteration:
+                    pass
+
+        def fake_create_task(coro):
+            triggered.append(getattr(coro, "__name__", "_do_sync"))
+            return DummyTask(coro)
+
+        monkeypatch.setattr("asyncio.create_task", fake_create_task)
+
+        wrapper = TeamSyncWrapper(
+            backend=backend,
+            config=type("Cfg", (), {"memory_team_sync_enabled": False, "memory_service_url": None})(),
+            auth_token=None,
+            org_id="org-1",
+            workspace_id="ws-1",
+        )
+
+        initial_trigger_count = len(triggered)
+
+        import asyncio
+
+        async def exercise() -> None:
+            await wrapper.save_memory(content="a", user_id="u")
+            await wrapper.update_memory(memory_id="m1", new_content="b")
+            await wrapper.delete_memory(memory_id="m1")
+
+        asyncio.run(exercise())
+
+        assert [call[0] for call in backend.calls] == ["save", "update", "delete"]
+        assert len(triggered) == initial_trigger_count + 3
+
+
+class TestTeamMemorySyncMerge:
+    @pytest.mark.asyncio
+    async def test_repeated_server_deltas_do_not_duplicate_team_memories(
+        self, tmp_path, monkeypatch
+    ):
+        backend = FakeBackend()
+        state_path_1 = tmp_path / "team_sync_state_1.json"
+        state_path_2 = tmp_path / "team_sync_state_2.json"
+
+        class FakeResponse:
+            def __init__(self, payload: dict[str, Any]) -> None:
+                self._payload = payload
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict[str, Any]:
+                return self._payload
+
+        class FakeClient:
+            def __init__(self) -> None:
+                self.post_calls = 0
+
+            async def __aenter__(self) -> FakeClient:
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb) -> bool:
+                return False
+
+            async def post(self, url, json=None, headers=None):
+                self.post_calls += 1
+                return FakeResponse(
+                    {
+                        "server_deltas": [
+                            {
+                                "id": "srv-1",
+                                "content": "Team fact",
+                                "importance": 0.8,
+                                "metadata": {"source": "service"},
+                            }
+                        ],
+                        "new_watermark": 123.0,
+                    }
+                )
+
+        fake_client = FakeClient()
+
+        monkeypatch.setattr(
+            "cutctx.proxy.egress.load_policy_from_env",
+            lambda: type(
+                "Policy",
+                (),
+                {"allow_all": True, "allowed_patterns": (), "policy_id": "test"},
+            )(),
+        )
+        monkeypatch.setattr("httpx.AsyncClient", lambda: fake_client)
+
+        config = type(
+            "Cfg",
+            (),
+            {
+                "memory_team_sync_enabled": True,
+                "memory_service_url": "https://team.example",
+            },
+        )()
+
+        await sync_team_memory(
+            backend=backend,
+            config=config,
+            org_id="org-1",
+            workspace_id="ws-1",
+            state_path=state_path_1,
+        )
+        await sync_team_memory(
+            backend=backend,
+            config=config,
+            org_id="org-1",
+            workspace_id="ws-1",
+            state_path=state_path_2,
+        )
+
+        team_memories = await backend.get_user_memories("team_org-1", limit=5000)
+        assert len(team_memories) == 1
+        assert team_memories[0].content == "Team fact"
+        assert team_memories[0].metadata["server_id"] == "srv-1"
+        assert fake_client.post_calls == 2
 
 
 # ---------------------------------------------------------------------------

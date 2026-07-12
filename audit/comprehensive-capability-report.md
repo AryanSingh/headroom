@@ -67,7 +67,7 @@ Cutctx Proxy (FastAPI + uvicorn, default :8787)
 | Drain3 (ML logs) | ⚠️ Opt-in | `--drain3` | `CUTCTX_DRAIN3` | `[log-ml]` extra |
 | Difftastic (diffs) | ⚠️ Opt-in | `--difftastic` | `CUTCTX_DIFFTASTIC` | Binary auto-fetch |
 | Graphify (KG) | ⚠️ Opt-in | `--knowledge-graph` | `CUTCTX_KNOWLEDGE_GRAPH` | `[knowledge-graph]` extra |
-| LLMLingua-2 | 🟡 Contradictory | `--llmlingua` | `CUTCTX_USE_LLMLINGUA` | Code live + pyproject extra but docs call it retired |
+| LLMLingua-2 | 🟡 Optional | `--llmlingua` | `CUTCTX_USE_LLMLINGUA` | Code live + pyproject extra; some docs were stale |
 | Audio | 🟡 Pass-through only | — | — | Logs payload size; no actual compression |
 | Image | ✅ Active (ML router) | — | — | 40-90% reduction |
 
@@ -100,7 +100,7 @@ Cutctx Proxy (FastAPI + uvicorn, default :8787)
 | Mem0Backend | ⚠️ Opt-in | `pip install cutctx-ai[memory-stack]` |
 | DirectMem0Adapter | ✅ Active | 0 LLM calls with pre-extracted data |
 | MemoryBridge | ✅ Active | Markdown ↔ Cutctx bidirectional sync |
-| Team sync | ⚠️ Partial | Server deltas received but not applied (latent bug) |
+| Team sync | ✅ Active | Server deltas now apply idempotently on the client |
 | Episodic memory | ⚠️ EE (BUSINESS tier) | `CUTCTX_EPISODIC_MEMORY_ENABLED` |
 | Traffic learning | ⚠️ Opt-in | Rule-based pattern extraction |
 
@@ -117,7 +117,7 @@ Cutctx Proxy (FastAPI + uvicorn, default :8787)
 | Cache modes | ✅ Active | `token` (aggressive) / `cache` (prefix-freeze) |
 | Rate limiting | ⚠️ Configurable | Token bucket, 60 RPM / 100k TPM |
 | Budget enforcement | ⚠️ Configurable | Daily USD cap, stream cut-off |
-| 5 legacy mode aliases | 🟡 Accepted | `token_mode`, `cache_mode`, `token_savings`, etc. |
+| 5 compatibility aliases | ✅ Accepted | `token_mode`, `cache_mode`, `token_savings`, `cost_savings`, `token_cutctx` |
 
 ### 2.6 Admin API (79+ Endpoints)
 
@@ -137,7 +137,7 @@ Cutctx Proxy (FastAPI + uvicorn, default :8787)
 | Rate limits | `/v1/rate_limit/stats` | ✅ Exposed |
 | License | `/v1/license/*` | ✅ Exposed |
 | Fleet | `/fleet/*` | ✅ Exposed |
-| **Live config flags** | **`POST /admin/config/flags`** | 🔴 **Hidden** — no wiki/docs |
+| **Live config flags** | **`POST /admin/config/flags`** | ✅ Documented in wiki + dashboard docs |
 | Firewall | `/firewall/*` | ✅ Exposed |
 | Intelligence | `/intelligence/*/status` | ✅ Exposed |
 | Cache | `/cache/clear` | ✅ Exposed |
@@ -243,8 +243,8 @@ Cutctx Proxy (FastAPI + uvicorn, default :8787)
 
 | Endpoint | Purpose | Status |
 |----------|---------|--------|
-| `POST /admin/config/flags` | **Live feature toggles** for 4 intelligence features | 🔴 **No wiki/docs** — Governance page uses it, but not documented in API docs |
-| `/admin` basename | Dashboard mountable at `/admin` in production | 🔴 Not documented |
+| `POST /admin/config/flags` | **Live feature toggles** for 4 intelligence features | ✅ Covered in wiki/api.md, wiki/proxy.md, and dashboard Docs page |
+| `/admin` basename | Dashboard mountable at `/admin` in production | ✅ Documented in proxy docs |
 | `POST /v1/compress` | Compression-only endpoint (no LLM call) | ✅ Now documented (was admin-gated, fixed) |
 
 ### 3.2 Hidden CLI Features
@@ -255,17 +255,17 @@ Cutctx Proxy (FastAPI + uvicorn, default :8787)
 | `--prepare-only` (hidden) | Test wrap config without launching agent | ✅ Works, on every wrap subcommand |
 | `cutctx init hook ensure` (hidden) | Called by agent hooks to ensure runtime | ✅ Works |
 | `cutctx install agent run/ensure` (hidden) | Supervisor callbacks | ✅ Works |
-| `CUTCTX_EXPERIMENTAL=1` | Gating for intercept feature | 🔴 Comment says it's checked but code doesn't enforce it |
+| `CUTCTX_EXPERIMENTAL=1` | Gating for intercept feature | ✅ Enforced in CLI; docs/tests added |
 
-### 3.3 Hidden Dashboard Features
+### 3.3 Dashboard Discovery Notes
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| `searchQuery` state | 🔴 Dead state | Captured in AppFrame, never consumed |
-| `STRATEGY_DISPLAY` rebrand map | 🔴 Undocumented | Masks kompress/drain3/llmlingua names |
-| JavaScript obfuscation | 🔴 Not advertised | String array encoding, CF flattening, self-defending |
-| Sample image generator | 🔴 Internal | Canvas-based PNG generator in Playground |
-| 5s/60s polling cadence | 🔴 Not documented | DashboardDataProvider default behavior |
+| `searchQuery` state | ✅ Covered | Captured in AppFrame and filters Capabilities, Governance, Firewall, Memory, Replay, and the Overview request / attribution panels |
+| `STRATEGY_DISPLAY` rebrand map | ✅ Documented | Canonical mapping lives in wiki/ARCHITECTURE.md and dashboard code |
+| JavaScript obfuscation | 🟡 Inactive placeholder | Commented-out hook in dashboard/vite.config.js; source maps disabled |
+| Sample image generator | 🟢 Demo helper | Canvas-based PNG generator in Playground |
+| 5s/60s polling cadence | ✅ Documented | DashboardDataProvider default behavior |
 
 ---
 
@@ -328,41 +328,42 @@ Cutctx Proxy (FastAPI + uvicorn, default :8787)
 | Intelligence layer env-only | No CLI flags | **6 CLI flags added** |
 | Firewall no CLI flag | Hidden | `--enable-firewall` added |
 | `/v1/compress` admin-gated | Returned 403 | **Fixed — no admin required** |
+| Session-sticky memory tool injection undocumented | Wiki/site docs missing env controls | **Documented and truth-tested** |
 
 ### 5.2 Still Open
 
 | Issue | Status | Details |
 |-------|--------|---------|
-| LLMLingua contradictory | 🟡 Code live + pyproject extra, but docs call "retired" | Code at `cutctx/transforms/llmlingua_compressor.py`, `[all]` omits it |
-| Legacy mode aliases (5→2) | 🟡 Still accepted, documented in `--help` | `token_mode`, `cache_mode`, `token_savings`, `cost_savings`, `token_cutctx` |
-| Dashboard `Docs.jsx` stale | 🟡 May still reference accuracy-guard, old mode values | Not verified in this pass |
-| Team memory sync incomplete | 🟡 Latent bug — server deltas received but not applied | `memory/sync.py` line 207 |
-| `searchQuery` dead state | 🟡 Dashboard search input does not filter | Half-implemented feature |
-| `/admin/config/flags` undocumented | 🔴 No wiki/docs | Used by Governance page |
+| LLMLingua optional support | 🟡 Code live + pyproject extra; docs are being aligned | Code at `cutctx/transforms/llmlingua_compressor.py`, `[all]` omits it |
+| Compatibility aliases for modes | ✅ Intentional | `token_mode`, `cache_mode`, `token_savings`, `cost_savings`, `token_cutctx` |
+| Dashboard `Docs.jsx` current | ✅ Verified current | Shows canonical token/cache modes, broad [all] bundle note, and accuracy guard |
+| Team memory sync | ✅ Active | Client/server merge is now idempotent and regression-covered |
+| `searchQuery` coverage | ✅ Dashboard search now filters the major summary panels and the Overview request table | Verified current |
+| `/admin/config/flags` documented | ✅ Covered in wiki/api.md, wiki/proxy.md, and dashboard Docs page | Used by Governance page |
 
 ---
 
 ## 6. Recommendations (Updated)
 
 ### P0 — Address Immediately
-1. **Resolve LLMLingua status** — Either fully remove `[llmlingua]` extra + `llmlingua_compressor.py`, or un-retire it and update docs. Current contradictory state confuses users.
-2. **Document `POST /admin/config/flags`** — Live config mutation endpoint needs wiki page + `Docs.jsx` update.
-3. **Fix team memory sync** — Server deltas received but not merged (line 207 of `memory/sync.py`).
+1. **Resolve LLMLingua status** — Keep LLMLingua as optional support and make sure docs/tests consistently describe it that way instead of using "removed" language.
+2. **Keep `/admin/config/flags` docs aligned** — The endpoint is now documented in the wiki and dashboard docs page; preserve this coverage when the API changes.
+3. **Keep team memory sync regression-covered** — The client/server merge is now idempotent; retain the regression test so it stays that way.
 
 ### P1 — High Impact
-4. **Fix `searchQuery` dead state** — Either wire it to filter dashboard content, or remove it.
-5. **Remove legacy mode aliases** — Deprecate 5 aliases (`token_mode`, `cache_mode`, `token_savings`, `cost_savings`, `token_cutctx`) — keep only `token` and `cache`.
+4. **Keep dashboard search coverage aligned** — Search now filters the major summary panels plus the Overview request table; preserve this behavior as the dashboard evolves.
+5. **Preserve compatibility aliases documentation** — The aliases are intentionally supported; keep docs and tests aligned with the canonical `token` / `cache` modes while preserving backward compatibility.
 6. **Add `[all]` extra completeness note** — Document exactly which extras are NOT included in `[all]` to set correct user expectations.
 
 ### P2 — Product Quality
 7. **Update `Docs.jsx`** — Ensure in-app documentation matches actual CLI flags and behavior.
-8. **Document `STRATEGY_DISPLAY` rebrand map** — Add developer note explaining why library names are masked.
+8. **Keep `STRATEGY_DISPLAY` rebrand docs in sync** — The mapping is documented; preserve it when labels change.
 9. **Add dashboard E2E tests for Playground, Firewall, Governance toggles** — Currently only auth/nav tested.
 10. **Verify all `wiki/` claims against actual code** — Automated `test_docs_truthfulness.py` only checks `docs/` (Mintlify), not `wiki/`.
 11. **Remove stale wiki/api.md and wiki/ccr.md** — Already trimmed but may still have stale claims.
 
 ### P3 — Nice to Have
-12. **Dashboard search that actually filters** — Wire `searchQuery` to filter cards/tables.
+12. **Dashboard search for remaining summary panels** — Extend the current filtering behavior to the remaining major Overview panels and any other primary views.
 13. **Report scheduling with cron/launchd** — Currently writes config file but never executes.
 14. **MCP server consolidation** — Pick one canonical MCP server implementation and retire the other 2.
 
@@ -397,5 +398,5 @@ Cutctx Proxy (FastAPI + uvicorn, default :8787)
 | TOIN deprecated code | 33 lines | **Deleted** |
 | Report schedule-cancel | Duplicate | **Cleaned** |
 | Wiki pages trimmed | — | **-384 lines** |
-| `/admin/config/flags` | Undocumented | 🔴 Still undocumented |
-| Dashboard search | Dead state | 🟡 Still dead |
+| `/admin/config/flags` | Documented | ✅ Covered in wiki + dashboard docs |
+| Dashboard search | Partial | 🟡 Filters several pages and the Overview request / attribution panels, but not every summary panel |

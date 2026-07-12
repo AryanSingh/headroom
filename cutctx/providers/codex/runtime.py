@@ -20,4 +20,8 @@ def build_launch_env(
     env = dict(environ or os.environ)
     base_url = proxy_base_url(port)
     env["OPENAI_BASE_URL"] = base_url
-    return env, [f"OPENAI_BASE_URL={base_url}"]
+    env.setdefault("CUTCTX_CONTEXT_BUDGET_ENABLED", "1")
+    return env, [
+        f"OPENAI_BASE_URL={base_url}",
+        f"CUTCTX_CONTEXT_BUDGET_ENABLED={env['CUTCTX_CONTEXT_BUDGET_ENABLED']}",
+    ]

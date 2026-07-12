@@ -12,52 +12,32 @@ import {
 } from "../lib/use-dashboard-data";
 import OrchestrationStudio from "../components/OrchestrationStudio";
 
-function ToggleSwitch({ checked, onChange, disabled, label }) {
+const ROUTING_MODES = [
+  { value: "off", label: "Off", description: "Disable model routing" },
+  { value: "balanced", label: "Balanced", description: "Use codex-gpt54mini-high" },
+  { value: "aggressive", label: "Aggressive", description: "Use economy" },
+];
+
+function RoutingModeSelector({ value, onChange, disabled }) {
   return (
-    <label
-      className="toggle-switch"
-      style={{
-        position: "relative",
-        display: "inline-block",
-        width: "36px",
-        height: "20px",
-        opacity: disabled ? 0.5 : 1,
-        cursor: disabled ? "not-allowed" : "pointer",
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        disabled={disabled}
-        aria-label={label}
-        style={{ opacity: 0, width: 0, height: 0 }}
-      />
-      <span
-        style={{
-          position: "absolute",
-          cursor: "pointer",
-          inset: 0,
-          backgroundColor: checked ? "var(--accent)" : "var(--surface-3)",
-          transition: ".2s",
-          borderRadius: "20px",
-        }}
-      >
-        <span
-          style={{
-            position: "absolute",
-            height: "14px",
-            width: "14px",
-            left: "3px",
-            bottom: "3px",
-            backgroundColor: "white",
-            transition: ".2s",
-            borderRadius: "50%",
-            transform: checked ? "translateX(16px)" : "translateX(0)",
-          }}
-        />
-      </span>
-    </label>
+    <div className="tab-group" aria-label="Routing mode selector">
+      {ROUTING_MODES.map((mode) => {
+        const active = value === mode.value;
+        return (
+          <button
+            key={mode.value}
+            className={`tab-button ${active ? "active" : ""}`}
+            onClick={() => onChange(mode.value)}
+            disabled={disabled}
+            type="button"
+            title={mode.description}
+            aria-pressed={active}
+          >
+            {mode.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -77,7 +57,7 @@ async function postProviderControl(providerName, action) {
 export default function Orchestrator() {
   const { stats, loading, error, configFlagsError, refresh } = useDashboardData();
   const [updating, setUpdating] = useState(false);
-  const [optimisticState, setOptimisticState] = useState(null);
+  const [optimisticMode, setOptimisticMode] = useState(null);
   const [toggleError, setToggleError] = useState(null);
   const [stalled, setStalled] = useState(false);
   const [policyStatus, setPolicyStatus] = useState(null);
@@ -162,20 +142,19 @@ export default function Orchestrator() {
     refresh?.();
   };
 
-  const handleToggle = async (event) => {
-    const newValue = event.target.checked;
-    setOptimisticState(newValue);
+  const handleModeChange = async (mode) => {
+    setOptimisticMode(mode);
     setToggleError(null);
     setUpdating(true);
     try {
-      await patchDashboardConfig({ orchestrator: newValue });
+      await patchDashboardConfig({ orchestrator_mode: mode });
       await refresh?.();
     } catch (err) {
       if (import.meta.env.DEV) {
-        console.error("Failed update orchestrator config", err);
+        console.error("Failed update orchestrator mode", err);
       }
-      setToggleError(err?.message || "Failed to update setting");
-      setOptimisticState(null);
+      setToggleError(err?.message || "Failed to update routing mode");
+      setOptimisticMode(null);
     } finally {
       setUpdating(false);
     }
@@ -246,8 +225,15 @@ export default function Orchestrator() {
   }
 
   const modelRouting = stats?.model_routing || {};
-  const backendState = modelRouting.requested ?? stats?.config?.orchestrator ?? false;
-  const isActive = optimisticState ?? backendState;
+  const backendMode = modelRouting.mode || (modelRouting.requested ? "balanced" : "off");
+  const activeMode = optimisticMode ?? backendMode;
+  const currentPreset =
+    modelRouting.preset ||
+    (activeMode === "aggressive"
+      ? "economy"
+      : activeMode === "balanced"
+        ? "codex-gpt54mini-high"
+        : "none");
   const usdSaved = Math.max(
     Number(stats?.cost?.savings_by_source?.usd?.model_routing || 0),
     Number(stats?.savings_by_source?.usd?.model_routing || 0),
@@ -258,12 +244,19 @@ export default function Orchestrator() {
   );
   const canToggle = !configFlagsError;
   const providerDecisions = policyStatus?.provider_decisions || {};
+  const modeDescription = activeMode === "custom"
+    ? "A custom routing preset is active. Choosing a preset will replace it."
+    : activeMode === "aggressive"
+      ? "Aggressive routes to the economy preset."
+      : activeMode === "balanced"
+        ? "Balanced keeps the canonical codex-gpt54mini-high preset."
+        : "Off disables routing while preserving the current preset.";
 
   return (
     <div className="page-stack">
       {toggleError ? (
         <div className="alert-card" role="alert">
-          <span>Failed to update orchestrator setting: {toggleError}</span>
+          <span>Failed to update routing mode: {toggleError}</span>
           <button
             className="ghost-button"
             style={{ marginLeft: "auto" }}
@@ -281,9 +274,15 @@ export default function Orchestrator() {
         </div>
       ) : null}
 
+      {modelRouting.mode === "custom" ? (
+        <div className="alert-card" role="status">
+          A custom routing preset is active. Choosing Off, Balanced, or Aggressive will replace it.
+        </div>
+      ) : null}
+
       {configFlagsError ? (
         <div className="alert-card" role="status">
-          Runtime config API unavailable in proxy: {configFlagsError}. Toggles may require a newer
+          Runtime config API unavailable in proxy: {configFlagsError}. Routing controls may require a newer
           backend build.
         </div>
       ) : null}
@@ -298,8 +297,8 @@ export default function Orchestrator() {
             </div>
             <div>
               <div className="eyebrow">Orchestrator</div>
-              <h2>Orchestrator Insights</h2>
-              <p>Smart model routing based on task complexity.</p>
+              <h2>Routing mode control</h2>
+              <p>Choose how aggressively Cutctx routes requests to cheaper models.</p>
             </div>
           </div>
           <div
@@ -316,18 +315,23 @@ export default function Orchestrator() {
               style={{
                 fontSize: "0.85rem",
                 fontWeight: 500,
-                color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                color: activeMode !== "off" ? "var(--text-primary)" : "var(--text-secondary)",
               }}
             >
-              {isActive ? "Routing enabled" : "Routing disabled"}
+              {activeMode === "off" ? "Routing off" : `Routing ${activeMode}`}
             </span>
-            <ToggleSwitch
-              checked={Boolean(isActive)}
-              onChange={handleToggle}
-              disabled={updating || !canToggle}
-              label={`${isActive ? "Disable" : "Enable"} orchestrator routing`}
-            />
           </div>
+        </div>
+
+        <div style={{ marginBottom: "var(--space-lg)" }}>
+          <RoutingModeSelector
+            value={activeMode}
+            onChange={handleModeChange}
+            disabled={updating || !canToggle}
+          />
+          <p className="text-secondary" style={{ marginTop: "0.5rem" }}>
+            {modeDescription}
+          </p>
         </div>
 
         <section className="metric-grid metric-grid-two">
@@ -362,8 +366,12 @@ export default function Orchestrator() {
           </div>
           <div className="graphify-kv-grid">
             <div className="graphify-kv">
-              <span>Configured</span>
-              <strong>{modelRouting.requested ? "Yes" : "No"}</strong>
+              <span>Mode</span>
+              <strong>{activeMode}</strong>
+            </div>
+            <div className="graphify-kv">
+              <span>Preset</span>
+              <strong>{currentPreset}</strong>
             </div>
             <div className="graphify-kv">
               <span>Router available</span>

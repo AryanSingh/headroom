@@ -27,6 +27,7 @@ export const capabilityGroups = [
     items: [
       { name: 'CCR Retrieval', detail: 'Compress-cache-retrieve markers with reversible expansion paths.' },
       { name: 'Cross-Agent Memory', detail: 'Shared memory backend across Claude, Codex, Gemini, and other agents.' },
+      { name: 'Session-Sticky Memory Tools', detail: 'Memory tool definitions stay byte-stable for the rest of a session; optional env controls support explicit rollback.' },
       { name: 'Cutctx Learn', detail: 'Session mining and correction writing into AGENTS.md / CLAUDE.md.' },
       { name: 'Context Tools', detail: 'RTK and related context helpers surfaced alongside proxy activity.' },
     ],

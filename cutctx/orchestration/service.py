@@ -244,10 +244,11 @@ class OrchestrationService:
     async def test_account(self, account_id: str) -> dict[str, Any]:
         health = await self.adapter(account_id).authenticate()
         account = self._account(account_id)
-        self.model_registry.mark_provider_available(
+        self.model_registry.update_provider_runtime_signals(
             account.provider,
-            health.ok,
             account_id=account.id,
+            health_score=1.0 if health.ok else 0.0,
+            latency_ms=health.latency_ms,
         )
         return {
             "ok": health.ok,
@@ -363,6 +364,7 @@ class OrchestrationService:
         max_concurrency: int = 4,
     ) -> WorkflowState:
         """Run durable role-bound tasks through the canonical executor."""
+
         async def execute_task(_task_id: str, task: TaskSpec) -> dict[str, Any]:
             messages = task.payload.get("messages", [])
             parameters = task.payload.get("parameters", {})
@@ -373,9 +375,9 @@ class OrchestrationService:
             )
             return {"routing": to_dict(decision), "response": response}
 
-        return await WorkflowRunner(
-            store, execute_task, max_concurrency=max_concurrency
-        ).run(workflow_id, spec)
+        return await WorkflowRunner(store, execute_task, max_concurrency=max_concurrency).run(
+            workflow_id, spec
+        )
 
     async def stream(
         self,
@@ -600,7 +602,8 @@ class OrchestrationService:
             sensitive_headers = {
                 name
                 for name in account.custom_headers
-                if name.casefold() in {
+                if name.casefold()
+                in {
                     "authorization",
                     "proxy-authorization",
                     "x-api-key",
@@ -629,6 +632,14 @@ class OrchestrationService:
                     )
 
         role_ids = {role.id.casefold() for role in config.roles}
+        configured_models = {model.deployment_key: model for model in config.models}
+        configured_models.update(
+            {
+                model.key: model
+                for model in config.models
+                if sum(candidate.key == model.key for candidate in config.models) == 1
+            }
+        )
         for binding in config.bindings:
             if binding.role and binding.role.casefold() not in role_ids:
                 raise ValueError(f"Binding {binding.id!r} references unknown role {binding.role!r}")
@@ -643,6 +654,20 @@ class OrchestrationService:
                 not isinstance(model, str) or not model.strip() for model in binding.fallback_chain
             ):
                 raise ValueError(f"Binding {binding.id!r} has an invalid fallback chain")
+            if not isinstance(binding.equivalent_deployments, list) or any(
+                not isinstance(model, str) or not model.strip()
+                for model in binding.equivalent_deployments
+            ):
+                raise ValueError(f"Binding {binding.id!r} has invalid equivalent deployments")
+            primary_model = configured_models.get(binding.model)
+            if primary_model is not None:
+                for equivalent_key in binding.equivalent_deployments:
+                    equivalent_model = configured_models.get(equivalent_key)
+                    if equivalent_model is not None and equivalent_model.key != primary_model.key:
+                        raise ValueError(
+                            f"Binding {binding.id!r} equivalent deployment "
+                            f"{equivalent_key!r} changes model identity"
+                        )
 
 
 def build_orchestration_service(

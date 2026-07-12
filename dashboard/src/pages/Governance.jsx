@@ -128,14 +128,15 @@ const FEATURE_CONFIG = [
   },
   {
     key: "orchestrator",
-    flagKey: "orchestrator",
-    label: "Easy-task routing",
+    flagKey: null,
+    linkTo: "/orchestrator",
+    label: "Routing mode",
     envVar: "CUTCTX_MODEL_ROUTING_PRESET=codex-gpt54mini-high",
     description:
-      "Send easy Codex tasks to GPT-5.4 mini and keep harder tasks on GPT-5.5.",
+      "Choose Off, Balanced, or Aggressive on the dedicated routing page.",
     tier: "free",
-    liveToggle: true,
-    statPath: (stats) => stats?.config?.orchestrator,
+    liveToggle: false,
+    statPath: (stats) => stats?.model_routing?.mode || (stats?.config?.orchestrator ? "balanced" : "off"),
   },
   {
     key: "audit",
@@ -285,7 +286,11 @@ function normalizeAppliedLiveFlags(appliedLive) {
   for (const [key, value] of Object.entries(appliedLive || {})) {
     if (value && typeof value === "object" && "enabled" in value) {
       next[key] = Boolean(value.enabled);
+    } else if (value && typeof value === "object" && "mode" in value) {
+      next[key] = String(value.mode);
     } else if (typeof value === "boolean") {
+      next[key] = value;
+    } else if (typeof value === "string") {
       next[key] = value;
     }
   }
@@ -308,7 +313,9 @@ function FeatureRow({
   const locked = availability === false;
   const statusText = locked
     ? "Unavailable"
-    : isActive === true
+    : typeof isActive === "string"
+      ? titleCase(isActive)
+      : isActive === true
       ? "Active"
       : isActive === false
         ? "Inactive"
@@ -356,9 +363,17 @@ function FeatureRow({
             </div>
           </>
         ) : (
-          <div className="feature-config-env">
-            <code>{feature.envVar}</code>
-          </div>
+          <>
+            <div className="feature-config-env">
+              <code>{feature.envVar}</code>
+              <CopyButton text={feature.envVar} label={`Copy ${feature.envVar}`} />
+            </div>
+            {feature.linkTo ? (
+              <a className="ghost-button" href={feature.linkTo} style={{ width: "fit-content" }}>
+                Open routing page
+              </a>
+            ) : null}
+          </>
         )}
       </div>
     </div>

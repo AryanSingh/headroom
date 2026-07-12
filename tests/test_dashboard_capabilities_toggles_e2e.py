@@ -15,6 +15,17 @@ sync_playwright = playwright.sync_playwright
 
 
 def _install_dashboard_routes(page: Page, stats_payload: dict, flags_callback) -> None:
+    flags = {
+        "live_toggleable": {
+            "episodic_memory_enabled": {"enabled": False},
+            "ccr_context_tracking": {"enabled": False},
+        },
+        "restart_required": {
+            "cache_enabled": {"enabled": False},
+            "firewall_enabled": {"enabled": False},
+            "rate_limit_enabled": {"enabled": False},
+        },
+    }
     dashboard_html = get_dashboard_html(prefer_react=True)
 
     def handler(route) -> None:  # type: ignore[no-untyped-def]
@@ -51,12 +62,30 @@ def _install_dashboard_routes(page: Page, stats_payload: dict, flags_callback) -
                 )
                 return
 
-        if "/admin/config/flags" in url and route.request.method == "POST":
-            # Record the payload
+        if "/config/flags" in url:
+            if route.request.method == "GET":
+                route.fulfill(
+                    status=200, content_type="application/json", body=json.dumps(flags)
+                )
+                return
+
             payload = json.loads(route.request.post_data or "{}")
             flags_callback(payload)
+            for key, value in payload.items():
+                if key in flags["live_toggleable"]:
+                    flags["live_toggleable"][key] = {"enabled": value}
             route.fulfill(
-                status=200, content_type="application/json", body=json.dumps({"success": True})
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "applied_live": {
+                            key: {"enabled": value}
+                            for key, value in payload.items()
+                            if key in flags["live_toggleable"]
+                        }
+                    }
+                ),
             )
             return
 
@@ -113,22 +142,22 @@ def test_capabilities_toggles_e2e() -> None:
         expect(memory_card.locator(".status-inactive")).to_have_text("Idle")
         expect(firewall_card.locator(".status-inactive")).to_have_text("Idle")
 
-        # Click the toggles
+        # Episodic memory is live-toggleable. The request uses the canonical
+        # config key so the backend can report its actual live status.
         memory_card = page.locator(".metric-card").filter(has_text="Episodic memory")
         memory_card.locator(".toggle-switch").click()
-        firewall_card.locator(".toggle-switch").click()
+
+        # Firewall is restart-only. It must not impersonate a live switch.
+        expect(firewall_card.locator(".toggle-switch input")).to_be_disabled()
+        expect(firewall_card.locator(".metric-footnote")).to_contain_text("Restart required")
 
         # Wait for the API posts
         page.wait_for_timeout(1000)
 
-        assert len(posted_flags) >= 2
-        assert any("memory" in payload and payload["memory"] is True for payload in posted_flags)
-        assert any(
-            "firewall" in payload and payload["firewall"] is True for payload in posted_flags
-        )
+        assert posted_flags == [{"episodic_memory_enabled": True}]
 
-        # Assert they instantly show "Active"
+        # The live control updates immediately; the restart-only control does not.
         expect(memory_card.locator(".status-active")).to_have_text("Active")
-        expect(firewall_card.locator(".status-active")).to_have_text("Active")
+        expect(firewall_card.locator(".status-inactive")).to_have_text("Idle")
 
         browser.close()

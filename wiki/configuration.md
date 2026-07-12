@@ -63,6 +63,17 @@ cutctx proxy --no-ccr-expansion
 # opt-in path via the `[ml]` extra.)
 ```
 
+### Compatibility aliases
+
+Cutctx still accepts a few legacy mode aliases for backward compatibility.
+They normalize to the canonical `token` / `cache` values:
+
+- `token_mode`
+- `token_savings`
+- `cost_savings`
+- `cache_mode`
+- `token_cutctx`
+
 ### All Options
 
 ```bash
@@ -230,6 +241,10 @@ Some settings can be configured via environment variables:
 | `CUTCTX_TOIN_PATH` | Full path to the TOIN telemetry JSON file. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
 | `CUTCTX_SUBSCRIPTION_STATE_PATH` | Full path to the subscription tracker state. Always wins when set. | derived from `${CUTCTX_WORKSPACE_DIR}` |
 | `CUTCTX_EMBEDDER_RUNTIME` | Set to `pytorch_mps` to run the memory embedder via the torch sentence-transformers backend on the Apple GPU (MPS). Only engages when Apple MPS is actually available; otherwise it logs a warning and uses the existing default embedder selection path. `pytorch_mps` is the only accepted value. Requires the `[pytorch-mps]` extra. See [Memory](memory.md#embedding-runtime--gpu-offload-apple-silicon). | default embedder selection |
+
+| CUTCTX_TOOL_INJECTION_STICKY | Controls session-sticky memory tool replay. enabled keeps injected memory tool bytes stable for the rest of the session; disabled reverts to explicit per-turn injection for diagnostics or rollback. | enabled |
+| CUTCTX_TOOL_TRACKER_MAX_SESSIONS | Maximum number of sticky-memory sessions kept in the bounded LRU tracker before the oldest session is evicted. | 1000 |
+| CUTCTX_TOOL_TRACKER_PATH | Optional JSON persistence path for sticky-memory session state. Defaults under the workspace dir when unset. | derived from CUTCTX_WORKSPACE_DIR |
 
 ## Filesystem Contract
 

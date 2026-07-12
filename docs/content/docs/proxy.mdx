@@ -36,6 +36,7 @@ Telemetry is enabled by default. Opt out with `CUTCTX_TELEMETRY=off` or `--no-te
 | `--max-keepalive` | `100` | Maximum upstream keep-alive connections |
 | `--mode` | `token` | Optimization mode: `token` prioritizes compression, `cache` preserves provider prefix-cache stability |
 | `--no-optimize` | `false` | Disable optimization (passthrough mode) |
+| `--deterministic` | `false` | Disable the ML compressor and keep rule-based deterministic compression only |
 | `--no-cache` | `false` | Disable semantic caching |
 | `--no-rate-limit` | `false` | Disable rate limiting |
 | `--log-file` | None | Path to JSONL log file |
@@ -89,8 +90,30 @@ cutctx proxy --learn --min-evidence 3
 cutctx proxy --codex-wire-debug
 ```
 
-<Callout type="info" title="LLMLingua removed from the proxy CLI">
-The old LLMLingua proxy toggles are no longer part of the CLI. Cutctx's proxy compression path uses ContentRouter plus the current built-in compressors, including Kompress where applicable.
+When memory tools are injected into a session, Cutctx keeps their serialized bytes
+stable for the rest of that session so prefix caches do not churn. The behavior is
+controlled by:
+
+- `CUTCTX_TOOL_INJECTION_STICKY` — `enabled` by default; set to `disabled` only for
+  explicit rollback or diagnostics.
+- `CUTCTX_TOOL_TRACKER_MAX_SESSIONS` — maximum sticky sessions kept in the bounded
+  LRU tracker.
+- `CUTCTX_TOOL_TRACKER_PATH` — optional JSON persistence file for sticky session
+  state.
+
+## Dashboard surface
+
+The production dashboard is served at `/dashboard` and also accepts the `/admin`
+basename when the React app is mounted behind that legacy path. The live view
+refreshes proxy stats every 5 seconds and historical rollups every 60 seconds.
+The request feed panel refreshes on its own 5-second cadence when opened.
+
+The dashboard build also carries a commented-out production obfuscation hook in
+`dashboard/vite.config.js`. Source maps are explicitly disabled, but the
+obfuscator plugin is not active in the current build.
+
+<Callout type="info" title="LLMLingua remains optional">
+LLMLingua is still available as an optional compression path and is reported in the proxy's live capability status. Cutctx's default proxy compression path uses ContentRouter plus the current built-in compressors, including Kompress where applicable.
 </Callout>
 
 ## API endpoints

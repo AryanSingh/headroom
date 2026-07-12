@@ -16,6 +16,21 @@ Cutctx supports an opt-in named model-routing preset through `CUTCTX_MODEL_ROUTI
 - `codex-opencode-slim`
 - `oh-my-opencode-slim`
 
+## Evidence-gated Claude three-tier preset
+
+`claude-three-tier-eval` is an explicit opt-in preset for an
+Opus→Sonnet→Haiku graph:
+
+- low-complexity Opus requests may route to Haiku
+- medium/contextual Opus requests may route to Sonnet
+- high-risk requests remain on Opus
+- low-complexity Sonnet requests may route to Haiku
+
+This preset sets `require_calibrated_scorer=true`. Without a valid promoted
+scorer artifact, every decision abstains with `calibrated_scorer_required`.
+The canonical `codex-gpt54mini-high` preset retains its existing conservative
+Claude behavior and does not enable this second downgrade.
+
 ## Behavior
 
 The preset is intentionally conservative:
@@ -57,6 +72,135 @@ large multi-module requests stay on the requested strong model.
 
 The deterministic benchmark at `benchmarks/model_routing_quality.py` gates Mini, Luna, and
 strong-model assignments with zero tolerated unsafe Mini downgrades.
+
+The versioned v2 corpus contains generic cases plus dedicated Codex, Claude,
+and OpenCode cases covering repository lookups, small edits, contextual
+follow-ups, tool results, code blocks, multimodal content, security,
+production, migration, debugging, and release work. CI reports safety and tier
+accuracy globally, per client, and per category. Every client and category has
+zero tolerated unsafe Mini downgrades.
+
+## Confidence and abstention
+
+Every preset decision carries a scorer name and a confidence value in routing
+metadata. The built-in scorer is deterministic and preserves the existing
+complexity rules. Operators using custom JSON routes may set
+`minimum_confidence` in `CUTCTX_MODEL_ROUTING`; a decision below that threshold
+does not downgrade and is recorded as `confidence_below_threshold`.
+
+The scorer interface is intentionally pluggable so deployments can add a
+calibrated or trained classifier without bypassing the existing safety gates.
+
+## Offline shadow calibration
+
+Model-routing shadow comparisons are stored separately from normal request and
+savings telemetry. Each JSONL row contains only a prompt fingerprint, model
+pair, scorer/confidence, normalized quality score, and measured costs; prompt
+and response text are not persisted. Override the default
+`.cutctx/model_routing_evals.jsonl` location with
+`CUTCTX_MODEL_ROUTING_EVAL_PATH`.
+
+Shadow baseline execution is disabled by default. Compatibility handlers may
+opt in through `CUTCTX_MODEL_ROUTING_SHADOW_MODE=true` and set a stable sampled
+fraction with `CUTCTX_MODEL_ROUTING_SHADOW_SAMPLE_RATE`. Transport-specific
+replay supplies the baseline response and provider-reported cost to the shared
+failure-isolated evaluator; an evaluation failure never changes the primary
+response.
+
+Generate the observed quality/cost frontier and a recommended confidence
+threshold with:
+
+```bash
+python3 -m benchmarks.model_routing_calibrate \
+  .cutctx/model_routing_evals.jsonl \
+  --minimum-mean-quality 0.90 \
+  --maximum-unsafe-rate 0.01 \
+  --minimum-segment-samples 20
+```
+
+The command returns no recommendation when the evidence cannot satisfy the
+configured quality limits. Shadow execution remains opt-in and never replaces
+or changes the primary response. The current non-streaming hooks await the
+sampled baseline before returning, so operators should use a low sample rate
+and account for the additional latency while collecting calibration evidence.
+
+The report also recommends thresholds independently by client, task type,
+source/target model pair, and hashed workspace/repository identity. Client and
+task labels are normalized low-cardinality strings; workspace and repository
+values are stored only as SHA-256 hashes. A segment below the configured sample
+minimum inherits the global recommendation. A sufficiently populated segment
+that fails its quality limits is marked `quality_blocked` rather than silently
+receiving a weaker segment policy.
+
+### Transport coverage
+
+- Direct Anthropic `/v1/messages`, OpenAI `/v1/chat/completions`, and OpenAI
+  `/v1/responses` non-streaming requests support sampled baseline replay.
+- Streaming and WebSocket requests are not replayed. A second live stream can
+  consume tools or produce side effects, and switching or joining streams after
+  output starts would violate the proxy's transport contract.
+- ChatGPT subscription and Codex Responses Lite requests produce shadow
+  evidence only if the normal routing layer first proves and applies a
+  transport-safe target. A blocked or would-be assignment is never replayed.
+- Role/account/provider transport checks run before shadow eligibility; shadow
+  mode cannot relax strict orchestration policy.
+
+## Calibrated scorer artifacts
+
+Shadow evidence includes a bounded structural feature vector—request length,
+conversation depth, and boolean code/tool/reference/high-risk signals. These
+features contain no prompt text and are used to fit a small logistic confidence
+model:
+
+```bash
+python3 -m benchmarks.model_routing_train \
+  .cutctx/model_routing_evals.jsonl \
+  --output .cutctx/model_routing_scorer.json \
+  --minimum-samples 20 \
+  --minimum-segment-samples 20 \
+  --minimum-mean-quality 0.90 \
+  --maximum-unsafe-rate 0.01
+```
+
+Training uses a deterministic holdout. An artifact is rejected unless its
+holdout policy satisfies the configured quality limits and matches or improves
+the heuristic policy's unsafe rate and measured savings. Enable a promoted
+artifact with:
+
+```bash
+export CUTCTX_MODEL_ROUTING_SCORER_ARTIFACT=.cutctx/model_routing_scorer.json
+```
+
+At runtime, a promoted model-pair threshold takes precedence over a promoted
+client threshold, which takes precedence over the global artifact threshold.
+Segments without sufficient evidence inherit the global threshold. The
+operator-configured `minimum_confidence` remains an absolute lower bound and
+cannot be weakened by an artifact.
+
+The learned score controls confidence and abstention only. The deterministic
+heuristic still assigns the tier and always retains high-risk work on the
+requested model. Missing, malformed, or incompatible artifacts fall back to
+the heuristic scorer.
+
+## Unified decision trace
+
+Both optimization presets and explicit role orchestration emit
+`model_routing_trace` metadata using schema version 1. The shape is stable
+whether a model was changed, retained, rejected by policy, or blocked by the
+transport. It includes:
+
+- routing mechanism, requested/assigned/effective models, reason, and applied state
+- role, binding, mode, policy, provider, and account when orchestration is used
+- scorer and confidence when optimization routing is used
+- ordered candidates, rejected candidates and reasons, required capabilities,
+  attempted deployments, and fallback history
+- provider/account/wire-mode proof and the compatible transport's safe-target state
+
+Transport mismatch errors carry the same trace on
+`RoutingUnavailableError.decision_trace`, so fail-closed decisions remain
+auditable even though the request is rejected. Shadow evaluation rows use the
+same request ID, allowing quality/cost evidence to be joined to the original
+decision without storing prompt or response text.
 
 ## Implementation notes
 

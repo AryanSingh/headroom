@@ -270,6 +270,12 @@ def merge_savings_metadata(
         for source, values in metadata.items():
             if not isinstance(values, Mapping):
                 continue
+            if str(source) == "model_routing_trace":
+                # Decision traces are observability metadata, not a savings
+                # bucket. Preserve their full versioned shape across handler
+                # merges without feeding numeric fields into savings totals.
+                result[str(source)] = dict(values)
+                continue
             if str(source) == "ghost_token_audit":
                 result[str(source)] = {
                     "scaffolding_tokens": _coerce_int(values.get("scaffolding_tokens", 0)),

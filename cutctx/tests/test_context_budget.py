@@ -173,6 +173,30 @@ class TestContextBudgetController:
         assert controller.status.zone == BudgetZone.GREEN
         assert not controller.status.compression_applied
 
+    def test_apply_promotes_zone_when_growth_predicts_overflow(self, monkeypatch):
+        """The controller compacts earlier when recent growth suggests overflow."""
+        controller = ContextBudgetController(max_tokens=100)
+        controller._token_history = [50]
+        monkeypatch.setattr(controller, "_count_tokens", lambda messages: 70)
+
+        called: dict[str, float | int] = {}
+
+        def fake_compress(messages, window_size, aggressiveness):
+            called["window_size"] = window_size
+            called["aggressiveness"] = aggressiveness
+            return [{"role": "assistant", "content": "compressed"}]
+
+        monkeypatch.setattr(controller, "_compress_messages_in_zone", fake_compress)
+
+        result = controller.apply([{"role": "user", "content": "hello"}] * 10)
+
+        assert result == [{"role": "assistant", "content": "compressed"}]
+        assert called["window_size"] == controller.policy.compression_window_red
+        assert called["aggressiveness"] == 0.8
+        assert controller.status.zone == BudgetZone.YELLOW
+        assert controller.status.compression_applied
+        assert controller.status.last_compression_zone == BudgetZone.RED
+
     def test_zone_detection_green(self):
         """Zone detection: GREEN for 0-60%."""
         controller = ContextBudgetController(max_tokens=100)

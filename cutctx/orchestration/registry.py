@@ -117,6 +117,61 @@ class DynamicModelRegistry:
                 ):
                     model.available = available
 
+    def update_runtime_signals(
+        self,
+        deployment_key: str,
+        *,
+        health_score: float | None = None,
+        latency_ms: float | None = None,
+        rate_limit_headroom: float | None = None,
+        budget_headroom: float | None = None,
+    ) -> ModelRecord:
+        """Atomically update bounded operational signals for one deployment."""
+
+        with self._lock:
+            model = self._models.get(deployment_key)
+            if model is None:
+                raise KeyError(deployment_key)
+            if health_score is not None:
+                model.metadata["health_score"] = _bounded_signal(health_score)
+                model.reliability = _bounded_signal(health_score)
+                model.available = health_score > 0
+            if latency_ms is not None:
+                model.latency_ms = max(_finite_signal(latency_ms), 0.0)
+            if rate_limit_headroom is not None:
+                model.metadata["rate_limit_headroom"] = _bounded_signal(rate_limit_headroom)
+            if budget_headroom is not None:
+                model.metadata["budget_headroom"] = _bounded_signal(budget_headroom)
+            self._save_cache()
+            return model
+
+    def update_provider_runtime_signals(
+        self,
+        provider: str,
+        *,
+        account_id: str | None = None,
+        health_score: float | None = None,
+        latency_ms: float | None = None,
+    ) -> int:
+        """Update health-probe signals for every matching account deployment."""
+
+        with self._lock:
+            matching = [
+                model
+                for model in self._models.values()
+                if model.provider == provider
+                and (account_id is None or model.account_id == account_id)
+            ]
+            for model in matching:
+                if health_score is not None:
+                    model.metadata["health_score"] = _bounded_signal(health_score)
+                    model.reliability = _bounded_signal(health_score)
+                    model.available = health_score > 0
+                if latency_ms is not None:
+                    model.latency_ms = max(_finite_signal(latency_ms), 0.0)
+            self._save_cache()
+            return len(matching)
+
     def _seed_legacy_models(self) -> None:
         try:
             from cutctx.models.registry import ModelRegistry
@@ -200,3 +255,14 @@ class DynamicModelRegistry:
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)
+
+
+def _finite_signal(value: float) -> float:
+    parsed = float(value)
+    if parsed != parsed or parsed in {float("inf"), float("-inf")}:
+        raise ValueError("Runtime routing signals must be finite")
+    return parsed
+
+
+def _bounded_signal(value: float) -> float:
+    return min(max(_finite_signal(value), 0.0), 1.0)

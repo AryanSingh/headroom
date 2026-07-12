@@ -1730,6 +1730,7 @@ def create_admin_router(
         "autopilot_enabled",
         "episodic_memory_enabled",
         "orchestrator",
+        "orchestrator_mode",
         "ccr_context_tracking",
     }
     _RESTART_REQUIRED_KEYS = {
@@ -1795,6 +1796,21 @@ def create_admin_router(
                 "source": "runtime",
                 "config_default": bool(getattr(_config, "orchestrator_enabled", False)),
             }
+        if key == "orchestrator_mode":
+            from cutctx.proxy.model_router import model_routing_mode_for_state
+
+            model_router = getattr(_proxy, "_model_router", None)
+            router_config = getattr(model_router, "config", None)
+            mode = model_routing_mode_for_state(
+                enabled=bool(getattr(_config, "orchestrator_enabled", False)),
+                preset=getattr(_config, "model_routing_preset", None),
+                route_count=len(getattr(router_config, "routes", []) or []),
+            )
+            return {
+                "mode": mode,
+                "source": "runtime",
+                "config_default": mode,
+            }
 
         attr_name = _config_attr_name(key)
         config_val = bool(getattr(_config, attr_name, False))
@@ -1832,29 +1848,49 @@ def create_admin_router(
             tracker.stop_sweeper()
 
     def _apply_orchestrator_toggle(value: bool) -> None:
-        _set_flag_on_config("orchestrator", value)
-        model_router = getattr(_proxy, "_model_router", None)
-        try:
-            from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
+        _apply_orchestrator_mode("balanced" if value else "off")
 
-            # Dashboard activation must be useful without a separate env-var
-            # deployment.  Previously this created the legacy router when no
-            # preset was configured, which has no GPT-5.6 -> Mini route.
-            preset = getattr(_config, "model_routing_preset", None) or "codex-gpt54mini-high"
+    def _apply_orchestrator_mode(mode: str) -> None:
+        from cutctx.proxy.model_router import (
+            ModelRouter,
+            ModelRouterConfig,
+            model_routing_preset_for_mode,
+            normalize_model_routing_mode,
+        )
+
+        normalized = normalize_model_routing_mode(mode)
+        model_router = getattr(_proxy, "_model_router", None)
+        current_config = getattr(model_router, "config", None)
+
+        if normalized == "off":
+            _set_flag_on_config("orchestrator", False)
+            if current_config is not None:
+                current_config.enabled = False
+            return
+
+        preset = model_routing_preset_for_mode(
+            normalized,
+            current_preset=getattr(_config, "model_routing_preset", None),
+        )
+        if preset is not None:
             preset_config = ModelRouterConfig.from_preset_name(preset)
             if preset_config is not None:
                 _config.model_routing_preset = preset
-                preset_config.enabled = value
+                preset_config.enabled = True
                 _proxy._model_router = ModelRouter(config=preset_config)
+                _set_flag_on_config("orchestrator", True)
                 return
 
-            if model_router is None:
-                model_router = ModelRouter()
-                _proxy._model_router = model_router
-        except Exception:
-            model_router = None
-        if model_router is not None and getattr(model_router, "config", None) is not None:
-            model_router.config.enabled = value
+        if current_config is not None:
+            current_config.enabled = True
+            _set_flag_on_config("orchestrator", True)
+            return
+
+        fallback_config = ModelRouterConfig.codex_gpt54mini_high_preset()
+        fallback_config.enabled = True
+        _config.model_routing_preset = "codex-gpt54mini-high"
+        _proxy._model_router = ModelRouter(config=fallback_config)
+        _set_flag_on_config("orchestrator", True)
 
     @router.get(
         "/config/flags",
@@ -1916,10 +1952,14 @@ def create_admin_router(
                     _apply_episodic_memory_toggle(enabled)
                 elif key == "orchestrator":
                     _apply_orchestrator_toggle(enabled)
+                elif key == "orchestrator_mode":
+                    _apply_orchestrator_mode(str(value))
                 elif key == "ccr_context_tracking":
                     _set_flag_on_config(key, enabled)
 
                 applied_live[key] = {"enabled": enabled}
+                if key == "orchestrator_mode":
+                    applied_live[key] = {"mode": str(value)}
                 if raw_key != key:
                     applied_live[raw_key] = {"enabled": enabled, "normalized_to": key}
                 continue

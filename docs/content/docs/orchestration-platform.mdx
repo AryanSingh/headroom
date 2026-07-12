@@ -82,7 +82,8 @@ The default project file is `.cutctx/orchestration.json`. Override it with `CUTC
     {
       "id": "worker-mini",
       "role": "worker",
-      "model": "openai:gpt-5.4-mini",
+      "model": "openai:openai-main:gpt-5.4-mini",
+      "equivalent_deployments": ["openai:openai-secondary:gpt-5.4-mini"],
       "fallback_chain": ["anthropic:claude-sonnet-4-5"]
     }
   ],
@@ -98,6 +99,27 @@ The default project file is `.cutctx/orchestration.json`. Override it with `CUTC
 Roles are data, not an enum. Create any number of custom roles. Bindings can additionally match `agent`, `workflow`, `command`, `skill`, `task_type`, `repository`, `workspace`, or `organization`. The binding with the most matching selectors wins; ties use documented selector precedence and then binding ID, making every decision repeatable.
 
 If two accounts expose the same provider/model pair, use its deployment key (`provider:account-id:model-id`) in the binding. Ambiguous `provider:model` assignments are rejected rather than silently choosing an account.
+
+### Reliability-aware equivalent deployments
+
+A binding may explicitly list `equivalent_deployments`. Every entry must
+resolve to the same provider/model identity as the primary assignment; only
+the account, region, or deployment endpoint may differ. A differently named
+model is ignored and cannot enter the equivalent set.
+
+Cutctx deterministically ranks eligible equivalents using bounded health,
+rate-limit headroom, budget headroom, and latency signals. These signals choose
+where the already-assigned model runs—they do not choose a different model,
+relax required capabilities, or bypass account and compatibility-transport
+proof. Equivalent selection is allowed in strict mode and is not reported as a
+fallback. If no equivalent is eligible, strict mode still refuses the separate
+fallback chain.
+
+Runtime integrations update one deployment atomically through
+`DynamicModelRegistry.update_runtime_signals`. Health and headroom values are
+clamped to `[0, 1]`; latency must be finite and non-negative. Missing or stale
+signals use deterministic defaults. Score components and rejected equivalents
+are emitted in the unified decision trace under `selection_evidence`.
 
 ## Strict and relaxed enforcement
 

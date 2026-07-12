@@ -164,19 +164,28 @@ class ContextBudgetController:
             self._token_history = self._token_history[-100:]
 
         zone = self._get_zone(token_count)
+        action_zone = self._resolve_action_zone(zone, token_count)
+        if action_zone != zone:
+            logger.debug(
+                "Context budget preemptively promoted from %s to %s (used %d/%d tokens)",
+                zone,
+                action_zone,
+                token_count,
+                self.max_tokens,
+            )
         logger.debug(
             "Context budget zone: %s (used %d/%d tokens, %.1f%%)",
-            zone,
+            action_zone,
             token_count,
             self.max_tokens,
             self.percent_used,
         )
 
-        if zone == BudgetZone.GREEN:
+        if action_zone == BudgetZone.GREEN:
             # No compression needed
             return messages
 
-        elif zone == BudgetZone.YELLOW:
+        elif action_zone == BudgetZone.YELLOW:
             # Light compression: compress messages older than window
             result = self._compress_messages_in_zone(
                 messages,
@@ -184,10 +193,10 @@ class ContextBudgetController:
                 aggressiveness=0.5,
             )
             self._compression_applied = True
-            self._last_compression_zone = zone
+            self._last_compression_zone = action_zone
             return result
 
-        elif zone == BudgetZone.RED:
+        elif action_zone == BudgetZone.RED:
             # Aggressive compression: compress older messages more
             result = self._compress_messages_in_zone(
                 messages,
@@ -195,14 +204,14 @@ class ContextBudgetController:
                 aggressiveness=0.8,
             )
             self._compression_applied = True
-            self._last_compression_zone = zone
+            self._last_compression_zone = action_zone
             return result
 
-        elif zone == BudgetZone.CRITICAL:
+        elif action_zone == BudgetZone.CRITICAL:
             # Emergency: summarize oldest 20%
             result = self._summarize_critical_zone(messages)
             self._compression_applied = True
-            self._last_compression_zone = zone
+            self._last_compression_zone = action_zone
             logger.warning("Context in CRITICAL zone; applying emergency compression")
             return result
 
@@ -417,6 +426,33 @@ class ContextBudgetController:
                     total += len(content_str) // 4
 
             return total
+
+    def _resolve_action_zone(self, zone: BudgetZone, tokens_used: int) -> BudgetZone:
+        """Promote the zone when recent token growth suggests an imminent overflow.
+
+        The live zone still reflects the current token count, but the action
+        zone may be escalated one step earlier so we leave headroom for the next
+        turn instead of waiting until the hard limit is already close.
+        """
+        if self.max_tokens <= 0:
+            return BudgetZone.CRITICAL
+
+        if len(self._token_history) < 2:
+            return zone
+
+        previous_tokens = self._token_history[-2]
+        growth = max(0, tokens_used - previous_tokens)
+        if growth <= 0:
+            return zone
+
+        projected_tokens = tokens_used + growth
+        projected_percent = projected_tokens / self.max_tokens
+
+        if projected_percent >= self.policy.red_threshold:
+            return BudgetZone.CRITICAL
+        if projected_percent >= self.policy.yellow_threshold:
+            return BudgetZone.RED
+        return zone
 
     def _get_zone(self, tokens_used: int) -> BudgetZone:
         """Determine budget zone from token usage.

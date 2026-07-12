@@ -81,5 +81,6 @@ def test_docs_page_renders_quick_start_and_cli_reference() -> None:
             expect(
                 page.get_by_text("Cutctx — CLI, API, and configuration reference")
             ).to_be_visible()
+            expect(page.get_by_text("POST /admin/config/flags")).to_be_visible()
         finally:
             browser.close()

@@ -123,7 +123,13 @@ def create_license_router(
         db = get_license_db()
         success = db.start_trial(req.trial_token, req.customer_email, req.duration)
         if not success:
-            return {"status": "trial_started"}
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Trial already started",
+                    "remediation": "This trial token has already been used. Issue a new token or contact sales@cutctx.io",
+                },
+            )
         return {"status": "trial_started"}
 
     class CheckTrialRequest(BaseModel):

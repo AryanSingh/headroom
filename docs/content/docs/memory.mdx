@@ -263,6 +263,25 @@ from groq import Groq
 client = with_memory(Groq(), user_id="alice")
 ```
 
+## Session-Sticky Memory Tool Injection
+
+When the proxy injects memory tools into a session, it keeps the tool-definition bytes
+stable for the rest of that session. If memory is enabled on the first turn and later
+disabled mid-session, Cutctx still replays the same golden memory-tool definitions so
+provider prefix caches see consistent bytes.
+
+Two environment variables control this behavior:
+
+- `CUTCTX_TOOL_INJECTION_STICKY` — `enabled` by default. Set to `disabled` only for
+  explicit diagnostic rollback or shadow tracing.
+- `CUTCTX_TOOL_TRACKER_MAX_SESSIONS` — bounds the in-memory LRU of sticky sessions.
+  The tracker also persists to JSON so a proxy restart can preserve an active session’s
+  golden tool definitions.
+
+The sticky path is provider-aware. Anthropic and OpenAI sessions are tracked
+independently, and Cutctx does not duplicate a tool if the client already supplies one
+with the same name.
+
 ## Performance
 
 | Operation | Latency | Notes |

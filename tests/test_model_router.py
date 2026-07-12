@@ -21,6 +21,8 @@ from cutctx.proxy.model_router import (
     ModelRouter,
     ModelRouterConfig,
     TaskComplexity,
+    TaskComplexityAssessment,
+    assess_task_complexity,
     classify_task_complexity,
     prepare_model_routing,
 )
@@ -77,9 +79,7 @@ def test_model_routing_canary_uses_gpt54mini_for_low_complexity_without_global_r
         client="codex",
     )
     assert target == "gpt-5.4-mini"
-    assert metadata["model_routing"]["request_overrides"]["reasoning"] == {
-        "effort": "high"
-    }
+    assert metadata["model_routing"]["request_overrides"]["reasoning"] == {"effort": "high"}
 
 
 def test_config_from_env_parses_routes() -> None:
@@ -310,6 +310,181 @@ def test_cost_lookup_negative_delta_skips_route() -> None:
     assert decision.reason == "cost_lookup_failed"
 
 
+def test_low_complexity_router_fails_closed_without_messages() -> None:
+    """Missing evidence should not silently downgrade a request."""
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="low_complexity",
+        routes=[
+            ModelRoute(
+                source="mystery-model",
+                target="another-mystery-model",
+                source_cost_per_mtok=8.0,
+                target_cost_per_mtok=1.0,
+            )
+        ],
+    )
+    r = ModelRouter(cfg)
+    decision = r.maybe_route(
+        "mystery-model",
+        cache_read_tokens=0,
+        attempted_input_tokens=0,
+        tool_calls=0,
+        num_messages=0,
+    )
+    assert decision.routing_applied is False
+    assert decision.reason in {"workload_not_downgradeable", "no_route_for_model"}
+
+
+def test_assessment_is_explainable_and_preserves_legacy_tier() -> None:
+    messages = [{"role": "user", "content": "Fix the typo in this heading."}]
+
+    assessment = assess_task_complexity(messages)
+
+    assert assessment.complexity == TaskComplexity.LOW
+    assert assessment.complexity == classify_task_complexity(messages)
+    assert assessment.source == "heuristic"
+    assert assessment.confidence == pytest.approx(0.9)
+
+
+def test_router_abstains_when_assessment_confidence_is_below_policy_threshold() -> None:
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        minimum_confidence=0.8,
+        routes=[
+            ModelRoute(
+                source="gpt-strong",
+                target="gpt-mini",
+                source_cost_per_mtok=10.0,
+                target_cost_per_mtok=1.0,
+            )
+        ],
+    )
+
+    decision = ModelRouter(cfg).maybe_route(
+        "gpt-strong",
+        task_assessment=TaskComplexityAssessment(
+            TaskComplexity.LOW,
+            confidence=0.79,
+            source="test-scorer",
+        ),
+    )
+
+    assert decision.routing_applied is False
+    assert decision.reason == "confidence_below_threshold"
+    assert decision.confidence == pytest.approx(0.79)
+    assert decision.scorer == "test-scorer"
+
+
+def test_router_records_confidence_and_scorer_on_applied_downgrade() -> None:
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[
+            ModelRoute(
+                source="gpt-strong",
+                target="gpt-mini",
+                source_cost_per_mtok=10.0,
+                target_cost_per_mtok=1.0,
+            )
+        ],
+    )
+
+    decision = ModelRouter(cfg).maybe_route(
+        "gpt-strong",
+        task_assessment=TaskComplexityAssessment(
+            TaskComplexity.LOW,
+            confidence=0.92,
+            source="test-scorer",
+        ),
+    )
+
+    assert decision.routing_applied is True
+    assert decision.confidence == pytest.approx(0.92)
+    assert decision.scorer == "test-scorer"
+
+
+def test_claude_three_tier_preset_requires_promoted_calibrated_scorer() -> None:
+    cfg = ModelRouterConfig.claude_three_tier_eval_preset()
+    router = ModelRouter(cfg)
+
+    decision = router.maybe_route(
+        "claude-opus-4-5",
+        task_assessment=TaskComplexityAssessment(TaskComplexity.LOW, 1.0),
+    )
+
+    assert decision.routing_applied is False
+    assert decision.reason == "calibrated_scorer_required"
+
+
+def test_claude_three_tier_preset_routes_low_to_haiku_and_medium_to_sonnet() -> None:
+    class CalibratedScorer:
+        artifact = type(
+            "Artifact",
+            (),
+            {"minimum_confidence": 0.5, "segment_thresholds": {}},
+        )()
+
+        def assess(self, _messages):  # type: ignore[no-untyped-def]
+            return TaskComplexityAssessment(TaskComplexity.LOW, 0.95, "calibrated-test")
+
+    router = ModelRouter(
+        ModelRouterConfig.claude_three_tier_eval_preset(), scorer=CalibratedScorer()
+    )
+
+    low = router.maybe_route(
+        "claude-opus-4-5",
+        task_assessment=TaskComplexityAssessment(TaskComplexity.LOW, 0.95, "calibrated-test"),
+    )
+    medium = router.maybe_route(
+        "claude-opus-4-5",
+        task_assessment=TaskComplexityAssessment(TaskComplexity.MEDIUM, 0.95, "calibrated-test"),
+    )
+
+    assert low.target_model == "claude-haiku-4-5"
+    assert medium.target_model == "claude-sonnet-4-5"
+    assert low.routing_applied is True
+    assert medium.routing_applied is True
+
+
+def test_prepare_model_routing_uses_injected_scorer_and_exposes_its_decision() -> None:
+    class StaticScorer:
+        def assess(self, _messages):  # type: ignore[no-untyped-def]
+            return TaskComplexityAssessment(
+                TaskComplexity.LOW,
+                confidence=0.88,
+                source="calibrated-test",
+            )
+
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="low_complexity",
+        minimum_confidence=0.8,
+        routes=[
+            ModelRoute(
+                source="gpt-strong",
+                target="gpt-mini",
+                source_cost_per_mtok=10.0,
+                target_cost_per_mtok=1.0,
+            )
+        ],
+    )
+    handler = type("Handler", (), {"_model_router": ModelRouter(cfg, scorer=StaticScorer())})()
+
+    model, metadata = prepare_model_routing(
+        handler,
+        "gpt-strong",
+        messages=[{"role": "user", "content": "a borderline request"}],
+        request_savings_metadata={},
+    )
+
+    assert model == "gpt-mini"
+    assert metadata is not None
+    assert metadata["model_routing"]["confidence"] == pytest.approx(0.88)
+    assert metadata["model_routing"]["scorer"] == "calibrated-test"
+
+
 def test_prepare_model_routing_attaches_placeholder_metadata() -> None:
     cfg = ModelRouterConfig(
         enabled=True,
@@ -362,9 +537,7 @@ def test_prepare_model_routing_attaches_request_overrides_for_codex_slim() -> No
     assert model == "gpt-5.4-mini"
     assert metadata is not None
     assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
-    assert metadata["model_routing"]["request_overrides"] == {
-        "reasoning": {"effort": "high"}
-    }
+    assert metadata["model_routing"]["request_overrides"] == {"reasoning": {"effort": "high"}}
     assert metadata["model_routing"]["tokens_saved"] == 0
     assert metadata["model_routing"]["usd_saved"] == 0.0
 
@@ -436,7 +609,9 @@ def test_unverified_target_remains_blocked_on_subscription_transport() -> None:
     )
 
     assert model == "gpt-5.6-terra"
-    assert metadata == {}
+    assert metadata["model_routing_trace"]["applied"] is False
+    assert metadata["model_routing_trace"]["reason"] == "downgrade_blocked_unproven_transport"
+    assert metadata["model_routing_trace"]["transport"]["target_proven"] is False
 
 
 def test_codex_preset_routes_contextual_medium_work_to_luna() -> None:
@@ -620,7 +795,8 @@ def test_codex_preset_keeps_complex_work_on_requested_model(content: str) -> Non
 
     assert classify_task_complexity([{"role": "user", "content": content}]) == TaskComplexity.HIGH
     assert model == "gpt-5.5"
-    assert metadata == {}
+    assert metadata["model_routing_trace"]["applied"] is False
+    assert metadata["model_routing_trace"]["reason"] == "workload_not_downgradeable"
 
 
 @pytest.mark.parametrize(
@@ -653,7 +829,8 @@ def test_codex_preset_keeps_ambiguous_or_contextual_requests_on_requested_model(
 
     assert classify_task_complexity(messages) != TaskComplexity.LOW
     assert model == "gpt-5.5"
-    assert metadata == {}
+    assert metadata["model_routing_trace"]["applied"] is False
+    assert metadata["model_routing_trace"]["reason"] == "workload_not_downgradeable"
 
 
 def test_codex_preset_routes_simple_claude_sonnet_to_haiku() -> None:

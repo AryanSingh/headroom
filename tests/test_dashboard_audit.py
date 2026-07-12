@@ -45,7 +45,10 @@ STATS = {
     "requests": {"total": 0, "failed": 0, "cached": 0},
     "config": {"firewall": False, "memory": False, "orchestrator": False, "rate_limiter": False},
     "cost": {"budget": {"enabled": False}},
-    "recent_requests": [],
+    "recent_requests": [
+        {"request_id": "req-1", "model": "memory-keeper", "provider": "openai", "timestamp": "2026-07-12T00:00:00Z"},
+        {"request_id": "req-2", "model": "gpt-4o", "provider": "anthropic", "timestamp": "2026-07-12T00:00:01Z"},
+    ],
     "persistent_savings": {"lifetime": {}, "display_session": {}},
 }
 FLAGS = {"live_toggleable": {}, "restart_required": {}}
@@ -106,14 +109,18 @@ def _install_routes(page: Page, events: dict[str, list[str]]) -> None:
     page.route("**/*", handler)
 
 
+def _available_loopback_port() -> int:
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
+
+
 @pytest.fixture(scope="session")
 def dashboard_server():
     base_url = os.environ.get("CUTCTX_DASHBOARD_AUDIT_BASE_URL")
     process = None
     if not base_url:
-        port = 4124
-        with socket.socket() as probe:
-            probe.bind(("127.0.0.1", port))
+        port = _available_loopback_port()
         base_url = f"http://127.0.0.1:{port}"
         process = subprocess.Popen(
             ["npm", "run", "dev", "--", "--host", "127.0.0.1", "--port", str(port)],
@@ -201,6 +208,22 @@ def test_dashboard_audit_matrix(audit_page) -> None:  # type: ignore[no-untyped-
         page.keyboard.press("/")
         expect(page.locator('input[aria-label="Search"]')).to_be_focused()
 
+    if route == "/capabilities":
+        initial_cards = page.locator(".capability-card").count()
+        page.get_by_role("textbox", name="Search").fill("memory")
+        assert page.locator(".capability-card").count() <= initial_cards
+
+    if route == "/playground":
+        page.get_by_role("button", name="Load sample multimodal image").click()
+        expect(page.get_by_text("Image attached")).to_be_visible()
+
+    if route == "/":
+        initial_rows = page.locator(".request-table tbody tr").count()
+        initial_source_rows = page.locator(".source-stack .source-row").count()
+        page.get_by_role("textbox", name="Search").fill("memory")
+        assert page.locator(".request-table tbody tr").count() <= initial_rows
+        assert page.locator(".source-stack .source-row").count() <= initial_source_rows
+
     if width <= 1024:
         toggle = page.get_by_role("button", name="Toggle sidebar")
         toggle.click()
@@ -210,3 +233,23 @@ def test_dashboard_audit_matrix(audit_page) -> None:  # type: ignore[no-untyped-
         expect(toggle).to_be_focused()
 
     assert events == {"console_errors": [], "page_errors": [], "failed_requests": [], "broken_assets": []}
+
+
+def test_dashboard_skip_link_focuses_main_content(dashboard_server: str, audit_browser: Browser) -> None:  # type: ignore[no-untyped-def]
+    events = {"console_errors": [], "page_errors": [], "failed_requests": [], "broken_assets": []}
+    context = audit_browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    try:
+        _install_routes(page, events)
+        page.goto(f"{dashboard_server}/dashboard", wait_until="domcontentloaded")
+
+        skip_link = page.get_by_role("link", name="Skip to main content")
+        page.keyboard.press("Tab")
+        expect(skip_link).to_be_focused()
+
+        skip_link.press("Enter")
+        expect(page.locator("#main-content")).to_be_focused()
+
+        assert events == {"console_errors": [], "page_errors": [], "failed_requests": [], "broken_assets": []}
+    finally:
+        context.close()

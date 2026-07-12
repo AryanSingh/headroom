@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Orchestrator Toggles', () => {
+test.describe('Orchestrator Modes', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('cutctxAdminKey', 'testkey');
@@ -19,18 +19,31 @@ test.describe('Orchestrator Toggles', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          config: { orchestrator: false }
+          config: { orchestrator: false },
+          model_routing: {
+            mode: 'off',
+            requested: false,
+            available: true,
+            configured_routes: 0,
+            preset: null,
+          },
         }),
       });
     });
   });
 
-  test('toggling orchestrator fires POST to config flags', async ({ page }) => {
+  test('selecting a routing mode posts orchestrator_mode', async ({ page }) => {
     const postUrls = [];
+    const postedBodies = [];
     await page.route('**/config/flags*', async route => {
       if (route.request().method() === 'POST') {
         postUrls.push(new URL(route.request().url()).pathname);
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+        postedBodies.push(route.request().postDataJSON());
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ applied_live: { orchestrator_mode: { mode: 'balanced' } } }),
+        });
         return;
       }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
@@ -38,18 +51,15 @@ test.describe('Orchestrator Toggles', () => {
 
     await page.goto('/orchestrator');
     
-    await expect(page.locator('h2').filter({ hasText: 'Orchestrator Insights' })).toBeVisible();
-    
-    const toggle = page.locator('.toggle-switch input[type="checkbox"]');
-    await expect(page.locator('.toggle-switch')).toBeVisible();
-    
-    // Check initial state
-    await expect(toggle).not.toBeChecked();
-    
-    // Click parent label to toggle
-    await page.locator('.toggle-switch').click();
-    
+    await expect(page.locator('h2').filter({ hasText: 'Routing mode control' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Off' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Balanced' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Aggressive' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Balanced' }).click();
+
     await expect.poll(() => postUrls.length).toBe(1);
     await expect(postUrls).toEqual(['/config/flags']);
+    await expect(postedBodies[0]).toMatchObject({ orchestrator_mode: 'balanced' });
   });
 });

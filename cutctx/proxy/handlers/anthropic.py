@@ -192,9 +192,7 @@ class AnthropicHandlerMixin:
         if isinstance(value, dict):
             if "cache_control" in value:
                 return True
-            return any(
-                AnthropicHandlerMixin._has_cache_control(v) for v in value.values()
-            )
+            return any(AnthropicHandlerMixin._has_cache_control(v) for v in value.values())
         if isinstance(value, list):
             return any(AnthropicHandlerMixin._has_cache_control(v) for v in value)
         return False
@@ -241,9 +239,11 @@ class AnthropicHandlerMixin:
         system = body.get("system")
         tools = body.get("tools")
 
-        if self._has_cache_control(system) or self._has_cache_control(
-            body.get("messages")
-        ) or self._has_cache_control(tools):
+        if (
+            self._has_cache_control(system)
+            or self._has_cache_control(body.get("messages"))
+            or self._has_cache_control(tools)
+        ):
             return transforms
 
         breakpoints_used = 0
@@ -682,6 +682,108 @@ class AnthropicHandlerMixin:
         except Exception as exc:  # noqa: BLE001 - best-effort, must never be fatal
             logger.warning("[%s] shadow_check_failed error=%s", request_id, exc)
 
+    @staticmethod
+    def _model_routing_response_text(payload: dict[str, Any] | None) -> str:
+        if not isinstance(payload, dict):
+            return ""
+        content = payload.get("content", "")
+        if isinstance(content, str):
+            return content
+        if not isinstance(content, list):
+            return ""
+        return "\n".join(
+            str(block.get("text", ""))
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        ).strip()
+
+    async def _maybe_model_routing_shadow(
+        self,
+        *,
+        request_id: str,
+        source_model: str,
+        candidate_model: str,
+        provider_name: str,
+        url: str,
+        headers: dict[str, Any],
+        original_body_bytes: bytes | None,
+        routing_metadata: dict[str, Any] | None,
+        messages: list[dict[str, Any]],
+        candidate_json: dict[str, Any] | None,
+    ) -> None:
+        """Replay the requested Claude model for sampled routing evaluation.
+
+        The visible candidate response has already completed when this hook is
+        called. Original request bytes retain the requested model, so the
+        existing byte-faithful forwarder provides the baseline. The shared
+        evaluator owns sampling, redaction, judging, persistence, and failure
+        isolation.
+        """
+
+        if (
+            not original_body_bytes
+            or not routing_metadata
+            or source_model == candidate_model
+            or routing_metadata.get("target_model") != candidate_model
+        ):
+            return
+        from cutctx.proxy.model_routing_evals import maybe_run_model_routing_shadow
+        from cutctx.proxy.savings_tracker import estimate_request_cost_usd
+
+        candidate_usage = candidate_json.get("usage", {}) if candidate_json else {}
+        candidate_read = int(candidate_usage.get("cache_read_input_tokens", 0) or 0)
+        candidate_write = int(candidate_usage.get("cache_creation_input_tokens", 0) or 0)
+        candidate_uncached = int(candidate_usage.get("input_tokens", 0) or 0)
+        candidate_cost = estimate_request_cost_usd(
+            candidate_model,
+            input_tokens=candidate_uncached + candidate_read + candidate_write,
+            cache_read_tokens=candidate_read,
+            cache_write_tokens=candidate_write,
+            uncached_input_tokens=candidate_uncached,
+        )
+
+        async def baseline_call() -> tuple[str, float]:
+            response = await self._retry_request(
+                "POST",
+                url,
+                headers,
+                {},
+                original_body_bytes=original_body_bytes,
+                body_mutated=False,
+                request_id=request_id,
+                forwarder_name="anthropic_model_routing_shadow",
+                path_for_log="/v1/messages (model-routing-shadow)",
+            )
+            if response.status_code >= 400:
+                raise RuntimeError(f"model-routing shadow returned HTTP {response.status_code}")
+            payload = response.json()
+            usage = payload.get("usage", {}) if isinstance(payload, dict) else {}
+            cache_read = int(usage.get("cache_read_input_tokens", 0) or 0)
+            cache_write = int(usage.get("cache_creation_input_tokens", 0) or 0)
+            uncached = int(usage.get("input_tokens", 0) or 0)
+            cost = estimate_request_cost_usd(
+                source_model,
+                input_tokens=uncached + cache_read + cache_write,
+                cache_read_tokens=cache_read,
+                cache_write_tokens=cache_write,
+                uncached_input_tokens=uncached,
+            )
+            return self._model_routing_response_text(payload), cost
+
+        await maybe_run_model_routing_shadow(
+            request_id=request_id,
+            messages=self._anthropic_messages_to_routing_messages(messages),
+            source_model=source_model,
+            candidate_model=candidate_model,
+            scorer=str(routing_metadata.get("scorer", "heuristic")),
+            confidence=float(routing_metadata.get("confidence", 0.0) or 0.0),
+            candidate_response=self._model_routing_response_text(candidate_json),
+            candidate_cost_usd=candidate_cost,
+            baseline_call=baseline_call,
+            category="anthropic_messages",
+            segments={"client": "claude", "task_type": "anthropic_messages"},
+        )
+
     async def handle_anthropic_messages(
         self,
         request: Request,
@@ -714,7 +816,10 @@ class AnthropicHandlerMixin:
         from cutctx.utils import extract_user_query
 
         start_time = time.time()
-        request_id = getattr(getattr(request, "state", None), "cutctx_request_id", None) or await self._next_request_id()
+        request_id = (
+            getattr(getattr(request, "state", None), "cutctx_request_id", None)
+            or await self._next_request_id()
+        )
         trace_session_id = uuid.uuid4().hex
 
         # Phase F PR-F1: classify auth mode at request entry. The result
@@ -876,6 +981,7 @@ class AnthropicHandlerMixin:
                     },
                 )
             model = body.get("model") or model_override or "unknown"
+            requested_model = model
 
             # WS13 Batch Routing
             batch_router = getattr(self, "batch_router", None)
@@ -883,7 +989,7 @@ class AnthropicHandlerMixin:
                 batch_decision = batch_router.route(
                     request_body=body,
                     headers=request.headers,
-                    origin=request.headers.get("x-cutctx-origin")
+                    origin=request.headers.get("x-cutctx-origin"),
                 )
                 if batch_decision.action == "enqueued":
                     # WS13: the request is being deferred to the batch
@@ -937,7 +1043,7 @@ class AnthropicHandlerMixin:
                             "id": batch_decision.queue_id,
                             "status": "in_progress",
                             "metadata": batch_decision.metadata,
-                        }
+                        },
                     )
 
             messages = body.get("messages", [])
@@ -1104,9 +1210,7 @@ class AnthropicHandlerMixin:
                 allowed, wait_seconds = await self.rate_limiter.check_request(rate_key)
                 if not allowed:
                     await self.metrics.record_rate_limited(provider=provider_name)
-                    record_rate_limit_denial = getattr(
-                        self, "record_rate_limit_denial", None
-                    )
+                    record_rate_limit_denial = getattr(self, "record_rate_limit_denial", None)
                     if callable(record_rate_limit_denial):
                         record_rate_limit_denial(
                             request_id=request_id,
@@ -1257,6 +1361,7 @@ class AnthropicHandlerMixin:
 
                     if stream:
                         from fastapi.responses import StreamingResponse
+
                         async def generate():
                             if cached.is_streaming:
                                 # Replay as chunks
@@ -1422,6 +1527,7 @@ class AnthropicHandlerMixin:
             memoization_tokens_saved = 0
             if getattr(self, "memoizer", None):
                 from cutctx.proxy.memoizer import record_tool_results_from_messages
+
                 memoization_hits, memoization_tokens_saved = record_tool_results_from_messages(
                     self.memoizer, messages, session_id
                 )
@@ -2559,15 +2665,25 @@ class AnthropicHandlerMixin:
                                 tokens_saved=tokens_saved,
                                 attempted_input_tokens=attempted_input_tokens,
                                 self_hosted_prefix_cache_hits=int(
-                                    (outcome_savings_metadata or {}).get("prefix_cache_self_hosted", {}).get("tokens", 0)
-                                    or (outcome_savings_metadata or {}).get("vllm_apc", {}).get("tokens", 0)
+                                    (outcome_savings_metadata or {})
+                                    .get("prefix_cache_self_hosted", {})
+                                    .get("tokens", 0)
+                                    or (outcome_savings_metadata or {})
+                                    .get("vllm_apc", {})
+                                    .get("tokens", 0)
                                     or 0
                                 ),
                                 model_routing_tokens_saved=int(
-                                    (outcome_savings_metadata or {}).get("model_routing", {}).get("tokens", 0) or 0
+                                    (outcome_savings_metadata or {})
+                                    .get("model_routing", {})
+                                    .get("tokens", 0)
+                                    or 0
                                 ),
                                 model_routing_usd_saved=float(
-                                    (outcome_savings_metadata or {}).get("model_routing", {}).get("usd", 0.0) or 0.0
+                                    (outcome_savings_metadata or {})
+                                    .get("model_routing", {})
+                                    .get("usd", 0.0)
+                                    or 0.0
                                 ),
                                 memoization_hits=memoization_hits,
                                 memoization_tokens_saved=memoization_tokens_saved,
@@ -3057,6 +3173,23 @@ class AnthropicHandlerMixin:
                         compressed_cache_write_tokens=cw_tokens,
                         compressed_uncached_input_tokens=uncached_input_tokens,
                     )
+                    routing_metadata = (
+                        request_savings_metadata.get("model_routing")
+                        if isinstance(request_savings_metadata, dict)
+                        else None
+                    )
+                    await self._maybe_model_routing_shadow(
+                        request_id=request_id,
+                        source_model=requested_model,
+                        candidate_model=model,
+                        provider_name=provider_name,
+                        url=url,
+                        headers=headers,
+                        original_body_bytes=original_body_bytes,
+                        routing_metadata=routing_metadata,
+                        messages=original_client_messages,
+                        candidate_json=resp_json,
+                    )
 
                     # Track cache bust: tokens that lost their cache discount due to compression.
                     # If we had X tokens cached last turn and only Y hit cache this turn,
@@ -3173,15 +3306,25 @@ class AnthropicHandlerMixin:
                             cache_write_1h_tokens=cw_1h_tokens,
                             uncached_input_tokens=uncached_input_tokens,
                             self_hosted_prefix_cache_hits=int(
-                                (outcome_savings_metadata or {}).get("prefix_cache_self_hosted", {}).get("tokens", 0)
-                                or (outcome_savings_metadata or {}).get("vllm_apc", {}).get("tokens", 0)
+                                (outcome_savings_metadata or {})
+                                .get("prefix_cache_self_hosted", {})
+                                .get("tokens", 0)
+                                or (outcome_savings_metadata or {})
+                                .get("vllm_apc", {})
+                                .get("tokens", 0)
                                 or 0
                             ),
                             model_routing_tokens_saved=int(
-                                (outcome_savings_metadata or {}).get("model_routing", {}).get("tokens", 0) or 0
+                                (outcome_savings_metadata or {})
+                                .get("model_routing", {})
+                                .get("tokens", 0)
+                                or 0
                             ),
                             model_routing_usd_saved=float(
-                                (outcome_savings_metadata or {}).get("model_routing", {}).get("usd", 0.0) or 0.0
+                                (outcome_savings_metadata or {})
+                                .get("model_routing", {})
+                                .get("usd", 0.0)
+                                or 0.0
                             ),
                             memoization_hits=memoization_hits,
                             memoization_tokens_saved=memoization_tokens_saved,
