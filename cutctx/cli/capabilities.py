@@ -262,7 +262,10 @@ def capabilities_cmd(emit_json: bool, profile: str | None) -> None:
     profiles = installation_profiles(rows)
 
     if emit_json:
-        payload: object = {"features": rows, "profiles": profiles}
+        # Keep the no-profile JSON contract as a list of feature records.
+        # Automation has consumed this shape since the command was introduced;
+        # profile validation is the opt-in object-shaped response.
+        payload: object = rows
         if profile:
             payload = {"profile": profile, **profiles[profile]}
         click.echo(_json.dumps(payload, indent=2))
