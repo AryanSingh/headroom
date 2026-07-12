@@ -855,6 +855,7 @@ class ContentRouter(Transform):
         self._log_compressor: Any = None
         self._diff_compressor: Any = None
         self._html_extractor: Any = None
+        self._prose_compressor: Any = None
         self._kompress: Any = None
         self._selective_filter: Any = None
         self._drain3_log_compressor: Any = None
@@ -1606,11 +1607,19 @@ class ContentRouter(Transform):
                 decision_reason = "kompress"
 
             elif strategy == CompressionStrategy.TEXT:
-                # Prefer Kompress ML compressor for text
-                # Passes through unchanged if Kompress not available
-                compressed, compressed_tokens = self._try_ml_compressor(content, context, question)
-                compressor_name = "KompressCompressor"
-                decision_reason = "text_uses_kompress"
+                if self.config.enable_kompress:
+                    compressed, compressed_tokens = self._try_ml_compressor(
+                        content, context, question
+                    )
+                    compressor_name = "KompressCompressor"
+                    decision_reason = "text_uses_kompress"
+                else:
+                    compressor = self._get_prose_compressor()
+                    result = compressor.compress(content, context=context)
+                    compressed = result.compressed
+                    compressed_tokens = len(compressed.split())
+                    compressor_name = type(compressor).__name__
+                    decision_reason = "query_aware_prose"
 
             elif strategy == CompressionStrategy.PASSTHROUGH:
                 compressed = content
@@ -1891,6 +1900,14 @@ class ContentRouter(Transform):
             except ImportError:
                 logger.debug("SearchCompressor not available")
         return self._search_compressor
+
+    def _get_prose_compressor(self) -> Any:
+        """Get the deterministic query-aware prose compressor."""
+        if self._prose_compressor is None:
+            from .prose_compressor import QueryAwareProseCompressor
+
+            self._prose_compressor = QueryAwareProseCompressor()
+        return self._prose_compressor
 
     def _get_log_compressor(self) -> Any:
         """Get LogCompressor (lazy load)."""

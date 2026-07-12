@@ -52,13 +52,18 @@ rtk .venv/bin/python -m cutctx.cli evals benchmark \
   --markdown
 ```
 
-Fresh local run on 2026-07-09 produced [`artifacts/benchmark-breadth.md`](./benchmark-breadth.md) with:
+Fresh local run on 2026-07-12 produced [`artifacts/benchmark-breadth.md`](./benchmark-breadth.md) with:
 
 - `CodeSamples`: `content_router` now saves `63` tokens at `83.8%` ratio, runs at `3,986.3` tokens/sec, and preserves `1.000` critical-item recall / `1.000` verbatim fidelity with `0.790` F1 and `0.400` information recall; `smart_crusher` stayed unchanged at `100.0%` ratio with `1.000` F1 / recall.
-- `RAGSamples`: both compressors stayed unchanged with `1.000` F1, `1.000` information recall, and `1.000` critical-item recall.
+- `RAGSamples`: expanded from 2 to 6 runbook, policy, recovery, capacity, privacy, and cache-incident cases. Query-aware `content_router` saves `430` tokens at `54.7%` ratio while preserving `1.000` information recall, `1.000` critical-item recall, and `1.000` verbatim fidelity. `smart_crusher` correctly stays unchanged on prose.
 - `MixedAgentTraces`: both compressors saved `92` tokens at `82.6%` ratio with `1.000` F1, `1.000` information recall, and `1.000` critical-item recall.
 
-This breadth slice proves more than a single `tool_outputs` corpus while staying fully local and deterministic. It also shows the current limit honestly: the code path now recovers some savings while keeping exact critical anchors, but the broader overlap proxies on those fixtures are still weaker than the rest of the benchmark surface.
+This breadth slice proves more than a single `tool_outputs` corpus while staying fully local and deterministic. It also shows the current limit honestly: the code and prose paths now recover meaningful savings while keeping exact critical anchors, but their broad lexical F1 (`0.823` and `0.695`) is intentionally lower because irrelevant sentences are removed.
+
+The LLMLingua research preset now treats a comparator that falls back on every
+case as unavailable/skipped instead of rendering misleading zero-ratio rows.
+On this machine LLMLingua is currently skipped, so this run is not presented as
+a valid external head-to-head result.
 
 ## Metrics To Report
 

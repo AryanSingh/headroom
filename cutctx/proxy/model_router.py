@@ -86,11 +86,19 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         for message in messages
         if message is not last_user_message and message.get("role") in {"assistant", "tool", "user"}
     ]
-    if prior_turns:
-        return TaskComplexity.MEDIUM
-
-    if any(marker in content for marker in ("```", "<tool", "function ", "Traceback", "stack trace")):
-        return TaskComplexity.MEDIUM
+    if any(
+        marker in normalized_content
+        for marker in (
+            "```",
+            "<tool",
+            "function ",
+            "traceback",
+            "stack trace",
+            "diff --git",
+            "begin patch",
+        )
+    ):
+        return TaskComplexity.HIGH
 
     if normalized_content in {
         "hi",
@@ -135,11 +143,26 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         r"\b(?:review|audit|investigate|analy[sz]e|design|plan|compare|optimi[sz]e|security)\b",
         r"\b(?:continue|complete|finish)\b",
         r"\bfix\s+(?:this|that|it)\b",
+        r"\bfix\s+(?:the\s+)?(?:first|second|selected|found)\b",
+        r"\b(?:commit|push|merge|deploy|release|ship|publish|migrate)\b",
+        r"\b(?:run|execute)\s+(?:the\s+)?(?:tests?|suite|benchmark|migration|deploy)\b",
+        r"\b(?:production|security|authentication|authorization|billing|payment)\b",
+        r"\b(?:multiple|all)\s+(?:files?|modules?|services?|packages?)\b",
+    ]
+    reference_dependent_patterns = [
+        r"\b(?:this|that|these|those|it)\b\s*[.?!]*$",
+        r"\b(?:first|second|third|former|latter)\b",
+        r"\b(?:above|earlier|previous|prior)\b",
     ]
 
     # If the text is short AND matches a low complexity pattern
     if len(content) < 500:
         for pattern in high_complexity_patterns:
+            if re.search(pattern, content, re.IGNORECASE):
+                return TaskComplexity.HIGH
+        if prior_turns:
+            return TaskComplexity.MEDIUM
+        for pattern in reference_dependent_patterns:
             if re.search(pattern, content, re.IGNORECASE):
                 return TaskComplexity.MEDIUM
         for pattern in low_complexity_patterns:
@@ -174,6 +197,8 @@ class ModelRoute:
     # is treated as zero-savings and skipped.
     source_cost_per_mtok: float | None = None
     target_cost_per_mtok: float | None = None
+    medium_target: str | None = None
+    medium_target_cost_per_mtok: float | None = None
 
 
 @dataclass
@@ -212,6 +237,9 @@ class ModelRouterConfig:
     # AND (tool_calls / num_messages) < tool_complexity_threshold.
     cache_read_threshold: float = 0.5
     tool_complexity_threshold: float = 2.0
+    # Targets explicitly verified for account-scoped subscription transports.
+    # Generic routes leave this empty and retain the requested model.
+    transport_safe_targets: set[str] = field(default_factory=set)
 
     @classmethod
     def from_env(cls) -> ModelRouterConfig:
@@ -237,6 +265,8 @@ class ModelRouterConfig:
                 target=r["target"],
                 source_cost_per_mtok=r.get("source_cost_per_mtok"),
                 target_cost_per_mtok=r.get("target_cost_per_mtok"),
+                medium_target=r.get("medium_target"),
+                medium_target_cost_per_mtok=r.get("medium_target_cost_per_mtok"),
             )
             for r in payload.get("routes", [])
             if "source" in r and "target" in r
@@ -247,6 +277,7 @@ class ModelRouterConfig:
             routes=routes,
             cache_read_threshold=float(payload.get("cache_read_threshold", 0.5)),
             tool_complexity_threshold=float(payload.get("tool_complexity_threshold", 2.0)),
+            transport_safe_targets=set(payload.get("transport_safe_targets", [])),
         )
 
     @classmethod
@@ -352,11 +383,29 @@ class ModelRouterConfig:
                     target="gpt-5.4-mini",
                     source_cost_per_mtok=10.0,
                     target_cost_per_mtok=1.0,
+                    medium_target="gpt-5.6-luna",
+                    medium_target_cost_per_mtok=5.0,
                 ),
                 ModelRoute(
                     source="gpt-5.6-terra",
                     target="gpt-5.4-mini",
                     source_cost_per_mtok=10.0,
+                    target_cost_per_mtok=1.0,
+                    medium_target="gpt-5.6-luna",
+                    medium_target_cost_per_mtok=5.0,
+                ),
+                ModelRoute(
+                    source="gpt-5.6-sol",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=10.0,
+                    target_cost_per_mtok=1.0,
+                    medium_target="gpt-5.6-luna",
+                    medium_target_cost_per_mtok=5.0,
+                ),
+                ModelRoute(
+                    source="gpt-5.6-luna",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=5.0,
                     target_cost_per_mtok=1.0,
                 ),
                 ModelRoute(
@@ -374,6 +423,7 @@ class ModelRouterConfig:
             ],
             cache_read_threshold=0.5,
             tool_complexity_threshold=2.0,
+            transport_safe_targets={"gpt-5.4-mini", "gpt-5.6-luna"},
         )
 
     @classmethod
@@ -516,6 +566,7 @@ class ModelRouter:
         attempted_input_tokens: int = 0,
         tool_calls: int = 0,
         num_messages: int = 0,
+        task_complexity: TaskComplexity | None = None,
     ) -> RoutingDecision:
         """Decide whether to downgrade this request to a cheaper
         model.
@@ -548,12 +599,23 @@ class ModelRouter:
                 source_model=requested_model,
                 reason="workload_not_downgradeable",
             )
+        target_model = route.target
+        target_cost_override = route.target_cost_per_mtok
+        if task_complexity == TaskComplexity.MEDIUM:
+            if not route.medium_target:
+                return RoutingDecision(
+                    source_model=requested_model,
+                    reason="workload_not_downgradeable",
+                )
+            target_model = route.medium_target
+            target_cost_override = route.medium_target_cost_per_mtok
+
         # Compute the savings. Both costs are USD per million
         # input tokens (LiteLLM convention).
         src_cost = route.source_cost_per_mtok
-        tgt_cost = route.target_cost_per_mtok
+        tgt_cost = target_cost_override
         if src_cost is None or tgt_cost is None:
-            src_cost, tgt_cost = self._lookup_costs(route.source, route.target)
+            src_cost, tgt_cost = self._lookup_costs(route.source, target_model)
         if src_cost is None or tgt_cost is None or src_cost <= tgt_cost:
             # Could not compute a positive savings. Skip.
             return RoutingDecision(
@@ -563,17 +625,17 @@ class ModelRouter:
         # The caller computes the actual token savings in a follow-up
         # step once the request has completed.
         return RoutingDecision(
-            target_model=route.target,
+            target_model=target_model,
             source_model=route.source,
             routing_applied=True,
             tokens_saved=0,  # filled by caller after the request
             usd_saved=0.0,  # filled by caller after the request
             reason="downgrade_applied",
-            request_overrides=self._request_overrides_for_route(route),
+            request_overrides=self._request_overrides_for_target(target_model),
         )
 
-    def _request_overrides_for_route(self, route: ModelRoute) -> dict[str, Any] | None:
-        if route.target == "gpt-5.4-mini":
+    def _request_overrides_for_target(self, target_model: str) -> dict[str, Any] | None:
+        if target_model == "gpt-5.4-mini":
             return {"reasoning": {"effort": "high"}}
         return None
 
@@ -594,9 +656,12 @@ class ModelRouter:
         if route is None:
             return decision
         src_cost = route.source_cost_per_mtok
-        tgt_cost = route.target_cost_per_mtok
+        if decision.target_model == route.medium_target:
+            tgt_cost = route.medium_target_cost_per_mtok
+        else:
+            tgt_cost = route.target_cost_per_mtok
         if src_cost is None or tgt_cost is None:
-            src_cost, tgt_cost = self._lookup_costs(route.source, route.target)
+            src_cost, tgt_cost = self._lookup_costs(route.source, decision.target_model)
         if src_cost is None or tgt_cost is None:
             return decision
         per_mtok_delta = src_cost - tgt_cost
@@ -645,7 +710,7 @@ class ModelRouter:
         if self.config.downgrade_when != "low_complexity":
             return True
         complexity = classify_task_complexity(messages)
-        return complexity == TaskComplexity.LOW
+        return complexity != TaskComplexity.HIGH
 
     def _lookup_costs(self, source: str, target: str) -> tuple[float | None, float | None]:
         """Look up LiteLLM-published input costs (USD per
@@ -758,12 +823,6 @@ def prepare_model_routing(
                 "reasoning": {"effort": "high"}
             }
         return target_model, updated_metadata
-    # Subscription transports expose an account-specific model set. Generic
-    # cost routing cannot prove that a target is available there, so keep the
-    # requested model. Explicit role bindings above remain valid because they
-    # verify the provider and account transport before returning a target.
-    if not implicit_downgrade_allowed:
-        return requested_model, updated_metadata or request_savings_metadata
     canary_model_routing = False
     try:
         from cutctx.proxy.savings_canary import (
@@ -800,6 +859,7 @@ def prepare_model_routing(
         return requested_model, updated_metadata or request_savings_metadata
 
     try:
+        task_complexity = classify_task_complexity(messages) if messages else None
         # If text downgrade check fails, abort routing
         if messages and hasattr(router, "is_text_downgradeable"):
             if not router.is_text_downgradeable(messages):
@@ -811,12 +871,18 @@ def prepare_model_routing(
             attempted_input_tokens=attempted_input_tokens,
             tool_calls=tool_calls,
             num_messages=num_messages,
+            task_complexity=task_complexity,
         )
     except Exception:  # noqa: BLE001
         return requested_model, updated_metadata or request_savings_metadata
 
     if not decision.routing_applied or not decision.target_model:
         return requested_model, updated_metadata or request_savings_metadata
+
+    if not implicit_downgrade_allowed:
+        safe_targets = set(getattr(router.config, "transport_safe_targets", set()))
+        if decision.target_model not in safe_targets:
+            return requested_model, updated_metadata or request_savings_metadata
 
     updated_metadata["model_routing"] = {
         "source_model": decision.source_model or requested_model,

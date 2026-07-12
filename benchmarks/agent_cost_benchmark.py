@@ -173,12 +173,17 @@ def benchmark_coding_agent_explosion() -> BenchmarkResult:
                 content = json.loads(original_content)
                 if isinstance(content, list) and len(content) > 10:
                     # Count critical items (errors, high-relevance)
+                    critical_markers: list[str] = []
                     for item in content:
                         if isinstance(item, dict):
                             if item.get("error") or item.get("status") == "failed":
                                 critical_total += 1
+                                critical_markers.append(str(item.get("id") or item.get("trace_id")))
                             if item.get("is_needle"):
                                 critical_total += 1
+                                critical_markers.append(
+                                    str(item.get("uuid") or item.get("id") or item.get("trace_id"))
+                                )
 
                     # Compress with SmartCrusher convenience function
                     compressed_str, was_modified, _ = smart_crush_tool_output(
@@ -186,14 +191,11 @@ def benchmark_coding_agent_explosion() -> BenchmarkResult:
                     )
 
                     if was_modified:
-                        compressed = json.loads(compressed_str)
-                        # Count retained critical items
-                        for item in compressed:
-                            if isinstance(item, dict):
-                                if item.get("error") or item.get("status") == "failed":
-                                    critical_retained += 1
-                                if item.get("is_needle"):
-                                    critical_retained += 1
+                        critical_retained += sum(
+                            1
+                            for marker in critical_markers
+                            if marker and marker != "None" and marker in compressed_str
+                        )
 
                         msg = {**msg, "content": compressed_str}
             except (json.JSONDecodeError, TypeError):
@@ -514,19 +516,20 @@ def benchmark_quality_preservation() -> BenchmarkResult:
         include_critical=5,
     )
 
-    # Count needles before compression
-    needles_before = 0
-    errors_before = 0
+    # Record stable identifiers for every critical item. SmartCrusher may emit
+    # a compact table/TOON string rather than a JSON list, so retention must be
+    # checked against the serialized output instead of assuming one wire shape.
+    critical_markers: list[str] = []
 
     for item in search_results:
         if item.get("is_needle"):
-            needles_before += 1
+            critical_markers.append(str(item.get("uuid") or item["id"]))
         if item.get("error"):
-            errors_before += 1
+            critical_markers.append(str(item["id"]))
 
     for entry in log_entries:
         if entry.get("level") in ("ERROR", "CRITICAL"):
-            errors_before += 1
+            critical_markers.append(str(entry["trace_id"]))
 
     # Compress using SmartCrusher convenience function
     config = SmartCrusherConfig(max_items_after_crush=50)
@@ -537,44 +540,28 @@ def benchmark_quality_preservation() -> BenchmarkResult:
     compressed_search_str, _, _ = smart_crush_tool_output(search_str, config)
     compressed_logs_str, _, _ = smart_crush_tool_output(logs_str, config)
 
-    compressed_search = json.loads(compressed_search_str)
-    compressed_logs = json.loads(compressed_logs_str)
-
-    # Count needles after compression
-    needles_after = 0
-    errors_after = 0
-
-    for item in compressed_search:
-        if item.get("is_needle"):
-            needles_after += 1
-        if item.get("error"):
-            errors_after += 1
-
-    for entry in compressed_logs:
-        if entry.get("level") in ("ERROR", "CRITICAL"):
-            errors_after += 1
-
-    result.critical_items_total = needles_before + errors_before
-    result.critical_items_retained = needles_after + errors_after
+    compressed_payload = compressed_search_str + "\n" + compressed_logs_str
+    result.critical_items_total = len(critical_markers)
+    result.critical_items_retained = sum(
+        1 for marker in critical_markers if marker in compressed_payload
+    )
     result.retention_rate = result.critical_items_retained / result.critical_items_total
 
     result.tokens_original = (
         len(json.dumps(search_results)) + len(json.dumps(log_entries))
     ) // CHARS_PER_TOKEN
     result.tokens_optimized = (
-        len(json.dumps(compressed_search)) + len(json.dumps(compressed_logs))
+        len(compressed_search_str) + len(compressed_logs_str)
     ) // CHARS_PER_TOKEN
     result.compression_ratio = 1 - (result.tokens_optimized / result.tokens_original)
 
     result.details = {
         "search_results_original": 1000,
-        "search_results_compressed": len(compressed_search),
+        "search_payload_chars_compressed": len(compressed_search_str),
         "log_entries_original": 1000,
-        "log_entries_compressed": len(compressed_logs),
-        "needles_original": needles_before,
-        "needles_retained": needles_after,
-        "errors_original": errors_before,
-        "errors_retained": errors_after,
+        "log_payload_chars_compressed": len(compressed_logs_str),
+        "critical_items_original": result.critical_items_total,
+        "critical_items_retained": result.critical_items_retained,
     }
 
     return result

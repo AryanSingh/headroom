@@ -2198,10 +2198,13 @@ class OpenAIResponsesMixin:
                     original_tools_payload
                     and "openai:responses:tool_schema_compaction" in _transforms
                 ):
-                    schema_savings_metadata = _tool_schema_savings_metadata(
-                        tokenizer,
-                        original_tools_payload,
-                        body.get("tools"),
+                    schema_savings_metadata = merge_savings_metadata(
+                        schema_savings_metadata,
+                        _tool_schema_savings_metadata(
+                            tokenizer,
+                            original_tools_payload,
+                            body.get("tools"),
+                        ),
                     )
                 residual_ghost_tokens = max(
                     0,

@@ -324,7 +324,7 @@ def test_handle_openai_responses_routes_api_key_auth_direct_to_openai(monkeypatc
     assert response.status_code == 200
 
 
-def test_handle_openai_responses_lite_preserves_requested_model(monkeypatch):
+def test_handle_openai_responses_lite_uses_verified_preset_target(monkeypatch):
     request = _build_request(
         {"model": "gpt-5.6-terra", "input": "what is the restart command?"},
         {
@@ -342,7 +342,8 @@ def test_handle_openai_responses_lite_preserves_requested_model(monkeypatch):
 
     assert handler.captured_request is not None
     _, _, headers, body = handler.captured_request
-    assert body["model"] == "gpt-5.6-terra"
+    assert body["model"] == "gpt-5.4-mini"
+    assert body["reasoning"] == {"effort": "high"}
     assert "X-OpenAI-Internal-Codex-Responses-Lite" not in headers
     assert response.status_code == 200
 

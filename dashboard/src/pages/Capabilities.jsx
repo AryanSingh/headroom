@@ -122,6 +122,12 @@ export default function Capabilities() {
     Number(stats?.prefix_cache?.totals?.savings_usd || 0),
     Number(stats?.savings_by_source?.usd?.provider_prompt_cache || 0),
   );
+  const eligibleCompressionTokens = Number(stats?.opportunity_funnel?.eligible_input_tokens || 0);
+  const cacheProtectedTokens = Number(stats?.opportunity_funnel?.cache_protected_tokens || 0);
+  const cacheProtectedPercent = eligibleCompressionTokens > 0
+    ? (cacheProtectedTokens / eligibleCompressionTokens) * 100
+    : 0;
+  const proxyCompressionSaved = Number(stats?.tokens?.proxy_compression_saved || 0);
 
   const surfaceFlags = {
     rate_limiter: getFlagEnabled(stats, configFlags, 'rate_limiter', 'rate_limit_enabled'),
@@ -157,8 +163,10 @@ export default function Capabilities() {
   const liveSurfaces = [
     {
       label: 'Proxy compression',
-      value: formatInteger(stats?.tokens?.proxy_compression_saved),
-      detail: `${formatPercent(stats?.tokens?.proxy_savings_percent)} active savings`,
+      value: formatInteger(proxyCompressionSaved),
+      detail: proxyCompressionSaved === 0 && cacheProtectedTokens > 0
+        ? `${formatPercent(cacheProtectedPercent)} cache-protected · left unchanged intentionally`
+        : `${formatPercent(stats?.tokens?.proxy_savings_percent)} active savings`,
     },
     {
       label: 'Provider cache',

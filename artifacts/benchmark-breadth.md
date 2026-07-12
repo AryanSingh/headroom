@@ -7,7 +7,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 74.8% | 100.0% |
-| RAGSamples | 2 | 100.0% | 100.0% |
+| RAGSamples | 6 | 54.7% | 100.0% |
 | MixedAgentTraces | 2 | 82.6% | 82.6% |
 
 ## Relative Delta vs ContentRouter for Compression Ratio
@@ -15,7 +15,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 0.0% | -33.7% |
-| RAGSamples | 2 | 0.0% | 0.0% |
+| RAGSamples | 6 | 0.0% | -82.7% |
 | MixedAgentTraces | 2 | 0.0% | 0.0% |
 
 
@@ -24,7 +24,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 111 | 0 |
-| RAGSamples | 2 | 0 | 0 |
+| RAGSamples | 6 | 430 | 0 |
 | MixedAgentTraces | 2 | 92 | 92 |
 
 ## Relative Delta vs ContentRouter for Tokens Saved
@@ -32,7 +32,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 0.0% | -100.0% |
-| RAGSamples | 2 | 0.0% | 0.0% |
+| RAGSamples | 6 | 0.0% | -100.0% |
 | MixedAgentTraces | 2 | 0.0% | 0.0% |
 
 
@@ -40,17 +40,17 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
-| CodeSamples | 2 | 3,225.8 | 6,846,168.1 |
-| RAGSamples | 2 | 15,680.9 | 8,888,897.9 |
-| MixedAgentTraces | 2 | 22,347.0 | 2,907,393.5 |
+| CodeSamples | 2 | 3,881.9 | 5,369,368.8 |
+| RAGSamples | 6 | 23,272.2 | 12,623,971.7 |
+| MixedAgentTraces | 2 | 35,584.6 | 6,817,519.9 |
 
 ## Relative Delta vs ContentRouter for Tokens / Second
 
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
-| CodeSamples | 2 | 0.0% | +212132.7% |
-| RAGSamples | 2 | 0.0% | +56586.2% |
-| MixedAgentTraces | 2 | 0.0% | +12910.2% |
+| CodeSamples | 2 | 0.0% | +138218.3% |
+| RAGSamples | 6 | 0.0% | +54144.8% |
+| MixedAgentTraces | 2 | 0.0% | +19058.6% |
 
 
 ## F1 Score by Dataset × Compressor
@@ -58,7 +58,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 0.823 | 1.000 |
-| RAGSamples | 2 | 1.000 | 1.000 |
+| RAGSamples | 6 | 0.695 | 1.000 |
 | MixedAgentTraces | 2 | 1.000 | 1.000 |
 
 ## Relative Delta vs ContentRouter for F1 Score
@@ -66,7 +66,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 0.0% | +21.5% |
-| RAGSamples | 2 | 0.0% | 0.0% |
+| RAGSamples | 6 | 0.0% | +43.9% |
 | MixedAgentTraces | 2 | 0.0% | 0.0% |
 
 
@@ -75,7 +75,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 1.000 | 1.000 |
-| RAGSamples | 2 | 1.000 | 1.000 |
+| RAGSamples | 6 | 1.000 | 1.000 |
 | MixedAgentTraces | 2 | 1.000 | 1.000 |
 
 ## Relative Delta vs ContentRouter for Information Recall
@@ -83,7 +83,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 0.0% | 0.0% |
-| RAGSamples | 2 | 0.0% | 0.0% |
+| RAGSamples | 6 | 0.0% | 0.0% |
 | MixedAgentTraces | 2 | 0.0% | 0.0% |
 
 
@@ -92,7 +92,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 1.000 | 1.000 |
-| RAGSamples | 2 | 1.000 | 1.000 |
+| RAGSamples | 6 | 1.000 | 1.000 |
 | MixedAgentTraces | 2 | 1.000 | 1.000 |
 
 ## Relative Delta vs ContentRouter for Critical Item Recall
@@ -100,7 +100,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 0.0% | 0.0% |
-| RAGSamples | 2 | 0.0% | 0.0% |
+| RAGSamples | 6 | 0.0% | 0.0% |
 | MixedAgentTraces | 2 | 0.0% | 0.0% |
 
 
@@ -109,7 +109,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 1.000 | 1.000 |
-| RAGSamples | 2 | 1.000 | 1.000 |
+| RAGSamples | 6 | 1.000 | 1.000 |
 | MixedAgentTraces | 2 | 1.000 | 1.000 |
 
 ## Relative Delta vs ContentRouter for Verbatim Fidelity
@@ -117,7 +117,7 @@ Seed: `42` | Duration: 0.2s | Datasets: CodeSamples, RAGSamples, MixedAgentTrace
 | Dataset | N | ContentRouter | SmartCrusher |
 |---|---|---|---|
 | CodeSamples | 2 | 0.0% | 0.0% |
-| RAGSamples | 2 | 0.0% | 0.0% |
+| RAGSamples | 6 | 0.0% | 0.0% |
 | MixedAgentTraces | 2 | 0.0% | 0.0% |
 
 

@@ -116,6 +116,20 @@ def test_config_from_env_invalid_json_falls_back_to_disabled() -> None:
     assert cfg.enabled is False
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        "Prepare, commit, push, and release all files.",
+        "Run the full benchmark suite and optimize the weakest path.",
+        "Fix the production billing failure.",
+        "Update all modules and services for the new API.",
+        "Apply this patch:\n*** Begin Patch\n*** End Patch",
+    ],
+)
+def test_classifier_keeps_high_consequence_short_tasks_on_strong_model(content: str) -> None:
+    assert classify_task_complexity([{"role": "user", "content": content}]) != TaskComplexity.LOW
+
+
 # ─- maybe_route() ───────────────────────────────────────────────
 
 
@@ -375,9 +389,39 @@ def test_codex_preset_routes_tiny_greeting_to_mini() -> None:
     assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
 
 
-def test_implicit_downgrade_is_blocked_when_transport_cannot_prove_target() -> None:
-    """Subscription endpoints must never receive a guessed cheaper model."""
+def test_preset_allows_verified_mini_target_on_subscription_transport() -> None:
+    """The Codex preset may use targets explicitly verified for the transport."""
     cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "gpt-5.6-terra",
+        messages=[{"role": "user", "content": "hi"}],
+        request_savings_metadata={},
+        implicit_downgrade_allowed=False,
+    )
+
+    assert model == "gpt-5.4-mini"
+    assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
+
+
+def test_unverified_target_remains_blocked_on_subscription_transport() -> None:
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="always",
+        routes=[
+            ModelRoute(
+                source="gpt-5.6-terra",
+                target="unknown-cheap-model",
+                source_cost_per_mtok=10.0,
+                target_cost_per_mtok=1.0,
+            )
+        ],
+    )
 
     class DummyHandler:
         def __init__(self) -> None:
@@ -393,6 +437,52 @@ def test_implicit_downgrade_is_blocked_when_transport_cannot_prove_target() -> N
 
     assert model == "gpt-5.6-terra"
     assert metadata == {}
+
+
+def test_codex_preset_routes_contextual_medium_work_to_luna() -> None:
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    messages = [
+        {"role": "user", "content": "Inspect the service."},
+        {"role": "assistant", "content": "I found two relevant modules."},
+        {"role": "user", "content": "Explain the first module."},
+    ]
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "gpt-5.6-sol",
+        messages=messages,
+        request_savings_metadata={},
+        implicit_downgrade_allowed=False,
+    )
+
+    assert classify_task_complexity(messages) == TaskComplexity.MEDIUM
+    assert model == "gpt-5.6-luna"
+    assert metadata["model_routing"]["target_model"] == "gpt-5.6-luna"
+
+
+def test_codex_preset_routes_reference_dependent_current_turn_to_luna() -> None:
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    messages = [{"role": "user", "content": "Explain the first module."}]
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "gpt-5.6-sol",
+        messages=messages,
+        request_savings_metadata={},
+        implicit_downgrade_allowed=False,
+    )
+
+    assert classify_task_complexity(messages) == TaskComplexity.MEDIUM
+    assert model == "gpt-5.6-luna"
+    assert metadata["model_routing"]["target_model"] == "gpt-5.6-luna"
 
 
 @pytest.mark.parametrize(
@@ -448,7 +538,7 @@ def test_codex_preset_keeps_complex_work_on_requested_model(content: str) -> Non
         request_savings_metadata={},
     )
 
-    assert classify_task_complexity([{"role": "user", "content": content}]) == TaskComplexity.MEDIUM
+    assert classify_task_complexity([{"role": "user", "content": content}]) == TaskComplexity.HIGH
     assert model == "gpt-5.5"
     assert metadata == {}
 

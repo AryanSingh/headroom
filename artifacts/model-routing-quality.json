@@ -1,0 +1,411 @@
+{
+  "schema_version": 1,
+  "cases": 28,
+  "confusion_matrix": {
+    "tp": 10,
+    "tn": 18,
+    "fp": 0,
+    "fn": 0
+  },
+  "metrics": {
+    "accuracy": 1.0,
+    "balanced_accuracy": 1.0,
+    "mini_candidate_recall": 1.0,
+    "strong_model_recall": 1.0,
+    "luna_candidate_recall": 1.0,
+    "tier_accuracy": 1.0,
+    "unsafe_downgrade_rate": 0.0
+  },
+  "rows": [
+    {
+      "id": "greeting",
+      "prompt": "Hello",
+      "expect_mini": true,
+      "category": "conversation",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "correct": true
+    },
+    {
+      "id": "definition",
+      "prompt": "What is idempotency?",
+      "expect_mini": true,
+      "category": "informational",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "correct": true
+    },
+    {
+      "id": "location",
+      "prompt": "Where is the proxy config?",
+      "expect_mini": true,
+      "category": "repository_lookup",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "correct": true
+    },
+    {
+      "id": "simple_list",
+      "prompt": "List the supported providers.",
+      "expect_mini": true,
+      "category": "informational",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "correct": true
+    },
+    {
+      "id": "short_explain",
+      "prompt": "Explain exponential backoff.",
+      "expect_mini": true,
+      "category": "informational",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "correct": true
+    },
+    {
+      "id": "rename",
+      "prompt": "Rename this variable.",
+      "expect_mini": true,
+      "category": "small_edit",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "correct": true
+    },
+    {
+      "id": "typo",
+      "prompt": "Fix the typo in this heading.",
+      "expect_mini": true,
+      "category": "small_edit",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "correct": true
+    },
+    {
+      "id": "docstring",
+      "prompt": "Add a docstring to this helper.",
+      "expect_mini": true,
+      "category": "small_edit",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "correct": true
+    },
+    {
+      "id": "type_hint",
+      "prompt": "Add type hints to this function.",
+      "expect_mini": true,
+      "category": "small_edit",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "correct": true
+    },
+    {
+      "id": "format",
+      "prompt": "Format this code.",
+      "expect_mini": true,
+      "category": "small_edit",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "correct": true
+    },
+    {
+      "id": "architecture",
+      "prompt": "Design a multi-region failover architecture.",
+      "expect_mini": false,
+      "category": "design",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "security_review",
+      "prompt": "Audit the authentication flow for vulnerabilities.",
+      "expect_mini": false,
+      "category": "security",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "debug",
+      "prompt": "Debug why the websocket reconnect loop drops events.",
+      "expect_mini": false,
+      "category": "debugging",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "implementation",
+      "prompt": "Implement durable workflow cancellation.",
+      "expect_mini": false,
+      "category": "implementation",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "migration",
+      "prompt": "Plan and execute the database migration.",
+      "expect_mini": false,
+      "category": "migration",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "benchmark",
+      "prompt": "Run the full benchmark suite and optimize the weakest path.",
+      "expect_mini": false,
+      "category": "evaluation",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "release",
+      "prompt": "Prepare, commit, push, and release all files.",
+      "expect_mini": false,
+      "category": "release",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "production",
+      "prompt": "Fix the production billing failure.",
+      "expect_mini": false,
+      "category": "production",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "code_block",
+      "prompt": "Explain this:\n```python\nraise RuntimeError('x')\n```",
+      "expect_mini": false,
+      "category": "code",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "patch",
+      "prompt": "Apply this patch:\n*** Begin Patch\n*** End Patch",
+      "expect_mini": false,
+      "category": "code",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "stack",
+      "prompt": "Investigate this stack trace and propose a fix.",
+      "expect_mini": false,
+      "category": "debugging",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "large_scope",
+      "prompt": "Update all modules and services for the new API.",
+      "expect_mini": false,
+      "category": "implementation",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "tool_context",
+      "prompt": "Use the deployment tool to publish the release.",
+      "expect_mini": false,
+      "category": "tool_use",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "ambiguous_fix",
+      "prompt": "Fix it.",
+      "expect_mini": false,
+      "category": "ambiguous",
+      "expect_luna": false,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "correct": true
+    },
+    {
+      "id": "followup_explanation",
+      "prompt": "Explain the first module.",
+      "expect_mini": false,
+      "category": "contextual",
+      "expect_luna": true,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect the service."
+        },
+        {
+          "role": "assistant",
+          "content": "I found two relevant modules."
+        },
+        {
+          "role": "user",
+          "content": "Explain the first module."
+        }
+      ],
+      "predicted_mini": false,
+      "expected_tier": "luna",
+      "predicted_tier": "luna",
+      "complexity": "medium",
+      "correct": true
+    },
+    {
+      "id": "followup_summary",
+      "prompt": "Summarize that in bullets.",
+      "expect_mini": false,
+      "category": "contextual",
+      "expect_luna": true,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Describe the deployment history."
+        },
+        {
+          "role": "assistant",
+          "content": "The deployment has four phases."
+        },
+        {
+          "role": "user",
+          "content": "Summarize that in bullets."
+        }
+      ],
+      "predicted_mini": false,
+      "expected_tier": "luna",
+      "predicted_tier": "luna",
+      "complexity": "medium",
+      "correct": true
+    },
+    {
+      "id": "moderate_transformation",
+      "prompt": "Rewrite the following customer update in a concise and neutral tone while preserving the stated dates and owners.",
+      "expect_mini": false,
+      "category": "transformation",
+      "expect_luna": true,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "luna",
+      "predicted_tier": "luna",
+      "complexity": "medium",
+      "correct": true
+    },
+    {
+      "id": "reference_without_history",
+      "prompt": "Explain the first module.",
+      "expect_mini": false,
+      "category": "reference_dependent",
+      "expect_luna": true,
+      "messages": null,
+      "predicted_mini": false,
+      "expected_tier": "luna",
+      "predicted_tier": "luna",
+      "complexity": "medium",
+      "correct": true
+    }
+  ]
+}

@@ -17,11 +17,11 @@ def test_classify_task_complexity_low():
     assert classify_task_complexity(messages) == TaskComplexity.LOW
 
 
-def test_classify_task_complexity_medium():
+def test_classify_task_complexity_code_refactor_is_high():
     messages = [
         {"role": "user", "content": "Please refactor the model_router.py to use an ML classifier."}
     ]
-    assert classify_task_complexity(messages) == TaskComplexity.MEDIUM
+    assert classify_task_complexity(messages) == TaskComplexity.HIGH
 
 
 def test_router_integration():
@@ -42,6 +42,6 @@ def test_router_integration():
 
 if __name__ == "__main__":
     test_classify_task_complexity_low()
-    test_classify_task_complexity_medium()
+    test_classify_task_complexity_code_refactor_is_high()
     test_router_integration()
     print("All tests passed!")

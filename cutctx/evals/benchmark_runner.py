@@ -587,6 +587,21 @@ class BenchmarkRunner:
             total_compressed_tokens = sum(r["compressed_tokens"] for r in per_case_results)
             errors = sum(1 for r in per_case_results if r["error"])
             valid = [r for r in per_case_results if not r["error"]]
+            if not valid:
+                results.append(
+                    CompressorBenchmarkResult(
+                        dataset=dataset_name,
+                        compressor=comp_key,
+                        n=len(cases),
+                        ratio=1.0,
+                        tokens_saved=0,
+                        avg_ms=0.0,
+                        p50_ms=0.0,
+                        errors=errors,
+                        skipped=True,
+                    )
+                )
+                continue
             cases_by_id = {case.id: case for case in cases}
             ratios = [
                 r["compressed_tokens"] / r["original_tokens"] if r["original_tokens"] > 0 else 1.0

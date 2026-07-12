@@ -20,10 +20,12 @@ Cutctx supports an opt-in named model-routing preset through `CUTCTX_MODEL_ROUTI
 
 The preset is intentionally conservative:
 
-- Heavy GPT-5-tier and Claude-tier work stays on the originally requested model.
+- High-complexity GPT-5-tier and Claude-tier work stays on the originally requested model.
 - Low-complexity GPT tasks route to `gpt-5.4-mini`.
+- Contextual and moderate GPT-5.5/5.6 tasks route to `gpt-5.6-luna` when the route declares it as the medium tier.
 - Low-complexity Claude tasks route to the next cheaper Claude tier.
 - Routed low-complexity requests also receive `reasoning: { effort: "high" }` on OpenAI request paths.
+- The canonical preset explicitly allows `gpt-5.4-mini` and `gpt-5.6-luna` on Codex/ChatGPT subscription transports; arbitrary custom targets remain blocked unless explicitly allowlisted.
 
 ## Current route table
 
@@ -31,12 +33,14 @@ The preset is intentionally conservative:
 - `claude-opus-4-5-20250514 -> claude-sonnet-4-5`
 - `claude-sonnet-4-5 -> claude-haiku-4-5`
 - `claude-sonnet-4-5-20250514 -> claude-haiku-4-5`
-- `gpt-5.5 -> gpt-5.4-mini`
-- `gpt-5.6-terra -> gpt-5.4-mini`
+- `gpt-5.5 -> gpt-5.4-mini` (low) or `gpt-5.6-luna` (medium)
+- `gpt-5.6-terra -> gpt-5.4-mini` (low) or `gpt-5.6-luna` (medium)
+- `gpt-5.6-sol -> gpt-5.4-mini` (low) or `gpt-5.6-luna` (medium)
+- `gpt-5.6-luna -> gpt-5.4-mini` (low)
 - `gpt-5.4 -> gpt-5.4-mini`
 - `gpt-5 -> gpt-5.4-mini`
 
-## Low-complexity heuristic
+## Complexity heuristic
 
 The router only applies the low-complexity branch when a request is clearly simple, such as:
 
@@ -46,6 +50,13 @@ The router only applies the low-complexity branch when a request is clearly simp
 - obvious one-file or one-function cleanups
 
 If the task looks ambiguous, broad, or risky, Cutctx keeps the original requested model.
+
+Reference-dependent follow-ups and moderate transformations use the Luna tier. Architecture,
+security, debugging, implementation, migration, release, deployment, production, patch, and
+large multi-module requests stay on the requested strong model.
+
+The deterministic benchmark at `benchmarks/model_routing_quality.py` gates Mini, Luna, and
+strong-model assignments with zero tolerated unsafe Mini downgrades.
 
 ## Implementation notes
 

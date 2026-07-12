@@ -38,6 +38,19 @@ python run_all.py --output results.json
 python compare.py --tool cutctx --tool llmlingua2 --corpus toolbench --dry-run
 ```
 
+#### Verify model-routing quality and unsafe-downgrade safety:
+
+```bash
+python benchmarks/model_routing_quality.py \
+  --ci \
+  --output artifacts/model-routing-quality.json
+```
+
+This deterministic labeled set reports a confusion matrix, balanced accuracy,
+Mini/Luna/strong tier accuracy, per-tier recall, and unsafe-downgrade rate. The
+CI gate requires zero unsafe Mini downgrades and at least 95% balanced and tier
+accuracy.
+
 #### Run the fixed-fixture LLMLingua research preset through the main eval CLI:
 ```bash
 cutctx evals benchmark --preset llmlingua_research --parallel 1 --output artifacts/llmlingua-research-preset.json --markdown

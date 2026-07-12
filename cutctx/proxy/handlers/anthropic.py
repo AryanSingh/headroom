@@ -2308,9 +2308,10 @@ class AnthropicHandlerMixin:
                             schema_tokens_saved = max(0, (tb - ta) // 4)
                         if schema_tokens_saved > 0:
                             tokens_saved += schema_tokens_saved
-                            schema_savings_metadata = {
-                                "tool_schema_compaction": {"tokens": schema_tokens_saved}
-                            }
+                            schema_savings_metadata = merge_savings_metadata(
+                                schema_savings_metadata,
+                                {"tool_schema_compaction": {"tokens": schema_tokens_saved}},
+                            )
                 residual_ghost_tokens = max(
                     0,
                     tool_scaffolding_tokens

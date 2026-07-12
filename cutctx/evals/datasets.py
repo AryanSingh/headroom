@@ -1272,6 +1272,116 @@ list shipped controls separately from planned controls.
                 "critical_items": ["CUTCTX_CCR_TTL_SECONDS", "CUTCTX_ADMIN_API_KEY", "30 minutes"],
             },
         ),
+        EvalCase(
+            id="rag_database_recovery_001",
+            context="""# Database Recovery Guide
+
+The primary database takes snapshots every six hours and keeps transaction
+logs in object storage. Routine restores should begin in an isolated network
+with outbound access disabled. The recovery operator must verify the snapshot
+manifest before replaying any logs. If checksum verification fails, stop the
+restore and page the storage team through `storage-primary`.
+
+Point-in-time recovery uses `restorectl replay --until` and accepts an RFC3339
+timestamp. The command must run with `RECOVERY_WRITE_MODE=disabled` until the
+integrity report passes. Recovery drills have a 45 minute timeout and must
+write their final evidence to `recovery_report.json`.
+""",
+            query="Which command performs point-in-time log replay?",
+            ground_truth="restorectl replay --until",
+            metadata={
+                "source": "built_in",
+                "category": "rag",
+                "shape": "runbook",
+                "critical_items": [
+                    "restorectl replay --until",
+                    "RECOVERY_WRITE_MODE=disabled",
+                    "recovery_report.json",
+                ],
+            },
+        ),
+        EvalCase(
+            id="rag_rate_limit_001",
+            context="""# API Capacity Notes
+
+Interactive requests use a token bucket shared by each organization. The
+dashboard displays both the instantaneous request rate and the rolling error
+rate. Background exports use a separate queue so a large report cannot starve
+interactive traffic. Operators can inspect queue state without changing it.
+
+The default organization limit is 240 requests per minute. When utilization
+stays above 90 percent for 5 minutes, the proxy emits `capacity.sustained_high`
+and recommends a quota review. Emergency overrides are stored in
+`rate_limits.toml` and expire after 2 hours.
+""",
+            query="What event is emitted after sustained high utilization?",
+            ground_truth="capacity.sustained_high",
+            metadata={
+                "source": "built_in",
+                "category": "rag",
+                "shape": "operations",
+                "critical_items": [
+                    "capacity.sustained_high",
+                    "rate_limits.toml",
+                    "240 requests per minute",
+                ],
+            },
+        ),
+        EvalCase(
+            id="rag_privacy_export_001",
+            context="""# Privacy Export Procedure
+
+Support staff first confirm the requester identity and the tenant boundary.
+Exports are assembled locally and never include credentials or encryption
+material. A dry run lists record counts by subsystem before any archive is
+created. The operator reviews those counts with the privacy owner.
+
+The final export is created with `cutctx privacy export --subject`. Archives
+are encrypted using the tenant key and retained for 24 hours. Every completed
+export records its evidence identifier in `dsr_audit.jsonl`; failed exports
+must not leave a partial archive behind.
+""",
+            query="Where is the evidence identifier recorded?",
+            ground_truth="dsr_audit.jsonl",
+            metadata={
+                "source": "built_in",
+                "category": "rag",
+                "shape": "privacy",
+                "critical_items": [
+                    "cutctx privacy export --subject",
+                    "dsr_audit.jsonl",
+                    "24 hours",
+                ],
+            },
+        ),
+        EvalCase(
+            id="rag_cache_incident_001",
+            context="""# Cache Incident Playbook
+
+The prefix cache is most effective when stable instructions remain byte
+identical across turns. Timestamp injection and reordered tool definitions
+often reduce the hit rate without changing application behavior. During an
+incident, compare the provider cache-read count with the proxy's stable-prefix
+diagnostics before disabling compression.
+
+If the cache-read share falls below 20 percent for 10 minutes, capture
+`prefix_diagnostics.json` and run `cutctx cache doctor`. The command reports
+the first unstable segment and its owning transform. Escalate persistent
+instability to `context-runtime` with the affected session identifier.
+""",
+            query="Which command identifies the first unstable cache segment?",
+            ground_truth="cutctx cache doctor",
+            metadata={
+                "source": "built_in",
+                "category": "rag",
+                "shape": "incident",
+                "critical_items": [
+                    "cutctx cache doctor",
+                    "prefix_diagnostics.json",
+                    "context-runtime",
+                ],
+            },
+        ),
     ]
     return EvalSuite(name="RAGSamples", cases=cases)
 

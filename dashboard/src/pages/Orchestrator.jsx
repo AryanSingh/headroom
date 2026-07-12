@@ -248,8 +248,14 @@ export default function Orchestrator() {
   const modelRouting = stats?.model_routing || {};
   const backendState = modelRouting.requested ?? stats?.config?.orchestrator ?? false;
   const isActive = optimisticState ?? backendState;
-  const usdSaved = Number(stats?.cost?.savings_by_source?.usd?.model_routing || 0);
-  const tokensSaved = Number(stats?.cost?.savings_by_source?.tokens?.model_routing || 0);
+  const usdSaved = Math.max(
+    Number(stats?.cost?.savings_by_source?.usd?.model_routing || 0),
+    Number(stats?.savings_by_source?.usd?.model_routing || 0),
+  );
+  const tokensSaved = Math.max(
+    Number(stats?.cost?.savings_by_source?.tokens?.model_routing || 0),
+    Number(stats?.savings_by_source?.tokens?.model_routing || 0),
+  );
   const canToggle = !configFlagsError;
   const providerDecisions = policyStatus?.provider_decisions || {};
 
