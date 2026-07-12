@@ -83,11 +83,6 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
     if not normalized_content:
         return TaskComplexity.HIGH
 
-    prior_turns = [
-        message
-        for message in messages
-        if message is not last_user_message and message.get("role") in {"assistant", "tool", "user"}
-    ]
     if any(
         marker in normalized_content
         for marker in (
@@ -172,8 +167,8 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         # Short, single-turn informational prompts are good candidates for
         # mini routing; multi-sentence or code/task-heavy asks stay medium.
         if (
-            len(content) < 100
-            and len(normalized_content.split()) <= 16
+            len(content) < 180
+            and len(normalized_content.split()) <= 24
             and "\n" not in content
             and normalized_content.count(".") <= 1
         ):
