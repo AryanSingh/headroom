@@ -671,14 +671,21 @@ def _truncate_body_for_chatgpt(
             return out
         return content
 
+    def _truncate_input_item(item: Any) -> Any:
+        if not isinstance(item, dict):
+            return item
+        out = dict(item)
+        if isinstance(out.get("content"), (str, list, dict)):
+            out["content"] = _truncate_content(out["content"])
+        if isinstance(out.get("output"), str) and len(out["output"]) > _MAX_TOOL_OUTPUT_CHARS:
+            out["output"] = out["output"][:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
+        if isinstance(out.get("input"), list):
+            out["input"] = [_truncate_input_item(child) for child in out["input"]]
+        return out
+
     # Step 1: truncate large tool outputs within all messages
     if isinstance(body.get("input"), list):
-        body["input"] = [
-            {**msg, "content": _truncate_content(msg["content"])}
-            if isinstance(msg, dict) and "content" in msg
-            else msg
-            for msg in body["input"]
-        ]
+        body["input"] = [_truncate_input_item(msg) for msg in body["input"]]
     if _body_bytes() <= max_bytes:
         return body
 

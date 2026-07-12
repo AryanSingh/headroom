@@ -8,6 +8,7 @@ from cutctx.proxy.handlers.openai import (
     _compact_openai_responses_tools,
     _openai_responses_context_budget,
 )
+from cutctx.proxy.handlers.openai.responses import _truncate_body_for_chatgpt
 from cutctx.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
@@ -342,6 +343,31 @@ def test_responses_compression_failure_refuses_when_context_guard_trips() -> Non
     assert estimated >= threshold
     assert limit > 0
     assert reason == "context_too_large"
+
+
+def test_chatgpt_truncator_trims_function_call_output_payloads() -> None:
+    """Emergency truncation must shrink the actual tool output field too.
+
+    The overflow bug was specifically visible on resumed turns where the
+    context lived inside a function_call_output item. Trimming only nested
+    content blocks is not enough for that shape.
+    """
+
+    body = {
+        "model": "gpt-4o",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "x" * 9000,
+            }
+        ],
+    }
+
+    truncated = _truncate_body_for_chatgpt(body, 1024, "req_test")
+
+    assert len(truncated["input"][0]["output"]) < len(body["input"][0]["output"])
+    assert truncated["input"][0]["output"].endswith("…[truncated]")
 
 
 class _StubTokenizer:
