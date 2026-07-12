@@ -688,6 +688,41 @@ def test_codex_preset_routes_short_plain_followups_to_mini() -> None:
     assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
 
 
+def test_stale_tool_context_does_not_permanently_block_mini_routing() -> None:
+    messages = [
+        {"role": "tool", "content": "old build output"},
+        {"role": "assistant", "content": "old result"},
+        {"role": "user", "content": "old question"},
+        {"role": "assistant", "content": "answer"},
+        {"role": "user", "content": "another question"},
+        {"role": "assistant", "content": "answer"},
+        {"role": "user", "content": "more"},
+        {"role": "assistant", "content": "answer"},
+        {"role": "user", "content": "What is idempotency?"},
+    ]
+
+    assessment = assess_task_complexity(messages)
+
+    assert assessment.complexity == TaskComplexity.LOW
+    assert assessment.signals == ("explicit_low_complexity",)
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "Write SQL to delete duplicate production records.",
+        "Fix the race in this worker.",
+        "Inspect the config, fix it, test it, and deploy.",
+        "Review permissions and rotate the production secret.",
+    ],
+)
+def test_short_but_risky_work_stays_on_requested_model(content: str) -> None:
+    assessment = assess_task_complexity([{"role": "user", "content": content}])
+
+    assert assessment.complexity == TaskComplexity.HIGH
+    assert assessment.signals == ("strong_model_gate",)
+
+
 def test_codex_preset_routes_moderately_long_plain_requests_to_mini() -> None:
     cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
 

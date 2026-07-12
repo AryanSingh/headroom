@@ -24,6 +24,10 @@
     {"id":"opencode_release","client":"opencode","prompt":"Run tests, commit, push, and publish the release.","expected_tier":"strong","category":"release"},
     {"id":"opencode_code_block","client":"opencode","prompt":"Explain this:\n```typescript\nthrow new Error('x')\n```","expected_tier":"strong","category":"code"},
     {"id":"opencode_ambiguous","client":"opencode","prompt":"fix it","expected_tier":"strong","category":"ambiguous"},
-    {"id":"opencode_prior_reference","client":"opencode","prompt":"Rewrite the previous response neutrally.","expected_tier":"luna","category":"contextual"}
+    {"id":"opencode_prior_reference","client":"opencode","prompt":"Rewrite the previous response neutrally.","expected_tier":"luna","category":"contextual"},
+    {"id":"short_database_risk","client":"codex","prompt":"Write SQL to delete duplicate production records.","expected_tier":"strong","category":"data_safety"},
+    {"id":"short_concurrency_risk","client":"codex","prompt":"Fix the race in this worker.","expected_tier":"strong","category":"debugging"},
+    {"id":"compound_execution","client":"codex","prompt":"Inspect the config, fix it, test it, and deploy.","expected_tier":"strong","category":"execution"},
+    {"id":"stale_tool_context","client":"codex","prompt":"What is idempotency?","expected_tier":"mini","category":"context_recovery","messages":[{"role":"tool","content":"old build output"},{"role":"assistant","content":"old result"},{"role":"user","content":"old question"},{"role":"assistant","content":"answer"},{"role":"user","content":"another question"},{"role":"assistant","content":"answer"},{"role":"user","content":"more"},{"role":"assistant","content":"answer"},{"role":"user","content":"What is idempotency?"}]}
   ]
 }

@@ -70,6 +70,13 @@ Reference-dependent follow-ups and moderate transformations use the Luna tier. A
 security, debugging, implementation, migration, release, deployment, production, patch, and
 large multi-module requests stay on the requested strong model.
 
+Short prompts are not assumed to be easy. Database/schema work, concurrency,
+credentials and permissions, destructive operations, performance investigations,
+and compound multi-action execution stay on the strong tier even when the request
+is only a few words. Conversely, an old tool result does not permanently pin a
+long-running conversation to the strong model: only the recent context window is
+considered for the tool-context safety gate.
+
 The deterministic benchmark at `benchmarks/model_routing_quality.py` gates Mini, Luna, and
 strong-model assignments with zero tolerated unsafe Mini downgrades.
 
@@ -82,8 +89,10 @@ zero tolerated unsafe Mini downgrades.
 
 ## Confidence and abstention
 
-Every preset decision carries a scorer name and a confidence value in routing
-metadata. The built-in scorer is deterministic and preserves the existing
+Every applied preset decision carries a scorer name, confidence value, and a
+small list of non-sensitive decision signals in routing metadata (for example,
+`explicit_low_complexity`, `context_dependent`, or `recent_tool_context`). The
+built-in scorer is deterministic and preserves the existing
 complexity rules. Operators using custom JSON routes may set
 `minimum_confidence` in `CUTCTX_MODEL_ROUTING`; a decision below that threshold
 does not downgrade and is recorded as `confidence_below_threshold`.
