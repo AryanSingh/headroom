@@ -74,6 +74,32 @@ def test_proxy_lifecycle_starts_and_stops_retention_manager(tmp_path, monkeypatc
         reset_retention_manager()
 
 
+def test_health_exposes_enterprise_component_initialization_failures(tmp_path, monkeypatch):
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    monkeypatch.setenv("CUTCTX_SKIP_UPSTREAM_CHECK", "1")
+    reset_audit_logger()
+    blocking_file = tmp_path / "not-a-directory"
+    blocking_file.write_text("block child creation", encoding="utf-8")
+    config = ProxyConfig(
+        admin_api_key="secret",
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        audit_db_path=str(blocking_file / "audit.db"),
+        org_db_path=str(tmp_path / "org-health.db"),
+        fleet_db_path=str(tmp_path / "fleet-health.db"),
+        scim_db_path=str(tmp_path / "scim-health.db"),
+    )
+
+    with TestClient(create_app(config)) as client:
+        response = client.get("/health")
+
+    assert response.status_code == 503
+    initialization = response.json()["checks"]["component_initialization"]
+    assert initialization["status"] == "unhealthy"
+    assert "audit" in initialization["errors"]
+
+
 def test_business_can_access_org_and_project_routes_but_not_enterprise_controls(
     tmp_path, monkeypatch
 ):

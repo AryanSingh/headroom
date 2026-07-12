@@ -955,6 +955,7 @@ class CutctxProxy(
         self.entitlement_checker = EntitlementChecker(
             plan=config.entitlement_tier,
         )
+        self.component_init_errors: dict[str, str] = {}
 
         # Audit logger (enterprise compliance — structured event logging)
         self.audit_logger = None
@@ -965,8 +966,11 @@ class CutctxProxy(
                 self.audit_logger = get_audit_logger(
                     db_path=getattr(config, "audit_db_path", None),
                 )
-            except Exception:
-                logger.debug("Audit logger init failed", exc_info=True)
+            except ImportError:
+                logger.debug("Audit logger unavailable (enterprise module not installed)")
+            except Exception as exc:
+                self.component_init_errors["audit"] = f"{type(exc).__name__}: {exc}"
+                logger.error("Audit logger init failed", exc_info=True)
 
         # Org store (enterprise multi-tenant model)
         self.org_store = None
@@ -977,8 +981,11 @@ class CutctxProxy(
                 self.org_store = get_org_store(
                     db_path=getattr(config, "org_db_path", None),
                 )
-            except Exception:
-                logger.debug("Org store init failed", exc_info=True)
+            except ImportError:
+                logger.debug("Org store unavailable (enterprise module not installed)")
+            except Exception as exc:
+                self.component_init_errors["org"] = f"{type(exc).__name__}: {exc}"
+                logger.error("Org store init failed", exc_info=True)
 
         # Fleet registry (enterprise deployment inventory)
         self.fleet_store = None
@@ -989,8 +996,11 @@ class CutctxProxy(
                 self.fleet_store = get_fleet_store(
                     db_path=getattr(config, "fleet_db_path", None),
                 )
-            except Exception:
-                logger.debug("Fleet store init failed", exc_info=True)
+            except ImportError:
+                logger.debug("Fleet store unavailable (enterprise module not installed)")
+            except Exception as exc:
+                self.component_init_errors["fleet"] = f"{type(exc).__name__}: {exc}"
+                logger.error("Fleet store init failed", exc_info=True)
 
         # SCIM provisioning store (enterprise identity sync)
         self.scim_store = None
@@ -1001,8 +1011,11 @@ class CutctxProxy(
                 self.scim_store = get_scim_store(
                     db_path=getattr(config, "scim_db_path", None),
                 )
-            except Exception:
-                logger.debug("SCIM store init failed", exc_info=True)
+            except ImportError:
+                logger.debug("SCIM store unavailable (enterprise module not installed)")
+            except Exception as exc:
+                self.component_init_errors["scim"] = f"{type(exc).__name__}: {exc}"
+                logger.error("SCIM store init failed", exc_info=True)
 
         # Traffic Learner (live pattern extraction from proxy traffic)
         # Only activates with --learn flag; requires --memory for backend
@@ -2911,6 +2924,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 initialized=memory_initialized,
                 native_tool=bool(memory_status.get("native_tool", False)),
                 bridge_enabled=bool(memory_status.get("bridge_enabled", False)),
+            ),
+            "component_initialization": _component_health(
+                enabled=True,
+                ready=not proxy.component_init_errors,
+                errors=dict(proxy.component_init_errors),
             ),
             "upstream": _component_health(
                 enabled=os.environ.get("CUTCTX_SKIP_UPSTREAM_CHECK", "").strip() != "1",
