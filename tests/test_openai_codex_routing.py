@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import anyio
 import pytest
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from cutctx.proxy.handlers.openai import (
     OpenAIHandlerMixin,
@@ -144,6 +144,9 @@ class _DummyMetrics:
 class _DummyTokenizer:
     def count_messages(self, messages):
         return len(messages)
+
+    def count_text(self, text):
+        return len(text)
 
 
 class _ResponseStub:
@@ -346,6 +349,61 @@ def test_handle_openai_responses_lite_uses_verified_preset_target(monkeypatch):
     assert body["reasoning"] == {"effort": "high"}
     assert "X-OpenAI-Internal-Codex-Responses-Lite" not in headers
     assert response.status_code == 200
+
+
+def test_handle_openai_responses_chatgpt_oversize_is_truncated_before_upstream(monkeypatch):
+    request = _build_request(
+        {"model": "gpt-5.6-terra", "input": "keep this conversation alive"},
+        {
+            "Authorization": "Bearer sk-test",
+            "ChatGPT-Account-ID": "acct-from-jwt",
+        },
+    )
+    handler = _DummyOpenAIHandler()
+
+    def _guard(payload, *, model):  # noqa: ARG001
+        if payload.get("input") == "shortened":
+            return False, 10, 100, 128_000
+        return True, 200_000, 100, 128_000
+
+    def _truncate(body, max_bytes, request_id):  # noqa: ARG001
+        return {"model": body["model"], "input": "shortened"}
+
+    handler._openai_responses_context_guard = _guard  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        "cutctx.proxy.handlers.openai.responses._truncate_body_for_chatgpt",
+        _truncate,
+    )
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+
+    response = anyio.run(handler.handle_openai_responses, request)
+
+    assert response.status_code == 200
+    assert handler.captured_request is not None
+    _, url, _, body = handler.captured_request
+    assert url == "https://chatgpt.com/backend-api/codex/responses"
+    assert body["input"] == "shortened"
+
+
+def test_handle_openai_responses_non_chatgpt_oversize_returns_413(monkeypatch):
+    request = _build_request(
+        {"model": "gpt-5.6-terra", "input": "keep this conversation alive"},
+        {"Authorization": "Bearer sk-test"},
+    )
+    handler = _DummyOpenAIHandler()
+
+    def _guard(payload, *, model):  # noqa: ARG001
+        return True, 200_000, 100, 128_000
+
+    handler._openai_responses_context_guard = _guard  # type: ignore[method-assign]
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+
+    with pytest.raises(HTTPException) as exc_info:
+        anyio.run(handler.handle_openai_responses, request)
+
+    assert exc_info.value.status_code == 413
+    assert handler.captured_request is None
+    assert exc_info.value.detail["error"]["type"] == "context_too_large"
 
 
 def test_handle_openai_responses_stream_skips_python_compression(monkeypatch):

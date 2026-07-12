@@ -2340,6 +2340,104 @@ class OpenAIResponsesMixin:
                     ", ".join(final_migrated_fields),
                 )
 
+        # The HTTP Responses path can still reach the upstream with a payload
+        # that is individually valid but too large for the model context
+        # window. That shows up to callers as an opaque upstream 400 / "Bad
+        # Request" after a proxy restart, because the session state the client
+        # is trying to continue is now sitting inside the request body itself.
+        #
+        # Apply the same guard the WS path uses before we hand the body to the
+        # backend. ChatGPT subscription traffic gets one last chance via the
+        # structural truncator; all other transports fail with a clear 413 so
+        # the client can compact context instead of starting a fresh thread.
+        _guard_model = str(body.get("model") or model or "unknown")
+        (
+            _guard_refuse,
+            _guard_estimated,
+            _guard_threshold,
+            _guard_limit,
+        ) = self._openai_responses_context_guard(body, model=_guard_model)
+        if _guard_refuse:
+            _CHATGPT_MAX_BODY_BYTES = 900 * 1024  # conservative chatgpt.com ceiling
+            if is_chatgpt_auth:
+                truncated_body = _truncate_body_for_chatgpt(
+                    body,
+                    _CHATGPT_MAX_BODY_BYTES,
+                    request_id,
+                )
+                (
+                    _retry_refuse,
+                    _retry_estimated,
+                    _retry_threshold,
+                    _retry_limit,
+                ) = self._openai_responses_context_guard(
+                    truncated_body,
+                    model=str(truncated_body.get("model") or _guard_model),
+                )
+                if not _retry_refuse:
+                    logger.warning(
+                        "[%s] /v1/responses context guard tripped on chatgpt.com "
+                        "(estimated_tokens=%d threshold=%d context_limit=%d model=%s) "
+                        "— applying emergency truncation to %d bytes and retrying",
+                        request_id,
+                        _guard_estimated,
+                        _guard_threshold,
+                        _guard_limit,
+                        _guard_model,
+                        _CHATGPT_MAX_BODY_BYTES,
+                    )
+                    body = truncated_body
+                else:
+                    logger.error(
+                        "[%s] /v1/responses context guard still tripped after "
+                        "chatgpt.com truncation (estimated_tokens=%d threshold=%d "
+                        "context_limit=%d retry_estimated_tokens=%d retry_threshold=%d "
+                        "retry_context_limit=%d model=%s)",
+                        request_id,
+                        _guard_estimated,
+                        _guard_threshold,
+                        _guard_limit,
+                        _retry_estimated,
+                        _retry_threshold,
+                        _retry_limit,
+                        _guard_model,
+                    )
+                    raise HTTPException(
+                        status_code=413,
+                        detail={
+                            "error": {
+                                "type": "context_too_large",
+                                "message": (
+                                    "cutctx: context too large for chatgpt.com even after "
+                                    "emergency truncation — compact context and retry."
+                                ),
+                            }
+                        },
+                    )
+            else:
+                logger.error(
+                    "[%s] /v1/responses refusing oversized payload after "
+                    "compression (estimated_tokens=%d threshold=%d context_limit=%d "
+                    "model=%s); returning HTTP 413 so the client can compact context "
+                    "and retry",
+                    request_id,
+                    _guard_estimated,
+                    _guard_threshold,
+                    _guard_limit,
+                    _guard_model,
+                )
+                raise HTTPException(
+                    status_code=413,
+                    detail={
+                        "error": {
+                            "type": "context_too_large",
+                            "message": (
+                                "cutctx: context too large — compact context and retry."
+                            ),
+                        }
+                    },
+                )
+
         capture_codex_wire_debug(
             "http_upstream_request",
             request_id=request_id,
