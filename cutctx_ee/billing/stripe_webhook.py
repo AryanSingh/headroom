@@ -176,8 +176,37 @@ def handle_subscription_deleted(event_data: dict[str, Any]) -> None:
     """Handle customer.subscription.deleted — deactivate license."""
     subscription = event_data["object"]
     sub_id = subscription["id"]
-    logger.info("Subscription deleted: %s", sub_id)
-    # License deactivation handled by license_db
+    if not _get_db().deactivate_subscription(sub_id):
+        logger.warning("Subscription %s: no license record found during cancellation", sub_id)
+        return
+    logger.info("Subscription deactivated: %s", sub_id)
+
+
+def handle_invoice_paid(event_data: dict[str, Any]) -> None:
+    """Extend the matching subscription to Stripe's paid-through timestamp."""
+    invoice = event_data["object"]
+    subscription_id = invoice.get("subscription")
+    if isinstance(subscription_id, dict):
+        subscription_id = subscription_id.get("id")
+    if not subscription_id:
+        raise ValueError("Paid invoice is missing a subscription ID")
+
+    period_end = invoice.get("period_end")
+    if period_end is None:
+        lines = invoice.get("lines", {}).get("data", [])
+        period_ends = [
+            item.get("period", {}).get("end")
+            for item in lines
+            if isinstance(item, dict) and isinstance(item.get("period"), dict)
+        ]
+        period_end = max((value for value in period_ends if value is not None), default=None)
+    if period_end is None:
+        raise ValueError("Paid invoice is missing a billing period end")
+
+    if not _get_db().extend_subscription(str(subscription_id), float(period_end)):
+        logger.warning("Subscription %s: no license record found during renewal", subscription_id)
+        return
+    logger.info("Subscription extended: %s through %s", subscription_id, period_end)
 
 
 def handle_subscription_updated(event_data: dict[str, Any]) -> None:
@@ -261,6 +290,7 @@ def handle_event(event: dict[str, Any]) -> dict[str, Any]:
         record = handle_checkout_completed(data)
         return {"ok": True, "license_key": record.license_key}
     elif event_type == "invoice.paid":
+        handle_invoice_paid(data)
         return {"ok": True, "action": "extended"}
     elif event_type == "customer.subscription.deleted":
         handle_subscription_deleted(data)

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import time
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -431,6 +431,43 @@ class TestStripeWebhook:
         result = handle_event({"type": "unknown.event", "data": {}})
         assert result["ok"] is True
         assert result["action"] == "ignored"
+
+    def test_handle_event_cancellation_deactivates_subscription(self):
+        from cutctx_ee.billing.stripe_webhook import handle_event
+
+        db = MagicMock()
+        db.deactivate_subscription.return_value = True
+        with patch("cutctx_ee.billing.stripe_webhook._get_db", return_value=db):
+            result = handle_event(
+                {
+                    "type": "customer.subscription.deleted",
+                    "data": {"object": {"id": "sub_cancelled"}},
+                }
+            )
+
+        db.deactivate_subscription.assert_called_once_with("sub_cancelled")
+        assert result == {"ok": True, "action": "deactivated"}
+
+    def test_handle_event_paid_invoice_extends_subscription(self):
+        from cutctx_ee.billing.stripe_webhook import handle_event
+
+        db = MagicMock()
+        db.extend_subscription.return_value = True
+        with patch("cutctx_ee.billing.stripe_webhook._get_db", return_value=db):
+            result = handle_event(
+                {
+                    "type": "invoice.paid",
+                    "data": {
+                        "object": {
+                            "subscription": "sub_renewed",
+                            "lines": {"data": [{"period": {"end": 1_800_000_000}}]},
+                        }
+                    },
+                }
+            )
+
+        db.extend_subscription.assert_called_once_with("sub_renewed", 1_800_000_000.0)
+        assert result == {"ok": True, "action": "extended"}
 
 
 # ─── pitchtoship_client ─────────────────────────────────────────────────

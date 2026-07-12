@@ -380,6 +380,55 @@ class TestLicenseDB:
             assert result["valid"] is False
             assert result["reason"] == "key_not_found"
 
+    def test_validate_rejects_revoked_license(self):
+        from cutctx.billing.license_db import LicenseDB
+        from cutctx.billing.stripe_webhook import LicenseRecord
+
+        with tempfile.NamedTemporaryFile(suffix=".db") as f:
+            db = LicenseDB(Path(f.name))
+            record = LicenseRecord(
+                license_key="team-revoked",
+                tier="team",
+                customer_email="test@test.com",
+                seats=5,
+                stripe_customer_id="cus_1",
+                stripe_subscription_id="sub_revoked",
+                created_at=time.time(),
+                expires_at=time.time() + 86400,
+                active=True,
+            )
+            db.upsert(record)
+            db.revoke_license(record.license_key, "chargeback")
+
+            assert db.validate(record.license_key) == {"valid": False, "reason": "revoked"}
+
+    def test_subscription_lifecycle_updates_license(self):
+        from cutctx.billing.license_db import LicenseDB
+        from cutctx.billing.stripe_webhook import LicenseRecord
+
+        with tempfile.NamedTemporaryFile(suffix=".db") as f:
+            db = LicenseDB(Path(f.name))
+            record = LicenseRecord(
+                license_key="team-lifecycle",
+                tier="team",
+                customer_email="test@test.com",
+                seats=5,
+                stripe_customer_id="cus_1",
+                stripe_subscription_id="sub_lifecycle",
+                created_at=time.time(),
+                expires_at=time.time() + 100,
+                active=True,
+            )
+            db.upsert(record)
+
+            assert db.deactivate_subscription("sub_lifecycle") is True
+            assert db.get(record.license_key).active == 0
+            renewed_until = time.time() + 86400
+            assert db.extend_subscription("sub_lifecycle", renewed_until) is True
+            renewed = db.get(record.license_key)
+            assert renewed.active == 1
+            assert renewed.expires_at == renewed_until
+
     def test_validate_expired(self):
         from cutctx.billing.license_db import LicenseDB
         from cutctx.billing.stripe_webhook import LicenseRecord
