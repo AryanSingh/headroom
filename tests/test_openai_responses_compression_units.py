@@ -95,7 +95,7 @@ def test_openai_responses_unit_cache_evicts_oldest_entry(monkeypatch):
     assert handler._get_openai_responses_cached_unit("second") is second
 
 
-def test_openai_responses_adapter_compresses_only_live_text_slots():
+def test_openai_responses_adapter_compresses_live_text_slots_and_latest_user_tail():
     router = ContentRouter()
 
     def compress(self, content: str, **_kwargs):
@@ -139,6 +139,52 @@ def test_openai_responses_adapter_compresses_only_live_text_slots():
     assert any(t.startswith("router:openai:responses:") for t in transforms)
     assert units_by_category == {"applied": 1}
     assert strategy_chain == []
+
+
+def test_openai_responses_adapter_keeps_earlier_user_history_frozen():
+    router = ContentRouter()
+
+    def compress(self, content: str, **_kwargs):
+        return RouterCompressionResult(
+            compressed="kept words",
+            original=content,
+            strategy_used=CompressionStrategy.KOMPRESS,
+        )
+
+    router.compress = MethodType(compress, router)
+    handler = _handler_with_router(router)
+    long_text = " ".join(f"word{i}" for i in range(180))
+    payload = {
+        "model": "gpt-5",
+        "input": [
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": long_text}],
+            },
+            {"type": "message", "role": "assistant", "content": "ok"},
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": long_text}],
+            },
+        ],
+    }
+
+    new_payload, modified, saved, transforms, reason, _bytes_before, _bytes_after, _attempted = (
+        handler._compress_openai_responses_payload(
+            payload,
+            model="gpt-5",
+            request_id="req_test",
+        )
+    )
+
+    assert modified is True
+    assert saved > 0
+    assert new_payload["input"][0]["content"][0]["text"] == long_text
+    assert new_payload["input"][2]["content"][0]["text"] == "kept words"
+    assert any(t.startswith("router:openai:responses:user_input:") for t in transforms)
+    assert reason is None
 
 
 def test_openai_responses_adapter_compresses_custom_tool_call_output():

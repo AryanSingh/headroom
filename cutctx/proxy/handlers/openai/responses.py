@@ -1538,6 +1538,28 @@ class OpenAIResponsesMixin:
         elif not modified:
             reason = "router_no_compression"
 
+        live_user_started = time.perf_counter()
+        (
+            live_user_payload,
+            live_user_modified,
+            live_user_saved,
+            live_user_transforms,
+            live_user_attempted_tokens,
+        ) = self._compress_openai_responses_latest_user_tail_with_router(
+            working,
+            model=model,
+            request_id=request_id,
+            question=None,
+            timing=timing,
+        )
+        _add_timing("compression_live_user_tail_total", live_user_started)
+        if live_user_modified:
+            working = live_user_payload
+            modified = True
+            reason = None
+            tokens_saved += int(live_user_saved)
+            transforms.extend(live_user_transforms)
+
         # Total tokens we *attempted* to compress on this pass:
         # router-fed unit tokens + the original (pre-compaction) tool
         # schema tokens we ran schema_compaction against. Excludes
@@ -1545,7 +1567,7 @@ class OpenAIResponsesMixin:
         # other prefix bytes we never tried to touch — those belong
         # to the prefix-cache denominator, not the active-compression
         # one.
-        attempted_input_tokens = int(router_attempted_tokens)
+        attempted_input_tokens = int(router_attempted_tokens) + int(live_user_attempted_tokens)
         if tools_modified:
             try:
                 attempted_token_started = time.perf_counter()
@@ -1674,6 +1696,152 @@ class OpenAIResponsesMixin:
         if len(result) == 8:
             return (*result, timing)
         return result
+
+    def _compress_openai_responses_latest_user_tail_with_router(
+        self,
+        payload: dict[str, Any],
+        *,
+        model: str,
+        request_id: str,
+        question: str | None = None,
+        timing: dict[str, float] | None = None,
+    ) -> tuple[dict[str, Any], bool, int, list[str], int]:
+        """Compress the latest user turn only."""
+
+        debug_enabled = _codex_compression_debug_enabled()
+        timing_sink: dict[str, float] = timing if timing is not None else {}
+
+        def _add_timing(name: str, started_at: float) -> None:
+            timing_sink[name] = (
+                timing_sink.get(name, 0.0) + (time.perf_counter() - started_at) * 1000.0
+            )
+
+        input_data = payload.get("input")
+        if not isinstance(input_data, (str, list)):
+            return payload, False, 0, [], 0
+
+        latest_user_index: int | None = None
+        latest_user_block_index: int | None = None
+        original_text: str | None = None
+        is_string_input = isinstance(input_data, str)
+
+        if is_string_input:
+            original_text = input_data
+        else:
+            for item_index in range(len(input_data) - 1, -1, -1):
+                item = input_data[item_index]
+                if not isinstance(item, dict) or item.get("role") != "user":
+                    continue
+                if "cache_control" in item:
+                    continue
+                content = item.get("content")
+                if isinstance(content, str) and content.strip():
+                    latest_user_index = item_index
+                    original_text = content
+                    break
+                if isinstance(content, list):
+                    for block_index, block in enumerate(content):
+                        if not isinstance(block, dict) or "cache_control" in block:
+                            continue
+                        if block.get("type") not in {"input_text", "text"}:
+                            continue
+                        block_text = block.get("text")
+                        if isinstance(block_text, str) and block_text.strip():
+                            latest_user_index = item_index
+                            latest_user_block_index = block_index
+                            original_text = block_text
+                            break
+                    if original_text is not None:
+                        break
+
+        if original_text is None or not original_text.strip():
+            return payload, False, 0, [], 0
+
+        try:
+            tokenizer = self.openai_provider.get_token_counter(model)
+        except Exception as exc:
+            logger.debug(
+                "[%s] OpenAI Responses live user-tail tokenizer unavailable: %s",
+                request_id,
+                exc,
+            )
+            return payload, False, 0, [], 0
+
+        if len(original_text.encode("utf-8", errors="replace")) < self.OPENAI_RESPONSES_ROUTER_MIN_BYTES:
+            return payload, False, 0, [], 0
+
+        try:
+            from cutctx.transforms.compression_units import find_content_router
+        except Exception as exc:
+            logger.debug(
+                "[%s] OpenAI Responses live user-tail adapter unavailable: %s",
+                request_id,
+                exc,
+            )
+            return payload, False, 0, [], 0
+
+        router = find_content_router(self.openai_pipeline)
+        if router is None:
+            logger.debug("[%s] OpenAI Responses live user-tail router unavailable", request_id)
+            return payload, False, 0, [], 0
+
+        user_question = question or original_text
+        started = time.perf_counter()
+        try:
+            router_result = router.compress(original_text, question=user_question, bias=1.0)
+        except Exception as exc:
+            logger.debug(
+                "[%s] OpenAI Responses live user-tail compression failed: %s",
+                request_id,
+                exc,
+            )
+            return payload, False, 0, [], 0
+        finally:
+            _add_timing("compression_live_user_tail_router", started)
+
+        replacement = router_result.compressed
+        if replacement == original_text:
+            tokens_before = tokenizer.count_text(original_text)
+            return payload, False, 0, [], tokens_before
+
+        tokens_before = tokenizer.count_text(original_text)
+        tokens_after = tokenizer.count_text(replacement)
+        if tokens_after >= tokens_before:
+            return payload, False, 0, [], tokens_before
+
+        if is_string_input:
+            payload["input"] = replacement
+        else:
+            assert latest_user_index is not None
+            user_item = dict(input_data[latest_user_index])
+            content = user_item.get("content")
+            if isinstance(content, str):
+                user_item["content"] = replacement
+            elif isinstance(content, list) and latest_user_block_index is not None:
+                updated_blocks = list(content)
+                block = dict(updated_blocks[latest_user_block_index])
+                block["text"] = replacement
+                updated_blocks[latest_user_block_index] = block
+                user_item["content"] = updated_blocks
+            else:
+                return payload, False, 0, [], 0
+            updated_input = list(input_data)
+            updated_input[latest_user_index] = user_item
+            payload["input"] = updated_input
+
+        strategy = router_result.strategy_used.value
+        if debug_enabled:
+            logger.info(
+                "[%s] /v1/responses live user-tail compressed %d→%d tokens (strategy=%s)",
+                request_id,
+                tokens_before,
+                tokens_after,
+                strategy,
+            )
+        return payload, True, tokens_before - tokens_after, [
+            f"router:openai:responses:user_input:{strategy}",
+            strategy,
+        ], tokens_before
 
     async def handle_openai_responses(
         self,
