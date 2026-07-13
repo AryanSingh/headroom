@@ -295,7 +295,9 @@ jobs:
           SITE="$(python -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
           cp "${SITE}/cutctx/"_core*.so cutctx/
       - name: pip-audit
-        run: pip-audit --strict
+        # cutctx-ai is the local editable project and is intentionally not
+        # published to PyPI; audit all third-party distributions strictly.
+        run: pip-audit --strict --skip-editable
 
   test-extras:
     needs: [changes, build-wheel]
