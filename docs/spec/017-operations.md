@@ -6,7 +6,9 @@
 
 ### `GET /health`
 
-Basic health check. Returns 200 if process is running.
+Aggregate public health check. Returns 200 when the proxy is ready and 503
+when a required subsystem or upstream check is unhealthy. Public health
+responses deliberately omit provider URLs and raw transport errors.
 
 ```bash
 curl http://localhost:8787/health
@@ -15,10 +17,17 @@ curl http://localhost:8787/health
 **Response:**
 ```json
 {
+  "service": "cutctx-proxy",
   "status": "healthy",
-  "version": "1.0.0"
+  "ready": true,
+  "alive": true,
+  "version": "0.31.0"
 }
 ```
+
+Use authenticated `GET /health/config` for operator-only configuration and
+upstream diagnostics. Do not expose that route through an unauthenticated
+ingress.
 
 ---
 

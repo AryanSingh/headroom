@@ -126,15 +126,16 @@ curl http://localhost:8787/health
 
 ```json
 {
+  "service": "cutctx-proxy",
   "status": "healthy",
-  "optimize": true,
-  "stats": {
-    "total_requests": 42,
-    "tokens_saved": 15000,
-    "savings_percent": 45.2
-  }
+  "ready": true,
+  "alive": true
 }
 ```
+
+This public probe intentionally omits provider URLs, raw connection errors,
+and configuration. Operators with admin authentication can use
+`GET /health/config` for those diagnostics.
 
 ### `GET /stats`
 
