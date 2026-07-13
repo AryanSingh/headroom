@@ -137,6 +137,38 @@ def get_portal_url(email: str) -> str:
         logger.warning("No email provided for portal URL")
         return f"{PITCHTOSHIP_BASE_URL}/billing"
 
+    secret = os.environ.get("STRIPE_SECRET_KEY")
+    if secret:
+        try:
+            customers = httpx.get(
+                "https://api.stripe.com/v1/customers",
+                params={"email": email.strip(), "limit": 1},
+                auth=(secret, ""),
+                timeout=10.0,
+            )
+            customers.raise_for_status()
+            records = customers.json().get("data", [])
+            customer_id = records[0].get("id") if records else None
+            if customer_id:
+                response = httpx.post(
+                    "https://api.stripe.com/v1/billing_portal/sessions",
+                    data={
+                        "customer": customer_id,
+                        "return_url": os.environ.get(
+                            "CUTCTX_STRIPE_PORTAL_RETURN_URL", "https://cutctx.com/billing"
+                        ),
+                    },
+                    auth=(secret, ""),
+                    timeout=10.0,
+                )
+                response.raise_for_status()
+                url = response.json().get("url")
+                if isinstance(url, str) and url.startswith("https://billing.stripe.com/"):
+                    return url
+            logger.warning("No Stripe customer found for billing portal email")
+        except Exception as e:
+            logger.warning("Direct Stripe billing portal failed: %s", e)
+
     api_url = f"{PITCHTOSHIP_BASE_URL}/api/billing/portal"
     payload = {"email": email.strip()}
 
