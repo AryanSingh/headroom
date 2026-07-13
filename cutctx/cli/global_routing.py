@@ -190,7 +190,13 @@ def _restore_launchagent(content: bytes | None) -> None:
     path = _launchagent_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
-    _bootstrap_launchagent()
+    # Restoring the on-disk agent is the rollback invariant.  A failed
+    # bootstrap must not erase that restoration or mask the original error;
+    # the next explicit `global doctor`/install can retry loading it.
+    try:
+        _bootstrap_launchagent()
+    except Exception:
+        pass
 
 
 def _health_url(port: int) -> str:
