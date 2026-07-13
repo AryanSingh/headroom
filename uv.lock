@@ -1285,6 +1285,7 @@ dev = [
     { name = "sentence-transformers" },
     { name = "sqlalchemy" },
     { name = "sqlite-vec" },
+    { name = "tree-sitter-language-pack" },
     { name = "uvicorn" },
     { name = "websockets" },
 ]
@@ -1565,6 +1566,7 @@ requires-dist = [
     { name = "transformers", marker = "extra == 'ml'", specifier = ">=4.30.0,<6.0" },
     { name = "transformers", marker = "extra == 'voice'", specifier = ">=4.30.0,<6.0" },
     { name = "tree-sitter-language-pack", marker = "extra == 'code'", specifier = ">=0.10.0" },
+    { name = "tree-sitter-language-pack", marker = "extra == 'dev'", specifier = ">=0.10.0" },
     { name = "usearch", marker = "extra == 'memory'", specifier = ">=2.10.0" },
     { name = "uvicorn", specifier = ">=0.23.0,<1.0" },
     { name = "uvicorn", marker = "extra == 'dev'", specifier = ">=0.23.0,<1.0" },
