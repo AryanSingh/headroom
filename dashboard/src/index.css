@@ -637,20 +637,22 @@ pre {
 .skip-link {
   position: fixed;
   top: var(--space-md);
-  left: var(--space-md);
+  left: 50%;
   z-index: 1000;
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   background: var(--accent);
   color: #fff;
   font-weight: 700;
-  transform: translateY(-200%);
+  /* Keep the focused link away from the mobile sidebar toggle in the
+     top-left corner; it must remain usable with either keyboard or pointer. */
+  transform: translate(-50%, -200%);
   pointer-events: none;
   transition: transform 0.15s ease;
 }
 
 .skip-link:focus-visible {
-  transform: translateY(0);
+  transform: translate(-50%, 0);
   pointer-events: auto;
   outline: 3px solid var(--focus-ring);
   outline-offset: 3px;

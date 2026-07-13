@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
@@ -19,6 +20,14 @@ _SCHEMA_VERSION = 1
 
 class SQLiteStorage(Storage):
     """SQLite-based metrics storage."""
+
+    # SQLite permits one writer at a time.  WAL keeps readers concurrent, but
+    # independently-created storage instances can otherwise race while they
+    # initialise the schema or commit a short write in the same process.
+    # Serialise those local writes and retain SQLite's busy timeout for other
+    # processes sharing the database file.
+    _write_lock = threading.RLock()
+    _busy_timeout_ms = 30_000
 
     def __init__(self, db_path: str):
         """
@@ -36,11 +45,13 @@ class SQLiteStorage(Storage):
         path = Path(self.db_path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=self._busy_timeout_ms / 1000)
         try:
-            conn.execute("PRAGMA journal_mode=WAL")
-            cursor = conn.cursor()
-            cursor.execute("""
+            with self._write_lock:
+                conn.execute(f"PRAGMA busy_timeout={self._busy_timeout_ms}")
+                conn.execute("PRAGMA journal_mode=WAL")
+                cursor = conn.cursor()
+                cursor.execute("""
                 CREATE TABLE IF NOT EXISTS requests (
                     id TEXT PRIMARY KEY,
                     timestamp TEXT NOT NULL,
@@ -61,30 +72,34 @@ class SQLiteStorage(Storage):
                     messages_hash TEXT,
                     error TEXT
                 )
-            """)
+                """)
 
-            # Create indices
-            cursor.execute("""
+                # Create indices
+                cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_timestamp ON requests(timestamp)
-            """)
-            cursor.execute("""
+                """)
+                cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_model ON requests(model)
-            """)
-            cursor.execute("""
+                """)
+                cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_mode ON requests(mode)
-            """)
+                """)
 
-            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="metrics storage")
+                stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="metrics storage")
 
-            conn.commit()
+                conn.commit()
         finally:
             conn.close()
 
     def _get_conn(self) -> sqlite3.Connection:
         """Get or create connection."""
         if self._conn is None:
-            self._conn = sqlite3.connect(self.db_path)
+            self._conn = sqlite3.connect(
+                self.db_path,
+                timeout=self._busy_timeout_ms / 1000,
+            )
             self._conn.row_factory = sqlite3.Row
+            self._conn.execute(f"PRAGMA busy_timeout={self._busy_timeout_ms}")
             self._conn.execute("PRAGMA journal_mode=WAL")
         return self._conn
 
@@ -93,8 +108,9 @@ class SQLiteStorage(Storage):
         conn = self._get_conn()
         cursor = conn.cursor()
 
-        cursor.execute(
-            """
+        with self._write_lock:
+            cursor.execute(
+                """
             INSERT OR REPLACE INTO requests (
                 id, timestamp, model, stream, mode,
                 tokens_input_before, tokens_input_after, tokens_output,
@@ -103,29 +119,29 @@ class SQLiteStorage(Storage):
                 transforms_applied, tool_units_dropped, turns_dropped,
                 messages_hash, error
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                metrics.request_id,
-                format_timestamp(metrics.timestamp),
-                metrics.model,
-                1 if metrics.stream else 0,
-                metrics.mode,
-                metrics.tokens_input_before,
-                metrics.tokens_input_after,
-                metrics.tokens_output,
-                json.dumps(metrics.block_breakdown),
-                json.dumps(metrics.waste_signals),
-                metrics.stable_prefix_hash,
-                metrics.cache_alignment_score,
-                metrics.cached_tokens,
-                json.dumps(metrics.transforms_applied),
-                metrics.tool_units_dropped,
-                metrics.turns_dropped,
-                metrics.messages_hash,
-                metrics.error,
-            ),
-        )
-        conn.commit()
+                """,
+                (
+                    metrics.request_id,
+                    format_timestamp(metrics.timestamp),
+                    metrics.model,
+                    1 if metrics.stream else 0,
+                    metrics.mode,
+                    metrics.tokens_input_before,
+                    metrics.tokens_input_after,
+                    metrics.tokens_output,
+                    json.dumps(metrics.block_breakdown),
+                    json.dumps(metrics.waste_signals),
+                    metrics.stable_prefix_hash,
+                    metrics.cache_alignment_score,
+                    metrics.cached_tokens,
+                    json.dumps(metrics.transforms_applied),
+                    metrics.tool_units_dropped,
+                    metrics.turns_dropped,
+                    metrics.messages_hash,
+                    metrics.error,
+                ),
+            )
+            conn.commit()
 
     def get(self, request_id: str) -> RequestMetrics | None:
         """Get metrics by request ID."""

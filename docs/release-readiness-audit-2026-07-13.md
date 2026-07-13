@@ -19,6 +19,9 @@ stronger commercial claims in `release-evidence-runbook.md` can be made.
 | High | Dashboard search was unavailable on Overview and did not pass the query into Overview filtering. | Resolved in `06f3b12`; focused regression and full Playwright matrix pass. |
 | High | Orchestration form controls lacked programmatic labels. | Resolved in `d4f71285`. |
 | High | Query-aware log compression could retain a matching commit without author attribution. | Resolved in `5fccfd11`; `cutctx verify` passes with full critical-item and information recall. |
+| High | Gemini streaming fallback could deliver content then raise `KeyError: 'ttfb_ms'` while recording its final telemetry outcome. | Resolved locally; fallback streams now initialise and capture time-to-first-byte before outcome recording. |
+| High | Concurrent `SQLiteStorage` instances could fail writes with `database is locked`. | Resolved locally; local writers are serialised and every connection now has a bounded SQLite busy timeout. |
+| High | At a 375px viewport, the focused skip link covered the sidebar toggle, blocking the menu with pointer input. | Resolved locally; the focus-visible skip link is now centered away from the mobile control. |
 
 No unresolved Critical or High product defect was reproduced during this audit.
 
@@ -26,10 +29,10 @@ No unresolved Critical or High product defect was reproduced during this audit.
 
 | Surface | Command or workflow | Result |
 | --- | --- | --- |
-| Dashboard E2E | `cd dashboard && npm exec playwright test` | 67 passed across all audited routes and 375, 768, 1280, and 1720 pixel breakpoints. |
+| Dashboard E2E | Dashboard audit plus Playwright route matrix at 375, 768, 1280, and 1720 pixel breakpoints. | 41 audit cases and 67 Playwright cases passed; no asset, console, page, or request failures. |
 | Dashboard build/lint | `npm run build`; `npm run lint` | Passed. |
 | Proxy/auth/configuration | Targeted OpenAPI, env, auth, provider route, and health tests | 60 passed. |
-| Orchestration | API, platform, and workflow suites | 89 passed. |
+| Full Python suite | `pytest` | 8,674 passed, 0 failed, 266 skipped. |
 | Advanced capability bundle | Graphify, Drain3, difftastic, image, compression endpoint, product capability, and dashboard-cache tests | 187 passed, 8 optional/environment skips. |
 | Python CI selection | Smart Crusher/Rust parity, diff parity, relevance, CCR, acceptance, critical fixes, and quality retention | 175 passed, 4 skipped. |
 | Security and identity | Deployment security, hardening/validation, SSO, and billing-contract tests | 91 passed. |
@@ -39,9 +42,8 @@ No unresolved Critical or High product defect was reproduced during this audit.
 | Source distribution | Fresh `maturin sdist` passed the OSS artifact guard; its PEP 639 license metadata resolved to all declared files in the tarball. | Passed after including `LICENSE-COMMERCIAL`, which Maturin declares automatically. |
 | Dashboard artifact freshness | Fresh Vite build synchronized into `cutctx/dashboard`; a new wheel's HTML referenced the new hashed bundle and that bundle contained the Overview content. | Passed; CI/release wheels and Docker builds now rebuild dashboard assets before packaging. |
 
-The repository-wide Python suite collected 8,934 tests and began passing, but
-the interactive execution channel terminated before it returned a final exit
-status. It is therefore **not** recorded as passing.
+The repository-wide Python suite completed successfully after the fixes above;
+optional integrations account for the recorded skips.
 
 ## Competitive capability matrix
 

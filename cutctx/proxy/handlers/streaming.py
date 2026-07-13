@@ -2394,6 +2394,12 @@ class StreamingMixin:
 
         async def generate():
             stream_state: dict[str, Any] = {
+                # Keep the fallback stream telemetry contract aligned with
+                # `_stream_openai_via_backend`: a successful first chunk is
+                # the authoritative time-to-first-byte.  Without this entry,
+                # the final outcome recording raised KeyError after Gemini had
+                # already yielded its fallback response to the caller.
+                "ttfb_ms": None,
                 "input_tokens": None,
                 "output_tokens": None,
                 "cache_read_input_tokens": None,
@@ -2418,6 +2424,8 @@ class StreamingMixin:
 
             try:
                 async for sse_chunk in backend.stream_openai_message(body, headers):
+                    if stream_state["ttfb_ms"] is None:
+                        stream_state["ttfb_ms"] = (time.time() - start_time) * 1000
                     chunk_bytes = sse_chunk.encode() if isinstance(sse_chunk, str) else sse_chunk
                     parsed_events = _iter_openai_sse_json_events(chunk_bytes)
                     emitted = False

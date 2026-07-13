@@ -220,10 +220,11 @@ def test_dashboard_audit_matrix(audit_page) -> None:  # type: ignore[no-untyped-
         expect(page.get_by_text("Image attached")).to_be_visible()
 
     if route == "/":
-        # Overview likewise has no global filter; its request and source cards
-        # are summaries rather than search results.
-        search = page.locator('input[placeholder="Search unavailable"]')
-        expect(search).to_be_disabled()
+        # Overview's dashboard-wide search filters its summary panels.  This
+        # assertion deliberately checks the enabled control; a prior audit
+        # expectation for a disabled affordance became stale when Overview
+        # search support was implemented.
+        expect(page.get_by_role("textbox", name="Search")).to_be_visible()
 
     if width <= 1024:
         toggle = page.get_by_role("button", name="Toggle sidebar")
