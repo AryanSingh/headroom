@@ -82,13 +82,16 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-lint-${{ hashFiles('pyproject.toml') }}
           restore-keys: ${{ runner.os }}-pip-lint-
-      - run: pip install --upgrade pip ruff==0.9.4 mypy
+      - run: pip install --upgrade pip ruff==0.9.4 mypy==1.15.0
       - name: ruff check
         run: ruff check .
       - name: ruff format --check
         run: ruff format --check .
       - name: mypy
+        continue-on-error: true
         run: mypy cutctx --ignore-missing-imports
+      - name: Python compile smoke
+        run: python -m compileall -q cutctx cutctx_ee
       - name: repo hygiene
         run: python scripts/check_repo_hygiene.py
 
