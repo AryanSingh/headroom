@@ -36,6 +36,7 @@ _STOP = {
     "who",
     "why",
 }
+_GIT_COMMIT_START = re.compile(r"(?m)^commit \S+(?:\s|$)")
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,9 @@ class QueryAwareProseCompressor:
 
     def compress(self, content: str, context: str = "") -> ProseCompressionResult:
         query_terms = _terms(context)
+        git_log_result = self._compress_git_log(content, query_terms)
+        if git_log_result is not None:
+            return git_log_result
         paragraphs = [part.strip() for part in re.split(r"\n\s*\n", content) if part.strip()]
         units: list[tuple[str, bool]] = []
         for paragraph in paragraphs:
@@ -118,6 +122,40 @@ class QueryAwareProseCompressor:
             original=content,
             original_sentences=sentence_count,
             retained_sentences=sum(not units[index][1] for index in keep),
+            compression_ratio=ratio,
+        )
+
+    def _compress_git_log(
+        self, content: str, query_terms: set[str]
+    ) -> ProseCompressionResult | None:
+        """Select the relevant commit while preserving its attribution.
+
+        A git log is line-oriented metadata, not ordinary prose. Selecting
+        only the subject can discard the ``Author:`` line that answers common
+        audit and incident questions, so retain the entire matching commit.
+        """
+        starts = list(_GIT_COMMIT_START.finditer(content))
+        if not query_terms or len(starts) < 2 or "\nAuthor:" not in content:
+            return None
+
+        commits = [
+            content[start.start() : starts[index + 1].start() if index + 1 < len(starts) else len(content)].strip()
+            for index, start in enumerate(starts)
+        ]
+        scored = [(len(_terms(commit) & query_terms), index) for index, commit in enumerate(commits)]
+        best_score, best_index = max(scored)
+        if best_score <= 0:
+            return self._unchanged(content, len(commits))
+
+        compressed = commits[best_index]
+        ratio = len(compressed) / max(len(content), 1)
+        if ratio >= 0.90:
+            return self._unchanged(content, len(commits))
+        return ProseCompressionResult(
+            compressed=compressed,
+            original=content,
+            original_sentences=len(commits),
+            retained_sentences=1,
             compression_ratio=ratio,
         )
 
