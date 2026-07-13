@@ -333,6 +333,7 @@ def _ensure_codex_provider(path: Path, port: int) -> None:
     block = (
         f"{_CODEX_PROVIDER_MARKER_START}\n"
         f'openai_base_url = "http://127.0.0.1:{port}/v1"\n'
+        "supports_websockets = true\n"
         f"{_CODEX_PROVIDER_MARKER_END}"
     )
     content = path.read_text(encoding="utf-8") if path.exists() else ""
@@ -345,6 +346,11 @@ def _ensure_codex_provider(path: Path, port: int) -> None:
         content,
     )
     content = re.sub(r"(?m)^[ \t]*openai_base_url[ \t]*=.*\r?\n", "", content)
+    content = re.sub(
+        r"(?m)^[ \t]*supports_websockets[ \t]*=[ \t]*(true|false)[ \t]*\r?\n",
+        "",
+        content,
+    )
     # The provider block carries top-level keys (model_provider, openai_base_url),
     # so it must land at the document root rather than after a trailing table (#260).
     content = _replace_marker_block(
