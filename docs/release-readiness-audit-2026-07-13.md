@@ -23,6 +23,7 @@ stronger commercial claims in `release-evidence-runbook.md` can be made.
 | High | Concurrent `SQLiteStorage` instances could fail writes with `database is locked`. | Resolved locally; local writers are serialised and every connection now has a bounded SQLite busy timeout. |
 | High | At a 375px viewport, the focused skip link covered the sidebar toggle, blocking the menu with pointer input. | Resolved locally; the focus-visible skip link is now centered away from the mobile control. |
 | High | The documented OSS Docker proxy image exited at startup when `cutctx_ee` was absent because it unconditionally imported commercial entitlements. | Resolved in `987a55b`; OSS now starts with fail-closed Builder-tier entitlement gates while commercial installs retain their checker. |
+| High | `CUTCTX_TARGET_RATIO` was exposed as the effective proxy setting but was not forwarded to automatic OpenAI Chat compression, so runtime behavior could ignore the configured savings target. | Resolved in `a2e0109`; a regression test verifies that the effective target ratio reaches the OpenAI pipeline. |
 
 No unresolved Critical or High product defect was reproduced during this audit.
 
