@@ -862,7 +862,9 @@ _CODEX_END_MARKER = "# --- end Cutctx ---"
 _CODEX_MCP_MARKER = "# --- Cutctx MCP server ---"
 _CODEX_MCP_END = "# --- end Cutctx MCP server ---"
 _CODEX_PROVIDER_NAME = "cutctx"
-_CODEX_PROVIDER_ALIASES = ("cutctx", "cutctx")
+_CODEX_PROVIDER_ALIASES = ("cutctx",)
+_CODEX_PROVIDER_MARKER = "# --- Cutctx provider table ---"
+_CODEX_PROVIDER_END = "# --- end Cutctx provider table ---"
 # File name used for the pre-wrap snapshot of the Codex config file.  The
 # snapshot lets `cutctx unwrap codex` restore the exact prior state, even
 # if the user had their own `model_provider` / `[model_providers.*]` config
@@ -909,6 +911,7 @@ def _strip_codex_cutctx_blocks(content: str, *, remove_mcp: bool = False) -> str
 
     # Remove any top-level-marker → end-marker span, possibly repeated.
     content = _remove_marker_span(content, _CODEX_TOP_LEVEL_MARKER, _CODEX_END_MARKER)
+    content = _remove_marker_span(content, _CODEX_PROVIDER_MARKER, _CODEX_PROVIDER_END)
 
     if remove_mcp:
         # Remove Cutctx-managed MCP blocks written by `wrap codex`.
@@ -1081,6 +1084,8 @@ def _inject_codex_provider_config(port: int) -> None:
     top_level_block = (
         f"{_CODEX_TOP_LEVEL_MARKER}\n"
         f'openai_base_url = "http://127.0.0.1:{port}/v1"\n'
+        f'base_url = "http://127.0.0.1:{port}/v1"\n'
+        "supports_websockets = true\n"
         # Per-project savings: Codex sends the header only when the mapped
         # env var (CUTCTX_PROJECT, set by `cutctx wrap codex`) exists at
         # Codex runtime.  Inline table keeps the key inside this section so
