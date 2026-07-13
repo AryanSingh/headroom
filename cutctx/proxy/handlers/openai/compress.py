@@ -23,6 +23,13 @@ class OpenAICompressMixin:
 
         from cutctx.proxy.helpers import _read_request_json
 
+        # Keep the compression response, request logger, and trace inspector on
+        # one stable identifier. Runtime requests normally receive this from
+        # middleware; generate one for direct/unit handler invocation too.
+        request_id = getattr(getattr(request, "state", None), "cutctx_request_id", None)
+        if not request_id:
+            request_id = await self._next_request_id()
+
         # Bypass keeps the endpoint useful as a pure pass-through shaping surface.
         if request.headers.get("x-cutctx-bypass", "").lower() == "true":
             try:
@@ -36,6 +43,7 @@ class OpenAICompressMixin:
             messages = body.get("messages", [])
             return JSONResponse(
                 {
+                    "request_id": request_id,
                     "messages": messages,
                     "tokens_before": 0,
                     "tokens_after": 0,
@@ -105,6 +113,7 @@ class OpenAICompressMixin:
         if not messages:
             return JSONResponse(
                 {
+                    "request_id": request_id,
                     "messages": [],
                     "tokens_before": 0,
                     "tokens_after": 0,
@@ -308,6 +317,7 @@ class OpenAICompressMixin:
                 )
 
             response_payload = {
+                "request_id": request_id,
                 "messages": result.messages,
                 "tokens_before": total_tokens_before,
                 "tokens_after": total_tokens_after,
@@ -336,7 +346,7 @@ class OpenAICompressMixin:
 
             await self._record_request_outcome(
                 RequestOutcome(
-                    request_id=await self._next_request_id(),
+                    request_id=request_id,
                     provider="compress",
                     model=model,
                     original_tokens=total_tokens_before,

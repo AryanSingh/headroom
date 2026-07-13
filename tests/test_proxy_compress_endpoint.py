@@ -92,6 +92,7 @@ class TestCompressEndpointBasic:
         )
         assert response.status_code == 200
         data = response.json()
+        assert isinstance(data["request_id"], str) and data["request_id"]
         assert data["messages"] == []
         assert data["tokens_before"] == 0
         assert data["tokens_after"] == 0
@@ -112,6 +113,7 @@ class TestCompressEndpointBasic:
         assert response.status_code == 200
         data = response.json()
         for key in (
+            "request_id",
             "messages",
             "tokens_before",
             "tokens_after",
