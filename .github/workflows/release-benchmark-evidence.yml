@@ -25,12 +25,12 @@ jobs:
       - uses: astral-sh/setup-uv@v3
       - run: uv sync --extra dev
       - run: uv run pytest tests/test_release_manifest.py tests/test_release_bundle.py tests/test_typescript_hosted_smoke_runner.py tests/test_evals_benchmark.py tests/test_benchmark_docs.py -q
+      - run: uv run python scripts/generate_benchmark_release_manifest.py
       - run: >-
           uv run python -m cutctx.cli.main evals benchmark
           -d code_samples -d rag_samples -d mixed_agent_traces
           -c raw_passthrough --parallel 1 --seed 42 --markdown
           --output artifacts/raw-passthrough-benchmark.json
-      - run: uv run python scripts/generate_benchmark_release_manifest.py
       - run: uv run python scripts/generate_benchmark_release_bundle.py
       - run: uv run python scripts/evaluate_release_evidence.py
       - run: uv run python -m cutctx.cli.main verify --ci --format json -o artifacts/verify-report-release.json

@@ -224,9 +224,7 @@ class BenchmarkSuiteResult:
         lookup: dict[tuple[str, str], CompressorBenchmarkResult] = {
             (r.dataset, r.compressor): r for r in self.results
         }
-        headers = ["Dataset", "N"] + [
-            COMPRESSOR_DISPLAY_NAMES.get(c, c) for c in self.compressors
-        ]
+        headers = ["Dataset", "N"] + [COMPRESSOR_DISPLAY_NAMES.get(c, c) for c in self.compressors]
 
         rows = ["<table>", "<thead>", "<tr>"]
         rows.extend(f"<th>{header}</th>" for header in headers)
@@ -272,7 +270,9 @@ class BenchmarkSuiteResult:
         for ds in self.datasets:
             row = [ds, str(_dataset_n(lookup, ds))]
             baseline_row = lookup.get((ds, baseline))
-            baseline_value = _metric_value(baseline_row, metric) if baseline_row is not None else None
+            baseline_value = (
+                _metric_value(baseline_row, metric) if baseline_row is not None else None
+            )
             for compressor in self.compressors:
                 result = lookup.get((ds, compressor))
                 row.append(_format_relative_metric_cell(result, metric, baseline_value))
@@ -291,9 +291,7 @@ class BenchmarkSuiteResult:
         lookup: dict[tuple[str, str], CompressorBenchmarkResult] = {
             (r.dataset, r.compressor): r for r in self.results
         }
-        headers = ["Dataset", "N"] + [
-            COMPRESSOR_DISPLAY_NAMES.get(c, c) for c in self.compressors
-        ]
+        headers = ["Dataset", "N"] + [COMPRESSOR_DISPLAY_NAMES.get(c, c) for c in self.compressors]
 
         rows = ["<table>", "<thead>", "<tr>"]
         rows.extend(f"<th>{header}</th>" for header in headers)
@@ -304,10 +302,14 @@ class BenchmarkSuiteResult:
             rows.append(f"<td>{ds}</td>")
             rows.append(f"<td>{_dataset_n(lookup, ds)}</td>")
             baseline_row = lookup.get((ds, baseline))
-            baseline_value = _metric_value(baseline_row, metric) if baseline_row is not None else None
+            baseline_value = (
+                _metric_value(baseline_row, metric) if baseline_row is not None else None
+            )
             for compressor in self.compressors:
                 result = lookup.get((ds, compressor))
-                rows.append(f"<td>{_format_relative_metric_cell(result, metric, baseline_value)}</td>")
+                rows.append(
+                    f"<td>{_format_relative_metric_cell(result, metric, baseline_value)}</td>"
+                )
             rows.append("</tr>")
 
         rows.extend(["</tbody>", "</table>"])
@@ -364,7 +366,7 @@ def _metric_value(result: CompressorBenchmarkResult | None, metric: str) -> floa
     if result is None or result.skipped:
         return None
     value = getattr(result, metric, None)
-    return value if isinstance(value, (int, float)) else None
+    return value if isinstance(value, int | float) else None
 
 
 def _format_relative_metric_cell(

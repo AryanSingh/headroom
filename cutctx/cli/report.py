@@ -238,9 +238,7 @@ def _collect_request_telemetry(days: int) -> dict[str, Any]:
         fallback = row.get("fallback")
         if isinstance(fallback, dict):
             fallback_provider = str(fallback.get("provider") or "unknown")
-            fallback_providers[fallback_provider] = (
-                fallback_providers.get(fallback_provider, 0) + 1
-            )
+            fallback_providers[fallback_provider] = fallback_providers.get(fallback_provider, 0) + 1
             fallback_reason = str(fallback.get("reason") or "unknown")
             fallback_reasons[fallback_reason] = fallback_reasons.get(fallback_reason, 0) + 1
 
@@ -249,11 +247,11 @@ def _collect_request_telemetry(days: int) -> dict[str, Any]:
             decline_reasons[decline_reason] = decline_reasons.get(decline_reason, 0) + 1
 
         total_latency = row.get("total_latency_ms")
-        if isinstance(total_latency, (int, float)):
+        if isinstance(total_latency, int | float):
             latency_values.append(float(total_latency))
 
         optimization_latency = row.get("optimization_latency_ms")
-        if isinstance(optimization_latency, (int, float)):
+        if isinstance(optimization_latency, int | float):
             optimization_values.append(float(optimization_latency))
 
         routing = row.get("routing_metadata")
@@ -266,7 +264,7 @@ def _collect_request_telemetry(days: int) -> dict[str, Any]:
                 model_switches += 1
 
         request_cost = row.get("request_cost_usd")
-        if isinstance(request_cost, (int, float)):
+        if isinstance(request_cost, int | float):
             request_cost_usd += float(request_cost)
 
     latency_values.sort()
@@ -522,8 +520,14 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             # consistent: ``total_usd`` and ``by_source_usd`` must
             # agree to the cent. This is the restart-safety
             # attribution the buyer report needs.
-            row_compression_usd = float(row.get("compression_savings_observed_usd") or row.get("compression_savings_usd", 0) or 0)
-            row_cache_usd = float(row.get("cache_savings_observed_usd") or row.get("cache_savings_usd", 0) or 0)
+            row_compression_usd = float(
+                row.get("compression_savings_observed_usd")
+                or row.get("compression_savings_usd", 0)
+                or 0
+            )
+            row_cache_usd = float(
+                row.get("cache_savings_observed_usd") or row.get("cache_savings_usd", 0) or 0
+            )
             row_total = float(row.get("cost_savings_usd", 0) or 0)
             # If only the combined total is present (no per-source
             # split), attribute it all to Cutctx compression — that

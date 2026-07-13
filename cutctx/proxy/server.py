@@ -19,7 +19,7 @@ Usage:
 
     # With Claude Code:
     ANTHROPIC_BASE_URL=http://localhost:8787 claude
-    """
+"""
 
 from __future__ import annotations
 
@@ -216,7 +216,7 @@ def _safe_json_log_serializer(obj: object) -> str:
     """Serialize common non-JSON types for structured logging."""
     if isinstance(obj, BaseException):
         return f"{type(obj).__name__}: {obj}"
-    if isinstance(obj, (datetime, date)):
+    if isinstance(obj, datetime | date):
         return obj.isoformat()
     if isinstance(obj, Path):
         return str(obj)
@@ -247,12 +247,35 @@ class _JsonFormatter(logging.Formatter):
             base["stack"] = record.stack_info
         # Include extra contextual fields set via logger.info("msg", extra={...})
         extras = {
-            k: v for k, v in record.__dict__.items()
-            if k not in ("args", "asctime", "created", "exc_info", "exc_text",
-                         "filename", "funcName", "id", "levelname", "levelno",
-                         "lineno", "message", "module", "msecs", "msg", "name",
-                         "pathname", "process", "processName", "relativeCreated",
-                         "stack_info", "taskName", "thread", "threadName")
+            k: v
+            for k, v in record.__dict__.items()
+            if k
+            not in (
+                "args",
+                "asctime",
+                "created",
+                "exc_info",
+                "exc_text",
+                "filename",
+                "funcName",
+                "id",
+                "levelname",
+                "levelno",
+                "lineno",
+                "message",
+                "module",
+                "msecs",
+                "msg",
+                "name",
+                "pathname",
+                "process",
+                "processName",
+                "relativeCreated",
+                "stack_info",
+                "taskName",
+                "thread",
+                "threadName",
+            )
         }
         if extras:
             base["extra"] = extras
@@ -334,6 +357,7 @@ def _patch_getaddrinfo_for_intercept() -> None:
         len(bypass_ips),
         ", ".join(bypass_ips),
     )
+
 
 # Env var that opts out of the Rust core deployment smoke test (Hotfix-A0).
 # Default behavior: hard-fail at startup if `cutctx._core` is unimportable
@@ -541,15 +565,11 @@ class CutctxProxy(
         self._context_manager_status = "passthrough"
 
         # Initialize restored features WS10, WS11, WS13
-        self.batch_router = BatchRouter(
-            BatchRouterConfig(enabled=config.batch_routing)
-        )
+        self.batch_router = BatchRouter(BatchRouterConfig(enabled=config.batch_routing))
         self.output_optimizer = OutputOptimizer(
             OutputOptimizeConfig(enabled=config.output_optimization)
         )
-        self.memoizer = ToolMemoizer(
-            MemoizeConfig(enabled=config.memoization)
-        )
+        self.memoizer = ToolMemoizer(MemoizeConfig(enabled=config.memoization))
         self.memoize_interceptor = MemoizeInterceptor(memoizer=self.memoizer)
         self.anthropic_cache_optimizer = AnthropicCacheOptimizer(
             CacheConfig(enabled=config.anthropic_cache_control)
@@ -560,6 +580,7 @@ class CutctxProxy(
         # the router chooses SmartCrusher, log/search/diff/code, or Kompress.
         profile_kwargs = proxy_pipeline_kwargs(config)
         router_config = ContentRouterConfig(
+            compression_mode=config.compression_mode,
             enable_code_aware=config.code_aware_enabled,
             tool_profiles=config.tool_profiles,
             read_lifecycle=ReadLifecycleConfig(enabled=config.read_lifecycle),
@@ -882,7 +903,9 @@ class CutctxProxy(
                 idle_timeout_seconds=config.episodic_idle_timeout_seconds,
                 extraction_model=config.episodic_extraction_model,
             )
-            logger.info("Episodic Memory: ENABLED (idle timeout: %ds)", config.episodic_idle_timeout_seconds)
+            logger.info(
+                "Episodic Memory: ENABLED (idle timeout: %ds)", config.episodic_idle_timeout_seconds
+            )
 
         # Memory Handler (persistent user memory)
         self.memory_handler: MemoryHandler | None = None
@@ -1098,13 +1121,17 @@ class CutctxProxy(
                         status="unavailable",
                         reason="graphify_not_installed",
                     )
-                    logger.warning("Knowledge graph engine requested (--knowledge-graph) but not installed. Install: pip install cutctx-ai[knowledge-graph]")
+                    logger.warning(
+                        "Knowledge graph engine requested (--knowledge-graph) but not installed. Install: pip install cutctx-ai[knowledge-graph]"
+                    )
                 elif not networkx_available():
                     self.knowledge_graph_status.update(
                         status="unavailable",
                         reason="networkx_not_installed",
                     )
-                    logger.warning("Graph utilities required for knowledge graph not installed. Install: pip install cutctx-ai[knowledge-graph]")
+                    logger.warning(
+                        "Graph utilities required for knowledge graph not installed. Install: pip install cutctx-ai[knowledge-graph]"
+                    )
                 else:
                     indexer = GraphifyIndexer(
                         project_dir=Path.cwd(),
@@ -1127,7 +1154,11 @@ class CutctxProxy(
                         reason=None,
                         interceptor_registered=True,
                     )
-                    logger.info("Knowledge graph: interceptor registered (bfs_depth=%d, max_nodes=%d)", config.knowledge_graph_bfs_depth, config.knowledge_graph_max_nodes)
+                    logger.info(
+                        "Knowledge graph: interceptor registered (bfs_depth=%d, max_nodes=%d)",
+                        config.knowledge_graph_bfs_depth,
+                        config.knowledge_graph_max_nodes,
+                    )
             except Exception as exc:
                 self.knowledge_graph_status.update(
                     status="degraded",
@@ -1144,7 +1175,9 @@ class CutctxProxy(
 
             difft_path = find_difftastic(config.difftastic_binary)
             if difft_path is None:
-                logger.warning("Structural diff engine enabled but binary not found. Diff compression will fall back to DiffCompressor.")
+                logger.warning(
+                    "Structural diff engine enabled but binary not found. Diff compression will fall back to DiffCompressor."
+                )
             else:
                 logger.info("Structural diff engine: binary resolved at %s", difft_path)
                 from cutctx.proxy.interceptors import base as interceptors_base
@@ -1155,7 +1188,10 @@ class CutctxProxy(
                     context_lines=config.difftastic_context_lines,
                 )
                 interceptors_base.register(interceptor)
-                logger.info("Structural diff engine interceptor registered (context_lines=%d)", config.difftastic_context_lines)
+                logger.info(
+                    "Structural diff engine interceptor registered (context_lines=%d)",
+                    config.difftastic_context_lines,
+                )
 
         # Stack-graph code navigation (optional)
         self.stack_graph_resolver = None
@@ -1168,19 +1204,23 @@ class CutctxProxy(
             else:
                 try:
                     resolver = StackGraphResolver()
-                    count = resolver.index_project(os.getcwd(), max_files=config.stack_graph_max_files)
+                    count = resolver.index_project(
+                        os.getcwd(), max_files=config.stack_graph_max_files
+                    )
                     self.stack_graph_resolver = resolver
                     # Wire incremental re-indexing through the file watcher
                     try:
                         from cutctx.graph.watcher import (
                             set_stack_graph_resolver as _set_sg_resolver,
                         )
+
                         _set_sg_resolver(resolver)
                     except ImportError:
                         pass  # Watcher module not available — incremental updates disabled
                     logger.info(
                         "Stack-graph: ENABLED — indexed %d files in %s",
-                        count, os.getcwd(),
+                        count,
+                        os.getcwd(),
                     )
                 except Exception:
                     logger.exception("Stack-graph: failed to initialize")
@@ -1188,16 +1228,21 @@ class CutctxProxy(
 
         # Wire stack-graph reachability into the code compressor via
         # the content router's pre-compress hook.
-        if self.stack_graph_resolver is not None and hasattr(self, '_content_router'):
+        if self.stack_graph_resolver is not None and hasattr(self, "_content_router"):
             resolver_for_hook = self.stack_graph_resolver
             router_for_hook = self._content_router
             # Set the hook on the config (used by ContentRouter.compress())
-            router_for_hook.config.pre_compress_hook = (
-                lambda _router, _content, _context: self._apply_stack_graph_to_compressor(
-                    _router, _content, _context, resolver_for_hook,
+            router_for_hook.config.pre_compress_hook = lambda _router, _content, _context: (
+                self._apply_stack_graph_to_compressor(
+                    _router,
+                    _content,
+                    _context,
+                    resolver_for_hook,
                 )
             )
-            logger.info("Stack-graph: pre_compress_hook wired — reachable functions will be preserved")
+            logger.info(
+                "Stack-graph: pre_compress_hook wired — reachable functions will be preserved"
+            )
 
         self.pipeline_extensions.emit(
             PipelineStage.SETUP,
@@ -1238,7 +1283,9 @@ class CutctxProxy(
             return
 
         protected_symbols, _report = resolve_entry_points(
-            resolver, query, max_depth=5,
+            resolver,
+            query,
+            max_depth=5,
         )
 
         if protected_symbols:
@@ -1585,8 +1632,7 @@ class CutctxProxy(
         # availability check and fallback logging at startup.
         if eager_status.get("drain3") == "ready":
             logger.info(
-                "Log template mining: ENABLED "
-                "(max_clusters=%d, sim_threshold=%.2f)",
+                "Log template mining: ENABLED (max_clusters=%d, sim_threshold=%.2f)",
                 self.config.drain3_max_clusters,
                 self.config.drain3_sim_threshold,
             )
@@ -2172,6 +2218,7 @@ def _proxy_config_from_env() -> ProxyConfig:
         bedrock_region=_get_env_str("CUTCTX_BEDROCK_REGION", "us-west-2"),
         bedrock_profile=os.environ.get("AWS_PROFILE"),
         anyllm_provider=_get_env_str("CUTCTX_ANYLLM_PROVIDER", "openai"),
+        compression_mode=_get_env_str("CUTCTX_COMPRESSION_MODE", "safe").lower(),
         deterministic_mode=_get_env_bool("CUTCTX_DETERMINISTIC_MODE", False),
         disable_kompress=(
             _get_env_bool("CUTCTX_DISABLE_KOMPRESS", False)
@@ -2278,7 +2325,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     # Register error handlers with remediation hints
     @app.exception_handler(json.JSONDecodeError)
-    async def _json_decode_error_handler(request: Request, exc: json.JSONDecodeError) -> JSONResponse:
+    async def _json_decode_error_handler(
+        request: Request, exc: json.JSONDecodeError
+    ) -> JSONResponse:
         return JSONResponse(
             status_code=400,
             content={
@@ -2295,7 +2344,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     from fastapi.exceptions import RequestValidationError as _RequestValidationError
 
     @app.exception_handler(_RequestValidationError)
-    async def _validation_error_handler(request: Request, exc: _RequestValidationError) -> JSONResponse:
+    async def _validation_error_handler(
+        request: Request, exc: _RequestValidationError
+    ) -> JSONResponse:
         errors = exc.errors()
         error_details = [f"{e['loc']}: {e['msg']}" for e in errors]
         return JSONResponse(
@@ -2425,6 +2476,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         if "model_routing" not in payload and isinstance(feature_availability, dict):
             payload["model_routing"] = feature_availability.get("model_routing", {})
         return payload
+
     _UPSTREAM_CHECK_TTL = 30.0
     _upstream_check_cache: dict[str, Any] = {
         "expires_at": 0.0,
@@ -2465,7 +2517,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 response = await client.head(url, timeout=5.0)
                 _upstream_check_cache["ok"] = response.status_code < 500
                 _upstream_check_cache["error"] = (
-                    None if response.status_code < 500 else f"upstream returned {response.status_code}"
+                    None
+                    if response.status_code < 500
+                    else f"upstream returned {response.status_code}"
                 )
             except Exception as exc:
                 _upstream_check_cache["ok"] = False
@@ -2523,13 +2577,24 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         feedback_stats = feedback.get_stats()
         prefix_cache_stats = _build_prefix_cache_stats(m, proxy.cost_tracker)
         cli_filtering_stats = await asyncio.to_thread(_get_context_tool_stats)
-        cli_filtering_tool = str(cli_filtering_stats.get("tool", "rtk")) if cli_filtering_stats else "rtk"
-        cli_filtering_label = str(cli_filtering_stats.get("label", "RTK")) if cli_filtering_stats else "RTK"
-        cli_tokens_avoided = int(cli_filtering_stats.get("tokens_saved", 0) if cli_filtering_stats else 0)
-        graphify_py = importlib.util.find_spec("graphifyy") is not None or importlib.util.find_spec("graphify") is not None
+        cli_filtering_tool = (
+            str(cli_filtering_stats.get("tool", "rtk")) if cli_filtering_stats else "rtk"
+        )
+        cli_filtering_label = (
+            str(cli_filtering_stats.get("label", "RTK")) if cli_filtering_stats else "RTK"
+        )
+        cli_tokens_avoided = int(
+            cli_filtering_stats.get("tokens_saved", 0) if cli_filtering_stats else 0
+        )
+        graphify_py = (
+            importlib.util.find_spec("graphifyy") is not None
+            or importlib.util.find_spec("graphify") is not None
+        )
         networkx_py = importlib.util.find_spec("networkx") is not None
         llmlingua_py = importlib.util.find_spec("llmlingua") is not None
-        llmlingua_runtime_py = importlib.util.find_spec("cutctx.transforms.llmlingua_compressor") is not None
+        llmlingua_runtime_py = (
+            importlib.util.find_spec("cutctx.transforms.llmlingua_compressor") is not None
+        )
         pillow_py = importlib.util.find_spec("PIL") is not None
         rust_core_py = importlib.util.find_spec("cutctx._core") is not None
         onnxruntime_py = importlib.util.find_spec("onnxruntime") is not None
@@ -2618,8 +2683,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         savings_canary_report = get_savings_canary_coordinator().report()
         savings_sources = tuple(src.value for src in SavingsSource)
         rtk_source = SavingsSource.RTK_CLI_FILTERING.value
-        cli_filtering_session = cli_filtering_stats.get("session", {}) if cli_filtering_stats else {}
-        cli_filtering_lifetime = cli_filtering_stats.get("lifetime", {}) if cli_filtering_stats else {}
+        cli_filtering_session = (
+            cli_filtering_stats.get("session", {}) if cli_filtering_stats else {}
+        )
+        cli_filtering_lifetime = (
+            cli_filtering_stats.get("lifetime", {}) if cli_filtering_stats else {}
+        )
         kg_indexer = getattr(proxy, "knowledge_graph_indexer", None)
         kg_idx = None
         if kg_indexer is not None:
@@ -2630,12 +2699,22 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             except Exception:
                 kg_idx = None
 
-        total_tokens_before = int(getattr(m, "tokens_input_total", getattr(m, "prompt_tokens_total", 0)) or 0)
-        proxy_total_before_compression = int(getattr(m, "attempted_prompt_tokens_total", total_tokens_before) or total_tokens_before)
+        total_tokens_before = int(
+            getattr(m, "tokens_input_total", getattr(m, "prompt_tokens_total", 0)) or 0
+        )
+        proxy_total_before_compression = int(
+            getattr(m, "attempted_prompt_tokens_total", total_tokens_before) or total_tokens_before
+        )
         attempted_input_tokens = proxy_total_before_compression
-        proxy_compression_tokens = int(getattr(m, "tokens_saved_total", getattr(m, "prompt_tokens_saved", 0)) or 0)
-        rtk_tokens_avoided = int(cli_filtering_stats.get("rtk_tokens_saved", 0) if cli_filtering_stats else 0)
-        lean_ctx_tokens_avoided = int(cli_filtering_stats.get("lean_ctx_tokens_saved", 0) if cli_filtering_stats else 0)
+        proxy_compression_tokens = int(
+            getattr(m, "tokens_saved_total", getattr(m, "prompt_tokens_saved", 0)) or 0
+        )
+        rtk_tokens_avoided = int(
+            cli_filtering_stats.get("rtk_tokens_saved", 0) if cli_filtering_stats else 0
+        )
+        lean_ctx_tokens_avoided = int(
+            cli_filtering_stats.get("lean_ctx_tokens_saved", 0) if cli_filtering_stats else 0
+        )
         if cli_tokens_avoided > 0 and rtk_tokens_avoided == 0 and lean_ctx_tokens_avoided == 0:
             if cli_filtering_tool == "lean-ctx":
                 lean_ctx_tokens_avoided = cli_tokens_avoided
@@ -2671,19 +2750,47 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "total_before_compression": total_tokens_before,
             "all_layers_saved": all_layers_tokens_saved,
             "proxy_attempted_tokens": attempted_input_tokens,
-            "active_savings_percent": round((proxy_compression_tokens / max(attempted_input_tokens, proxy_compression_tokens) * 100) if (attempted_input_tokens > 0 or proxy_compression_tokens > 0) else 0, 2),
-            "proxy_savings_percent": round((proxy_compression_tokens / max(proxy_total_before_compression, proxy_compression_tokens) * 100) if (proxy_total_before_compression > 0 or proxy_compression_tokens > 0) else 0, 2),
-            "savings_percent": round((all_layers_tokens_saved / max(total_tokens_before, all_layers_tokens_saved) * 100) if (total_tokens_before > 0 or all_layers_tokens_saved > 0) else 0, 2),
-            "all_layers_savings_percent": round((all_layers_tokens_saved / max(total_tokens_before, all_layers_tokens_saved) * 100) if (total_tokens_before > 0 or all_layers_tokens_saved > 0) else 0, 2),
+            "active_savings_percent": round(
+                (
+                    proxy_compression_tokens
+                    / max(attempted_input_tokens, proxy_compression_tokens)
+                    * 100
+                )
+                if (attempted_input_tokens > 0 or proxy_compression_tokens > 0)
+                else 0,
+                2,
+            ),
+            "proxy_savings_percent": round(
+                (
+                    proxy_compression_tokens
+                    / max(proxy_total_before_compression, proxy_compression_tokens)
+                    * 100
+                )
+                if (proxy_total_before_compression > 0 or proxy_compression_tokens > 0)
+                else 0,
+                2,
+            ),
+            "savings_percent": round(
+                (all_layers_tokens_saved / max(total_tokens_before, all_layers_tokens_saved) * 100)
+                if (total_tokens_before > 0 or all_layers_tokens_saved > 0)
+                else 0,
+                2,
+            ),
+            "all_layers_savings_percent": round(
+                (all_layers_tokens_saved / max(total_tokens_before, all_layers_tokens_saved) * 100)
+                if (total_tokens_before > 0 or all_layers_tokens_saved > 0)
+                else 0,
+                2,
+            ),
         }
 
         return {
             "summary": summary,
             "attribution": lifetime_attribution.get("attribution_coverage", {}),
             "opportunity_funnel": lifetime_attribution.get("opportunity_funnel", {}),
-            "compression_declined_total": lifetime_attribution.get(
-                "opportunity_funnel", {}
-            ).get("decline_reasons", {}),
+            "compression_declined_total": lifetime_attribution.get("opportunity_funnel", {}).get(
+                "decline_reasons", {}
+            ),
             "savings_canary": savings_canary_report,
             "savings_by_source": {
                 "total_tokens": sum(
@@ -2736,8 +2843,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         "tokens_saved": cli_tokens_avoided,
                         "session": cli_filtering_session,
                         "lifetime": cli_filtering_lifetime,
-                        "session_savings_pct": cli_filtering_stats.get("session_savings_pct") if cli_filtering_stats else None,
-                        "lifetime_savings_pct": cli_filtering_stats.get("lifetime_avg_savings_pct") if cli_filtering_stats else None,
+                        "session_savings_pct": cli_filtering_stats.get("session_savings_pct")
+                        if cli_filtering_stats
+                        else None,
+                        "lifetime_savings_pct": cli_filtering_stats.get("lifetime_avg_savings_pct")
+                        if cli_filtering_stats
+                        else None,
                     },
                     "compression": {
                         "tokens": proxy_compression_tokens,
@@ -2747,12 +2858,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         "lean_ctx_tokens": lean_ctx_tokens_avoided,
                         "all_layers_tokens": all_layers_tokens_saved,
                     },
-                }
+                },
             },
             "context_tool": {
                 "configured": cli_filtering_tool,
                 "label": cli_filtering_label,
-                "available": bool(cli_filtering_stats and cli_filtering_stats.get("installed", False)),
+                "available": bool(
+                    cli_filtering_stats and cli_filtering_stats.get("installed", False)
+                ),
                 "stats": cli_filtering_stats,
             },
             "compression_cache": compression_cache_stats,
@@ -2766,7 +2879,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "otel": get_otel_metrics_status(),
             "langfuse": get_langfuse_tracing_status(),
             "prefix_cache": prefix_cache_stats,
-            "cost": _merge_cost_stats(proxy.cost_tracker.stats() if proxy.cost_tracker else None, prefix_cache_stats, cli_tokens_avoided=cli_tokens_avoided, display_session=display_session),
+            "cost": _merge_cost_stats(
+                proxy.cost_tracker.stats() if proxy.cost_tracker else None,
+                prefix_cache_stats,
+                cli_tokens_avoided=cli_tokens_avoided,
+                display_session=display_session,
+            ),
             "compression": {
                 "ccr_entries": compression_stats.get("entry_count", 0),
                 "ccr_max_entries": compression_stats.get("max_entries", 0),
@@ -2777,15 +2895,19 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "knowledge_graph": {
                 **getattr(proxy, "knowledge_graph_status", {}),
                 "active": kg_idx is not None,
-                "status": "ready" if kg_idx is not None else getattr(proxy, "knowledge_graph_status", {}).get("status", "disabled"),
+                "status": "ready"
+                if kg_idx is not None
+                else getattr(proxy, "knowledge_graph_status", {}).get("status", "disabled"),
                 **(getattr(kg_indexer, "stats", {}) if kg_indexer else {}),
             },
             "stack_graph": {
                 "enabled": bool(getattr(proxy, "stack_graph_resolver", None)),
                 "files_indexed": getattr(proxy.stack_graph_resolver, "file_count", lambda: 0)()
-                if hasattr(proxy, "stack_graph_resolver") and proxy.stack_graph_resolver else 0,
+                if hasattr(proxy, "stack_graph_resolver") and proxy.stack_graph_resolver
+                else 0,
                 "nodes": getattr(proxy.stack_graph_resolver, "node_count", lambda: 0)()
-                if hasattr(proxy, "stack_graph_resolver") and proxy.stack_graph_resolver else 0,
+                if hasattr(proxy, "stack_graph_resolver") and proxy.stack_graph_resolver
+                else 0,
             },
             "model_routing": model_routing_status,
             "feature_availability": {
@@ -2794,7 +2916,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     "available": graphify_py and networkx_py,
                     "knowledge_graph_engine_installed": graphify_py,
                     "graph_utilities_installed": networkx_py,
-                    "reason": None if graphify_py and networkx_py else "knowledge_graph_engine_missing" if not graphify_py else "graph_utilities_missing",
+                    "reason": None
+                    if graphify_py and networkx_py
+                    else "knowledge_graph_engine_missing"
+                    if not graphify_py
+                    else "graph_utilities_missing",
                     "install_hint": "pip install cutctx-ai[knowledge-graph]",
                 },
                 "log_template_mining": {
@@ -2813,7 +2939,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "text_compression_engine": {
                     "requested": bool(getattr(proxy.config, "use_llmlingua", False)),
                     "available": llmlingua_py and llmlingua_runtime_py,
-                    "reason": None if llmlingua_py and llmlingua_runtime_py else "text_compression_runtime_missing" if llmlingua_py else "text_compression_engine_missing",
+                    "reason": None
+                    if llmlingua_py and llmlingua_runtime_py
+                    else "text_compression_runtime_missing"
+                    if llmlingua_py
+                    else "text_compression_engine_missing",
                     "install_hint": "pip install cutctx-ai[llmlingua]",
                 },
                 "multimodal_image": {
@@ -2856,7 +2986,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     "requested": bool(getattr(proxy.config, "stack_graph_enabled", False)),
                     "available": stack_graph_available(),
                     "active": bool(getattr(proxy, "stack_graph_resolver", None)),
-                    "reason": None if stack_graph_available() else "stack_graph_extension_not_built",
+                    "reason": None
+                    if stack_graph_available()
+                    else "stack_graph_extension_not_built",
                     "install_hint": "pip install cutctx-ai[dev] or build the Rust extension for stack-graph support",
                 },
                 "usearch": {
@@ -2866,27 +2998,27 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     "install_hint": "pip install cutctx-ai[memory] or pip install usearch",
                 },
                 "model_routing": model_routing_status,
-            "audio": {
-                "requested": True,
-                "available": True,
-                "compression": "pass-through",
-                "reason": "audio_proxy_only_no_token_compression",
-                "install_hint": None,
+                "audio": {
+                    "requested": True,
+                    "available": True,
+                    "compression": "pass-through",
+                    "reason": "audio_proxy_only_no_token_compression",
+                    "install_hint": None,
+                },
             },
-        },
-        "config": {
-            "cache": bool(getattr(config, "cache_enabled", False)),
-            "ccr": bool(getattr(config, "ccr_context_tracking", False)),
-            "memory": bool(getattr(config, "episodic_memory_enabled", False)),
-            "firewall": bool(getattr(config, "firewall_enabled", False)),
-            "rate_limiter": bool(getattr(config, "rate_limit_enabled", False)),
-            "orchestrator": bool(getattr(config, "orchestrator_enabled", False)),
-            "orchestrator_mode": model_routing_status["mode"],
-        },
-        "telemetry": telemetry_stats,
-        "feedback": feedback_stats,
-        "recent_requests": proxy.logger.get_recent(10) if proxy.logger else [],
-    }
+            "config": {
+                "cache": bool(getattr(config, "cache_enabled", False)),
+                "ccr": bool(getattr(config, "ccr_context_tracking", False)),
+                "memory": bool(getattr(config, "episodic_memory_enabled", False)),
+                "firewall": bool(getattr(config, "firewall_enabled", False)),
+                "rate_limiter": bool(getattr(config, "rate_limit_enabled", False)),
+                "orchestrator": bool(getattr(config, "orchestrator_enabled", False)),
+                "orchestrator_mode": model_routing_status["mode"],
+            },
+            "telemetry": telemetry_stats,
+            "feedback": feedback_stats,
+            "recent_requests": proxy.logger.get_recent(10) if proxy.logger else [],
+        }
 
     def _uptime_seconds() -> float:
         return max(0.0, time.time() - float(app.state.started_at))
@@ -2996,9 +3128,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "enabled": proxy.anthropic_pre_upstream_sem is not None,
                 "resolved_concurrency": proxy.anthropic_pre_upstream_concurrency,
                 "source": (
-                    "auto"
-                    if config.anthropic_pre_upstream_concurrency is None
-                    else "explicit"
+                    "auto" if config.anthropic_pre_upstream_concurrency is None else "explicit"
                 ),
                 "acquire_timeout_seconds": proxy.anthropic_pre_upstream_acquire_timeout_seconds,
                 "compression_timeout_seconds": float(COMPRESSION_TIMEOUT_SECONDS),
@@ -3020,9 +3150,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "run_seconds_total": run_seconds_total,
                 "run_seconds_max": run_seconds_max,
                 "leaked_threads_total": leaked_threads_total,
-                "source": (
-                    "auto" if config.compression_max_workers is None else "explicit"
-                ),
+                "source": ("auto" if config.compression_max_workers is None else "explicit"),
             },
             "websocket_sessions": {
                 "active_sessions": ws_active_sessions,
@@ -3070,6 +3198,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "optimize": config.optimize,
                 "cache": config.cache_enabled,
                 "rate_limit": config.rate_limit_enabled,
+                "compression_mode": config.compression_mode,
                 "disable_kompress": config.disable_kompress,
                 "memory": config.memory_enabled,
                 "learn": config.traffic_learning_enabled,
@@ -3358,7 +3487,6 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return _check
 
-
     @app.get("/stats")
     @app.get("/v1/stats")
     async def stats(request: Request, cached: bool = False):
@@ -3445,8 +3573,6 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         await _check_upstream()
         return JSONResponse(status_code=200, content=_health_payload(include_config=True))
 
-
-
     @app.get("/v1/version")
     async def get_v1_version():
         return JSONResponse(status_code=200, content={"version": __version__})
@@ -3489,7 +3615,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "target_model": routing.get("target_model") or actual_model,
                 "reason": routing.get("reason"),
                 "request_overrides": routing.get("request_overrides"),
-                "saved_tokens": routing.get("saved_tokens", log.get("model_routing_saved_tokens", 0)),
+                "saved_tokens": routing.get(
+                    "saved_tokens", log.get("model_routing_saved_tokens", 0)
+                ),
                 "saved_usd": routing.get("saved_usd", 0.0),
             },
             "compression": {
@@ -3508,13 +3636,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             },
             "attribution": {
                 "created_savings_tokens": log.get("created_savings_tokens", 0),
-                "observed_provider_savings_tokens": log.get(
-                    "observed_provider_savings_tokens", 0
-                ),
+                "observed_provider_savings_tokens": log.get("observed_provider_savings_tokens", 0),
                 "created_savings_usd": log.get("created_savings_usd", 0.0),
-                "observed_provider_savings_usd": log.get(
-                    "observed_provider_savings_usd", 0.0
-                ),
+                "observed_provider_savings_usd": log.get("observed_provider_savings_usd", 0.0),
                 "savings_basis": log.get("savings_basis", "estimated"),
                 "pricing_basis": log.get("pricing_basis", "model_input_list_price"),
             },
@@ -3554,7 +3678,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 traces.append(_build_request_trace(log))
         return {"traces": traces, "log_full_messages": log_full_messages}
 
-    @app.get("/transformations/traces/{request_id}", dependencies=[Depends(_require_local_admin_auth)])
+    @app.get(
+        "/transformations/traces/{request_id}", dependencies=[Depends(_require_local_admin_auth)]
+    )
     async def request_trace(request_id: str):
         if not proxy or not proxy.logger:
             raise HTTPException(status_code=404, detail="request trace not found")
@@ -3614,7 +3740,6 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     )
 
     if hosted_compression_enabled:
-
         _HOSTED_COMPATIBILITY_MODES = {"tool_output", "rag_text", "agentic_text"}
 
         def _hosted_messages_for_text(
@@ -3632,7 +3757,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             if compatibility_mode == "agentic_text":
                 return (
                     [
-                        {"role": "user", "content": "Continue the task using the latest tool result."},
+                        {
+                            "role": "user",
+                            "content": "Continue the task using the latest tool result.",
+                        },
                         {
                             "role": "assistant",
                             "content": None,
@@ -3763,7 +3891,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 **config_kwargs,
             )
 
-            compressed_text = _extract_hosted_text(result.messages) if input_kind == "text" else None
+            compressed_text = (
+                _extract_hosted_text(result.messages) if input_kind == "text" else None
+            )
 
             return JSONResponse(
                 status_code=200,
@@ -3817,7 +3947,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 ):
                     status = store.get_entry_status(stored_hash, clean_expired=False)
                     if status.get("status") == "expired":
-                        raise HTTPException(status_code=404, detail=format_retrieval_miss_detail(status))
+                        raise HTTPException(
+                            status_code=404, detail=format_retrieval_miss_detail(status)
+                        )
                     entry = store.retrieve(stored_hash, query=query)
                     if entry is not None:
                         return entry
@@ -3899,10 +4031,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
 
     from pathlib import Path as _Path
+
     # See the matching comment on the other `/assets` mount above — this
     # must stay inside cutctx/dashboard/ to survive a real package install.
     _react_assets = _Path(__file__).resolve().parent.parent / "dashboard" / "assets"
     if _react_assets.is_dir():
+
         @app.get("/assets/{filename}", include_in_schema=False)
         async def serve_asset_legacy(filename: str):
             asset_path = (_react_assets / filename).resolve()
@@ -3911,6 +4045,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             if asset_path.is_file():
                 return FileResponse(str(asset_path))
             return Response(status_code=404)
+
     @app.get("/favicon.svg", include_in_schema=False)
     async def _favicon():
         fav = _react_assets.parent / "favicon.svg"
@@ -3939,7 +4074,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
         return {
             "cache": getattr(config, "cache_enabled", False),
-            "ccr": getattr(config, "ccr_context_tracking", False) or getattr(config, "ccr_handle_responses", False),
+            "ccr": getattr(config, "ccr_context_tracking", False)
+            or getattr(config, "ccr_handle_responses", False),
             "memory": getattr(config, "episodic_memory_enabled", False),
             "firewall": getattr(config, "firewall_enabled", False),
             "rate_limiter": getattr(config, "rate_limiter_enabled", False),
@@ -4078,11 +4214,21 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 firewall_scanner=_firewall_scanner,
             )
         )
-        app.include_router(create_airgap_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
-        app.include_router(create_rate_limit_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
-        app.include_router(create_rbac_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
-        app.include_router(create_secrets_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
-        app.include_router(create_sso_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(
+            create_airgap_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
+        )
+        app.include_router(
+            create_rate_limit_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
+        )
+        app.include_router(
+            create_rbac_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
+        )
+        app.include_router(
+            create_secrets_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
+        )
+        app.include_router(
+            create_sso_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
+        )
         app.include_router(
             create_failover_router(
                 failover_router=proxy.failover_router,
@@ -4090,10 +4236,18 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 require_rbac_permission=rbac_dep,
             )
         )
-        app.include_router(create_audit_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
-        app.include_router(create_spend_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
-        app.include_router(create_policy_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
-        app.include_router(create_memory_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(
+            create_audit_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
+        )
+        app.include_router(
+            create_spend_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
+        )
+        app.include_router(
+            create_policy_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
+        )
+        app.include_router(
+            create_memory_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
+        )
         if proxy._orchestration_service is not None:
             app.include_router(
                 create_orchestration_router(
@@ -4109,8 +4263,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 require_rbac_permission=rbac_dep,
             )
         )
-        app.include_router(create_residency_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
-        app.include_router(create_license_validation_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep))
+        app.include_router(
+            create_residency_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
+        )
+        app.include_router(
+            create_license_validation_router(
+                require_admin_auth=admin_dep, require_rbac_permission=rbac_dep
+            )
+        )
     except ImportError:
         pass
 
@@ -4128,6 +4288,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     register_provider_routes(app, proxy)
     return app
+
 
 def create_app_from_env() -> FastAPI:
     return create_app(_proxy_config_from_env())
@@ -4501,6 +4662,16 @@ if __name__ == "__main__":
 
     # Optimization
     parser.add_argument("--no-optimize", action="store_true", help="Disable optimization")
+    parser.add_argument(
+        "--compression-mode",
+        choices=("off", "safe", "aggressive"),
+        default=None,
+        help=(
+            "Compression policy: off forwards content unchanged; safe preserves "
+            "conservative routing (default); aggressive tightens prose compression. "
+            "Also settable via CUTCTX_COMPRESSION_MODE."
+        ),
+    )
     parser.add_argument("--min-tokens", type=int, default=500, help="Min tokens to crush")
     parser.add_argument("--max-items", type=int, default=50, help="Max items after crush")
     parser.add_argument(
@@ -4662,8 +4833,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--sso-default-role",
         default=None,
-        help="Default role for authenticated SSO users. "
-        "Also settable via CUTCTX_SSO_DEFAULT_ROLE.",
+        help="Default role for authenticated SSO users. Also settable via CUTCTX_SSO_DEFAULT_ROLE.",
     )
 
     # LLM Firewall
@@ -4696,8 +4866,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ensemble",
         action="store_true",
-        help="Enable multi-model ensemble execution. "
-        "Also settable via CUTCTX_ENSEMBLE_ENABLED=1.",
+        help="Enable multi-model ensemble execution. Also settable via CUTCTX_ENSEMBLE_ENABLED=1.",
     )
     parser.add_argument(
         "--ensemble-evaluator-model",
@@ -4709,8 +4878,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--budget-cut-off",
         action="store_true",
-        help="Enable streaming budget cut-offs. "
-        "Also settable via CUTCTX_BUDGET_ENABLED=1.",
+        help="Enable streaming budget cut-offs. Also settable via CUTCTX_BUDGET_ENABLED=1.",
     )
     parser.add_argument(
         "--budget-default-tokens",
@@ -4730,19 +4898,24 @@ if __name__ == "__main__":
 
     # ── Intelligence Layer ───────────────────────────────────────────────
     parser.add_argument(
-        "--task-aware", action="store_true",
+        "--task-aware",
+        action="store_true",
         help="Enable task-aware compression (modulate by relevance to current task).",
     )
     parser.add_argument(
-        "--dedup", action="store_true",
+        "--dedup",
+        action="store_true",
         help="Enable semantic deduplication (replace repeated content with CCR pointers).",
     )
     parser.add_argument(
-        "--context-budget", action="store_true",
+        "--context-budget",
+        action="store_true",
         help="Enable context budget controller (progressive compression as budget fills).",
     )
     parser.add_argument(
-        "--context-budget-max-tokens", type=int, default=100_000,
+        "--context-budget-max-tokens",
+        type=int,
+        default=100_000,
         help="Max token budget for context budget controller (default: 100000).",
     )
     parser.add_argument(
@@ -4752,15 +4925,18 @@ if __name__ == "__main__":
         help="Context budget compression policy (default: balanced).",
     )
     parser.add_argument(
-        "--profiles", action="store_true",
+        "--profiles",
+        action="store_true",
         help="Enable cross-session compression profiles (learn patterns per workspace).",
     )
     parser.add_argument(
-        "--shared-context", action="store_true",
+        "--shared-context",
+        action="store_true",
         help="Enable multi-agent shared compression state.",
     )
     parser.add_argument(
-        "--cost-forecast", action="store_true",
+        "--cost-forecast",
+        action="store_true",
         help="Enable cost forecasting + policy engine.",
     )
 
@@ -4805,6 +4981,9 @@ if __name__ == "__main__":
         or _get_env_bool("CUTCTX_DISABLE_KOMPRESS", False)
         or deterministic_mode
     )
+    compression_mode = (
+        args.compression_mode or os.environ.get("CUTCTX_COMPRESSION_MODE", "safe")
+    ).lower()
 
     # Set OpenRouter API key from env variable only.
     # Removed writing from CLI args into process environment.
@@ -4826,9 +5005,7 @@ if __name__ == "__main__":
     config = ProxyConfig(
         host=_get_env_str("CUTCTX_HOST", args.host),
         port=_get_env_int("CUTCTX_PORT", args.port),
-        admin_auth_failures_per_minute=_get_env_int(
-            "CUTCTX_ADMIN_AUTH_FAILURES_PER_MINUTE", 10
-        ),
+        admin_auth_failures_per_minute=_get_env_int("CUTCTX_ADMIN_AUTH_FAILURES_PER_MINUTE", 10),
         openai_api_url=_get_env_str("OPENAI_TARGET_API_URL", args.openai_api_url),
         anthropic_api_url=_get_env_str("ANTHROPIC_TARGET_API_URL", args.anthropic_api_url),
         vertex_api_url=_get_env_str("VERTEX_TARGET_API_URL", args.vertex_api_url),
@@ -4837,6 +5014,7 @@ if __name__ == "__main__":
         bedrock_region=_get_env_str("CUTCTX_BEDROCK_REGION", args.bedrock_region),
         bedrock_profile=args.bedrock_profile or os.environ.get("AWS_PROFILE"),
         anyllm_provider=_get_env_str("CUTCTX_ANYLLM_PROVIDER", args.anyllm_provider),
+        compression_mode=compression_mode,
         optimize=optimize,
         min_tokens_to_crush=_get_env_int("CUTCTX_MIN_TOKENS", args.min_tokens),
         max_items_after_crush=_get_env_int("CUTCTX_MAX_ITEMS", args.max_items),
@@ -4870,43 +5048,29 @@ if __name__ == "__main__":
         cors_origins=_cors_origins_list,
         max_body_mb=_get_env_int("CUTCTX_MAX_BODY_MB", args.max_body_mb),
         # Enterprise
-        entitlement_tier=args.entitlement_tier
-        or os.environ.get("CUTCTX_ENTITLEMENT_TIER"),
-        audit_enabled=not args.no_audit
-        and not _get_env_bool("CUTCTX_AUDIT_DISABLED", False),
-        audit_db_path=args.audit_db_path
-        or os.environ.get("CUTCTX_AUDIT_DB_PATH"),
-        org_enabled=not args.no_org
-        and not _get_env_bool("CUTCTX_ORG_DISABLED", False),
-        org_db_path=args.org_db_path
-        or os.environ.get("CUTCTX_ORG_DB_PATH"),
-        fleet_enabled=not args.no_fleet
-        and not _get_env_bool("CUTCTX_FLEET_DISABLED", False),
-        fleet_db_path=args.fleet_db_path
-        or os.environ.get("CUTCTX_FLEET_DB_PATH"),
-        scim_enabled=not args.no_scim
-        and not _get_env_bool("CUTCTX_SCIM_DISABLED", False),
-        scim_db_path=args.scim_db_path
-        or os.environ.get("CUTCTX_SCIM_DB_PATH"),
+        entitlement_tier=args.entitlement_tier or os.environ.get("CUTCTX_ENTITLEMENT_TIER"),
+        audit_enabled=not args.no_audit and not _get_env_bool("CUTCTX_AUDIT_DISABLED", False),
+        audit_db_path=args.audit_db_path or os.environ.get("CUTCTX_AUDIT_DB_PATH"),
+        org_enabled=not args.no_org and not _get_env_bool("CUTCTX_ORG_DISABLED", False),
+        org_db_path=args.org_db_path or os.environ.get("CUTCTX_ORG_DB_PATH"),
+        fleet_enabled=not args.no_fleet and not _get_env_bool("CUTCTX_FLEET_DISABLED", False),
+        fleet_db_path=args.fleet_db_path or os.environ.get("CUTCTX_FLEET_DB_PATH"),
+        scim_enabled=not args.no_scim and not _get_env_bool("CUTCTX_SCIM_DISABLED", False),
+        scim_db_path=args.scim_db_path or os.environ.get("CUTCTX_SCIM_DB_PATH"),
         sso_provider_type=args.sso_provider_type
         or os.environ.get("CUTCTX_SSO_PROVIDER_TYPE", "oidc"),
-        sso_discovery_url=args.sso_discovery_url
-        or os.environ.get("CUTCTX_SSO_DISCOVERY_URL"),
-        sso_jwks_uri=args.sso_jwks_uri
-        or os.environ.get("CUTCTX_SSO_JWKS_URI"),
+        sso_discovery_url=args.sso_discovery_url or os.environ.get("CUTCTX_SSO_DISCOVERY_URL"),
+        sso_jwks_uri=args.sso_jwks_uri or os.environ.get("CUTCTX_SSO_JWKS_URI"),
         sso_issuer=args.sso_issuer or os.environ.get("CUTCTX_SSO_ISSUER"),
-        sso_audience=args.sso_audience
-        or os.environ.get("CUTCTX_SSO_AUDIENCE"),
+        sso_audience=args.sso_audience or os.environ.get("CUTCTX_SSO_AUDIENCE"),
         sso_introspection_url=args.sso_introspection_url
         or os.environ.get("CUTCTX_SSO_INTROSPECTION_URL"),
         sso_role_mapping=_sso_role_mapping,
         sso_default_role=args.sso_default_role
         or os.environ.get("CUTCTX_SSO_DEFAULT_ROLE", "viewer"),
         # LLM Firewall
-        firewall_enabled=(
-            args.firewall
-            or _get_env_bool("CUTCTX_FIREWALL_ENABLED", False)
-        ) and not args.no_firewall,
+        firewall_enabled=(args.firewall or _get_env_bool("CUTCTX_FIREWALL_ENABLED", False))
+        and not args.no_firewall,
         firewall_block_pii=not _get_env_bool("CUTCTX_FIREWALL_NO_BLOCK_PII", False),
         firewall_block_injection=not _get_env_bool("CUTCTX_FIREWALL_NO_BLOCK_INJECTION", False),
         firewall_block_jailbreak=not _get_env_bool("CUTCTX_FIREWALL_NO_BLOCK_JAILBREAK", False),
@@ -4916,35 +5080,29 @@ if __name__ == "__main__":
         and not _get_env_bool("CUTCTX_STRUCTURED_OUTPUT_DISABLED", False),
         structured_output_max_retries=args.structured_output_max_retries,
         # Multi-Model Ensemble
-        ensemble_enabled=(
-            args.ensemble
-            or _get_env_bool("CUTCTX_ENSEMBLE_ENABLED", False)
-        ),
+        ensemble_enabled=(args.ensemble or _get_env_bool("CUTCTX_ENSEMBLE_ENABLED", False)),
         ensemble_evaluator_model=args.ensemble_evaluator_model
         or _get_env_str("CUTCTX_ENSEMBLE_EVALUATOR_MODEL", "claude-3-haiku-20240307"),
         ensemble_timeout_seconds=_get_env_float("CUTCTX_ENSEMBLE_TIMEOUT", 120.0),
         # Budget Cut-offs
         budget_cut_off_enabled=(
-            args.budget_cut_off
-            or _get_env_bool("CUTCTX_BUDGET_ENABLED", False)
+            args.budget_cut_off or _get_env_bool("CUTCTX_BUDGET_ENABLED", False)
         ),
         budget_default_tokens=_get_env_int("CUTCTX_BUDGET_TOKENS", args.budget_default_tokens),
         budget_default_usd=_get_env_float("CUTCTX_BUDGET_USD", 10.0),
         # ── Intelligence Layer ───────────────────────────────────────────
-        task_aware_enabled=(
-            args.task_aware or _get_env_bool("CUTCTX_TASK_AWARE_ENABLED", False)
-        ),
-        dedup_enabled=(
-            args.dedup or _get_env_bool("CUTCTX_DEDUP_ENABLED", False)
-        ),
+        task_aware_enabled=(args.task_aware or _get_env_bool("CUTCTX_TASK_AWARE_ENABLED", False)),
+        dedup_enabled=(args.dedup or _get_env_bool("CUTCTX_DEDUP_ENABLED", False)),
         context_budget_enabled=(
             args.context_budget or _get_env_bool("CUTCTX_CONTEXT_BUDGET_ENABLED", False)
         ),
-        context_budget_max_tokens=_get_env_int("CUTCTX_CONTEXT_BUDGET_MAX_TOKENS", args.context_budget_max_tokens),
-        context_budget_policy=os.environ.get("CUTCTX_CONTEXT_BUDGET_POLICY", args.context_budget_policy),
-        profiles_enabled=(
-            args.profiles or _get_env_bool("CUTCTX_PROFILES_ENABLED", False)
+        context_budget_max_tokens=_get_env_int(
+            "CUTCTX_CONTEXT_BUDGET_MAX_TOKENS", args.context_budget_max_tokens
         ),
+        context_budget_policy=os.environ.get(
+            "CUTCTX_CONTEXT_BUDGET_POLICY", args.context_budget_policy
+        ),
+        profiles_enabled=(args.profiles or _get_env_bool("CUTCTX_PROFILES_ENABLED", False)),
         shared_context_enabled=(
             args.shared_context or _get_env_bool("CUTCTX_SHARED_CONTEXT_ENABLED", False)
         ),
@@ -4982,9 +5140,7 @@ def _policies_summary() -> dict[str, object]:
             by_aggressiveness[policy.aggressiveness] = (
                 by_aggressiveness.get(policy.aggressiveness, 0) + 1
             )
-            by_algorithm[policy.algorithm_hint] = (
-                by_algorithm.get(policy.algorithm_hint, 0) + 1
-            )
+            by_algorithm[policy.algorithm_hint] = by_algorithm.get(policy.algorithm_hint, 0) + 1
             total_samples += policy.samples
 
         return {

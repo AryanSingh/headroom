@@ -680,7 +680,7 @@ def _truncate_body_for_chatgpt(
         if not isinstance(item, dict):
             return item
         out = dict(item)
-        if isinstance(out.get("content"), (str, list, dict)):
+        if isinstance(out.get("content"), str | list | dict):
             out["content"] = _truncate_content(out["content"])
         if isinstance(out.get("output"), str) and len(out["output"]) > _MAX_TOOL_OUTPUT_CHARS:
             out["output"] = out["output"][:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
@@ -1852,7 +1852,7 @@ class OpenAIResponsesMixin:
             )
 
         input_data = payload.get("input")
-        if not isinstance(input_data, (str, list)):
+        if not isinstance(input_data, str | list):
             return payload, False, 0, [], 0
 
         latest_user_index: int | None = None
@@ -2166,7 +2166,9 @@ class OpenAIResponsesMixin:
         from cutctx.proxy.auth_keyring import inject_provider_authorization
 
         if inject_provider_authorization(headers, "openai"):
-            logger.debug("[%s] injected OpenAI Authorization from configured credentials", request_id)
+            logger.debug(
+                "[%s] injected OpenAI Authorization from configured credentials", request_id
+            )
         log_outbound_headers(
             forwarder="openai_responses",
             stripped_count=_pre_strip_count_resp,
@@ -3428,7 +3430,9 @@ class OpenAIResponsesMixin:
         from cutctx.proxy.auth_keyring import inject_provider_authorization
 
         if inject_provider_authorization(upstream_headers, "openai"):
-            logger.debug("[%s] WS injected OpenAI Authorization from configured credentials", request_id)
+            logger.debug(
+                "[%s] WS injected OpenAI Authorization from configured credentials", request_id
+            )
 
         upstream_headers = await apply_copilot_api_auth(upstream_headers, url=upstream_url)
 
