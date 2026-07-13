@@ -352,6 +352,39 @@ _RUST_CORE_REQUIRED_ENV = "CUTCTX_REQUIRE_RUST_CORE"
 _EXIT_CONFIG = 78
 
 
+class _OssEntitlementChecker:
+    """Fail-closed entitlement surface for installations without cutctx_ee.
+
+    The OSS proxy must start without the optional commercial distribution.
+    Keeping the checker at the free tier means every commercial route remains
+    denied while core proxy behavior is unaffected.
+    """
+
+    plan_name = "builder"
+    feature_tiers: dict[str, Any] = {}
+
+    def is_entitled(self, _feature: str) -> bool:
+        return False
+
+    def list_features(self) -> list[str]:
+        return []
+
+
+def _load_entitlement_checker(plan: str | None) -> Any:
+    """Load commercial entitlements when installed, otherwise fail closed.
+
+    ``cutctx.entitlements`` is a compatibility shim whose import deliberately
+    raises when ``cutctx_ee`` is absent. Treat that absence as a normal OSS
+    installation rather than a proxy-startup failure.
+    """
+    try:
+        from cutctx.entitlements import EntitlementChecker
+    except ImportError:
+        logger.info("Commercial entitlement module unavailable; using OSS feature gates")
+        return _OssEntitlementChecker()
+    return EntitlementChecker(plan=plan)
+
+
 def _check_rust_core() -> tuple[str, str | None]:
     """Verify the Rust extension `cutctx._core` is loadable at startup.
 
@@ -949,12 +982,9 @@ class CutctxProxy(
                 report_interval=config.license_report_interval,
             )
 
-        # Entitlement checker (feature gating by tier)
-        from cutctx.entitlements import EntitlementChecker
-
-        self.entitlement_checker = EntitlementChecker(
-            plan=config.entitlement_tier,
-        )
+        # ``cutctx_ee`` is optional, so an OSS install uses a fail-closed
+        # checker instead of failing proxy startup.
+        self.entitlement_checker = _load_entitlement_checker(config.entitlement_tier)
         self.component_init_errors: dict[str, str] = {}
 
         # Audit logger (enterprise compliance — structured event logging)
@@ -3303,13 +3333,19 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         # fail-open "enterprise" default, which granted every admin-gated
         # enterprise feature (audit logs, RBAC, retention, SCIM, fleet
         # management) to any deployment that never configured a license.
-        from cutctx.entitlements import FEATURE_TIERS
-
         async def _check(_request: Request) -> None:
             checker = proxy.entitlement_checker
             if checker.is_entitled(feature):
                 return
-            required = FEATURE_TIERS.get(feature)
+            feature_tiers = getattr(checker, "feature_tiers", None)
+            if feature_tiers is None:
+                try:
+                    from cutctx.entitlements import FEATURE_TIERS
+
+                    feature_tiers = FEATURE_TIERS
+                except ImportError:
+                    feature_tiers = {}
+            required = feature_tiers.get(feature)
             raise HTTPException(
                 status_code=403,
                 detail={

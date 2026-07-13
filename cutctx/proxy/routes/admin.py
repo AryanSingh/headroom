@@ -433,14 +433,21 @@ def create_admin_router(
         checker = _proxy.entitlement_checker
         if checker is None:
             return {"error": "Entitlement checker not initialized"}
-        from cutctx.entitlements import FEATURE_TIERS
+        feature_tiers = getattr(checker, "feature_tiers", None)
+        if feature_tiers is None:
+            try:
+                from cutctx.entitlements import FEATURE_TIERS
+
+                feature_tiers = FEATURE_TIERS
+            except ImportError:
+                feature_tiers = {}
 
         available = checker.list_features()
-        all_features = sorted(FEATURE_TIERS.items(), key=lambda x: x[1].value)
+        all_features = sorted(feature_tiers.items(), key=lambda x: x[1].value)
         return {
             "current_tier": checker.plan_name,
             "available_count": len(available),
-            "total_features": len(FEATURE_TIERS),
+            "total_features": len(feature_tiers),
             "features": {
                 name: {
                     "available": checker.is_entitled(name),
