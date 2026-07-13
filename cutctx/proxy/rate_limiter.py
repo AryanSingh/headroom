@@ -185,5 +185,7 @@ class TokenBucketRateLimiter:
                 "request_denied_total": self._request_denied_total,
                 "token_denied_total": self._token_denied_total,
                 "bucket_limit_denied_total": self._bucket_limit_denied_total,
-                "last_rate_limited": dict(self._last_rate_limited) if self._last_rate_limited else None,
+                "last_rate_limited": dict(self._last_rate_limited)
+                if self._last_rate_limited
+                else None,
             }

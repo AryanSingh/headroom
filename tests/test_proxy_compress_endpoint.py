@@ -41,6 +41,20 @@ def client_no_optimize():
         yield c
 
 
+@pytest.fixture
+def client_off():
+    config = ProxyConfig(
+        optimize=True,
+        compression_mode="off",
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        cost_tracking_enabled=False,
+    )
+    app = create_app(config)
+    with TestClient(app) as c:
+        yield c
+
+
 class TestCompressEndpointValidation:
     def test_missing_messages_returns_400(self, client):
         response = client.post("/v1/compress", json={"model": "gpt-4"})
@@ -146,6 +160,24 @@ class TestCompressEndpointBasic:
         assert response.status_code == 200
         data = response.json()
         assert data["messages"] == [{"role": "user", "content": "Hello"}]
+
+    def test_off_policy_reports_router_passthrough(self, client_off):
+        messages = [
+            {
+                "role": "tool",
+                "content": "  exact whitespace  \nCUTCTX_TIMEOUT=30\n",
+            }
+        ]
+
+        response = client_off.post(
+            "/v1/compress",
+            json={"messages": messages, "model": "gpt-4"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["messages"] == messages
+        assert "router:off" in data["transforms_applied"]
 
 
 class TestCompressEndpointCompression:

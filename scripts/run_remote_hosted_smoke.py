@@ -110,7 +110,9 @@ def run_remote_hosted_smoke(
     markdown_output.parent.mkdir(parents=True, exist_ok=True)
     json_output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     lines = ["# Remote Hosted Compression Smoke", "", f"- Base URL: `{payload['base_url']}`"]
-    lines.extend(["", "| Payload | Samples | P50 | P95 | Mean Tokens Saved |", "|---|---:|---:|---:|---:|"])
+    lines.extend(
+        ["", "| Payload | Samples | P50 | P95 | Mean Tokens Saved |", "|---|---:|---:|---:|---:|"]
+    )
     for case in cases:
         lines.append(
             "| {size} | {samples} | {p50:.2f} ms | {p95:.2f} ms | {mean:.2f} |".format(

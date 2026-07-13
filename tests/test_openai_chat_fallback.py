@@ -211,8 +211,7 @@ def _build_request(body: dict, headers: dict[str, str]) -> Request:
         "raw_path": b"/v1/chat/completions",
         "query_string": b"",
         "headers": [
-            (key.lower().encode("utf-8"), value.encode("utf-8"))
-            for key, value in headers.items()
+            (key.lower().encode("utf-8"), value.encode("utf-8")) for key, value in headers.items()
         ],
         "client": ("127.0.0.1", 12345),
         "server": ("testserver", 443),

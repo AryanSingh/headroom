@@ -73,7 +73,18 @@ class QueryAwareProseCompressor:
     when they are not query-relevant so compressed runbooks remain actionable.
     """
 
-    def compress(self, content: str, context: str = "") -> ProseCompressionResult:
+    def compress(
+        self, content: str, context: str = "", *, aggressive: bool = False
+    ) -> ProseCompressionResult:
+        """Select useful prose sentences.
+
+        The default is deliberately conservative: without a relevant query it
+        leaves text untouched.  The aggressive router mode may opt into a
+        deterministic fallback when an ML compressor is unavailable.  That
+        fallback retains headings, exact identifiers, numerical constraints,
+        and one representative sentence rather than silently reporting an
+        aggressive route that made no reduction.
+        """
         query_terms = _terms(context)
         git_log_result = self._compress_git_log(content, query_terms)
         if git_log_result is not None:
@@ -87,10 +98,14 @@ class QueryAwareProseCompressor:
                 paragraph = " ".join(line.strip() for line in lines[1:] if line.strip())
             else:
                 paragraph = " ".join(line.strip() for line in lines if line.strip())
-            units.extend((sentence.strip(), False) for sentence in _SENTENCE_BOUNDARY.split(paragraph) if sentence.strip())
+            units.extend(
+                (sentence.strip(), False)
+                for sentence in _SENTENCE_BOUNDARY.split(paragraph)
+                if sentence.strip()
+            )
 
         sentence_count = sum(not heading for _, heading in units)
-        if not query_terms or sentence_count < 4:
+        if sentence_count < 4 or (not query_terms and not aggressive):
             return self._unchanged(content, sentence_count)
 
         scored: list[tuple[int, int]] = []
@@ -109,8 +124,19 @@ class QueryAwareProseCompressor:
         for overlap, index in sorted(scored, reverse=True)[:1]:
             if overlap > 0:
                 keep.add(index)
-        if not any(overlap > 0 for overlap, _ in scored):
+        has_query_match = any(overlap > 0 for overlap, _ in scored)
+        if not has_query_match and not aggressive:
             return self._unchanged(content, sentence_count)
+
+        if aggressive and not has_query_match:
+            # No semantic query signal is available. Preserve a representative
+            # lead sentence in addition to format/operational anchors so the
+            # result remains intelligible and useful for retrieval.
+            first_sentence = next(
+                (index for index, (_, heading) in enumerate(units) if not heading), None
+            )
+            if first_sentence is not None:
+                keep.add(first_sentence)
 
         selected = [unit for index, (unit, _) in enumerate(units) if index in keep]
         compressed = "\n\n".join(selected)
@@ -139,10 +165,16 @@ class QueryAwareProseCompressor:
             return None
 
         commits = [
-            content[start.start() : starts[index + 1].start() if index + 1 < len(starts) else len(content)].strip()
+            content[
+                start.start() : starts[index + 1].start()
+                if index + 1 < len(starts)
+                else len(content)
+            ].strip()
             for index, start in enumerate(starts)
         ]
-        scored = [(len(_terms(commit) & query_terms), index) for index, commit in enumerate(commits)]
+        scored = [
+            (len(_terms(commit) & query_terms), index) for index, commit in enumerate(commits)
+        ]
         best_score, best_index = max(scored)
         if best_score <= 0:
             return self._unchanged(content, len(commits))

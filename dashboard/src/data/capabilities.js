@@ -14,6 +14,7 @@ export const capabilityGroups = [
     description: 'The data-reduction layers that drive token savings.',
     items: [
       { name: 'SmartCrusher', detail: 'Structured JSON and repetitive tool output compression.' },
+      { name: 'Compression Policies', detail: 'Choose off for byte-preserving forwarding, safe for conservative routing, or aggressive for tighter prose reduction. Set CUTCTX_COMPRESSION_MODE=off|safe|aggressive; policy changes require a proxy restart.' },
       { name: 'CodeCompressor', detail: 'AST-aware source code reduction across Python, JS, Go, Rust, Java, and C++.' },
       { name: 'Log & Diff Compression', detail: 'Structural log pattern analysis, semantic diff compression, and multi-format optimization across 40+ log and diff formats.' },
       { name: 'Schema Compaction', detail: 'Tool schema metadata stripping for OpenAI / Codex tool-heavy payloads.' },

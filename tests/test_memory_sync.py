@@ -426,7 +426,9 @@ class TestTeamSyncWrapper:
 
         wrapper = TeamSyncWrapper(
             backend=backend,
-            config=type("Cfg", (), {"memory_team_sync_enabled": False, "memory_service_url": None})(),
+            config=type(
+                "Cfg", (), {"memory_team_sync_enabled": False, "memory_service_url": None}
+            )(),
             auth_token=None,
             org_id="org-1",
             workspace_id="ws-1",

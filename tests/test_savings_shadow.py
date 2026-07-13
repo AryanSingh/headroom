@@ -212,9 +212,7 @@ def test_record_measured_savings_negative_delta_logs_warning(tmp_path) -> None:
             measured_savings_usd=-0.01,
             request_id="req-negative",
         )
-    assert any(
-        "shadow_negative_savings" in record.getMessage() for record in log_handle.records
-    )
+    assert any("shadow_negative_savings" in record.getMessage() for record in log_handle.records)
     snapshot = tracker.snapshot()
     assert snapshot["shadow_checks"][0]["measured_savings_usd"] == -0.01
 
@@ -430,8 +428,10 @@ def test_shadow_check_sampled_fires_replays_original_bytes_and_records_measureme
     handler, tracker = _make_handler(tmp_path, retry_impl)
 
     anyio.run(
-        partial(handler._maybe_shadow_check,
-                **_base_kwargs(compressed_uncached_input_tokens=1000, tokens_saved=500))
+        partial(
+            handler._maybe_shadow_check,
+            **_base_kwargs(compressed_uncached_input_tokens=1000, tokens_saved=500),
+        )
     )
 
     assert len(handler.calls) == 1
@@ -480,8 +480,10 @@ def test_shadow_check_negative_measurement_flows_through_and_warns(
 
     with _capture_logger("cutctx.proxy.savings_tracker") as log_handle:
         anyio.run(
-            partial(handler._maybe_shadow_check,
-                    **_base_kwargs(compressed_uncached_input_tokens=5000, tokens_saved=500))
+            partial(
+                handler._maybe_shadow_check,
+                **_base_kwargs(compressed_uncached_input_tokens=5000, tokens_saved=500),
+            )
         )
 
     shadow_checks = tracker.snapshot()["shadow_checks"]

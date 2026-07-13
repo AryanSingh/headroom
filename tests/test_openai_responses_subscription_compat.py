@@ -227,9 +227,7 @@ def test_codex_responses_lite_model_sanitizer_preserves_requested_model():
 
 
 def test_codex_responses_lite_model_sanitizer_leaves_supported_model_untouched():
-    sanitized, migrated = _sanitize_codex_responses_lite_model(
-        {"model": "gpt-5.5", "input": "hi"}
-    )
+    sanitized, migrated = _sanitize_codex_responses_lite_model({"model": "gpt-5.5", "input": "hi"})
 
     assert sanitized["model"] == "gpt-5.5"
     assert migrated == []

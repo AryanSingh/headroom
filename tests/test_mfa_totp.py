@@ -290,5 +290,7 @@ class TestEnrollVerifyRoundTrip:
         counter = int(now) // 30
         code = current_totp(secret, now=now).code
 
-        assert matching_totp_counter(secret, code, now=now, last_used_counter=counter - 1) == counter
+        assert (
+            matching_totp_counter(secret, code, now=now, last_used_counter=counter - 1) == counter
+        )
         assert matching_totp_counter(secret, code, now=now, last_used_counter=counter) is None

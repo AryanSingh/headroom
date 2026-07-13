@@ -658,9 +658,17 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
     async def openai_codex_responses_sub(request: Request, sub_path: str):
         return await openai_responses_sub(request, sub_path)
 
-    @app.get("/backend-api/codex/responses/{sub_path:path}", name="openai_codex_nested_responses_sub_get")
-    @app.post("/backend-api/codex/responses/{sub_path:path}", name="openai_codex_nested_responses_sub_post")
-    @app.delete("/backend-api/codex/responses/{sub_path:path}", name="openai_codex_nested_responses_sub_delete")
+    @app.get(
+        "/backend-api/codex/responses/{sub_path:path}", name="openai_codex_nested_responses_sub_get"
+    )
+    @app.post(
+        "/backend-api/codex/responses/{sub_path:path}",
+        name="openai_codex_nested_responses_sub_post",
+    )
+    @app.delete(
+        "/backend-api/codex/responses/{sub_path:path}",
+        name="openai_codex_nested_responses_sub_delete",
+    )
     async def openai_codex_nested_responses_sub(request: Request, sub_path: str):
         return await openai_responses_sub(request, sub_path)
 

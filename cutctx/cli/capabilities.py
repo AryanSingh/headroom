@@ -234,7 +234,9 @@ def installation_profiles(rows: list[dict[str, object]]) -> dict[str, dict[str, 
     profiles: dict[str, dict[str, object]] = {}
     for name, definition in _INSTALL_PROFILES.items():
         required = [str(feature) for feature in definition["features"]]
-        missing = [feature for feature in required if not bool(by_name.get(feature, {}).get("available"))]
+        missing = [
+            feature for feature in required if not bool(by_name.get(feature, {}).get("available"))
+        ]
         extras = [str(extra) for extra in definition["extras"]]
         install_spec = "" if not extras else f"[{','.join(extras)}]"
         profiles[name] = {
@@ -248,7 +250,9 @@ def installation_profiles(rows: list[dict[str, object]]) -> dict[str, dict[str, 
 
 @main.command("capabilities")
 @click.option("--json", "emit_json", is_flag=True, help="Emit JSON output.")
-@click.option("--profile", type=click.Choice(sorted(_INSTALL_PROFILES)), help="Validate one install profile.")
+@click.option(
+    "--profile", type=click.Choice(sorted(_INSTALL_PROFILES)), help="Validate one install profile."
+)
 def capabilities_cmd(emit_json: bool, profile: str | None) -> None:
     """Check optional Python/runtime capabilities.
 
@@ -269,8 +273,10 @@ def capabilities_cmd(emit_json: bool, profile: str | None) -> None:
         if profile:
             payload = {"profile": profile, **profiles[profile]}
         click.echo(_json.dumps(payload, indent=2))
-        broken = not bool(profiles[profile]["available"]) if profile else any(
-            bool(row["critical"]) and not bool(row["available"]) for row in rows
+        broken = (
+            not bool(profiles[profile]["available"])
+            if profile
+            else any(bool(row["critical"]) and not bool(row["available"]) for row in rows)
         )
         raise SystemExit(1 if broken else 0)
 

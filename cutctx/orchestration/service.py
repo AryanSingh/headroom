@@ -169,12 +169,17 @@ class OrchestrationService:
             request = replace(
                 request,
                 role=request.role or profile.role,
-                required_capabilities={*request.required_capabilities, *profile.required_capabilities},
+                required_capabilities={
+                    *request.required_capabilities,
+                    *profile.required_capabilities,
+                },
                 allowed_providers=narrow(request.allowed_providers, profile.allowed_providers),
                 max_cost_usd=(
                     min(request.max_cost_usd, profile.max_cost_usd)
                     if request.max_cost_usd is not None and profile.max_cost_usd is not None
-                    else request.max_cost_usd if profile.max_cost_usd is None else profile.max_cost_usd
+                    else request.max_cost_usd
+                    if profile.max_cost_usd is None
+                    else profile.max_cost_usd
                 ),
             )
         return replace(
@@ -634,7 +639,9 @@ class OrchestrationService:
                 )
             )
             if self.receipt_audit is not None:
-                self.receipt_audit.append(decision, execution_id=f"{decision.request_id}:{started_at}")
+                self.receipt_audit.append(
+                    decision, execution_id=f"{decision.request_id}:{started_at}"
+                )
         if error is not None:
             raise RuntimeError(
                 f"Assigned model {decision.actual_model} failed during streaming: {error}"
@@ -800,9 +807,7 @@ class OrchestrationService:
         role_ids = {role.id.casefold() for role in config.roles}
         for profile in config.profiles:
             if profile.role.casefold() not in role_ids:
-                raise ValueError(
-                    f"Profile {profile.id!r} references unknown role {profile.role!r}"
-                )
+                raise ValueError(f"Profile {profile.id!r} references unknown role {profile.role!r}")
             if profile.max_cost_usd is not None and profile.max_cost_usd < 0:
                 raise ValueError(f"Profile {profile.id!r} has an invalid max_cost_usd")
         configured_models = {model.deployment_key: model for model in config.models}

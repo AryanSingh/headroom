@@ -1,4 +1,5 @@
 """Model-price lookups shared by cost tracking and savings attribution."""
+
 from __future__ import annotations
 
 from cutctx.pricing.litellm_pricing import get_model_pricing
@@ -6,6 +7,7 @@ from cutctx.pricing.litellm_pricing import get_model_pricing
 
 def _get_litellm_module():
     import litellm
+
     return litellm
 
 

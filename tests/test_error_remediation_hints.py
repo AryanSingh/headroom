@@ -38,14 +38,14 @@ class TestErrorRemediationHints:
         assert response.status_code == 401
         body = response.json()
         assert "error" in body, f"Expected 'error' key in response: {body}"
-        assert "remediation" in body["error"], \
-            f"remediation field missing from error: {body}"
+        assert "remediation" in body["error"], f"remediation field missing from error: {body}"
         remediation = body["error"]["remediation"]
         assert isinstance(remediation, str)
         # Should mention how to provide credentials
-        assert any(keyword in remediation.lower() for keyword in [
-            "authorization", "bearer", "api key", "header", "set"
-        ]), f"Remediation doesn't explain how to provide credentials: {remediation}"
+        assert any(
+            keyword in remediation.lower()
+            for keyword in ["authorization", "bearer", "api key", "header", "set"]
+        ), f"Remediation doesn't explain how to provide credentials: {remediation}"
 
     def test_invalid_admin_credentials_includes_remediation(self) -> None:
         """401 for invalid admin credentials includes specific remediation."""
@@ -60,19 +60,20 @@ class TestErrorRemediationHints:
         assert response.status_code == 401
         body = response.json()
         assert "error" in body, f"Expected 'error' key in response: {body}"
-        assert "remediation" in body["error"], \
-            f"remediation field missing from error: {body}"
+        assert "remediation" in body["error"], f"remediation field missing from error: {body}"
         remediation = body["error"]["remediation"]
         # Should suggest checking the key or setting the env var
-        assert any(keyword in remediation.lower() for keyword in [
-            "cutctx_admin_api_key", "check", "verify", "key"
-        ]), f"Remediation doesn't explain key mismatch: {remediation}"
+        assert any(
+            keyword in remediation.lower()
+            for keyword in ["cutctx_admin_api_key", "check", "verify", "key"]
+        ), f"Remediation doesn't explain key mismatch: {remediation}"
 
     def test_enterprise_module_not_installed_includes_remediation(self) -> None:
         """501 for missing enterprise module includes remediation."""
         # Check if the ee module is installed
         try:
             import cutctx_ee
+
             pytest.skip("cutctx_ee is installed; cannot test missing module error")
         except ImportError:
             pass
@@ -90,12 +91,12 @@ class TestErrorRemediationHints:
         if response.status_code == 501:
             body = response.json()
             assert "error" in body, f"Expected 'error' key in response: {body}"
-            assert "remediation" in body["error"], \
-                f"remediation field missing from error: {body}"
+            assert "remediation" in body["error"], f"remediation field missing from error: {body}"
             remediation = body["error"]["remediation"]
             # Should explain what's needed to enable the feature
-            assert "enterprise" in remediation.lower() or "ee" in remediation.lower(), \
+            assert "enterprise" in remediation.lower() or "ee" in remediation.lower(), (
                 f"Remediation doesn't mention enterprise requirement: {remediation}"
+            )
         else:
             # If not 501, skip this test since the module is installed
             pytest.skip(f"Got {response.status_code} instead of 501; ee module might be installed")
@@ -116,8 +117,7 @@ class TestErrorRemediationHints:
         if response.status_code == 503:
             body = response.json()
             assert "error" in body
-            assert "remediation" in body["error"], \
-                f"remediation field missing from error: {body}"
+            assert "remediation" in body["error"], f"remediation field missing from error: {body}"
 
     def test_invalid_bearer_token_format_includes_remediation(self) -> None:
         """401 for invalid bearer token format includes remediation."""

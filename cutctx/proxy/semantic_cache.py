@@ -163,9 +163,7 @@ class SemanticCache:
 
     def _compute_key(self, messages: list[dict], model: str) -> str:
         """Compute a normalized cache key for a request."""
-        cleaned_messages = normalize_semantic_cache_messages(
-            _strip_per_call_annotations(messages)
-        )
+        cleaned_messages = normalize_semantic_cache_messages(_strip_per_call_annotations(messages))
 
         normalized = json.dumps(
             {"model": model, "messages": cleaned_messages},

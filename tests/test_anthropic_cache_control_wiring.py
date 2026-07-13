@@ -168,9 +168,7 @@ def test_apply_cache_breakpoints_respects_client_placed_breakpoints():
         "messages": [
             {
                 "role": "user",
-                "content": [
-                    {"type": "text", "text": "hi", "cache_control": {"type": "ephemeral"}}
-                ],
+                "content": [{"type": "text", "text": "hi", "cache_control": {"type": "ephemeral"}}],
             }
         ],
         "tools": _BIG_TOOLS,

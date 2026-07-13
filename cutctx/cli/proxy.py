@@ -374,6 +374,17 @@ def _selected_context_tool() -> str:
     ),
 )
 @click.option(
+    "--compression-mode",
+    type=click.Choice(["off", "safe", "aggressive"], case_sensitive=False),
+    default=None,
+    envvar="CUTCTX_COMPRESSION_MODE",
+    help=(
+        "Compression policy: off forwards content unchanged; safe preserves "
+        "conservative routing; aggressive tightens prose compression. "
+        "Default: safe. Env: CUTCTX_COMPRESSION_MODE."
+    ),
+)
+@click.option(
     "--deterministic",
     is_flag=True,
     envvar="CUTCTX_DETERMINISTIC_MODE",
@@ -899,6 +910,7 @@ def proxy(
     budget: float | None,
     code_aware_flag: bool | None,
     disable_kompress: bool,
+    compression_mode: str | None,
     deterministic: bool,
     query_aware_compression: bool,
     selective_filter: bool,
@@ -1165,8 +1177,11 @@ def proxy(
         ),
         deterministic_mode=deterministic_mode,
         disable_kompress=disable_kompress or deterministic_mode,
+        compression_mode=(compression_mode or "safe").lower(),
         query_aware_compression=query_aware_compression,
-        model_routing_preset=model_routing_preset or os.environ.get("CUTCTX_MODEL_ROUTING_PRESET") or None,
+        model_routing_preset=model_routing_preset
+        or os.environ.get("CUTCTX_MODEL_ROUTING_PRESET")
+        or None,
         selective_filter=selective_filter,
         selective_filter_threshold=(
             selective_filter_threshold if selective_filter_threshold is not None else 0.15

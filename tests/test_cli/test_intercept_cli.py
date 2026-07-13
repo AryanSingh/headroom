@@ -30,9 +30,7 @@ def test_intercept_status_requires_opt_in_and_reports_state(monkeypatch) -> None
         },
     )
 
-    result = CliRunner().invoke(
-        main, ["intercept", "status"], env={"CUTCTX_EXPERIMENTAL": "1"}
-    )
+    result = CliRunner().invoke(main, ["intercept", "status"], env={"CUTCTX_EXPERIMENTAL": "1"})
 
     assert result.exit_code == 0, result.output
     assert "Fully configured" in result.output

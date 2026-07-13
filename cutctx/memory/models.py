@@ -238,11 +238,14 @@ class DecisionTrace(Memory):
         # Fallback to parent from_dict to avoid duplicating all field parsing
         base = Memory.from_dict(data)
         import dataclasses
+
         kwargs = {f.name: getattr(base, f.name) for f in dataclasses.fields(Memory)}
-        kwargs.update({
-            "situation": situation,
-            "rationale": rationale,
-            "action": action,
-            "outcome": outcome,
-        })
+        kwargs.update(
+            {
+                "situation": situation,
+                "rationale": rationale,
+                "action": action,
+                "outcome": outcome,
+            }
+        )
         return cls(**kwargs)

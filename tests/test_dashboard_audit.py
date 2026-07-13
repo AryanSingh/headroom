@@ -36,7 +36,9 @@ ROUTES = (
     ("/docs", "Docs"),
 )
 VIEWPORTS = ((375, 812), (768, 1024), (1280, 900), (1720, 1400))
-ROUTE_MATRIX = tuple((route, label, width, height) for route, label in ROUTES for width, height in VIEWPORTS)
+ROUTE_MATRIX = tuple(
+    (route, label, width, height) for route, label in ROUTES for width, height in VIEWPORTS
+)
 
 JSON_HEADERS = {"content-type": "application/json"}
 STATS = {
@@ -46,8 +48,18 @@ STATS = {
     "config": {"firewall": False, "memory": False, "orchestrator": False, "rate_limiter": False},
     "cost": {"budget": {"enabled": False}},
     "recent_requests": [
-        {"request_id": "req-1", "model": "memory-keeper", "provider": "openai", "timestamp": "2026-07-12T00:00:00Z"},
-        {"request_id": "req-2", "model": "gpt-4o", "provider": "anthropic", "timestamp": "2026-07-12T00:00:01Z"},
+        {
+            "request_id": "req-1",
+            "model": "memory-keeper",
+            "provider": "openai",
+            "timestamp": "2026-07-12T00:00:00Z",
+        },
+        {
+            "request_id": "req-2",
+            "model": "gpt-4o",
+            "provider": "anthropic",
+            "timestamp": "2026-07-12T00:00:01Z",
+        },
     ],
     "persistent_savings": {"lifetime": {}, "display_session": {}},
 }
@@ -60,7 +72,11 @@ def _payload(pathname: str, method: str) -> dict | list:
     if pathname == "/stats":
         return STATS
     if pathname == "/stats-history":
-        return {"history": [], "series": {"hourly": [], "daily": [], "weekly": [], "monthly": []}, "lifetime": {}}
+        return {
+            "history": [],
+            "series": {"hourly": [], "daily": [], "weekly": [], "monthly": []},
+            "lifetime": {},
+        }
     if pathname in {"/config/flags", "/admin/config/flags"}:
         return {**FLAGS, "applied_live": {}} if method == "POST" else FLAGS
     if pathname == "/entitlements":
@@ -80,19 +96,39 @@ def _payload(pathname: str, method: str) -> dict | list:
 
 def _is_api(pathname: str) -> bool:
     return pathname in {"/health", "/stats", "/entitlements"} or pathname.startswith(
-        ("/stats-history", "/v1/", "/config/", "/admin/config/", "/audit/", "/rbac/", "/firewall/", "/policy/")
+        (
+            "/stats-history",
+            "/v1/",
+            "/config/",
+            "/admin/config/",
+            "/audit/",
+            "/rbac/",
+            "/firewall/",
+            "/policy/",
+        )
     )
 
 
 def _install_routes(page: Page, events: dict[str, list[str]]) -> None:
     page.add_init_script("window.localStorage.setItem('cutctxAdminKey', 'dashboard-audit-key')")
 
-    page.on("console", lambda message: events["console_errors"].append(message.text) if message.type == "error" else None)
+    page.on(
+        "console",
+        lambda message: (
+            events["console_errors"].append(message.text) if message.type == "error" else None
+        ),
+    )
     page.on("pageerror", lambda error: events["page_errors"].append(str(error)))
-    page.on("requestfailed", lambda request: events["failed_requests"].append(f"{request.url}: {request.failure}"))
+    page.on(
+        "requestfailed",
+        lambda request: events["failed_requests"].append(f"{request.url}: {request.failure}"),
+    )
 
     def on_response(response) -> None:  # type: ignore[no-untyped-def]
-        if response.request.resource_type in {"stylesheet", "script", "font", "image"} and response.status >= 400:
+        if (
+            response.request.resource_type in {"stylesheet", "script", "font", "image"}
+            and response.status >= 400
+        ):
             events["broken_assets"].append(f"{response.status}: {response.url}")
 
     page.on("response", on_response)
@@ -104,7 +140,11 @@ def _install_routes(page: Page, events: dict[str, list[str]]) -> None:
         if not _is_api(parsed.path):
             route.continue_()
             return
-        route.fulfill(status=200, headers=JSON_HEADERS, body=json.dumps(_payload(parsed.path, route.request.method)))
+        route.fulfill(
+            status=200,
+            headers=JSON_HEADERS,
+            body=json.dumps(_payload(parsed.path, route.request.method)),
+        )
 
     page.route("**/*", handler)
 
@@ -155,20 +195,28 @@ def audit_browser():
         browser.close()
 
 
-@pytest.fixture(params=ROUTE_MATRIX, ids=lambda item: f"{item[2]}px-{item[0].strip('/').replace('/', '-') or 'dashboard'}")
+@pytest.fixture(
+    params=ROUTE_MATRIX,
+    ids=lambda item: f"{item[2]}px-{item[0].strip('/').replace('/', '-') or 'dashboard'}",
+)
 def audit_page(request, dashboard_server: str, audit_browser: Browser):
     route, label, width, height = request.param
     events = {"console_errors": [], "page_errors": [], "failed_requests": [], "broken_assets": []}
     context = audit_browser.new_context(viewport={"width": width, "height": height})
     page = context.new_page()
     _install_routes(page, events)
-    page.goto(f"{dashboard_server}/dashboard{'' if route == '/' else route}", wait_until="domcontentloaded")
+    page.goto(
+        f"{dashboard_server}/dashboard{'' if route == '/' else route}",
+        wait_until="domcontentloaded",
+    )
     yield page, route, label, width, events
 
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     stem = f"{width}px-{route.strip('/').replace('/', '-') or 'dashboard'}"
     page.screenshot(path=str(ARTIFACT_DIR / f"{stem}.png"), full_page=True)
-    (ARTIFACT_DIR / f"{stem}.json").write_text(json.dumps(events, indent=2) + "\n", encoding="utf-8")
+    (ARTIFACT_DIR / f"{stem}.json").write_text(
+        json.dumps(events, indent=2) + "\n", encoding="utf-8"
+    )
     context.close()
 
 
@@ -180,7 +228,10 @@ def test_dashboard_audit_matrix(audit_page) -> None:  # type: ignore[no-untyped-
     links = page.locator('nav[aria-label="Main Navigation"] a').evaluate_all(
         "elements => elements.map(element => ({ href: element.getAttribute('href'), label: element.textContent.trim() }))"
     )
-    assert links == [{"href": href, "label": route_label} for href, (_, route_label) in zip(expected_hrefs, ROUTES)]
+    assert links == [
+        {"href": href, "label": route_label}
+        for href, (_, route_label) in zip(expected_hrefs, ROUTES)
+    ]
     assert len({link["href"] for link in links}) == 10
 
     metrics = page.evaluate(
@@ -193,7 +244,9 @@ def test_dashboard_audit_matrix(audit_page) -> None:  # type: ignore[no-untyped-
     assert metrics["documentWidth"] <= metrics["viewportWidth"] + 1
     assert metrics["duplicateIds"] == []
 
-    missing_names = page.locator("button:visible, a:visible, input:visible, select:visible, textarea:visible").evaluate_all(
+    missing_names = page.locator(
+        "button:visible, a:visible, input:visible, select:visible, textarea:visible"
+    ).evaluate_all(
         """elements => elements.filter(element => !element.disabled && !element.closest('[aria-hidden="true"]')).map(element => element.getAttribute('aria-label') || element.getAttribute('title') || element.getAttribute('placeholder') || element.labels?.[0]?.textContent?.trim() || element.textContent.trim()).filter(Boolean).length === elements.filter(element => !element.disabled && !element.closest('[aria-hidden="true"]')).length"""
     )
     assert missing_names
@@ -234,10 +287,17 @@ def test_dashboard_audit_matrix(audit_page) -> None:  # type: ignore[no-untyped-
         expect(page.locator(".sidebar-shell")).not_to_have_class(re.compile("open"))
         expect(toggle).to_be_focused()
 
-    assert events == {"console_errors": [], "page_errors": [], "failed_requests": [], "broken_assets": []}
+    assert events == {
+        "console_errors": [],
+        "page_errors": [],
+        "failed_requests": [],
+        "broken_assets": [],
+    }
 
 
-def test_dashboard_skip_link_focuses_main_content(dashboard_server: str, audit_browser: Browser) -> None:  # type: ignore[no-untyped-def]
+def test_dashboard_skip_link_focuses_main_content(
+    dashboard_server: str, audit_browser: Browser
+) -> None:  # type: ignore[no-untyped-def]
     events = {"console_errors": [], "page_errors": [], "failed_requests": [], "broken_assets": []}
     context = audit_browser.new_context(viewport={"width": 1280, "height": 900})
     page = context.new_page()
@@ -252,6 +312,11 @@ def test_dashboard_skip_link_focuses_main_content(dashboard_server: str, audit_b
         skip_link.press("Enter")
         expect(page.locator("#main-content")).to_be_focused()
 
-        assert events == {"console_errors": [], "page_errors": [], "failed_requests": [], "broken_assets": []}
+        assert events == {
+            "console_errors": [],
+            "page_errors": [],
+            "failed_requests": [],
+            "broken_assets": [],
+        }
     finally:
         context.close()

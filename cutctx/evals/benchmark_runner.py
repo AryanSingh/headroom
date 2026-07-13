@@ -536,7 +536,9 @@ class BenchmarkRunner:
                     try:
                         self._compress_case(adapter, case)
                     except Exception:
-                        logger.debug("Warmup failed for compressor '%s' on case '%s'", comp_key, case.id)
+                        logger.debug(
+                            "Warmup failed for compressor '%s' on case '%s'", comp_key, case.id
+                        )
 
             # Run compression in parallel
             per_case_results: list[dict[str, Any]] = []
@@ -615,7 +617,9 @@ class BenchmarkRunner:
             p50_ms = statistics.median(durations) if durations else 0.0
             total_duration_seconds = sum(durations) / 1000 if durations else 0.0
             tokens_per_second = (
-                total_original_tokens / total_duration_seconds if total_duration_seconds > 0 else None
+                total_original_tokens / total_duration_seconds
+                if total_duration_seconds > 0
+                else None
             )
 
             # F1 / ROUGE-L / exact_match between original and compressed

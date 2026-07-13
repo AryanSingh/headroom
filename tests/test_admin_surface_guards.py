@@ -48,9 +48,9 @@ def test_stats_reset_warns_when_audit_logging_fails(monkeypatch, caplog) -> None
         )
 
     assert response.status_code == 200, response.text
-    assert any(
-        "Failed to audit stats reset" in rec.getMessage() for rec in caplog.records
-    ), f"expected audit failure warning, got: {[r.getMessage() for r in caplog.records]}"
+    assert any("Failed to audit stats reset" in rec.getMessage() for rec in caplog.records), (
+        f"expected audit failure warning, got: {[r.getMessage() for r in caplog.records]}"
+    )
 
 
 def test_cors_wildcard_disables_credentials_header() -> None:

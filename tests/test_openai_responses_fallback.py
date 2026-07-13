@@ -131,7 +131,9 @@ class _FallbackResponsesHandler(OpenAIHandlerMixin):
     async def _record_request_outcome(self, outcome: RequestOutcome) -> None:
         self.recorded_outcomes.append(outcome)
 
-    async def _compress_openai_responses_payload_in_executor(self, body, *, model: str, request_id: str):
+    async def _compress_openai_responses_payload_in_executor(
+        self, body, *, model: str, request_id: str
+    ):
         body_bytes = len(json.dumps(body).encode("utf-8"))
         return body, False, 0, [], "no_compression", body_bytes, body_bytes, 0, {}
 
@@ -152,8 +154,7 @@ def _build_request(body: dict, headers: dict[str, str]) -> Request:
         "raw_path": b"/v1/responses",
         "query_string": b"",
         "headers": [
-            (key.lower().encode("utf-8"), value.encode("utf-8"))
-            for key, value in headers.items()
+            (key.lower().encode("utf-8"), value.encode("utf-8")) for key, value in headers.items()
         ],
         "client": ("127.0.0.1", 12345),
         "server": ("testserver", 443),

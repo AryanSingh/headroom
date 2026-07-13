@@ -854,7 +854,9 @@ class StreamingMixin:
             model_routing_usd_saved=_routing_usd,
         )
         cache = getattr(self, "cache", None)
-        print(f"DEBUG: cache={cache is not None} original_messages={bool(original_messages)} full_sse_data={bool(full_sse_data)}")
+        print(
+            f"DEBUG: cache={cache is not None} original_messages={bool(original_messages)} full_sse_data={bool(full_sse_data)}"
+        )
         if cache and original_messages:
             if full_sse_data:
                 await cache.set(
@@ -2413,11 +2415,12 @@ class StreamingMixin:
                 if stream_state["input_tokens"] is None:
                     stream_state["input_tokens"] = int(usage.get("prompt_tokens", 0) or 0)
                 if stream_state["output_tokens"] is None:
-                    stream_state["output_tokens"] = int(
-                        usage.get("completion_tokens", 0) or 0
-                    )
+                    stream_state["output_tokens"] = int(usage.get("completion_tokens", 0) or 0)
                 prompt_details = usage.get("prompt_tokens_details") or {}
-                if isinstance(prompt_details, dict) and stream_state["cache_read_input_tokens"] is None:
+                if (
+                    isinstance(prompt_details, dict)
+                    and stream_state["cache_read_input_tokens"] is None
+                ):
                     stream_state["cache_read_input_tokens"] = int(
                         prompt_details.get("cached_tokens", 0) or 0
                     )
@@ -2446,7 +2449,9 @@ class StreamingMixin:
                                     text_parts.append(content)
                                 tool_calls = delta.get("tool_calls")
                                 if isinstance(tool_calls, list):
-                                    function_calls.extend(tc for tc in tool_calls if isinstance(tc, dict))
+                                    function_calls.extend(
+                                        tc for tc in tool_calls if isinstance(tc, dict)
+                                    )
                             parts: list[dict[str, Any]] = []
                             if text_parts:
                                 parts.append({"text": "".join(text_parts)})
@@ -2488,7 +2493,10 @@ class StreamingMixin:
                                     )
                                     + "\n\n"
                                 ).encode()
-                    if stream_state["input_tokens"] is not None or stream_state["output_tokens"] is not None:
+                    if (
+                        stream_state["input_tokens"] is not None
+                        or stream_state["output_tokens"] is not None
+                    ):
                         usage_payload = {
                             "usageMetadata": {
                                 "promptTokenCount": int(stream_state["input_tokens"] or 0),

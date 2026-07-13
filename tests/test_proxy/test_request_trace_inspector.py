@@ -139,7 +139,9 @@ async def test_real_compress_request_writes_trace_record(app):
         {
             "role": "tool",
             "tool_call_id": "call_trace",
-            "content": "\n".join(f"row={i} status={'ok' if i % 5 else 'error'}" for i in range(120)),
+            "content": "\n".join(
+                f"row={i} status={'ok' if i % 5 else 'error'}" for i in range(120)
+            ),
         },
     ]
 
@@ -149,7 +151,9 @@ async def test_real_compress_request_writes_trace_record(app):
             json={"messages": messages, "model": "gpt-4o"},
             headers=_ADMIN_HEADERS,
         )
-        traces_response = await client.get("/transformations/traces?limit=5", headers=_ADMIN_HEADERS)
+        traces_response = await client.get(
+            "/transformations/traces?limit=5", headers=_ADMIN_HEADERS
+        )
 
     assert compress_response.status_code == 200
     assert traces_response.status_code == 200
@@ -174,11 +178,16 @@ async def test_real_compress_request_writes_trace_record(app):
     trace = detail_response.json()["trace"]
     assert trace["request_id"] == trace_id
     assert trace["provider"]["name"]
-    assert trace["compression"]["input_tokens_original"] >= trace["compression"]["input_tokens_optimized"]
+    assert (
+        trace["compression"]["input_tokens_original"]
+        >= trace["compression"]["input_tokens_optimized"]
+    )
 
 
 @pytest.mark.asyncio
-async def test_request_trace_endpoints_fall_back_to_memory_when_shared_log_unavailable(app, monkeypatch):
+async def test_request_trace_endpoints_fall_back_to_memory_when_shared_log_unavailable(
+    app, monkeypatch
+):
     app.state.proxy.logger.log_file = os.path.join(os.getcwd(), "unavailable-requests.jsonl")
     app.state.proxy.logger.log(_trace_entry(request_id="trace-fallback"))
 
@@ -195,10 +204,7 @@ async def test_request_trace_endpoints_fall_back_to_memory_when_shared_log_unava
         )
 
     assert list_response.status_code == 200
-    assert any(
-        row["request_id"] == "trace-fallback"
-        for row in list_response.json()["traces"]
-    )
+    assert any(row["request_id"] == "trace-fallback" for row in list_response.json()["traces"])
     assert detail_response.status_code == 200
     assert detail_response.json()["trace"]["request_id"] == "trace-fallback"
 
@@ -229,11 +235,15 @@ async def test_rate_limit_denial_is_available_in_the_trace_inspector():
             headers=_ADMIN_HEADERS,
             json={"model": "gpt-4o", "messages": [{"role": "user", "content": "hello"}]},
         )
-        traces_response = await client.get("/transformations/traces?limit=5", headers=_ADMIN_HEADERS)
+        traces_response = await client.get(
+            "/transformations/traces?limit=5", headers=_ADMIN_HEADERS
+        )
 
     assert response.status_code == 429
     request_id = response.headers["x-request-id"]
-    matching = [trace for trace in traces_response.json()["traces"] if trace["request_id"] == request_id]
+    matching = [
+        trace for trace in traces_response.json()["traces"] if trace["request_id"] == request_id
+    ]
     assert matching
     assert matching[0]["compression"]["decline_reason"] == "rate_limit_exceeded"
     assert matching[0]["tags"]["rate_limit_denied"] == "true"

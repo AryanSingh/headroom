@@ -23,23 +23,26 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+
 class ActivateRequest(BaseModel):
     license_key: str
     instance_id: str
+
 
 class CheckoutSeatRequest(BaseModel):
     license_key: str
     user_id: str
     lease_duration: float = 3600.0
 
+
 class StartTrialRequest(BaseModel):
     trial_token: str
     customer_email: str
     duration: float = 14 * 86400.0
 
+
 class CheckTrialRequest(BaseModel):
     trial_token: str
-
 
 
 def create_license_validation_router(
@@ -86,9 +89,7 @@ def create_license_validation_router(
 
         pts_result = pts_verify(x_license_key, hwid="")
         if pts_result is not None:
-            logger.info(
-                "License validated via PitchToShip for key=%s", x_license_key[:8]
-            )
+            logger.info("License validated via PitchToShip for key=%s", x_license_key[:8])
             return pts_result
 
         logger.info("PitchToShip unavailable, attempting local ECDSA verification")
@@ -121,9 +122,7 @@ def create_license_validation_router(
                     x_license_key[:8],
                 )
                 raise HTTPException(status_code=403, detail=result)
-            logger.info(
-                "License validated via local SQLite for key=%s", x_license_key[:8]
-            )
+            logger.info("License validated via local SQLite for key=%s", x_license_key[:8])
             return result
         except HTTPException:
             raise
@@ -164,9 +163,7 @@ def create_license_validation_router(
             raise HTTPException(status_code=403, detail=result)
         success = db.checkout_seat(req.license_key, req.user_id, req.lease_duration)
         if not success:
-            raise HTTPException(
-                status_code=429, detail={"error": "no_seats_available"}
-            )
+            raise HTTPException(status_code=429, detail={"error": "no_seats_available"})
         return {"status": "ok"}
 
     @router.post("/v1/license/start-trial", dependencies=admin_deps)
@@ -176,9 +173,7 @@ def create_license_validation_router(
         db = get_license_db()
         success = db.start_trial(req.trial_token, req.customer_email, req.duration)
         if not success:
-            raise HTTPException(
-                status_code=409, detail={"error": "trial_already_started"}
-            )
+            raise HTTPException(status_code=409, detail={"error": "trial_already_started"})
         return {"status": "ok"}
 
     @router.post("/v1/license/check-trial", dependencies=admin_deps)

@@ -47,8 +47,8 @@ def create_license_router(
                 status_code=501,
                 detail={
                     "message": "Enterprise billing module not installed",
-                    "remediation": "License management requires cutctx-ee (enterprise edition). Install via: pip install cutctx-ai[ee] or contact sales@cutctx.io"
-                }
+                    "remediation": "License management requires cutctx-ee (enterprise edition). Install via: pip install cutctx-ai[ee] or contact sales@cutctx.io",
+                },
             )
 
     class ActivateRequest(BaseModel):
@@ -63,8 +63,8 @@ def create_license_router(
                 status_code=403,
                 detail={
                     "message": "License revoked",
-                    "remediation": "Your license key has been revoked. Contact support@cutctx.io for assistance."
-                }
+                    "remediation": "Your license key has been revoked. Contact support@cutctx.io for assistance.",
+                },
             )
         record = db.get(req.license_key)
         if not record or not record.active:
@@ -72,8 +72,8 @@ def create_license_router(
                 status_code=401,
                 detail={
                     "message": "Invalid license",
-                    "remediation": "The license key is invalid or inactive. Verify the key is correct and hasn't expired. Contact sales@cutctx.io if you need a new license."
-                }
+                    "remediation": "The license key is invalid or inactive. Verify the key is correct and hasn't expired. Contact sales@cutctx.io if you need a new license.",
+                },
             )
         success = db.activate_instance(req.license_key, req.instance_id)
         if not success:
@@ -99,8 +99,8 @@ def create_license_router(
                 status_code=403,
                 detail={
                     "message": "License revoked",
-                    "remediation": "Your license key has been revoked. Contact support@cutctx.io for assistance."
-                }
+                    "remediation": "Your license key has been revoked. Contact support@cutctx.io for assistance.",
+                },
             )
         success = db.checkout_seat(req.license_key, req.user_id, req.lease_duration)
         if not success:
@@ -108,8 +108,8 @@ def create_license_router(
                 status_code=409,
                 detail={
                     "message": "No seats available",
-                    "remediation": "Your license has no available seats. Upgrade your plan at https://cutctx.io/pricing or contact sales@cutctx.io"
-                }
+                    "remediation": "Your license has no available seats. Upgrade your plan at https://cutctx.io/pricing or contact sales@cutctx.io",
+                },
             )
         return {"status": "seat_leased"}
 

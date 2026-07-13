@@ -156,9 +156,7 @@ class TestRetentionManager:
     def test_cleanup_audit_bulk_delete_vacuums_after_commit(self, tmp_path, monkeypatch):
         db_path = tmp_path / "audit-bulk.db"
         conn = sqlite3.connect(str(db_path))
-        conn.execute(
-            "CREATE TABLE audit_events (id TEXT PRIMARY KEY, timestamp REAL)"
-        )
+        conn.execute("CREATE TABLE audit_events (id TEXT PRIMARY KEY, timestamp REAL)")
         old_time = time.time() - (100 * 86400)
         conn.executemany(
             "INSERT INTO audit_events VALUES (?, ?)",

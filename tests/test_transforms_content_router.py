@@ -329,7 +329,7 @@ def test_content_router_diagnostics_record_strategy_chain_and_tokens(
 
     cases = [
         (
-            "[{\"id\": 1}, {\"id\": 2}]",
+            '[{"id": 1}, {"id": 2}]',
             DetectionResult(ContentType.JSON_ARRAY, 1.0, {}),
             "_get_smart_crusher",
             _FakeCrusher("one two"),
@@ -359,7 +359,9 @@ def test_content_router_diagnostics_record_strategy_chain_and_tokens(
     ]
 
     for content, detection, getter_name, fake_result, expected_strategy in cases:
-        monkeypatch.setattr(content_router_module, "_detect_content", lambda _content, det=detection: det)
+        monkeypatch.setattr(
+            content_router_module, "_detect_content", lambda _content, det=detection: det
+        )
         if getter_name == "_try_ml_compressor":
             monkeypatch.setattr(router, getter_name, lambda *args, res=fake_result, **kwargs: res)
         else:
@@ -500,7 +502,9 @@ def test_content_router_apply_exposes_accept_and_reject_diagnostics(
 ) -> None:
     router = ContentRouter()
 
-    def fake_compress(content: str, context: str = "", bias: float = 1.0) -> RouterCompressionResult:
+    def fake_compress(
+        content: str, context: str = "", bias: float = 1.0
+    ) -> RouterCompressionResult:
         token_count = len(content.split())
         if content.startswith("accept"):
             compressed_tokens = max(1, token_count // 2)

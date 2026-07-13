@@ -227,8 +227,7 @@ class BatchRouter:
         # Treat explicit opt-in as advisory until that complete lifecycle is
         # available, preserving the user's request and normal response shape.
         logger.info(
-            "batch routing eligible but unavailable; forwarding synchronously "
-            "origin=%s reason=%s",
+            "batch routing eligible but unavailable; forwarding synchronously origin=%s reason=%s",
             origin,
             reason,
         )

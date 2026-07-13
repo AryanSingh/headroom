@@ -618,8 +618,9 @@ def test_read_windows_copilot_cli_oauth_token_returns_none_without_windll(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from unittest import mock
+
     monkeypatch.delattr(copilot_auth.ctypes, "WinDLL", raising=False)
-    
+
     with mock.patch.object(copilot_auth.os, "name", "nt"):
         assert copilot_auth._read_windows_copilot_cli_oauth_token() is None
 

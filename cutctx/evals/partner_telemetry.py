@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-REQUIRED_TOP_LEVEL = {"schema_version", "period_days", "summary", "telemetry", "savings_by_source_tokens"}
+REQUIRED_TOP_LEVEL = {
+    "schema_version",
+    "period_days",
+    "summary",
+    "telemetry",
+    "savings_by_source_tokens",
+}
 FORBIDDEN_KEYS = {"messages", "prompt", "completion", "content", "api_key", "authorization"}
 
 

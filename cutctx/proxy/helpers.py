@@ -1899,7 +1899,9 @@ class SessionBetaTracker:
                 continue
             if not isinstance(tokens, list):
                 continue
-            normalized_tokens = [token for token in tokens if isinstance(token, str) and token.strip()]
+            normalized_tokens = [
+                token for token in tokens if isinstance(token, str) and token.strip()
+            ]
             loaded[(provider, session_id)] = normalized_tokens
 
         while len(loaded) > self._max_sessions:
@@ -2805,7 +2807,10 @@ class SessionCcrTracker:
                         if golden_tool_bytes is not None
                         else None,
                     }
-                    for (provider, session_id), (has_done_ccr, golden_tool_bytes) in self._sessions.items()
+                    for (provider, session_id), (
+                        has_done_ccr,
+                        golden_tool_bytes,
+                    ) in self._sessions.items()
                 ]
             }
             tmp_path = self._persist_path.with_name(self._persist_path.name + ".tmp")

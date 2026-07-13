@@ -126,7 +126,9 @@ class WebhookSubscriptionStore:
     def _connect(self) -> sqlite3.Connection:
         if self._stateless:
             if self._memory_conn is None:
-                self._memory_conn = sqlite3.connect(":memory:", timeout=5.0, check_same_thread=False)
+                self._memory_conn = sqlite3.connect(
+                    ":memory:", timeout=5.0, check_same_thread=False
+                )
                 self._memory_conn.row_factory = sqlite3.Row
             return self._memory_conn
         conn = sqlite3.connect(self._db_path, timeout=5.0)
@@ -321,7 +323,9 @@ class WebhookDeadLetterStore:
     def _connect(self) -> sqlite3.Connection:
         if self._stateless:
             if self._memory_conn is None:
-                self._memory_conn = sqlite3.connect(":memory:", timeout=5.0, check_same_thread=False)
+                self._memory_conn = sqlite3.connect(
+                    ":memory:", timeout=5.0, check_same_thread=False
+                )
                 self._memory_conn.row_factory = sqlite3.Row
             return self._memory_conn
         conn = sqlite3.connect(self._db_path, timeout=5.0)

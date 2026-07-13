@@ -108,7 +108,9 @@ class GeminiHandlerMixin:
                     {
                         "functionCall": {
                             "name": function.get("name", "function"),
-                            "args": arguments if isinstance(arguments, dict) else {"value": arguments},
+                            "args": arguments
+                            if isinstance(arguments, dict)
+                            else {"value": arguments},
                         }
                     }
                 )
@@ -117,7 +119,9 @@ class GeminiHandlerMixin:
         if not isinstance(usage, dict):
             usage = {}
         prompt_details = usage.get("prompt_tokens_details") or {}
-        cached_tokens = prompt_details.get("cached_tokens", 0) if isinstance(prompt_details, dict) else 0
+        cached_tokens = (
+            prompt_details.get("cached_tokens", 0) if isinstance(prompt_details, dict) else 0
+        )
 
         return {
             "candidates": [
@@ -306,7 +310,10 @@ class GeminiHandlerMixin:
         from cutctx.utils import extract_user_query
 
         start_time = time.time()
-        request_id = getattr(getattr(request, "state", None), "cutctx_request_id", None) or await self._next_request_id()
+        request_id = (
+            getattr(getattr(request, "state", None), "cutctx_request_id", None)
+            or await self._next_request_id()
+        )
 
         # Check request body size
         content_length = request.headers.get("content-length")
@@ -442,7 +449,10 @@ class GeminiHandlerMixin:
                 raise HTTPException(
                     status_code=429,
                     detail=f"Rate limited. Retry after {wait_seconds:.1f}s",
-                    headers={"Retry-After": str(max(1, int(wait_seconds))), "X-Request-ID": request_id},
+                    headers={
+                        "Retry-After": str(max(1, int(wait_seconds))),
+                        "X-Request-ID": request_id,
+                    },
                 )
 
         # Convert Gemini format to messages for optimization
@@ -574,9 +584,7 @@ class GeminiHandlerMixin:
         )
         _decision.apply_to_tags(tags)
         if not _decision.should_compress:
-            logger.info(
-                f"[{request_id}] Compression skipped: reason={_decision.decline_reason}"
-            )
+            logger.info(f"[{request_id}] Compression skipped: reason={_decision.decline_reason}")
             self.metrics.record_compression_declined(_decision.decline_reason or "unknown")
         if _decision.should_compress:
             try:
@@ -1069,9 +1077,7 @@ class GeminiHandlerMixin:
         )
         _decision.apply_to_tags(tags)
         if not _decision.should_compress:
-            logger.info(
-                f"[{request_id}] Compression skipped: reason={_decision.decline_reason}"
-            )
+            logger.info(f"[{request_id}] Compression skipped: reason={_decision.decline_reason}")
             self.metrics.record_compression_declined(_decision.decline_reason or "unknown")
         if _decision.should_compress:
             try:
@@ -1322,9 +1328,7 @@ class GeminiHandlerMixin:
             if "key" in query_params and not upstream_base_url:
                 url += f"?key={query_params['key']}"
 
-            response = await self._retry_request(
-                "POST", url, headers, body, telemetry_tags=tags
-            )
+            response = await self._retry_request("POST", url, headers, body, telemetry_tags=tags)
             response_headers = dict(response.headers)
             response_headers.pop("content-encoding", None)
             response_headers.pop("content-length", None)
@@ -1355,9 +1359,7 @@ class GeminiHandlerMixin:
         )
         _decision.apply_to_tags(tags)
         if not _decision.should_compress:
-            logger.info(
-                f"[{request_id}] Compression skipped: reason={_decision.decline_reason}"
-            )
+            logger.info(f"[{request_id}] Compression skipped: reason={_decision.decline_reason}")
             self.metrics.record_compression_declined(_decision.decline_reason or "unknown")
         if _decision.should_compress:
             try:
@@ -1402,9 +1404,7 @@ class GeminiHandlerMixin:
             url += f"?key={query_params['key']}"
 
         try:
-            response = await self._retry_request(
-                "POST", url, headers, body, telemetry_tags=tags
-            )
+            response = await self._retry_request("POST", url, headers, body, telemetry_tags=tags)
             total_latency = (time.time() - start_time) * 1000
 
             # Parse response to get token count

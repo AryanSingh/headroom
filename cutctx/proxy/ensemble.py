@@ -397,6 +397,7 @@ class EnsembleCoordinator:
     ) -> tuple[str, int]:
         """Call Anthropic API, return (content, tokens_used)."""
         from cutctx.proxy.auth_keyring import get_api_key
+
         api_key = kwargs.pop("anthropic_api_key", get_api_key("anthropic"))
         base_url = kwargs.pop("anthropic_base_url", "https://api.anthropic.com")
 
@@ -444,6 +445,7 @@ class EnsembleCoordinator:
     ) -> tuple[str, int]:
         """Call OpenAI API, return (content, tokens_used)."""
         from cutctx.proxy.auth_keyring import get_api_key
+
         api_key = kwargs.pop("openai_api_key", get_api_key("openai"))
         base_url = kwargs.pop("openai_base_url", "https://api.openai.com")
 
@@ -485,6 +487,7 @@ class EnsembleCoordinator:
     ) -> tuple[str, int]:
         """Call Gemini API, return (content, tokens_used)."""
         from cutctx.proxy.auth_keyring import get_api_key
+
         api_key = kwargs.pop("gemini_api_key", get_api_key("gemini"))
         base_url = kwargs.pop("gemini_base_url", "https://generativelanguage.googleapis.com")
 

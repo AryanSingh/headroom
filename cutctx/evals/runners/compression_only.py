@@ -619,7 +619,11 @@ class CompressionOnlyRunner:
           (no dangling required entry pointing at a stripped property)
         - schema-level annotations ($schema, title at root level) ARE dropped
         """
-        from cutctx.proxy.handlers.openai import _compact_openai_responses_tools
+        # This is intentionally independent of the OpenAI handler package:
+        # importing that package pulls in httpx, provider/auth, and transport
+        # machinery.  The zero-cost suite must be runnable with no provider
+        # stack installed.
+        from cutctx.proxy.schema_compress import compress_tool_schemas
 
         if cases is None:
             cases = self.generate_tool_schema_cases()
@@ -642,9 +646,11 @@ class CompressionOnlyRunner:
             total_original += original_bytes
 
             try:
-                compacted, modified, before_bytes, after_bytes = _compact_openai_responses_tools(
-                    payload
+                compacted_tools, modified, before_bytes, after_bytes = compress_tool_schemas(
+                    payload.get("tools") if isinstance(payload.get("tools"), list) else None,
+                    max_description_length=200,
                 )
+                compacted = {**payload, "tools": compacted_tools} if modified else payload
                 total_compressed += after_bytes if modified else original_bytes
 
                 case_errors: list[str] = []
@@ -698,7 +704,9 @@ class CompressionOnlyRunner:
         ratios = [d.get("compression_ratio", 0) for d in details if "compression_ratio" in d]
 
         duration_seconds = time.time() - start_time
-        tokens_per_second = (total_original // 4) / duration_seconds if duration_seconds > 0 else None
+        tokens_per_second = (
+            (total_original // 4) / duration_seconds if duration_seconds > 0 else None
+        )
 
         return CompressionOnlyResult(
             benchmark="tool_schema_compaction",

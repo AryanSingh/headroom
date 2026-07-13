@@ -89,9 +89,7 @@ def build_release_manifest(
         },
         "checkpoint_id": checkpoint_id,
         "seed": seed,
-        "fixture_hashes": {
-            str(path.relative_to(root)): _file_hash(path) for path in fixture_paths
-        },
+        "fixture_hashes": {str(path.relative_to(root)): _file_hash(path) for path in fixture_paths},
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "provider_arms": provider_arms,
     }

@@ -73,7 +73,9 @@ def recommend_schedule(
             for item in signals
         )
         quality = successful / observations if observations else 0.0
-        eligible = observations >= guardrails.min_observations and quality >= guardrails.min_quality_score
+        eligible = (
+            observations >= guardrails.min_observations and quality >= guardrails.min_quality_score
+        )
         candidates.append(
             {
                 "deployment": model.deployment_key,

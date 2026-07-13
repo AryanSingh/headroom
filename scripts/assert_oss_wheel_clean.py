@@ -62,7 +62,10 @@ def main(argv: list[str]) -> int:
             print(f"OK: {art.name} — no cutctx_ee/ or packaging/ paths")
 
     if failed:
-        print("ARTIFACT GUARD FAILED: invalid or proprietary content in an OSS artifact.", file=sys.stderr)
+        print(
+            "ARTIFACT GUARD FAILED: invalid or proprietary content in an OSS artifact.",
+            file=sys.stderr,
+        )
         return 1
     print(f"Artifact guard passed: {len(artifacts)} artifact(s) clean.")
     return 0

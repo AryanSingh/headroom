@@ -215,8 +215,14 @@ def integrations_status(output_format: str) -> None:
                 # Legacy row without per-source USD attribution. Mirror
                 # the buyer report fallback so production status still
                 # reflects the current savings story.
-                compression_usd = float(row.get("compression_savings_observed_usd") or row.get("compression_savings_usd", 0) or 0)
-                cache_usd = float(row.get("cache_savings_observed_usd") or row.get("cache_savings_usd", 0) or 0)
+                compression_usd = float(
+                    row.get("compression_savings_observed_usd")
+                    or row.get("compression_savings_usd", 0)
+                    or 0
+                )
+                cache_usd = float(
+                    row.get("cache_savings_observed_usd") or row.get("cache_savings_usd", 0) or 0
+                )
                 row_total = float(row.get("cost_savings_usd", 0) or 0)
                 if row_total and not compression_usd and not cache_usd:
                     compression_usd = row_total

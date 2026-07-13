@@ -92,7 +92,8 @@ def config_check(port: int, host: str | None, production: bool, output_format: s
             "issues": [
                 {"code": issue.code, "message": issue.message, "remediation": issue.remediation}
                 for issue in security_issues
-            ] + production_issues,
+            ]
+            + production_issues,
         }
         click.echo(json.dumps(payload, sort_keys=True))
         if security_issues or production_issues:

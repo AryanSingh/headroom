@@ -129,9 +129,7 @@ class TestToolSurfaceHistoryForcing:
             {"role": "user", "content": "do something"},
             {
                 "role": "assistant",
-                "content": [
-                    {"type": "tool_use", "id": "toolu_1", "name": "TaskGet", "input": {}}
-                ],
+                "content": [{"type": "tool_use", "id": "toolu_1", "name": "TaskGet", "input": {}}],
             },
             {"role": "user", "content": "is work done"},
         ]

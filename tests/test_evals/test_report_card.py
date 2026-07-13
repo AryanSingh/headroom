@@ -95,10 +95,22 @@ def test_report_card_markdown_renders_metric_name_and_tokens_saved() -> None:
 
     markdown = generate_markdown(_sample_suite_result())
 
-    assert "| Benchmark | Category | N | Metric | Value | Secondary Metrics | Compression | Tokens Saved | Status |" in markdown
-    assert "Critical Item Recall 93.3% \\| Verbatim Fidelity 93.3% \\| Tokens/s 4,245,075.5" in markdown
-    assert "| Verbatim Compaction | compression | 3 | Verbatim Fidelity | 93.3% | Critical Item Recall 93.3% \\| Verbatim Fidelity 93.3% \\| Tokens/s 4,245,075.5 | 29% | 151 | PASS |" in markdown
-    assert "| Benchmark | Category | N | Baseline | Cutctx | Delta | Compression | Status |" in markdown
+    assert (
+        "| Benchmark | Category | N | Metric | Value | Secondary Metrics | Compression | Tokens Saved | Status |"
+        in markdown
+    )
+    assert (
+        "Critical Item Recall 93.3% \\| Verbatim Fidelity 93.3% \\| Tokens/s 4,245,075.5"
+        in markdown
+    )
+    assert (
+        "| Verbatim Compaction | compression | 3 | Verbatim Fidelity | 93.3% | Critical Item Recall 93.3% \\| Verbatim Fidelity 93.3% \\| Tokens/s 4,245,075.5 | 29% | 151 | PASS |"
+        in markdown
+    )
+    assert (
+        "| Benchmark | Category | N | Baseline | Cutctx | Delta | Compression | Status |"
+        in markdown
+    )
 
 
 def test_report_card_html_renders_metric_name_and_tokens_saved() -> None:
@@ -106,7 +118,10 @@ def test_report_card_html_renders_metric_name_and_tokens_saved() -> None:
 
     html = generate_html(_sample_suite_result())
 
-    assert "<th>Metric</th><th>Value</th><th>Secondary Metrics</th><th>Compression</th><th>Tokens Saved</th><th>Status</th>" in html
+    assert (
+        "<th>Metric</th><th>Value</th><th>Secondary Metrics</th><th>Compression</th><th>Tokens Saved</th><th>Status</th>"
+        in html
+    )
     assert "Verbatim Fidelity" in html
     assert ">151<" in html
     assert "Critical Item Recall 93.3% | Verbatim Fidelity 93.3% | Tokens/s 4,245,075.5" in html

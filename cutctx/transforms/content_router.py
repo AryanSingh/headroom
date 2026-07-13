@@ -321,6 +321,20 @@ class CompressionStrategy(Enum):
     PASSTHROUGH = "passthrough"
 
 
+class CompressionMode(str, Enum):
+    """Customer-facing compression policy.
+
+    ``safe`` preserves the long-standing router behaviour.  ``aggressive``
+    only tightens plain-text compression; code and structured payloads retain
+    their specialised, loss-aware routes.  ``off`` is byte-preserving and
+    disables every router-stage mutation.
+    """
+
+    OFF = "off"
+    SAFE = "safe"
+    AGGRESSIVE = "aggressive"
+
+
 @dataclass
 class RoutingDecision:
     """Record of a single routing decision."""
@@ -469,6 +483,7 @@ class ContentRouterConfig:
     """
 
     # Enable/disable specific compressors
+    compression_mode: CompressionMode | str = CompressionMode.SAFE
     enable_code_aware: bool = True  # Enabled for code compression
     enable_kompress: bool = True  # Kompress: ModernBERT token compressor
     enable_smart_crusher: bool = True
@@ -561,8 +576,6 @@ class ContentRouterConfig:
     # Empty dict = no overrides (default). This is additive — existing
     # behaviour is unchanged when empty.
     per_type_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
-
-
 
     # Read lifecycle management (stale/superseded detection)
     read_lifecycle: ReadLifecycleConfig = field(default_factory=ReadLifecycleConfig)
@@ -876,6 +889,17 @@ class ContentRouter(Transform):
 
         self._cache = CompressionCache()
 
+    def _compression_mode(self) -> CompressionMode:
+        """Return the configured mode and fail early on configuration typos."""
+        try:
+            return CompressionMode(self.config.compression_mode)
+        except ValueError as exc:
+            allowed = ", ".join(mode.value for mode in CompressionMode)
+            raise ValueError(
+                f"Unsupported compression_mode={self.config.compression_mode!r}; "
+                f"expected one of: {allowed}"
+            ) from exc
+
     def _record_to_toin(
         self,
         strategy: CompressionStrategy,
@@ -995,6 +1019,28 @@ class ContentRouter(Transform):
         Returns:
             RouterCompressionResult with compressed content and routing metadata.
         """
+        mode = self._compression_mode()
+        if mode is CompressionMode.OFF:
+            # This is intentionally before normalization and detection: callers
+            # choosing off expect byte-for-byte forwarding, not a no-op-ish
+            # transform that can still change unicode or whitespace.
+            token_count = len(content.split())
+            return RouterCompressionResult(
+                compressed=content,
+                original=content,
+                strategy_used=CompressionStrategy.PASSTHROUGH,
+                strategy_chain=[CompressionStrategy.PASSTHROUGH.value],
+                diagnostics={
+                    "compression_mode": mode.value,
+                    "selected_strategy": CompressionStrategy.PASSTHROUGH.value,
+                    "strategy_chain": [CompressionStrategy.PASSTHROUGH.value],
+                    "fallback_used": False,
+                    "before_tokens": token_count,
+                    "after_tokens": token_count,
+                    "compression_ratio": 1.0,
+                    "tokens_saved": 0,
+                },
+            )
         debug_enabled = logger.isEnabledFor(logging.DEBUG)
         request_debug = (
             {
@@ -1060,9 +1106,7 @@ class ContentRouter(Transform):
                     if debug_enabled:
                         request_debug["chars"] = len(content)
                         request_debug["bytes"] = len(content.encode("utf-8", errors="replace"))
-                        request_debug["normalize_passes"] = list(
-                            _normalize_result.passes_applied
-                        )
+                        request_debug["normalize_passes"] = list(_normalize_result.passes_applied)
                         request_debug["normalize_tokens_saved"] = int(
                             _normalize_result.tokens_saved
                         )
@@ -1076,12 +1120,24 @@ class ContentRouter(Transform):
                 if force_kompress
                 else self._determine_strategy(content)
             )
+            # Aggressive mode targets the gap exposed by prose benchmarks.
+            # It deliberately does *not* replace code, JSON, log, diff, or
+            # search routes: those carry syntax and recovery guarantees that a
+            # generic token selector cannot provide.
+            if mode is CompressionMode.AGGRESSIVE and strategy is CompressionStrategy.TEXT:
+                strategy = CompressionStrategy.KOMPRESS
             # Apply per-type overrides from profile recommendations
-            if ctx is not None and hasattr(ctx, "profile_recommendations") and ctx.profile_recommendations:
+            if (
+                ctx is not None
+                and hasattr(ctx, "profile_recommendations")
+                and ctx.profile_recommendations
+            ):
                 for content_type, recommended_ratio in ctx.profile_recommendations.items():
                     if content_type not in self.config.per_type_overrides:
                         self.config.per_type_overrides[content_type] = {}
-                    self.config.per_type_overrides[content_type]["recommended_ratio"] = recommended_ratio
+                    self.config.per_type_overrides[content_type]["recommended_ratio"] = (
+                        recommended_ratio
+                    )
                     logger.debug(
                         "ContentRouter: applied profile override %s recommended_ratio=%.2f",
                         content_type,
@@ -1133,6 +1189,8 @@ class ContentRouter(Transform):
                 getattr(result.strategy_used, "value", result.strategy_used),
             )
             result.compressed = content
+
+        result.diagnostics.setdefault("compression_mode", mode.value)
 
         # One observer call per routing decision; the observer is the
         # forcing function for catching strategy-level regressions.
@@ -1281,6 +1339,11 @@ class ContentRouter(Transform):
         for i, section in enumerate(sections):
             # Get strategy for this section
             strategy = self._strategy_from_detection_type(section.content_type)
+            if (
+                self._compression_mode() is CompressionMode.AGGRESSIVE
+                and strategy is CompressionStrategy.TEXT
+            ):
+                strategy = CompressionStrategy.KOMPRESS
 
             # Compress section
             original_tokens = len(section.content.split())
@@ -1455,9 +1518,11 @@ class ContentRouter(Transform):
                         compressor_name = type(compressor).__name__
                         # Pass protected symbols from the stack-graph reachability
                         # analysis if they've been set on the compressor.
-                        ps: set[str] | None = getattr(compressor, '_protected_symbols', None)
+                        ps: set[str] | None = getattr(compressor, "_protected_symbols", None)
                         result = compressor.compress(
-                            content, language=language, context=context,
+                            content,
+                            language=language,
+                            context=context,
                             protected_symbols=ps,
                         )
                         compressed = result.compressed
@@ -1497,16 +1562,23 @@ class ContentRouter(Transform):
 
                                         # Inject CCR marker if needed (SmartCrusher does this automatically,
                                         # but CompactTable is a standalone Python compressor).
-                                        if self.config.ccr_enabled and self.config.ccr_inject_marker:
+                                        if (
+                                            self.config.ccr_enabled
+                                            and self.config.ccr_inject_marker
+                                        ):
                                             from .smart_crusher import (
                                                 compute_short_hash,
                                                 create_tool_digest_marker,
                                             )
-                                            marker = create_tool_digest_marker(compute_short_hash(content))
+
+                                            marker = create_tool_digest_marker(
+                                                compute_short_hash(content)
+                                            )
                                             ct_compressed = ct_compressed + "\n" + marker
                                             from cutctx.proxy.compression_store import (
                                                 get_compression_store,
                                             )
+
                                             store = get_compression_store()
                                             if store:
                                                 store.store(compute_short_hash(content), content)
@@ -1521,7 +1593,9 @@ class ContentRouter(Transform):
                                             strategy_chain.insert(0, "compact_table")
                                             ct_succeeded = True
                                 except Exception as _ct_exc:
-                                    logger.debug("CompactTableCompressor failed (non-fatal): %s", _ct_exc)
+                                    logger.debug(
+                                        "CompactTableCompressor failed (non-fatal): %s", _ct_exc
+                                    )
 
                             if not ct_succeeded and result.strategy == "passthrough":
                                 # Both failed or passed through, fallback to Kompress
@@ -1534,7 +1608,9 @@ class ContentRouter(Transform):
                                     compressed_tokens = fallback_tokens
                                     actual_strategy = CompressionStrategy.KOMPRESS
                                     compressor_name = "KompressCompressor"
-                                    decision_reason = "smart_crusher_fallback_kompress_after_no_savings"
+                                    decision_reason = (
+                                        "smart_crusher_fallback_kompress_after_no_savings"
+                                    )
 
             elif strategy == CompressionStrategy.SEARCH:
                 if self.config.enable_search_compressor:
@@ -1605,6 +1681,23 @@ class ContentRouter(Transform):
                 compressed, compressed_tokens = self._try_ml_compressor(content, context, question)
                 compressor_name = "KompressCompressor"
                 decision_reason = "kompress"
+                if (
+                    self._compression_mode() is CompressionMode.AGGRESSIVE
+                    and compressed_tokens >= original_tokens
+                ):
+                    # Aggressive mode must remain useful in minimal installs,
+                    # where Kompress's optional ONNX runtime/model is absent.
+                    # Use the deterministic prose fallback only after the ML
+                    # path declines, never as a replacement for it.
+                    fallback = self._get_prose_compressor().compress(
+                        content, context=context, aggressive=True
+                    )
+                    fallback_tokens = len(fallback.compressed.split())
+                    if fallback_tokens < compressed_tokens:
+                        compressed = fallback.compressed
+                        compressed_tokens = fallback_tokens
+                        compressor_name = type(self._get_prose_compressor()).__name__
+                        decision_reason = "aggressive_prose_fallback"
 
             elif strategy == CompressionStrategy.TEXT:
                 if self.config.enable_kompress:
@@ -1774,7 +1867,6 @@ class ContentRouter(Transform):
         compressed: str | None = None
         compressed_tokens: int | None = None
 
-
         runtime_kompress_requested = bool(
             getattr(self, "_runtime_force_kompress", False)
             or getattr(self, "_runtime_kompress_model", None)
@@ -1791,7 +1883,13 @@ class ContentRouter(Transform):
                         text_to_compress,
                         context=context,
                         question=question,
-                        target_ratio=getattr(self, "_runtime_target_ratio", None),
+                        target_ratio=(
+                            getattr(self, "_runtime_target_ratio", None)
+                            if getattr(self, "_runtime_target_ratio", None) is not None
+                            else 0.40
+                            if self._compression_mode() is CompressionMode.AGGRESSIVE
+                            else None
+                        ),
                     )
                     compressed = result.compressed
                     compressed_tokens = result.compressed_tokens
@@ -2127,7 +2225,6 @@ class ContentRouter(Transform):
                 logger.debug("Kompress dependencies not available")
         return self._kompress
 
-
     def _get_selective_filter(self) -> Any:
         """Get SelectiveContextFilter (lazy load). Returns None on error."""
         if self._selective_filter is None:
@@ -2270,6 +2367,16 @@ class ContentRouter(Transform):
         Returns:
             TransformResult with routed and compressed messages.
         """
+        if self._compression_mode() is CompressionMode.OFF:
+            token_count = tokenizer.count_messages(messages)
+            return TransformResult(
+                messages=messages,
+                tokens_before=token_count,
+                tokens_after=token_count,
+                transforms_applied=["router:off"],
+                diagnostics={"content_router": {"compression_mode": CompressionMode.OFF.value}},
+            )
+
         # Selective filtering: drop low-relevance turns before compression.
         # Runs FIRST (before read_lifecycle and all compression logic).
         if self.config.selective_filter and messages:
@@ -2373,7 +2480,9 @@ class ContentRouter(Transform):
                         min_tokens,
                     )
                 except Exception as _qa_err:
-                    logger.debug("content_router query_aware detection failed (non-fatal): %s", _qa_err)
+                    logger.debug(
+                        "content_router query_aware detection failed (non-fatal): %s", _qa_err
+                    )
 
         tokens_before = tokenizer.count_messages(messages)
         context = kwargs.get("context", "")

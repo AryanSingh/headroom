@@ -85,9 +85,7 @@ class _ArmMetrics:
             else 0.0
         )
         quality_rate = (
-            self.quality_successes / self.quality_samples
-            if self.quality_samples > 0
-            else None
+            self.quality_successes / self.quality_samples if self.quality_samples > 0 else None
         )
         rate_ci = None
         if self.created_rate_samples > 1:
@@ -101,9 +99,7 @@ class _ArmMetrics:
             rate_ci = [round(max(0.0, sample_mean - margin), 6), round(sample_mean + margin, 6)]
         quality_ci = None
         if quality_rate is not None and self.quality_samples > 0:
-            margin = 1.96 * math.sqrt(
-                quality_rate * (1.0 - quality_rate) / self.quality_samples
-            )
+            margin = 1.96 * math.sqrt(quality_rate * (1.0 - quality_rate) / self.quality_samples)
             quality_ci = [
                 round(max(0.0, quality_rate - margin), 6),
                 round(min(1.0, quality_rate + margin), 6),
@@ -154,7 +150,9 @@ class SavingsCanaryCoordinator:
         return cls(
             enabled=_env_bool("CUTCTX_SAVINGS_CANARY_ENABLED", False),
             allocation_percent=int(os.environ.get("CUTCTX_SAVINGS_CANARY_PERCENT", "10")),
-            regression_limit=float(os.environ.get("CUTCTX_SAVINGS_CANARY_REGRESSION_LIMIT", "0.01")),
+            regression_limit=float(
+                os.environ.get("CUTCTX_SAVINGS_CANARY_REGRESSION_LIMIT", "0.01")
+            ),
             min_samples=int(os.environ.get("CUTCTX_SAVINGS_CANARY_MIN_SAMPLES", "100")),
             salt=os.environ.get("CUTCTX_SAVINGS_CANARY_SALT", "cutctx-savings-canary-v1"),
             state_path=os.environ.get(
@@ -233,9 +231,7 @@ class SavingsCanaryCoordinator:
         self._paused = paused
         self._metrics = metrics
         self._sticky_assignments = dict(list(sticky.items())[-_MAX_PERSISTED_IDENTITIES:])
-        self._feedback_event_ids = dict(
-            list(feedback_ids.items())[-_MAX_PERSISTED_IDENTITIES:]
-        )
+        self._feedback_event_ids = dict(list(feedback_ids.items())[-_MAX_PERSISTED_IDENTITIES:])
 
     def _state_payload_locked(self) -> dict[str, Any]:
         return {
@@ -269,9 +265,7 @@ class SavingsCanaryCoordinator:
                 "salt_fingerprint": self.salt_fingerprint,
                 "allocations": dict.fromkeys(TREATMENT_ARMS, 0),
                 "paused": {},
-                "metrics": {
-                    arm: asdict(_ArmMetrics()) for arm in ("control", *TREATMENT_ARMS)
-                },
+                "metrics": {arm: asdict(_ArmMetrics()) for arm in ("control", *TREATMENT_ARMS)},
                 "sticky_assignments": {},
                 "feedback_event_ids": [],
             }
@@ -319,13 +313,9 @@ class SavingsCanaryCoordinator:
             merged_paused.update(local_payload.get("paused") or {})
             merged_sticky = dict(disk_payload.get("sticky_assignments") or {})
             merged_sticky.update(local_payload.get("sticky_assignments") or {})
-            merged_sticky = dict(
-                list(merged_sticky.items())[-_MAX_PERSISTED_IDENTITIES:]
-            )
+            merged_sticky = dict(list(merged_sticky.items())[-_MAX_PERSISTED_IDENTITIES:])
             merged_feedback = dict.fromkeys(disk_payload.get("feedback_event_ids") or [])
-            merged_feedback.update(
-                dict.fromkeys(local_payload.get("feedback_event_ids") or [])
-            )
+            merged_feedback.update(dict.fromkeys(local_payload.get("feedback_event_ids") or []))
             merged_payload = {
                 "schema_version": _STATE_SCHEMA_VERSION,
                 "salt_fingerprint": self.salt_fingerprint,
@@ -341,8 +331,7 @@ class SavingsCanaryCoordinator:
             self._allocations = merged_allocations
             self._paused = merged_paused
             self._metrics = {
-                arm: _ArmMetrics(**merged_metrics[arm])
-                for arm in ("control", *TREATMENT_ARMS)
+                arm: _ArmMetrics(**merged_metrics[arm]) for arm in ("control", *TREATMENT_ARMS)
             }
             self._sticky_assignments = merged_sticky
             self._feedback_event_ids = dict.fromkeys(merged_payload["feedback_event_ids"])
@@ -469,9 +458,7 @@ class SavingsCanaryCoordinator:
             metrics.requests += 1
             metrics.input_tokens += max(0, int(input_tokens))
             metrics.created_savings_usd += max(0.0, float(created_savings_usd))
-            metrics.observed_provider_savings_usd += max(
-                0.0, float(observed_provider_savings_usd)
-            )
+            metrics.observed_provider_savings_usd += max(0.0, float(observed_provider_savings_usd))
             metrics.combined_savings_usd += max(
                 0.0, float(created_savings_usd) + float(observed_provider_savings_usd)
             )
@@ -524,9 +511,7 @@ class SavingsCanaryCoordinator:
         if control_cache > 0 and treatment_cache < control_cache * (1.0 - self.regression_limit):
             return "provider_cache_regression"
         control_combined = (
-            control.combined_savings_usd / control.input_tokens
-            if control.input_tokens > 0
-            else 0.0
+            control.combined_savings_usd / control.input_tokens if control.input_tokens > 0 else 0.0
         )
         treatment_combined = (
             treatment.combined_savings_usd / treatment.input_tokens
@@ -601,9 +586,7 @@ class SavingsCanaryCoordinator:
             decisions[arm] = {
                 "paused": arm in paused,
                 "pause_reason": paused.get(arm),
-                "created_savings_lift_percent": round(lift * 100, 2)
-                if lift is not None
-                else None,
+                "created_savings_lift_percent": round(lift * 100, 2) if lift is not None else None,
                 "meets_20_percent_lift_target": bool(lift is not None and lift >= 0.20),
                 "rollout_decision": "stop"
                 if arm in paused
@@ -647,12 +630,8 @@ class SavingsCanaryCoordinator:
                     or treatment["quality_samples"] < self.min_samples
                 ):
                     raise ValueError("cannot promote before the full evaluation window")
-                control_rate = control[
-                    "created_savings_usd_per_million_input_tokens"
-                ]
-                treatment_rate = treatment[
-                    "created_savings_usd_per_million_input_tokens"
-                ]
+                control_rate = control["created_savings_usd_per_million_input_tokens"]
+                treatment_rate = treatment["created_savings_usd_per_million_input_tokens"]
                 if control_rate <= 0 or treatment_rate < control_rate * 1.20:
                     raise ValueError(
                         "cannot promote without at least 20 percent created-savings lift"

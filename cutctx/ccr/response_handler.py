@@ -161,7 +161,9 @@ class CCRResponseHandler:
             return True
 
         if getattr(self, "memoize_interceptor", None) and kwargs.get("session_id"):
-            intercept_res = self.memoize_interceptor.intercept_tool_calls(response, kwargs.get("session_id"))
+            intercept_res = self.memoize_interceptor.intercept_tool_calls(
+                response, kwargs.get("session_id")
+            )
             if intercept_res.fabricated:
                 return True
 
@@ -615,11 +617,13 @@ class CCRResponseHandler:
                 if intercept_res.fabricated:
                     other_calls = intercept_res.passthrough_tool_calls
                     for fab in intercept_res.fabricated:
-                        memoize_results.append(CCRToolResult(
-                            tool_call_id=fab.tool_call_id,
-                            content=fab.content,
-                            success=True,
-                        ))
+                        memoize_results.append(
+                            CCRToolResult(
+                                tool_call_id=fab.tool_call_id,
+                                content=fab.content,
+                                success=True,
+                            )
+                        )
                     logger.info(f"WS11 Memoize: Fabricated {len(memoize_results)} tool result(s)")
 
             results.extend(memoize_results)

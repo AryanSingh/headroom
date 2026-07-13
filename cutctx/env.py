@@ -30,9 +30,13 @@ def load_local_env(
     target_env = environ if environ is not None else os.environ
     root = (cwd or Path.cwd()).resolve()
     explicit_path = target_env.get("CUTCTX_ENV_FILE", "").strip()
-    candidates = (Path(explicit_path).expanduser(),) if explicit_path else (
-        root / ".env.local",
-        root / ".env",
+    candidates = (
+        (Path(explicit_path).expanduser(),)
+        if explicit_path
+        else (
+            root / ".env.local",
+            root / ".env",
+        )
     )
 
     loaded: list[Path] = []
@@ -51,9 +55,7 @@ def _read_env_file(path: Path) -> Mapping[str, str]:
         from dotenv import dotenv_values
 
         return {
-            key: value
-            for key, value in dotenv_values(path).items()
-            if key and value is not None
+            key: value for key, value in dotenv_values(path).items() if key and value is not None
         }
     except ImportError:
         values: dict[str, str] = {}

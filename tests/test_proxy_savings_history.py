@@ -419,9 +419,13 @@ def test_display_session_rolls_after_inactivity_and_counts_zero_savings_requests
     # A0/A4 changed USD computation to use value_tokens_usd with real litellm
     # pricing. Monkeypatch both for deterministic test values.
     import cutctx.proxy.savings_pricing as sp
+
     monkeypatch.setattr(
-        sp, "value_tokens_usd",
-        lambda model, tokens, rate_per_million=None: tokens / 1000.0 if rate_per_million is None else (rate_per_million / 1_000_000) * tokens,
+        sp,
+        "value_tokens_usd",
+        lambda model, tokens, rate_per_million=None: (
+            tokens / 1000.0 if rate_per_million is None else (rate_per_million / 1_000_000) * tokens
+        ),
     )
     monkeypatch.setattr(
         savings_tracker_module,

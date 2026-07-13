@@ -1,4 +1,5 @@
 """Tests for FastAPI license management endpoints in license.py."""
+
 import pytest
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -33,10 +34,7 @@ async def test_checkout_seat_fails_when_no_seats_available(monkeypatch):
         return MockLicenseDB()
 
     # Patch the import in the license module at its source
-    monkeypatch.setattr(
-        "cutctx_ee.billing.license_db.get_license_db",
-        mock_get_license_db
-    )
+    monkeypatch.setattr("cutctx_ee.billing.license_db.get_license_db", mock_get_license_db)
 
     # Import and call the endpoint function directly
     from cutctx.proxy.routes.license import create_license_router
@@ -46,7 +44,7 @@ async def test_checkout_seat_fails_when_no_seats_available(monkeypatch):
     # Get the endpoint function from the router
     checkout_seat_func = None
     for route in router.routes:
-        if hasattr(route, 'path') and '/checkout-seat' in route.path:
+        if hasattr(route, "path") and "/checkout-seat" in route.path:
             # Get the endpoint function
             checkout_seat_func = route.endpoint
             break
@@ -55,9 +53,7 @@ async def test_checkout_seat_fails_when_no_seats_available(monkeypatch):
 
     # Create a test request
     req = CheckoutSeatRequest(
-        license_key="test-license-key",
-        user_id="test-user",
-        lease_duration=3600.0
+        license_key="test-license-key", user_id="test-user", lease_duration=3600.0
     )
 
     # Call the endpoint function directly
@@ -87,10 +83,7 @@ async def test_checkout_seat_succeeds_when_seats_available(monkeypatch):
         return MockLicenseDB()
 
     # Patch the import in the license module at its source
-    monkeypatch.setattr(
-        "cutctx_ee.billing.license_db.get_license_db",
-        mock_get_license_db
-    )
+    monkeypatch.setattr("cutctx_ee.billing.license_db.get_license_db", mock_get_license_db)
 
     # Import and call the endpoint function directly
     from cutctx.proxy.routes.license import create_license_router
@@ -100,7 +93,7 @@ async def test_checkout_seat_succeeds_when_seats_available(monkeypatch):
     # Get the endpoint function from the router
     checkout_seat_func = None
     for route in router.routes:
-        if hasattr(route, 'path') and '/checkout-seat' in route.path:
+        if hasattr(route, "path") and "/checkout-seat" in route.path:
             checkout_seat_func = route.endpoint
             break
 
@@ -108,9 +101,7 @@ async def test_checkout_seat_succeeds_when_seats_available(monkeypatch):
 
     # Create a test request
     req = CheckoutSeatRequest(
-        license_key="test-license-key",
-        user_id="test-user",
-        lease_duration=3600.0
+        license_key="test-license-key", user_id="test-user", lease_duration=3600.0
     )
 
     # Call the endpoint function - should succeed and return 200 with "seat_leased"
@@ -132,10 +123,7 @@ async def test_checkout_seat_rejected_when_license_revoked(monkeypatch):
     def mock_get_license_db():
         return MockLicenseDB()
 
-    monkeypatch.setattr(
-        "cutctx_ee.billing.license_db.get_license_db",
-        mock_get_license_db
-    )
+    monkeypatch.setattr("cutctx_ee.billing.license_db.get_license_db", mock_get_license_db)
 
     # Import and call the endpoint function directly
     from cutctx.proxy.routes.license import create_license_router
@@ -145,7 +133,7 @@ async def test_checkout_seat_rejected_when_license_revoked(monkeypatch):
     # Get the endpoint function from the router
     checkout_seat_func = None
     for route in router.routes:
-        if hasattr(route, 'path') and '/checkout-seat' in route.path:
+        if hasattr(route, "path") and "/checkout-seat" in route.path:
             checkout_seat_func = route.endpoint
             break
 
@@ -153,9 +141,7 @@ async def test_checkout_seat_rejected_when_license_revoked(monkeypatch):
 
     # Create a test request
     req = CheckoutSeatRequest(
-        license_key="revoked-license",
-        user_id="test-user",
-        lease_duration=3600.0
+        license_key="revoked-license", user_id="test-user", lease_duration=3600.0
     )
 
     # Call the endpoint - should raise 403 Forbidden

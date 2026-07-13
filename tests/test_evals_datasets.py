@@ -3,12 +3,21 @@ from __future__ import annotations
 import json
 import sys
 import urllib.request
+import zipfile
 from types import SimpleNamespace
 from urllib.error import URLError
 
 import pytest
 
 from cutctx.evals import datasets
+
+
+def fake_longbench_archive(tmp_path, rows: list[dict[str, object]]):  # noqa: ANN001
+    archive = tmp_path / "longbench.zip"
+    payload = "\n".join(json.dumps(row) for row in rows) + "\n"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("data/qasper.jsonl", payload)
+    return archive
 
 
 def install_fake_datasets(
@@ -145,14 +154,11 @@ def test_load_triviaqa_msmarco_and_squad(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_load_longbench_narrativeqa_toolbench_codesearchnet_and_humaneval(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
 ) -> None:
     install_fake_datasets(
         monkeypatch,
         {
-            ("THUDM/LongBench", "qasper", "test"): [
-                {"context": "", "input": "skip"},
-                {"context": "Long context", "input": "Question", "answers": ["Truth"]},
-            ],
             ("deepmind/narrativeqa", None, "test"): [
                 {
                     "document": {"summary": {"text": "Story summary"}, "kind": "movie"},
@@ -184,7 +190,7 @@ def test_load_longbench_narrativeqa_toolbench_codesearchnet_and_humaneval(
                     "repository_name": "repo",
                 },
             ],
-            ("openai_humaneval", None, "test"): [
+            ("openai/openai_humaneval", None, "test"): [
                 {"prompt": "", "canonical_solution": "skip"},
                 {
                     "task_id": "HumanEval/1",
@@ -195,6 +201,17 @@ def test_load_longbench_narrativeqa_toolbench_codesearchnet_and_humaneval(
                 },
             ],
         },
+    )
+    monkeypatch.setattr(
+        datasets,
+        "_longbench_archive",
+        lambda: fake_longbench_archive(
+            tmp_path,
+            [
+                {"context": "", "input": "skip"},
+                {"context": "Long context", "input": "Question", "answers": ["Truth"]},
+            ],
+        ),
     )
 
     longbench = datasets.load_longbench(n=2, task="qasper")
@@ -221,7 +238,10 @@ def test_load_longbench_toolbench_and_codesearchnet_wrap_loader_errors(
 
     monkeypatch.setitem(sys.modules, "datasets", SimpleNamespace(load_dataset=fake_load_dataset))
 
-    with pytest.raises(ValueError, match="Failed to load LongBench task 'gov_report'"):
+    monkeypatch.setattr(
+        datasets, "_longbench_archive", lambda: (_ for _ in ()).throw(OSError("broken"))
+    )
+    with pytest.raises(OSError, match="broken"):
         datasets.load_longbench(task="gov_report")
     with pytest.raises(ValueError, match="Failed to load ToolBench category 'G2'"):
         datasets.load_toolbench(category="G2")
@@ -339,7 +359,9 @@ def test_dataset_registry_helpers(monkeypatch: pytest.MonkeyPatch) -> None:
         datasets.load_dataset_by_name("missing")
 
 
-def test_dataset_loaders_cover_skip_and_limit_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dataset_loaders_cover_skip_and_limit_branches(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
     install_fake_datasets(
         monkeypatch,
         {
@@ -469,7 +491,7 @@ def test_dataset_loaders_cover_skip_and_limit_branches(monkeypatch: pytest.Monke
                     "func_documentation_string": "Ignored by limit",
                 },
             ],
-            ("openai_humaneval", None, "test"): [
+            ("openai/openai_humaneval", None, "test"): [
                 {
                     "task_id": "Task/1",
                     "prompt": "def solve():",
@@ -484,6 +506,19 @@ def test_dataset_loaders_cover_skip_and_limit_branches(monkeypatch: pytest.Monke
                 },
             ],
         },
+    )
+
+    monkeypatch.setattr(
+        datasets,
+        "_longbench_archive",
+        lambda: fake_longbench_archive(
+            tmp_path,
+            [
+                {"context": "Context 1", "input": "Q1", "answers": ["A1"]},
+                {"context": "Has context", "input": ""},
+                {"context": "Context 2", "input": "Q2", "answers": ["A2"]},
+            ],
+        ),
     )
 
     assert len(datasets.load_hotpotqa(n=1).cases) == 1

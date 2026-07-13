@@ -44,45 +44,48 @@ def test_live_toggle_dedup_compression() -> None:
         app = create_app(config)
         with TestClient(app) as client:
             admin_headers = {"x-cutctx-admin-key": "admin_12345"}
-            
+
             res = client.post(
                 "/config/flags",
                 json={"dedup_enabled": False},
                 headers=admin_headers,
             )
             assert res.status_code == 200
-            
+
             payload = {
                 "model": "gpt-4o",
                 "messages": [
-                    {"role": "system", "content": "Repeated line.\nRepeated line.\nRepeated line.\nRepeated line.\nRepeated line.\nRepeated line.\nRepeated line.\nRepeated line.\n"},
+                    {
+                        "role": "system",
+                        "content": "Repeated line.\nRepeated line.\nRepeated line.\nRepeated line.\nRepeated line.\nRepeated line.\nRepeated line.\nRepeated line.\n",
+                    },
                     {"role": "user", "content": "Run cargo build."},
-                ]
+                ],
             }
-            
+
             headers = {"Authorization": "Bearer mock-key"}
-            
-            client.app.state.raise_server_exceptions = True # Try to force error
+
+            client.app.state.raise_server_exceptions = True  # Try to force error
             response1 = client.post("/v1/chat/completions", json=payload, headers=headers)
             print("RESPONSE BODY:", response1.text)
             assert response1.status_code == 200
-            
+
             stats1 = client.get("/stats", headers=admin_headers).json()
             saved_before = stats1.get("metrics", {}).get("total_tokens_saved", 0)
-            
+
             res2 = client.post(
                 "/config/flags",
                 json={"dedup_enabled": True},
                 headers=admin_headers,
             )
             assert res2.status_code == 200
-            
+
             response2 = client.post("/v1/chat/completions", json=payload, headers=headers)
             assert response2.status_code == 200
-            
+
             stats2 = client.get("/stats", headers=admin_headers).json()
             saved_after = stats2.get("metrics", {}).get("total_tokens_saved", 0)
-            
+
             applied_live = res2.json().get("applied_live", {})
             is_enabled = applied_live.get("dedup_enabled", {}).get("enabled") is True
             assert is_enabled, f"dedup_enabled was not applied live! res={res2.json()}"

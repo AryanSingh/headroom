@@ -35,7 +35,9 @@ def _direct_stripe_checkout_url(plan: str, email: str | None, billing: str) -> s
     """Create a Stripe Checkout session when all direct-billing inputs exist."""
     secret = os.environ.get("STRIPE_SECRET_KEY")
     tier = _PLAN_TO_TIER.get(plan)
-    price_id = os.environ.get(f"CUTCTX_STRIPE_PRICE_{tier.upper()}_{billing.upper()}") if tier else None
+    price_id = (
+        os.environ.get(f"CUTCTX_STRIPE_PRICE_{tier.upper()}_{billing.upper()}") if tier else None
+    )
     if not secret or not price_id:
         return None
     import httpx
@@ -44,12 +46,17 @@ def _direct_stripe_checkout_url(plan: str, email: str | None, billing: str) -> s
         "mode": "subscription",
         "line_items[0][price]": price_id,
         "line_items[0][quantity]": "1",
-        "success_url": os.environ.get("CUTCTX_STRIPE_SUCCESS_URL", "https://cutctx.com/billing/success?session_id={CHECKOUT_SESSION_ID}"),
+        "success_url": os.environ.get(
+            "CUTCTX_STRIPE_SUCCESS_URL",
+            "https://cutctx.com/billing/success?session_id={CHECKOUT_SESSION_ID}",
+        ),
         "cancel_url": os.environ.get("CUTCTX_STRIPE_CANCEL_URL", "https://cutctx.com/pricing"),
     }
     if email:
         data["customer_email"] = email.strip()
-    response = httpx.post("https://api.stripe.com/v1/checkout/sessions", data=data, auth=(secret, ""), timeout=10.0)
+    response = httpx.post(
+        "https://api.stripe.com/v1/checkout/sessions", data=data, auth=(secret, ""), timeout=10.0
+    )
     response.raise_for_status()
     url = response.json().get("url")
     if not isinstance(url, str) or not url.startswith("https://checkout.stripe.com/"):

@@ -20,13 +20,18 @@ from cutctx.orchestration.workflow import (
 
 def test_workflow_rejects_unknown_dependency_and_cycles(tmp_path) -> None:
     store = WorkflowStateStore(tmp_path / "workflows.json")
-    unknown = WorkflowSpec(id="unknown", tasks=[TaskSpec(id="a", role="worker", depends_on=["missing"])])
+    unknown = WorkflowSpec(
+        id="unknown", tasks=[TaskSpec(id="a", role="worker", depends_on=["missing"])]
+    )
     with pytest.raises(WorkflowValidationError, match="unknown task"):
         store.submit(unknown)
 
     cycle = WorkflowSpec(
         id="cycle",
-        tasks=[TaskSpec(id="a", role="worker", depends_on=["b"]), TaskSpec(id="b", role="worker", depends_on=["a"])],
+        tasks=[
+            TaskSpec(id="a", role="worker", depends_on=["b"]),
+            TaskSpec(id="b", role="worker", depends_on=["a"]),
+        ],
     )
     with pytest.raises(WorkflowValidationError, match="cycle"):
         store.submit(cycle)
@@ -34,7 +39,9 @@ def test_workflow_rejects_unknown_dependency_and_cycles(tmp_path) -> None:
 
 def test_workflow_submission_is_idempotent_and_survives_restart(tmp_path) -> None:
     path = tmp_path / "workflows.json"
-    spec = WorkflowSpec(id="review", idempotency_key="same-input", tasks=[TaskSpec(id="plan", role="planner")])
+    spec = WorkflowSpec(
+        id="review", idempotency_key="same-input", tasks=[TaskSpec(id="plan", role="planner")]
+    )
     first = WorkflowStateStore(path).submit(spec)
     second = WorkflowStateStore(path).submit(spec)
     assert first.id == second.id
@@ -66,7 +73,15 @@ def test_idempotency_key_rejects_a_different_workflow_definition(tmp_path) -> No
 
 def test_cancellation_is_terminal_and_does_not_cancel_completed_tasks(tmp_path) -> None:
     store = WorkflowStateStore(tmp_path / "workflows.json")
-    workflow = store.submit(WorkflowSpec(id="release", tasks=[TaskSpec(id="build", role="worker"), TaskSpec(id="test", role="qa", depends_on=["build"])]))
+    workflow = store.submit(
+        WorkflowSpec(
+            id="release",
+            tasks=[
+                TaskSpec(id="build", role="worker"),
+                TaskSpec(id="test", role="qa", depends_on=["build"]),
+            ],
+        )
+    )
     assert store.claim_ready_task(workflow.id, "build") is True
     store.mark_task_completed(workflow.id, "build", {"ok": True})
     cancelled = store.cancel(workflow.id)
@@ -77,14 +92,24 @@ def test_cancellation_is_terminal_and_does_not_cancel_completed_tasks(tmp_path) 
 
 def test_task_claim_is_single_owner_and_requires_dependencies(tmp_path) -> None:
     store = WorkflowStateStore(tmp_path / "workflows.json")
-    workflow = store.submit(WorkflowSpec(id="ordered", tasks=[TaskSpec(id="a", role="worker"), TaskSpec(id="b", role="worker", depends_on=["a"])]))
+    workflow = store.submit(
+        WorkflowSpec(
+            id="ordered",
+            tasks=[
+                TaskSpec(id="a", role="worker"),
+                TaskSpec(id="b", role="worker", depends_on=["a"]),
+            ],
+        )
+    )
     assert store.claim_ready_task(workflow.id, "b") is False
     assert store.claim_ready_task(workflow.id, "a") is True
     assert store.claim_ready_task(workflow.id, "a") is False
 
 
 @pytest.mark.asyncio
-async def test_workflow_artifact_and_manual_gates_require_explicit_human_transitions(tmp_path) -> None:
+async def test_workflow_artifact_and_manual_gates_require_explicit_human_transitions(
+    tmp_path,
+) -> None:
     store = WorkflowStateStore(tmp_path / "workflows.json")
     spec = WorkflowSpec(
         id="gated-handoff",
@@ -208,11 +233,19 @@ async def test_runner_cancellation_stops_running_tasks(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_expired_lease_recovers_running_task_with_persisted_payload(tmp_path, monkeypatch) -> None:
+async def test_expired_lease_recovers_running_task_with_persisted_payload(
+    tmp_path, monkeypatch
+) -> None:
     path = tmp_path / "workflows.json"
     spec = WorkflowSpec(
         id="restart",
-        tasks=[TaskSpec(id="implement", role="worker", payload={"messages": [{"role": "user", "content": "hi"}]})],
+        tasks=[
+            TaskSpec(
+                id="implement",
+                role="worker",
+                payload={"messages": [{"role": "user", "content": "hi"}]},
+            )
+        ],
     )
     monkeypatch.setattr(workflow_module.time, "time", lambda: 100.0)
     workflow = WorkflowStateStore(path, worker_id="worker-a", lease_seconds=1).submit(spec)
@@ -272,10 +305,14 @@ def test_expired_lease_fences_out_stale_worker_completion(tmp_path, monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_runner_waits_for_another_workers_active_lease_without_failing_workflow(tmp_path) -> None:
+async def test_runner_waits_for_another_workers_active_lease_without_failing_workflow(
+    tmp_path,
+) -> None:
     path = tmp_path / "workflows.json"
     owner = WorkflowStateStore(path, worker_id="owner")
-    workflow = owner.submit(WorkflowSpec(id="shared-run", tasks=[TaskSpec(id="work", role="worker")]))
+    workflow = owner.submit(
+        WorkflowSpec(id="shared-run", tasks=[TaskSpec(id="work", role="worker")])
+    )
     assert owner.claim_ready_task(workflow.id, "work") is True
     observer = WorkflowStateStore(path, worker_id="observer")
 

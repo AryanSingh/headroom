@@ -34,9 +34,7 @@ def test_feedback_requires_canonical_fields(canary_client: TestClient):
         {"event_id": "eval/task", "quality_success": True},
         {"event_id": "eval/task", "arm": "control"},
     ):
-        response = canary_client.post(
-            "/savings-canary/feedback", headers=_auth(), json=payload
-        )
+        response = canary_client.post("/savings-canary/feedback", headers=_auth(), json=payload)
         assert response.status_code == 422, response.text
 
 
@@ -51,12 +49,8 @@ def test_feedback_duplicate_returns_200_without_double_counting(canary_client: T
         "evaluator": "coding-eval-v1",
         "evaluated_at": "2026-07-10T12:00:00Z",
     }
-    first = canary_client.post(
-        "/savings-canary/feedback", headers=_auth(), json=payload
-    )
-    second = canary_client.post(
-        "/savings-canary/feedback", headers=_auth(), json=payload
-    )
+    first = canary_client.post("/savings-canary/feedback", headers=_auth(), json=payload)
+    second = canary_client.post("/savings-canary/feedback", headers=_auth(), json=payload)
     assert first.status_code == 200, first.text
     assert second.status_code == 200, second.text
     assert first.json()["duplicate"] is False

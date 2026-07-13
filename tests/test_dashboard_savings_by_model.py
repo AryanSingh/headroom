@@ -50,7 +50,12 @@ def _install_dashboard_routes_with_stats(page: Page) -> None:
             route.fulfill(status=200, body="")
             return
 
-        if url.endswith("/dashboard") or url.endswith("/dashboard/savings") or url.endswith("/") or url == "http://cutctx.local/":
+        if (
+            url.endswith("/dashboard")
+            or url.endswith("/dashboard/savings")
+            or url.endswith("/")
+            or url == "http://cutctx.local/"
+        ):
             route.fulfill(status=200, content_type="text/html", body=dashboard_html)
             return
 
@@ -100,9 +105,11 @@ def _install_dashboard_routes_with_stats(page: Page) -> None:
                         "gpt-4o": {"tokens_saved": 5000, "compression_savings_usd": 0.025},
                         "claude-3-opus": {"tokens_saved": 10000, "compression_savings_usd": 0.150},
                     },
-                }
+                },
             }
-            route.fulfill(status=200, content_type="application/json", body=json.dumps(mock_history))
+            route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(mock_history)
+            )
             return
 
         route.fulfill(status=404, body="Not Found")

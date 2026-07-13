@@ -325,9 +325,7 @@ def create_orchestration_router(
 
     @router.post("/route/shadow", dependencies=read_deps)
     async def shadow_route(payload: ShadowRoutingPayload) -> dict[str, Any]:
-        if not any(
-            (payload.candidate_profile, payload.candidate_policy, payload.candidate_model)
-        ):
+        if not any((payload.candidate_profile, payload.candidate_policy, payload.candidate_model)):
             raise HTTPException(status_code=400, detail="A candidate route override is required")
         try:
             return service.shadow_route(
@@ -474,6 +472,7 @@ def create_orchestration_router(
             except (RoutingUnavailableError, RuntimeError, ValueError) as exc:
                 raise HTTPException(status_code=502, detail=str(exc)) from exc
             return {"workflow": asdict(state)}
+
     @router.get("/executions", dependencies=read_deps)
     async def executions(limit: int = 100) -> dict[str, Any]:
         return {"executions": service.telemetry.list(limit=min(max(limit, 1), 1000))}

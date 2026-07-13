@@ -44,7 +44,9 @@ def test_billing_docs_describe_current_hybrid_surface_truthfully() -> None:
 
 
 def test_commercial_artifacts_do_not_present_dead_pitchtoship_checkout_as_live() -> None:
-    checklist = (PROJECT_ROOT / "artifacts/IMPLEMENTATION_STATUS_CHECKLIST.md").read_text(encoding="utf-8")
+    checklist = (PROJECT_ROOT / "artifacts/IMPLEMENTATION_STATUS_CHECKLIST.md").read_text(
+        encoding="utf-8"
+    )
     portal = (PROJECT_ROOT / "artifacts/license-portal.html").read_text(encoding="utf-8")
     openapi = (PROJECT_ROOT / "artifacts/openapi-management.yaml").read_text(encoding="utf-8")
 

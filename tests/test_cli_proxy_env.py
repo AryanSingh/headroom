@@ -257,6 +257,24 @@ class TestCLIProxyEnvVars:
         assert result.exit_code == 0, result.output
         assert captured_config["config"].disable_kompress is True
 
+    def test_compression_mode_from_cli_and_env(self, runner):
+        """The user-facing proxy command exposes the selected policy."""
+        captured_config = {}
+
+        def mock_run_server(config, **kwargs):
+            captured_config["config"] = config
+
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
+            result = runner.invoke(
+                main,
+                ["proxy", "--compression-mode", "aggressive"],
+                env={"CUTCTX_COMPRESSION_MODE": "off"},
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == 0, result.output
+        assert captured_config["config"].compression_mode == "aggressive"
+
     def test_deterministic_mode_from_env(self, runner):
         """CUTCTX_DETERMINISTIC_MODE should map to the same compression switch."""
         captured_config = {}
@@ -796,3 +814,12 @@ class TestArgparseBackendValidation:
 
         assert config.deterministic_mode is True
         assert config.disable_kompress is True
+
+    def test_proxy_config_from_env_reads_compression_mode(self):
+        """The direct server env path must preserve the selected policy."""
+        from cutctx.proxy.server import _proxy_config_from_env
+
+        with patch.dict(os.environ, {"CUTCTX_COMPRESSION_MODE": "aggressive"}):
+            config = _proxy_config_from_env()
+
+        assert config.compression_mode == "aggressive"

@@ -688,9 +688,7 @@ def build_session_summary(
     from cutctx.proxy.savings_tracker import _estimate_compression_savings_usd
 
     cli_filtering_savings_usd = (
-        _estimate_compression_savings_usd(primary_model, cli_tokens_avoided)
-        if models
-        else 0.0
+        _estimate_compression_savings_usd(primary_model, cli_tokens_avoided) if models else 0.0
     )
 
     # Build the summary

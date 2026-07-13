@@ -131,7 +131,9 @@ class TaskComplexityAssessment:
     signals: tuple[str, ...] = ()
 
 
-def _recent_context_window(messages: list[dict[str, Any]], *, size: int = 8) -> list[dict[str, Any]]:
+def _recent_context_window(
+    messages: list[dict[str, Any]], *, size: int = 8
+) -> list[dict[str, Any]]:
     """Return the context most likely to affect the current turn.
 
     Old tool results should not permanently pin a long-running agent session to

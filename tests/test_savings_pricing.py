@@ -7,10 +7,10 @@ from cutctx.proxy.savings_pricing import value_tokens_usd
 def test_value_tokens_usd_known_model():
     model = "gpt-4o"  # or similar known model
     tokens = 1000
-    
+
     tracker = CostTracker()
     expected = (tokens * tracker._get_list_price(model)) / 1_000_000
-    
+
     # We should match exactly or within float tolerance
     actual = value_tokens_usd(model, tokens)
     assert actual > 0

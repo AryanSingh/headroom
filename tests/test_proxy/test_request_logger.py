@@ -148,9 +148,7 @@ def test_get_recent_with_messages_reads_live_from_shared_file_across_instances(t
 
     by_id = {entry["request_id"]: entry for entry in recent}
     assert by_id["from-a"]["request_messages"] == [{"role": "user", "content": "pre-a"}]
-    assert by_id["from-b"]["compressed_messages"] == [
-        {"role": "user", "content": "post-b"}
-    ]
+    assert by_id["from-b"]["compressed_messages"] == [{"role": "user", "content": "post-b"}]
 
 
 def test_get_request_with_messages_prefers_shared_log_file(tmp_path):
@@ -181,7 +179,9 @@ def test_get_recent_falls_back_to_memory_when_no_log_file():
     assert [e["request_id"] for e in recent] == ["mem-only"]
 
 
-def test_get_recent_with_messages_falls_back_to_memory_when_shared_log_unavailable(tmp_path, monkeypatch):
+def test_get_recent_with_messages_falls_back_to_memory_when_shared_log_unavailable(
+    tmp_path, monkeypatch
+):
     log_file = tmp_path / "requests.jsonl"
     logger = RequestLogger(log_file=str(log_file), log_full_messages=True)
     logger.log(
@@ -204,7 +204,9 @@ def test_get_recent_with_messages_falls_back_to_memory_when_shared_log_unavailab
     assert recent[0]["compressed_messages"] == [{"role": "user", "content": "post"}]
 
 
-def test_get_request_with_messages_falls_back_to_memory_when_shared_log_unavailable(tmp_path, monkeypatch):
+def test_get_request_with_messages_falls_back_to_memory_when_shared_log_unavailable(
+    tmp_path, monkeypatch
+):
     log_file = tmp_path / "requests.jsonl"
     logger = RequestLogger(log_file=str(log_file), log_full_messages=True)
     logger.log(

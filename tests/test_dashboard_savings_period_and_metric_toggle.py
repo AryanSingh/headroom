@@ -36,7 +36,9 @@ def _hourly_bucket_hours_ago(hours_ago: int) -> str:
     return time.strftime("%Y-%m-%dT%H:00:00Z", time.gmtime(time.time() - hours_ago * 3600))
 
 
-def _install_dashboard_routes(page: Page, mock_history: dict, mock_stats: dict | None = None) -> None:
+def _install_dashboard_routes(
+    page: Page, mock_history: dict, mock_stats: dict | None = None
+) -> None:
     dashboard_html = get_dashboard_html(prefer_react=True)
 
     def handler(route) -> None:  # type: ignore[no-untyped-def]
@@ -58,13 +60,17 @@ def _install_dashboard_routes(page: Page, mock_history: dict, mock_stats: dict |
                 return
 
         if "/stats-history" in url:
-            route.fulfill(status=200, content_type="application/json", body=json.dumps(mock_history))
+            route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(mock_history)
+            )
             return
 
         # `/stats` is requested with a `?cached=1`-style query string by the
         # live dashboard, so this must not be an exact endswith("/stats") match.
         if "/stats" in url or "/health" in url or "/favicon" in url:
-            route.fulfill(status=200, content_type="application/json", body=json.dumps(mock_stats or {}))
+            route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(mock_stats or {})
+            )
             return
 
         route.fulfill(status=404, body="Not Found")
@@ -99,7 +105,12 @@ def _base_mock_history() -> dict:
         },
         # Deliberately non-empty and lifetime-shaped, to prove the frontend
         # no longer treats this as the period aggregate.
-        "history_summary": {"mode": "compact", "stored_points": 100, "returned_points": 50, "compacted": True},
+        "history_summary": {
+            "mode": "compact",
+            "stored_points": 100,
+            "returned_points": 50,
+            "compacted": True,
+        },
         "series": {"hourly": [], "daily": [], "weekly": [], "monthly": []},
     }
 
@@ -116,7 +127,9 @@ def test_last_24_hours_tab_shows_real_data_not_zero() -> None:
             "compression_savings_usd_delta": 0.5,
             "total_input_tokens_delta": 100_000,
             "total_input_cost_usd_delta": 1.0,
-            "by_model": {"claude-sonnet-5": {"tokens_saved": 50_000, "compression_savings_usd_delta": 0.5}},
+            "by_model": {
+                "claude-sonnet-5": {"tokens_saved": 50_000, "compression_savings_usd_delta": 0.5}
+            },
         }
         for h in range(1, 20)
     ]
@@ -142,8 +155,12 @@ def test_last_24_hours_tab_shows_real_data_not_zero() -> None:
             # now populates for non-lifetime periods (bucket series carries
             # by_model), while per-client stays lifetime-only (no by_client
             # in the bucket series).
-            model_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by model", exact=True))
-            client_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by client", exact=True))
+            model_panel = page.locator(".panel").filter(
+                has=page.get_by_text("Savings by model", exact=True)
+            )
+            client_panel = page.locator(".panel").filter(
+                has=page.get_by_text("Savings by client", exact=True)
+            )
             expect(model_panel.get_by_text("claude-sonnet-5", exact=True)).to_be_visible()
             expect(client_panel.get_by_text("No client data yet", exact=True)).to_be_visible()
         finally:
@@ -202,17 +219,25 @@ def test_attribution_metric_toggle_switches_between_tokens_and_cost() -> None:
             expect(toggle).to_be_visible(timeout=5000)
 
             # Default view is tokens-first labeling.
-            model_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by model", exact=True))
-            client_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by client", exact=True))
+            model_panel = page.locator(".panel").filter(
+                has=page.get_by_text("Savings by model", exact=True)
+            )
+            client_panel = page.locator(".panel").filter(
+                has=page.get_by_text("Savings by client", exact=True)
+            )
 
             expect(client_panel.locator(".source-meta").first).to_contain_text("tokens")
-            expect(client_panel.locator(".source-row").first).to_contain_text("4,528,851 tokens", timeout=5000)
+            expect(client_panel.locator(".source-row").first).to_contain_text(
+                "4,528,851 tokens", timeout=5000
+            )
 
             toggle.get_by_role("button", name="Cost").click()
 
             # Cost view relabels with $ first and re-sorts by usd descending.
             expect(client_panel.locator(".source-meta").first).to_contain_text("$")
-            expect(client_panel.locator(".source-row").first).to_contain_text("$9.058", timeout=5000)
+            expect(client_panel.locator(".source-row").first).to_contain_text(
+                "$9.058", timeout=5000
+            )
         finally:
             browser.close()
 
@@ -326,7 +351,9 @@ def test_lifetime_savings_source_rows_do_not_duplicate_normalization() -> None:
             source_panel = page.locator(".panel").filter(
                 has=page.get_by_text("Savings by source", exact=True)
             )
-            expect(source_panel.get_by_text("Tokenizer normalization", exact=True)).to_have_count(1, timeout=5000)
+            expect(source_panel.get_by_text("Tokenizer normalization", exact=True)).to_have_count(
+                1, timeout=5000
+            )
             expect(source_panel.locator(".source-row")).to_have_count(3, timeout=5000)
         finally:
             browser.close()
@@ -341,12 +368,28 @@ def test_overview_page_attribution_toggle_switches_between_tokens_and_cost() -> 
     mock_stats = {
         "persistent_savings": {
             "clients": {
-                "claude-code": {"tokens_saved": 7_457_726, "compression_savings_usd": 14.92, "requests": 403},
-                "opencode": {"tokens_saved": 3_982_873, "compression_savings_usd": 0.548, "requests": 270},
+                "claude-code": {
+                    "tokens_saved": 7_457_726,
+                    "compression_savings_usd": 14.92,
+                    "requests": 403,
+                },
+                "opencode": {
+                    "tokens_saved": 3_982_873,
+                    "compression_savings_usd": 0.548,
+                    "requests": 270,
+                },
             },
             "models": {
-                "claude-sonnet-5": {"tokens_saved": 7_457_726, "compression_savings_usd": 14.92, "requests": 390},
-                "deepseek-v4-flash": {"tokens_saved": 3_908_363, "compression_savings_usd": 0.547, "requests": 250},
+                "claude-sonnet-5": {
+                    "tokens_saved": 7_457_726,
+                    "compression_savings_usd": 14.92,
+                    "requests": 390,
+                },
+                "deepseek-v4-flash": {
+                    "tokens_saved": 3_908_363,
+                    "compression_savings_usd": 0.547,
+                    "requests": 250,
+                },
             },
         },
     }
@@ -363,15 +406,23 @@ def test_overview_page_attribution_toggle_switches_between_tokens_and_cost() -> 
             expect(toggle).to_be_visible(timeout=5000)
 
             # Default view is tokens-first labeling, sorted by tokens desc.
-            client_panel = page.locator(".panel").filter(has=page.get_by_text("Savings by client", exact=True))
+            client_panel = page.locator(".panel").filter(
+                has=page.get_by_text("Savings by client", exact=True)
+            )
             expect(client_panel.locator(".source-meta").first).to_contain_text("tokens")
-            expect(client_panel.locator(".source-row").first).to_contain_text("7,457,726 tokens", timeout=5000)
+            expect(client_panel.locator(".source-row").first).to_contain_text(
+                "7,457,726 tokens", timeout=5000
+            )
 
             toggle.get_by_role("button", name="Cost").click()
 
             # Cost view relabels with $ first; requests count is preserved.
             expect(client_panel.locator(".source-meta").first).to_contain_text("$")
-            expect(client_panel.locator(".source-row").first).to_contain_text("$14.92", timeout=5000)
-            expect(client_panel.locator(".source-row").first).to_contain_text("403 requests", timeout=5000)
+            expect(client_panel.locator(".source-row").first).to_contain_text(
+                "$14.92", timeout=5000
+            )
+            expect(client_panel.locator(".source-row").first).to_contain_text(
+                "403 requests", timeout=5000
+            )
         finally:
             browser.close()

@@ -37,6 +37,7 @@ if TYPE_CHECKING:
         detect_content_type,
     )
     from cutctx.transforms.content_router import (  # noqa: F401
+        CompressionMode,
         CompressionStrategy,
         ContentRouter,
         ContentRouterConfig,
@@ -120,6 +121,7 @@ __all__ = [
     "ContentRouterConfig",
     "RouterCompressionResult",
     "CompressionStrategy",
+    "CompressionMode",
     # Other transforms
     "CacheAligner",
     # HTML extraction (optional)
@@ -208,6 +210,7 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
         "RouterCompressionResult",
     ),
     "CompressionStrategy": ("cutctx.transforms.content_router", "CompressionStrategy"),
+    "CompressionMode": ("cutctx.transforms.content_router", "CompressionMode"),
     # Other transforms
     "CacheAligner": ("cutctx.transforms.cache_aligner", "CacheAligner"),
     # HTML extraction (optional dependency - requires trafilatura)

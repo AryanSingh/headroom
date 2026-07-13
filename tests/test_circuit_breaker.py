@@ -140,8 +140,7 @@ def test_infer_provider_from_url() -> None:
     assert infer_provider_from_url("https://api.openai.com/v1/chat/completions") == "openai"
     assert infer_provider_from_url("https://chatgpt.com/backend-api/codex") == "openai"
     assert (
-        infer_provider_from_url("https://generativelanguage.googleapis.com/v1/models")
-        == "gemini"
+        infer_provider_from_url("https://generativelanguage.googleapis.com/v1/models") == "gemini"
     )
     assert infer_provider_from_url("https://cloudcode-pa.googleapis.com/v1internal") == "gemini"
     assert infer_provider_from_url("https://example.internal/proxy") == "unknown"

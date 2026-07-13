@@ -100,8 +100,7 @@ def _summarize_transforms(transforms: list[str]) -> str:
     for transform in transforms:
         counts[transform] = counts.get(transform, 0) + 1
     return " ".join(
-        f"{transform}*{count}" if count > 1 else transform
-        for transform, count in counts.items()
+        f"{transform}*{count}" if count > 1 else transform for transform, count in counts.items()
     )
 
 
@@ -729,6 +728,7 @@ def _build_savings_breakdown(
                 by_source_usd[src.value] = by_source_usd.get(src.value, 0.0) + usd
 
     from cutctx.proxy.savings_pricing import value_tokens_usd
+
     for source, tokens in by_source_tokens.items():
         if source not in by_source_usd and tokens > 0:
             usd_val = value_tokens_usd(outcome.model, tokens)
@@ -818,8 +818,10 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                         # installed in tests). Leave at 0.
                         tokens_saved = 0
                         usd_saved = 0.0
-                if routing_applied and (tokens_saved > 0 or usd_saved > 0.0) and (
-                    outcome.model_routing_tokens_saved == 0
+                if (
+                    routing_applied
+                    and (tokens_saved > 0 or usd_saved > 0.0)
+                    and (outcome.model_routing_tokens_saved == 0)
                 ):
                     # Mutate a copy so we don't poison caller state.
                     from dataclasses import replace as _dc_replace
@@ -874,7 +876,11 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     )
     eligible_input_tokens = max(
         0,
-        int(outcome.eligible_input_tokens or outcome.attempted_input_tokens or outcome.original_tokens),
+        int(
+            outcome.eligible_input_tokens
+            or outcome.attempted_input_tokens
+            or outcome.original_tokens
+        ),
     )
     cache_protected_tokens = max(
         0,
@@ -907,9 +913,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         else "unknown"
     )
     canary_assignment_sticky = (
-        bool(canary_meta.get("assignment_sticky"))
-        if isinstance(canary_meta, dict)
-        else False
+        bool(canary_meta.get("assignment_sticky")) if isinstance(canary_meta, dict) else False
     )
     audit_meta = (outcome.savings_metadata or {}).get("ghost_token_audit") or {}
     scaffolding_tokens = max(
@@ -1120,9 +1124,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         if fallback_reason not in (None, ""):
             fallback_meta_candidate["reason"] = fallback_reason
         if fallback_attempted is not None:
-            fallback_meta_candidate["attempted"] = (
-                str(fallback_attempted).lower() == "true"
-            )
+            fallback_meta_candidate["attempted"] = str(fallback_attempted).lower() == "true"
         circuit_state = log_tags.get("circuit_breaker_state")
         if circuit_state not in (None, ""):
             fallback_meta_candidate["circuit_breaker_state"] = circuit_state

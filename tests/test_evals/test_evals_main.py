@@ -26,6 +26,7 @@ def test_cmd_suite_passes_compression_only_filters(monkeypatch, tmp_path, capsys
         model="gpt-5.4-mini",
         budget=0.0,
         port=8787,
+        compression_mode="aggressive",
         ci=False,
         no_proxy=True,
         compression_only=True,
@@ -37,6 +38,8 @@ def test_cmd_suite_passes_compression_only_filters(monkeypatch, tmp_path, capsys
 
     assert captured["runner_types"] == ["compression_only"]
     assert captured["benchmark_names"] == ["Verbatim Compaction", "Tool Schema Compaction"]
+    assert captured["compression_mode"] == "aggressive"
     output = capsys.readouterr().out
     assert "Selection: compression-only benchmarks" in output
     assert "Benchmarks: Verbatim Compaction, Tool Schema Compaction" in output
+    assert "Compression policy: aggressive" in output

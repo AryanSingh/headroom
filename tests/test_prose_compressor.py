@@ -21,6 +21,23 @@ def test_query_aware_prose_declines_without_query() -> None:
     assert result.compressed == content
 
 
+def test_aggressive_prose_fallback_reduces_without_query_but_keeps_anchors() -> None:
+    content = (
+        "The deployment has completed successfully. "
+        "CUTCTX_TIMEOUT is 30 seconds. "
+        "Routine diagnostics are available in the dashboard. "
+        "The service writes audit events to audit.jsonl. "
+        "Additional operational detail is available from support."
+    )
+
+    result = QueryAwareProseCompressor().compress(content, aggressive=True)
+
+    assert len(result.compressed) < len(content)
+    assert "The deployment has completed successfully." in result.compressed
+    assert "CUTCTX_TIMEOUT is 30 seconds." in result.compressed
+    assert "audit.jsonl" in result.compressed
+
+
 def test_query_aware_prose_declines_when_query_has_no_match() -> None:
     content = "Alpha is stable. Beta is stable. Gamma is stable. Delta is stable."
     result = QueryAwareProseCompressor().compress(content, context="Where is epsilon?")

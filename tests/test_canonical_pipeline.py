@@ -161,7 +161,9 @@ def test_default_transform_pipeline_disables_unrequested_kompress(monkeypatch) -
     monkeypatch.delenv("CUTCTX_ENABLE_KOMPRESS", raising=False)
 
     pipeline = TransformPipeline(CutctxConfig())
-    router = next(transform for transform in pipeline.transforms if isinstance(transform, ContentRouter))
+    router = next(
+        transform for transform in pipeline.transforms if isinstance(transform, ContentRouter)
+    )
 
     assert router.config.enable_kompress is False
     assert router.config.fallback_strategy is CompressionStrategy.PASSTHROUGH
@@ -171,7 +173,9 @@ def test_transform_pipeline_can_opt_into_kompress_with_env(monkeypatch) -> None:
     monkeypatch.setenv("CUTCTX_ENABLE_KOMPRESS", "1")
 
     pipeline = TransformPipeline(CutctxConfig())
-    router = next(transform for transform in pipeline.transforms if isinstance(transform, ContentRouter))
+    router = next(
+        transform for transform in pipeline.transforms if isinstance(transform, ContentRouter)
+    )
 
     assert router.config.enable_kompress is True
     assert router.config.fallback_strategy is CompressionStrategy.KOMPRESS

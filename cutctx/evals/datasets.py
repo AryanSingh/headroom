@@ -27,7 +27,9 @@ Custom:
 
 from __future__ import annotations
 
+import hashlib
 import json
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -371,6 +373,46 @@ def load_squad(
 # =============================================================================
 
 
+_LONGBENCH_REPOSITORY = "zai-org/LongBench"
+_LONGBENCH_REVISION = "5e628be450b7e67fb7ae6e201bd6d8f7056f7672"
+_LONGBENCH_ARCHIVE_SHA256 = "cb45b11a4133c6bc1d6a44b0f8e701335ff1e543195db1103472e575857f7f64"
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _longbench_archive() -> Path:
+    """Fetch the official LongBench archive at a pinned immutable revision.
+
+    The official dataset moved to an archive backed by a legacy dataset script.
+    Recent ``datasets`` releases intentionally reject remote scripts, so loading
+    it through ``load_dataset`` no longer works. Downloading the named archive
+    through Hugging Face's cache API keeps the source, revision, and checksum
+    explicit and avoids executing remote dataset code.
+    """
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError as exc:
+        raise ImportError("huggingface_hub is required for the LongBench loader") from exc
+
+    archive = Path(
+        hf_hub_download(
+            repo_id=_LONGBENCH_REPOSITORY,
+            filename="data.zip",
+            repo_type="dataset",
+            revision=_LONGBENCH_REVISION,
+        )
+    )
+    if _sha256(archive) != _LONGBENCH_ARCHIVE_SHA256:
+        raise ValueError("LongBench archive checksum does not match the pinned official revision")
+    return archive
+
+
 def load_longbench(
     n: int = 50,
     task: str = "qasper",
@@ -380,7 +422,7 @@ def load_longbench(
     LongBench tests understanding of very long documents (4K-128K tokens).
     Critical for testing compression on long contexts.
 
-    Dataset: https://huggingface.co/datasets/THUDM/LongBench
+    Dataset: https://huggingface.co/datasets/zai-org/LongBench
 
     Available tasks:
     - qasper: Scientific paper QA
@@ -397,44 +439,37 @@ def load_longbench(
     Returns:
         EvalSuite with LongBench cases
     """
-    _check_datasets_installed()
-    from datasets import load_dataset
-
-    try:
-        ds = load_dataset("THUDM/LongBench", task, split="test")
-    except Exception as e:
-        raise ValueError(f"Failed to load LongBench task '{task}': {e}") from e
-
+    archive = _longbench_archive()
+    member_name = f"data/{task}.jsonl"
     cases: list[EvalCase] = []
-    for i, item in enumerate(ds):
-        if i >= n:
-            break
-
-        context = item.get("context", "")
-        if not context:
-            continue
-
-        query = item.get("input", "")
-        if not query:
-            continue
-
-        # Ground truth (list of answers for some tasks)
-        answers = item.get("answers", [])
-        ground_truth = answers[0] if answers else None
-
-        cases.append(
-            EvalCase(
-                id=f"longbench_{task}_{i}",
-                context=context,
-                query=query,
-                ground_truth=ground_truth,
-                metadata={
-                    "source": "LongBench",
-                    "task": task,
-                    "context_length": len(context),
-                },
-            )
-        )
+    try:
+        with zipfile.ZipFile(archive) as bundle, bundle.open(member_name) as rows:
+            for i, raw_row in enumerate(rows):
+                if i >= n:
+                    break
+                item = json.loads(raw_row)
+                context = item.get("context", "")
+                query = item.get("input", "")
+                if not context or not query:
+                    continue
+                answers = item.get("answers", [])
+                ground_truth = answers[0] if answers else None
+                cases.append(
+                    EvalCase(
+                        id=f"longbench_{task}_{i}",
+                        context=context,
+                        query=query,
+                        ground_truth=ground_truth,
+                        metadata={
+                            "source": "LongBench",
+                            "task": task,
+                            "revision": _LONGBENCH_REVISION,
+                            "context_length": len(context),
+                        },
+                    )
+                )
+    except KeyError as exc:
+        raise ValueError(f"Unknown LongBench task {task!r} in the official archive") from exc
 
     return EvalSuite(name=f"LongBench_{task}", cases=cases)
 
@@ -751,7 +786,7 @@ def load_humaneval(
     Hand-crafted programming problems with test cases.
     Tests if compression preserves enough info for code generation.
 
-    Dataset: https://huggingface.co/datasets/openai_humaneval
+    Dataset: https://huggingface.co/datasets/openai/openai_humaneval
 
     Args:
         n: Number of samples to load (max 164)
@@ -762,7 +797,10 @@ def load_humaneval(
     _check_datasets_installed()
     from datasets import load_dataset
 
-    ds = load_dataset("openai_humaneval", split="test")
+    # Hugging Face requires the namespace-qualified repository ID.  The
+    # former short ID stopped resolving after Hub URI validation tightened,
+    # which silently removed HumanEval from multi-dataset benchmark runs.
+    ds = load_dataset("openai/openai_humaneval", split="test")
 
     cases: list[EvalCase] = []
     for i, item in enumerate(ds):
@@ -1245,7 +1283,11 @@ dead-letter queue, and finally the warehouse sync logs.
                 "source": "built_in",
                 "category": "rag",
                 "shape": "runbook",
-                "critical_items": ["analytics-dead-letter", "request_history.jsonl", "120 second interval"],
+                "critical_items": [
+                    "analytics-dead-letter",
+                    "request_history.jsonl",
+                    "120 second interval",
+                ],
             },
         ),
         EvalCase(
@@ -1397,12 +1439,18 @@ def load_mixed_agent_traces() -> EvalSuite:
                     "session_id": "sess_mix_001",
                     "messages": [
                         {"role": "system", "content": "You are the deployment triage assistant."},
-                        {"role": "user", "content": "Why did the deploy fail for release 2026.07.09-rc1?"},
+                        {
+                            "role": "user",
+                            "content": "Why did the deploy fail for release 2026.07.09-rc1?",
+                        },
                         {
                             "role": "assistant",
                             "tool_calls": [
                                 {"name": "read_ci_logs", "arguments": {"build_id": "build_441"}},
-                                {"name": "search_code", "arguments": {"query": "FeatureFlagMismatchError"}},
+                                {
+                                    "name": "search_code",
+                                    "arguments": {"query": "FeatureFlagMismatchError"},
+                                },
                             ],
                         },
                         {
@@ -1549,8 +1597,16 @@ index 0d12ab3..7f90de1 100644
                     "session_id": "sess_vrb_4421",
                     "events": [
                         {"ts": "09:14:01Z", "level": "info", "message": "starting replay"},
-                        {"ts": "09:14:03Z", "level": "debug", "message": "loading 42 cached fragments"},
-                        {"ts": "09:14:05Z", "level": "debug", "message": "re-ranking fragment window"},
+                        {
+                            "ts": "09:14:03Z",
+                            "level": "debug",
+                            "message": "loading 42 cached fragments",
+                        },
+                        {
+                            "ts": "09:14:05Z",
+                            "level": "debug",
+                            "message": "re-ranking fragment window",
+                        },
                     ],
                     "failure": {
                         "error": "FeatureFlagMismatchError",

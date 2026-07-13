@@ -18,9 +18,7 @@ class CanaryFeedbackReporter:
         self.base_url = os.environ.get("CUTCTX_SAVINGS_CANARY_FEEDBACK_URL", "").rstrip("/")
         self.admin_key = os.environ.get("CUTCTX_ADMIN_API_KEY", "")
         self.arm = os.environ.get("CUTCTX_SAVINGS_CANARY_EVAL_ARM", "").strip()
-        self.evaluator = os.environ.get(
-            "CUTCTX_SAVINGS_CANARY_EVALUATOR", "coding-eval-v1"
-        )
+        self.evaluator = os.environ.get("CUTCTX_SAVINGS_CANARY_EVALUATOR", "coding-eval-v1")
         self.run_id = os.environ.get("CUTCTX_SAVINGS_CANARY_EVAL_RUN_ID") or uuid.uuid4().hex
 
     @property

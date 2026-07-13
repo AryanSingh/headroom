@@ -77,7 +77,12 @@ def test_record_tool_results_from_messages_reports_hit_on_duplicate_call() -> No
         {
             "role": "assistant",
             "content": [
-                {"type": "tool_use", "id": "call_1", "name": "file_read", "input": {"path": "/a.txt"}}
+                {
+                    "type": "tool_use",
+                    "id": "call_1",
+                    "name": "file_read",
+                    "input": {"path": "/a.txt"},
+                }
             ],
         },
         {
@@ -93,7 +98,12 @@ def test_record_tool_results_from_messages_reports_hit_on_duplicate_call() -> No
         {
             "role": "assistant",
             "content": [
-                {"type": "tool_use", "id": "call_2", "name": "file_read", "input": {"path": "/a.txt"}}
+                {
+                    "type": "tool_use",
+                    "id": "call_2",
+                    "name": "file_read",
+                    "input": {"path": "/a.txt"},
+                }
             ],
         },
         {
@@ -132,14 +142,17 @@ def test_record_tool_results_from_messages_no_duplicates_reports_zero_hits() -> 
         {
             "role": "assistant",
             "content": [
-                {"type": "tool_use", "id": "call_1", "name": "file_read", "input": {"path": "/a.txt"}}
+                {
+                    "type": "tool_use",
+                    "id": "call_1",
+                    "name": "file_read",
+                    "input": {"path": "/a.txt"},
+                }
             ],
         },
         {
             "role": "user",
-            "content": [
-                {"type": "tool_result", "tool_use_id": "call_1", "content": "AAAA"}
-            ],
+            "content": [{"type": "tool_result", "tool_use_id": "call_1", "content": "AAAA"}],
         },
     ]
     hits, tokens_saved = record_tool_results_from_messages(memoizer, messages, session_id)

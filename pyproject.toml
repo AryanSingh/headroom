@@ -134,7 +134,7 @@ pytorch-mps = [
 # dependency), and outranks all-MiniLM-L6-v2 on MTEB by ~6 points.
 relevance = [
     "fastembed>=0.4.0",
-    "numpy>=1.24.0",
+    "numpy>=1.24.0,<2.3.0",  # SciPy used by embedding/eval stacks currently requires <2.3
 ]
 # Image compression (ML-based routing + OCR)
 #
@@ -223,7 +223,7 @@ voice-train = [
 evals = [
     "datasets>=2.14.0",
     "sentence-transformers>=2.2.0,<6.0",
-    "numpy>=1.24.0",
+    "numpy>=1.24.0,<2.3.0",  # Keep SciPy-backed evaluation installs compatible
     "scikit-learn>=1.3.0",
     "anthropic>=0.18.0",
     "openai>=1.0.0",
@@ -286,7 +286,7 @@ dev = [
     "hnswlib>=0.8.0",
     "sqlite-vec>=0.1.6",
     "sentence-transformers>=2.2.0,<6.0",
-    "numpy>=1.24.0",
+    "numpy>=1.24.0,<2.3.0",  # Keep sentence-transformers/SciPy compatible
     "maturin>=1.5.0",
 ]
 # All optional dependencies (everything you need)

@@ -393,13 +393,19 @@ class CutctxClient:
         openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
         anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
         if not selected:
-            configured = [name for name, key in (("openai", openai_key), ("anthropic", anthropic_key)) if key]
+            configured = [
+                name for name, key in (("openai", openai_key), ("anthropic", anthropic_key)) if key
+            ]
             if len(configured) == 1:
                 selected = configured[0]
             elif len(configured) > 1:
-                raise ValueError("Both OPENAI_API_KEY and ANTHROPIC_API_KEY are set; pass provider= explicitly.")
+                raise ValueError(
+                    "Both OPENAI_API_KEY and ANTHROPIC_API_KEY are set; pass provider= explicitly."
+                )
             else:
-                raise ValueError("Set OPENAI_API_KEY or ANTHROPIC_API_KEY, or pass provider= explicitly.")
+                raise ValueError(
+                    "Set OPENAI_API_KEY or ANTHROPIC_API_KEY, or pass provider= explicitly."
+                )
 
         if selected == "openai":
             if not openai_key:
@@ -408,7 +414,9 @@ class CutctxClient:
 
             from .providers.openai import OpenAIProvider
 
-            return cls(original_client=OpenAI(api_key=openai_key), provider=OpenAIProvider(), **kwargs)
+            return cls(
+                original_client=OpenAI(api_key=openai_key), provider=OpenAIProvider(), **kwargs
+            )
         if selected == "anthropic":
             if not anthropic_key:
                 raise ValueError("ANTHROPIC_API_KEY is required for provider='anthropic'.")

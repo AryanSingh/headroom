@@ -30,7 +30,9 @@ class LayeredConfigStore:
         with self._lock:
             return config_from_dict(self._load_merged())
 
-    def preview(self, config: OrchestrationConfig, *, layer: str = "project") -> OrchestrationConfig:
+    def preview(
+        self, config: OrchestrationConfig, *, layer: str = "project"
+    ) -> OrchestrationConfig:
         """Return the effective config if ``config`` replaced ``layer``, without writing."""
         if layer not in self.ORDER:
             raise ValueError(f"Unknown config layer: {layer}")
@@ -39,9 +41,7 @@ class LayeredConfigStore:
         with self._lock:
             return config_from_dict(self._load_merged(override=(layer, to_dict(config))))
 
-    def _load_merged(
-        self, *, override: tuple[str, dict[str, Any]] | None = None
-    ) -> dict[str, Any]:
+    def _load_merged(self, *, override: tuple[str, dict[str, Any]] | None = None) -> dict[str, Any]:
         merged: dict[str, Any] = {"version": 1}
         override_layer, override_payload = override or (None, None)
         for layer in self.ORDER:
@@ -120,7 +120,9 @@ class LayeredConfigStore:
     def _merge(cls, base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
         result = dict(base)
         for key, value in overlay.items():
-            if key in {"providers", "models", "roles", "profiles", "bindings"} and isinstance(value, list):
+            if key in {"providers", "models", "roles", "profiles", "bindings"} and isinstance(
+                value, list
+            ):
 
                 def entity_id(item: dict[str, Any], entity_key: str = key) -> str | None:
                     if entity_key == "models":
@@ -151,7 +153,9 @@ class LayeredConfigStore:
                         order.append(item_id)
                     indexed[item_id] = cls._merge(indexed.get(item_id, {}), item)
                 result[key] = [indexed[item_id] for item_id in order]
-            elif key == "settings" and isinstance(value, dict) and isinstance(result.get(key), dict):
+            elif (
+                key == "settings" and isinstance(value, dict) and isinstance(result.get(key), dict)
+            ):
                 result[key] = cls._merge_settings(result[key], value)
             elif isinstance(value, dict) and isinstance(result.get(key), dict):
                 result[key] = cls._merge(result[key], value)

@@ -407,7 +407,9 @@ class OpenAIChatMixin:
         from cutctx.proxy.auth_keyring import inject_provider_authorization
 
         if inject_provider_authorization(headers, "openai"):
-            logger.debug("[%s] injected OpenAI Authorization from configured credentials", request_id)
+            logger.debug(
+                "[%s] injected OpenAI Authorization from configured credentials", request_id
+            )
         log_outbound_headers(
             forwarder="openai_chat_completions",
             stripped_count=_pre_strip_count_chat,

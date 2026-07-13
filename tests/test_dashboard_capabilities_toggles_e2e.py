@@ -64,9 +64,7 @@ def _install_dashboard_routes(page: Page, stats_payload: dict, flags_callback) -
 
         if "/config/flags" in url:
             if route.request.method == "GET":
-                route.fulfill(
-                    status=200, content_type="application/json", body=json.dumps(flags)
-                )
+                route.fulfill(status=200, content_type="application/json", body=json.dumps(flags))
                 return
 
             payload = json.loads(route.request.post_data or "{}")

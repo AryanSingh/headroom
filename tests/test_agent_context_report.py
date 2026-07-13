@@ -180,9 +180,7 @@ def test_agent_context_report_markdown_includes_telemetry_snapshot(monkeypatch, 
     assert "- Fallback events: 2" in result.output
     assert "- Providers: anthropic=1, openai=1" in result.output
     assert "- Fallback providers: anthropic=1, openai=1" in result.output
-    assert (
-        "- Decline reasons: bypass_header=1, compression_disabled=1" in result.output
-    )
+    assert "- Decline reasons: bypass_header=1, compression_disabled=1" in result.output
     assert "- Latency p50/p95: 120.50 ms / 240.00 ms" in result.output
     assert "- Optimization latency p50/p95: 18.20 ms / 30.00 ms" in result.output
     assert (

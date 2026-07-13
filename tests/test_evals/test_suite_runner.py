@@ -81,6 +81,26 @@ def test_suite_runner_filters_specs_by_runner_type_and_name() -> None:
     assert all(spec.runner_type == "compression_only" for spec in specs)
 
 
+def test_suite_runner_starts_proxy_with_selected_compression_policy(monkeypatch) -> None:
+    import cutctx.evals.suite_runner as suite_runner_mod
+    from cutctx.evals.suite_runner import SuiteRunner
+
+    captured: dict[str, object] = {}
+
+    def fake_start(port: int, compression_mode: str):
+        captured["port"] = port
+        captured["compression_mode"] = compression_mode
+        return object()
+
+    monkeypatch.setattr(suite_runner_mod, "_check_proxy", lambda port: False)
+    monkeypatch.setattr(suite_runner_mod, "_start_proxy", fake_start)
+
+    runner = SuiteRunner(tiers=[1], cutctx_port=9876, compression_mode="aggressive")
+
+    assert runner._ensure_proxy() is True
+    assert captured == {"port": 9876, "compression_mode": "aggressive"}
+
+
 def test_suite_runner_compression_only_uses_spec_threshold(monkeypatch) -> None:
     from cutctx.evals.runners.compression_only import CompressionOnlyResult, CompressionOnlyRunner
     from cutctx.evals.suite_runner import BenchmarkSpec, SuiteRunner

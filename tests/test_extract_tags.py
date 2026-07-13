@@ -17,4 +17,3 @@ def test_extract_tags_skips_sensitive_internal_headers() -> None:
     assert tags["bypass"] == "true"
     assert "admin-key" not in tags
     assert "api-key" not in tags
-

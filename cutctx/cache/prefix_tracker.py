@@ -152,12 +152,8 @@ class PrefixCacheTracker:
         self._last_forwarded_messages = list(state.get("last_forwarded_messages") or [])
         self._busts_avoided = int(state.get("busts_avoided", 0) or 0)
         self._tokens_preserved = int(state.get("tokens_preserved", 0) or 0)
-        self._compression_foregone_tokens = int(
-            state.get("compression_foregone_tokens", 0) or 0
-        )
-        self._consecutive_write_only_turns = int(
-            state.get("consecutive_write_only_turns", 0) or 0
-        )
+        self._compression_foregone_tokens = int(state.get("compression_foregone_tokens", 0) or 0)
+        self._consecutive_write_only_turns = int(state.get("consecutive_write_only_turns", 0) or 0)
 
     def get_frozen_message_count(self) -> int:
         """How many leading messages to skip compression on the next turn.
@@ -399,7 +395,9 @@ class SessionTrackerStore:
     def _connect(self) -> sqlite3.Connection:
         if self._stateless:
             if self._memory_conn is None:
-                self._memory_conn = sqlite3.connect(":memory:", timeout=5.0, check_same_thread=False)
+                self._memory_conn = sqlite3.connect(
+                    ":memory:", timeout=5.0, check_same_thread=False
+                )
                 self._memory_conn.row_factory = sqlite3.Row
             return self._memory_conn
         conn = sqlite3.connect(self._db_path, timeout=5.0)

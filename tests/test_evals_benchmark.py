@@ -40,7 +40,9 @@ class TestBenchmarkRunner:
         from cutctx.evals.core import EvalCase
 
         runner = BenchmarkRunner()
-        adapter = next(adapter for adapter in runner.list_compressors() if adapter.name == "raw_passthrough")
+        adapter = next(
+            adapter for adapter in runner.list_compressors() if adapter.name == "raw_passthrough"
+        )
         result = adapter.compress_fn("retain this context exactly")
 
         assert result.compressed == "retain this context exactly"
@@ -503,9 +505,7 @@ async def fetch_with_retry(client, url, retries=3):
             "microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank"
         )
 
-    def test_llmlingua_benchmark_adapter_marks_runtime_fallback_as_error(
-        self, monkeypatch
-    ) -> None:
+    def test_llmlingua_benchmark_adapter_marks_runtime_fallback_as_error(self, monkeypatch) -> None:
         """LLMLingua runtime fallback should not look like a valid benchmark result."""
         from types import SimpleNamespace
 
@@ -610,7 +610,9 @@ async def fetch_with_retry(client, url, retries=3):
             name="case_probe",
             available=True,
             display_name="CaseProbe",
-            compress_fn=lambda text: CompressorResult(compressed=text, tokens_saved=0, duration_ms=1.0),
+            compress_fn=lambda text: CompressorResult(
+                compressed=text, tokens_saved=0, duration_ms=1.0
+            ),
             compress_case_fn=lambda case: (
                 seen_queries.append(case.query)
                 or CompressorResult(compressed=case.context, tokens_saved=0, duration_ms=1.0)
@@ -901,9 +903,7 @@ class TestBenchmarkCLI:
 
         def fake_run_benchmark(**_kwargs):  # noqa: ANN003
             captured["llmlingua_model"] = _kwargs.get("llmlingua_model")
-            captured["hf_hub_disable_xet"] = cli_evals.os.environ.get(
-                "HF_HUB_DISABLE_XET"
-            )
+            captured["hf_hub_disable_xet"] = cli_evals.os.environ.get("HF_HUB_DISABLE_XET")
             captured["hf_hub_download_timeout"] = cli_evals.os.environ.get(
                 "HF_HUB_DOWNLOAD_TIMEOUT"
             )

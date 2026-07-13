@@ -34,9 +34,7 @@ def test_prepare_only_succeeds(runner: CliRunner, tmp_path: Path) -> None:
 
 def test_no_context_tool_skips_rtk(runner: CliRunner, tmp_path: Path) -> None:
     """`--no-context-tool` must not create .antigravityrules."""
-    result = runner.invoke(
-        main, ["wrap", "antigravity", "--prepare-only", "--no-context-tool"]
-    )
+    result = runner.invoke(main, ["wrap", "antigravity", "--prepare-only", "--no-context-tool"])
 
     assert result.exit_code == 0, result.output
     assert not (tmp_path / ".antigravityrules").exists()
@@ -67,7 +65,9 @@ def test_launch_falls_back_to_setup_instructions_if_cli_not_found(
     assert callable(kwargs["print_setup_lines"])
 
 
-def test_unwrap_removes_antigravityrules_block(runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unwrap_removes_antigravityrules_block(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`unwrap antigravity` removes the Cutctx block from an existing .antigravityrules."""
     monkeypatch.chdir(tmp_path)
 
@@ -92,7 +92,9 @@ def test_unwrap_removes_antigravityrules_block(runner: CliRunner, tmp_path: Path
     assert "cutctx:rtk-instructions" not in remaining
 
 
-def test_unwrap_removes_empty_file(runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unwrap_removes_empty_file(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`unwrap antigravity` removes .antigravityrules if it only contained the Cutctx block."""
     monkeypatch.chdir(tmp_path)
 
@@ -107,7 +109,9 @@ def test_unwrap_removes_empty_file(runner: CliRunner, tmp_path: Path, monkeypatc
     assert not antigravityrules.exists()
 
 
-def test_unwrap_noop_when_no_file(runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unwrap_noop_when_no_file(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`unwrap antigravity` is a no-op when no .antigravityrules exists."""
     monkeypatch.chdir(tmp_path)
 

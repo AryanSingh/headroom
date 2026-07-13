@@ -190,6 +190,7 @@ def cmd_suite(args: argparse.Namespace) -> None:
     print(f"Tiers: {tiers}")
     print(f"Budget: ${args.budget:.2f}")
     print(f"Port: {args.port}")
+    print(f"Compression policy: {args.compression_mode}")
     if args.compression_only:
         print("Selection: compression-only benchmarks")
     if args.benchmark_name:
@@ -202,6 +203,7 @@ def cmd_suite(args: argparse.Namespace) -> None:
         budget_usd=args.budget,
         cutctx_port=args.port,
         auto_start_proxy=not args.no_proxy,
+        compression_mode=args.compression_mode,
         benchmark_names=list(args.benchmark_name) if args.benchmark_name else None,
         runner_types=["compression_only"] if args.compression_only else None,
     )
@@ -454,6 +456,12 @@ Install dependencies:
         "--budget", type=float, default=20.0, help="Budget in USD (default: $20)"
     )
     suite_parser.add_argument("--port", type=int, default=8787, help="Cutctx proxy port")
+    suite_parser.add_argument(
+        "--compression-mode",
+        choices=["off", "safe", "aggressive"],
+        default="safe",
+        help="Policy used when the suite auto-starts Cutctx (default: safe).",
+    )
     suite_parser.add_argument("--ci", action="store_true", help="CI mode: exit 1 on any failure")
     suite_parser.add_argument("--no-proxy", action="store_true", help="Don't auto-start proxy")
     suite_parser.add_argument(

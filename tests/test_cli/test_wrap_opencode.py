@@ -83,9 +83,7 @@ def test_wrap_opencode_skips_plugin_install_when_bundle_missing(
 
     with patch("cutctx.cli.wrap.shutil.which", return_value="opencode"):
         with patch("cutctx.cli.wrap._launch_tool"):
-            with patch(
-                "cutctx.cli.wrap._install_opencode_plugin", return_value=None
-            ):
+            with patch("cutctx.cli.wrap._install_opencode_plugin", return_value=None):
                 result = runner.invoke(main, ["wrap", "opencode", "--no-rtk"])
 
     assert result.exit_code == 0, result.output
@@ -104,12 +102,8 @@ def test_wrap_opencode_warns_when_no_routable_credentials(
 
     with patch("cutctx.cli.wrap.shutil.which", return_value="opencode"):
         with patch("cutctx.cli.wrap._launch_tool"):
-            with patch(
-                "cutctx.cli.wrap._opencode_has_routable_credentials", return_value=False
-            ):
-                with patch(
-                    "cutctx.cli.wrap._opencode_go_configured", return_value=False
-                ):
+            with patch("cutctx.cli.wrap._opencode_has_routable_credentials", return_value=False):
+                with patch("cutctx.cli.wrap._opencode_go_configured", return_value=False):
                     result = runner.invoke(main, ["wrap", "opencode", "--no-rtk"])
 
     assert result.exit_code == 0, result.output
@@ -126,9 +120,7 @@ def test_wrap_opencode_no_warning_with_env_api_key(
 
     with patch("cutctx.cli.wrap.shutil.which", return_value="opencode"):
         with patch("cutctx.cli.wrap._launch_tool"):
-            with patch(
-                "cutctx.cli.wrap._opencode_has_routable_credentials", return_value=False
-            ):
+            with patch("cutctx.cli.wrap._opencode_has_routable_credentials", return_value=False):
                 result = runner.invoke(main, ["wrap", "opencode", "--no-rtk"])
 
     assert result.exit_code == 0, result.output
@@ -218,12 +210,8 @@ def test_wrap_opencode_routes_opencode_go_through_proxy(
 
     with patch("cutctx.cli.wrap.shutil.which", return_value="opencode"):
         with patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool):
-            with patch(
-                "cutctx.cli.wrap._opencode_has_routable_credentials", return_value=False
-            ):
-                with patch(
-                    "cutctx.cli.wrap._opencode_go_configured", return_value=True
-                ):
+            with patch("cutctx.cli.wrap._opencode_has_routable_credentials", return_value=False):
+                with patch("cutctx.cli.wrap._opencode_go_configured", return_value=True):
                     result = runner.invoke(main, ["wrap", "opencode", "--no-rtk"])
 
     assert result.exit_code == 0, result.output
@@ -255,13 +243,9 @@ def test_wrap_opencode_auto_reassigns_port_when_shared_proxy_cant_route_opencode
 
     with patch("cutctx.cli.wrap.shutil.which", return_value="opencode"):
         with patch("cutctx.cli.wrap._launch_tool", side_effect=fake_launch_tool):
-            with patch(
-                "cutctx.cli.wrap._opencode_has_routable_credentials", return_value=False
-            ):
+            with patch("cutctx.cli.wrap._opencode_has_routable_credentials", return_value=False):
                 with patch("cutctx.cli.wrap._opencode_go_configured", return_value=True):
-                    with patch(
-                        "cutctx.cli.wrap._find_persistent_manifest", return_value=object()
-                    ):
+                    with patch("cutctx.cli.wrap._find_persistent_manifest", return_value=object()):
                         with patch("cutctx.cli.wrap._find_free_port", return_value=54321):
                             result = runner.invoke(main, ["wrap", "opencode", "--no-rtk"])
 

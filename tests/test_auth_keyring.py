@@ -63,16 +63,18 @@ def test_inject_provider_authorization_preserves_client_credential():
         assert inject_provider_authorization(headers, "openai") is False
         assert headers == {"authorization": "Bearer client-key"}
 
+
 @patch("cutctx.proxy.auth_keyring.keyring")
 def test_get_api_key_keyring_fallback(mock_keyring):
     # Ensure no env var
     with patch.dict(os.environ, clear=True):
         mock_keyring.get_password.return_value = "sk-keyring-key"
-        
+
         key = get_api_key("anthropic")
-        
+
         assert key == "sk-keyring-key"
         mock_keyring.get_password.assert_called_once_with("cutctx", "ANTHROPIC_API_KEY")
+
 
 @patch("cutctx.proxy.auth_keyring.keyring")
 def test_get_api_key_empty(mock_keyring):

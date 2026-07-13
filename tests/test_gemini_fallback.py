@@ -82,6 +82,7 @@ def test_gemini_generate_content_falls_back_to_configured_backend() -> None:
     handler = object.__new__(CutctxProxy)
     handler.memory_handler = None
     handler.rate_limiter = None
+
     async def record_failed(**kwargs):  # noqa: ANN202
         return None
 
@@ -141,6 +142,7 @@ def test_gemini_stream_generate_content_falls_back_to_configured_backend() -> No
     handler = object.__new__(CutctxProxy)
     handler.memory_handler = None
     handler.rate_limiter = None
+
     async def record_failed(**kwargs):  # noqa: ANN202
         return None
 

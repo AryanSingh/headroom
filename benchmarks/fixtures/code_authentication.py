@@ -1,4 +1,5 @@
 """Module for handling user authentication and authorization."""
+
 import hashlib
 import os
 import time
@@ -45,7 +46,7 @@ class AuthManager:
         return False
 
     def _generate_token(self, user: User) -> str:
-        payload = f'{user.id}:{time.time()}'
+        payload = f"{user.id}:{time.time()}"
         return hashlib.sha256(payload.encode()).hexdigest()
 
     def _verify_password(self, password: str, password_hash: str) -> bool:
@@ -61,6 +62,6 @@ class AuthManager:
 
 def create_auth_manager() -> AuthManager:
     """Factory function using environment variables."""
-    secret = os.environ.get('AUTH_SECRET_KEY', 'dev-secret')
-    ttl = int(os.environ.get('AUTH_TOKEN_TTL', '3600'))
+    secret = os.environ.get("AUTH_SECRET_KEY", "dev-secret")
+    ttl = int(os.environ.get("AUTH_TOKEN_TTL", "3600"))
     return AuthManager(secret_key=secret, token_ttl=ttl)

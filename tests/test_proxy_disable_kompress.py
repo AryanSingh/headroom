@@ -49,3 +49,18 @@ def test_disable_kompress_defaults_to_existing_kompress_behavior() -> None:
 
     assert router.config.enable_kompress is True
     assert router.config.fallback_strategy == CompressionStrategy.KOMPRESS
+
+
+def test_proxy_threads_selected_compression_policy_to_content_router() -> None:
+    router = _proxy_router(
+        ProxyConfig(
+            optimize=True,
+            compression_mode="aggressive",
+            cache_enabled=False,
+            rate_limit_enabled=False,
+            cost_tracking_enabled=False,
+            log_requests=False,
+        )
+    )
+
+    assert router.config.compression_mode == "aggressive"

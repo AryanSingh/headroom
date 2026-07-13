@@ -384,9 +384,6 @@ def _truncate_description(desc: str, max_len: int) -> str:
     return truncated.rstrip(",") + "..."
 
 
-
-
-
 def _try_compress_json_content(
     text: str,
     max_items: int,

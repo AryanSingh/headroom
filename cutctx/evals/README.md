@@ -38,7 +38,7 @@ pip install "cutctx-ai[evals]"  # Evaluation framework only
 python -m cutctx.evals quick -n 8 --provider openai --model gpt-4o-mini
 
 # Full Tier 1 suite (~$3, ~15 min) — requires proxy running
-python -m cutctx.evals suite --tier 1 -o eval_results/
+python -m cutctx.evals suite --tier 1 --compression-mode safe -o eval_results/
 
 # Extended suite (Tiers 1+2, ~$8, ~1 hr)
 python -m cutctx.evals suite --tier 2 -o eval_results/
@@ -57,6 +57,9 @@ python -m cutctx.evals suite --tier 2 --compression-only \
 
 # CI mode — exit 1 on any regression
 python -m cutctx.evals suite --tier 1 --ci
+
+# Run the same downstream suite against the calibrated prose policy
+python -m cutctx.evals suite --tier 1 --compression-mode aggressive -o eval_results/aggressive/
 
 # List all available datasets
 python -m cutctx.evals list

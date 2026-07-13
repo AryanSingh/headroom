@@ -5057,7 +5057,9 @@ def unwrap_antigravity(port: int, no_stop_proxy: bool) -> None:
 
             if new_content.strip():
                 antigravityrules.write_text(new_content)
-                click.echo("  Removed Cutctx block from .antigravityrules; other content preserved.")
+                click.echo(
+                    "  Removed Cutctx block from .antigravityrules; other content preserved."
+                )
             else:
                 antigravityrules.unlink()
                 click.echo("  Removed .antigravityrules (contained only Cutctx-written content).")

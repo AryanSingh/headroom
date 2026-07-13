@@ -151,6 +151,13 @@ class ProxyConfig:
     # "cache" (freeze prior turns for prefix-cache stability).
     mode: str = "token"
 
+    # Customer-facing compression policy. ``safe`` preserves the existing
+    # conservative routing behaviour; ``off`` forwards bytes unchanged;
+    # ``aggressive`` tightens prose compression while retaining specialised
+    # code and structured-data routes.
+    # CLI: --compression-mode; env: CUTCTX_COMPRESSION_MODE.
+    compression_mode: str = "safe"
+
     # Optimization
     optimize: bool = True
     tool_surface_slimming_enabled: bool = True

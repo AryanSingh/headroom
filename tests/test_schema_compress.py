@@ -575,9 +575,7 @@ class TestReservedToolPassthrough:
             },
         }
 
-        compacted, modified, before, after = compress_tool_schemas(
-            [namespace_tool, function_tool]
-        )
+        compacted, modified, before, after = compress_tool_schemas([namespace_tool, function_tool])
 
         assert modified is True
         assert after < before

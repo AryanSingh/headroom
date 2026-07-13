@@ -29,11 +29,15 @@ def test_dashboard_html_auth_bypass(client):
     response = client.get("/dashboard")
 
     # 2. It should succeed and return HTML
-    assert response.status_code == 200, f"Expected 200 OK, got {response.status_code}: {response.text}"
+    assert response.status_code == 200, (
+        f"Expected 200 OK, got {response.status_code}: {response.text}"
+    )
     assert "text/html" in response.headers.get("content-type", "")
     assert "<html" in response.text.lower() or "<!doctype html>" in response.text.lower()
 
     # 3. Ensure a sub-path also works (React Router support)
     response_sub = client.get("/dashboard/playground")
-    assert response_sub.status_code == 200, f"Expected 200 OK for subpath, got {response_sub.status_code}"
+    assert response_sub.status_code == 200, (
+        f"Expected 200 OK for subpath, got {response_sub.status_code}"
+    )
     assert "text/html" in response_sub.headers.get("content-type", "")

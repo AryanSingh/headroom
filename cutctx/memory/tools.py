@@ -33,15 +33,24 @@ Use this to document reasoning paths so future agents understand WHY a decision 
         "parameters": {
             "type": "object",
             "properties": {
-                "situation": {"type": "string", "description": "The context or problem being faced."},
-                "rationale": {"type": "string", "description": "The reasoning behind the chosen action."},
+                "situation": {
+                    "type": "string",
+                    "description": "The context or problem being faced.",
+                },
+                "rationale": {
+                    "type": "string",
+                    "description": "The reasoning behind the chosen action.",
+                },
                 "action": {"type": "string", "description": "The action taken or decision made."},
-                "outcome": {"type": "string", "description": "The result of the action (if known)."},
+                "outcome": {
+                    "type": "string",
+                    "description": "The result of the action (if known).",
+                },
                 "importance": {
                     "type": "number",
                     "minimum": 0.0,
                     "maximum": 1.0,
-                    "description": "Importance score from 0.0 (low) to 1.0 (critical)."
+                    "description": "Importance score from 0.0 (low) to 1.0 (critical).",
                 },
             },
             "required": ["situation", "rationale", "action", "importance"],

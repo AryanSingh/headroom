@@ -42,11 +42,9 @@ class SubAgentBridge:
             A dictionary containing the task, context_summary, and ccr_scope.
         """
         # Fetch relevant context from the parent session
-        memories = await self.memory.query(MemoryFilter(
-            user_id=self.user_id,
-            session_id=self.parent_session_id,
-            limit=100
-        ))
+        memories = await self.memory.query(
+            MemoryFilter(user_id=self.user_id, session_id=self.parent_session_id, limit=100)
+        )
 
         # Sort by importance and time to get the most relevant
         memories.sort(key=lambda m: (m.importance, m.created_at.timestamp()), reverse=True)
@@ -62,22 +60,24 @@ class SubAgentBridge:
         payload = {
             "task": task,
             "context_summary": context_summary,
-            "ccr_scope": {
-                "user_id": self.user_id,
-                "session_id": self.parent_session_id
-            }
+            "ccr_scope": {"user_id": self.user_id, "session_id": self.parent_session_id},
         }
 
         if not memories:
             logger.warning(
                 "No context found for session %s when provisioning sub-agent task: %s",
-                self.parent_session_id, task
+                self.parent_session_id,
+                task,
             )
-            payload["warning"] = "No context found for this session. Sub-agent will start with zero context."
+            payload["warning"] = (
+                "No context found for this session. Sub-agent will start with zero context."
+            )
 
         return payload
 
-    async def merge_result(self, subagent_id: str, distilled_result: str, importance: float = 0.8) -> None:
+    async def merge_result(
+        self, subagent_id: str, distilled_result: str, importance: float = 0.8
+    ) -> None:
         """Merge the distilled sub-agent result back into the parent's memory.
 
         Args:
@@ -102,6 +102,8 @@ class SubAgentBridge:
             metadata={
                 "source": "subagent_distillation",
                 "subagent_id": subagent_id,
-            }
+            },
         )
-        logger.info("Merged subagent %s result into session %s", subagent_id, self.parent_session_id)
+        logger.info(
+            "Merged subagent %s result into session %s", subagent_id, self.parent_session_id
+        )

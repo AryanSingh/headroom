@@ -106,9 +106,7 @@ class SqliteBackend:
                 )
                 """
             )
-            stamp_schema_version(
-                conn, expected=_SCHEMA_VERSION, store_name="compression cache"
-            )
+            stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="compression cache")
             conn.commit()
 
     def get(self, hash_key: str) -> CompressionEntry | None:

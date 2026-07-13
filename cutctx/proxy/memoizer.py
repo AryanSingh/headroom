@@ -378,6 +378,7 @@ __all__ = [
     "record_tool_results_from_messages",
 ]
 
+
 def _estimate_tokens_for_payload(payload: Any) -> int:
     """Rough, conservative token estimate for a cached tool payload
     (~4 bytes/token, same heuristic used elsewhere in the funnel for

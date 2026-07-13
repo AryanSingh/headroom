@@ -247,6 +247,7 @@ cutctx savings --by-source --format json`}
             headers={['Variable', 'Default', 'Description']}
             rows={[
               ['`CUTCTX_DISABLE_KOMPRESS`', 'false', 'Disable the ML model compressor (use rule-based algorithms only)'],
+              ['`CUTCTX_COMPRESSION_MODE`', 'safe', 'Compression policy: off is byte-preserving, safe uses conservative routing, aggressive targets tighter prose reduction'],
               ['`CUTCTX_DETERMINISTIC_MODE`', 'false', 'Alias for disable-kompress; use deterministic rule-based compression only'],
               ['`CUTCTX_USE_SEMANTIC_COMPRESSION`', 'false', 'Enable neural semantic compression for additional token savings on prose-heavy content'],
               ['`CUTCTX_ACCURACY_GUARD`', 'strict', 'Accuracy guard level: strict, balanced, off'],

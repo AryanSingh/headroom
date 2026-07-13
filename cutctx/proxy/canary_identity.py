@@ -60,9 +60,7 @@ def resolve_canary_identity(
     if isinstance(response, Mapping):
         payload = response
     conversation = payload.get("conversation")
-    conversation_id = (
-        conversation.get("id") if isinstance(conversation, Mapping) else conversation
-    )
+    conversation_id = conversation.get("id") if isinstance(conversation, Mapping) else conversation
     turn_or_conversation = _first_text(
         normalized_headers.get("x-codex-conversation-id"),
         normalized_headers.get("x-openai-conversation-id"),

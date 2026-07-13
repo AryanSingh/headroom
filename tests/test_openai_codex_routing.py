@@ -122,15 +122,9 @@ def test_strip_openai_internal_headers_removes_codex_lite_hints():
 
 
 def test_has_codex_responses_lite_hint_detects_enabled_header():
-    assert _has_codex_responses_lite_hint(
-        {"X-OpenAI-Internal-Codex-Responses-Lite": "1"}
-    )
-    assert _has_codex_responses_lite_hint(
-        {"x-openai-internal-codex-responses-lite": "true"}
-    )
-    assert not _has_codex_responses_lite_hint(
-        {"X-OpenAI-Internal-Codex-Responses-Lite": "0"}
-    )
+    assert _has_codex_responses_lite_hint({"X-OpenAI-Internal-Codex-Responses-Lite": "1"})
+    assert _has_codex_responses_lite_hint({"x-openai-internal-codex-responses-lite": "true"})
+    assert not _has_codex_responses_lite_hint({"X-OpenAI-Internal-Codex-Responses-Lite": "0"})
 
 
 class _DummyMetrics:

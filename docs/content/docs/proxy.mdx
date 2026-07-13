@@ -36,6 +36,7 @@ Telemetry is enabled by default. Opt out with `CUTCTX_TELEMETRY=off` or `--no-te
 | `--max-keepalive` | `100` | Maximum upstream keep-alive connections |
 | `--mode` | `token` | Optimization mode: `token` prioritizes compression, `cache` preserves provider prefix-cache stability |
 | `--no-optimize` | `false` | Disable optimization (passthrough mode) |
+| `--compression-mode` | `safe` | `off` preserves request bytes, `safe` uses conservative routing, `aggressive` applies tighter compression to plain prose |
 | `--deterministic` | `false` | Disable the ML compressor and keep rule-based deterministic compression only |
 | `--no-cache` | `false` | Disable semantic caching |
 | `--no-rate-limit` | `false` | Disable rate limiting |
@@ -61,6 +62,29 @@ Telemetry is enabled by default. Opt out with `CUTCTX_TELEMETRY=off` or `--no-te
 | `--code-graph` | `false` | Index the current project and watch files via codebase-memory-mcp. |
 
 By default, the proxy uses the shared **ContentRouter** pipeline. It routes text, logs, JSON, code, images, and tool outputs through the currently enabled compressors and preserves reversible CCR markers where applicable.
+
+### Compression policy
+
+Use `safe` for the default, quality-first behaviour. `aggressive` is an
+explicit opt-in that asks the ML compressor for a 40% target ratio on plain
+prose; it keeps the specialised code, JSON, log, diff, and search routes so
+their format-aware safeguards remain in effect. `off` bypasses the complete
+router stage, including normalization and lifecycle filtering, and forwards
+the original request bytes unchanged. If the optional ML runtime is not
+installed or declines to reduce a prose block, aggressive mode falls back to a
+deterministic sentence selector that keeps headings, identifiers, numerical
+constraints, and a representative sentence.
+
+```bash
+# Quality-first default
+cutctx proxy --compression-mode safe
+
+# Tighter prose compression when context budget matters most
+cutctx proxy --compression-mode aggressive
+
+# Audit or incident mode: no router-stage mutation
+cutctx proxy --compression-mode off
+```
 
 ```bash
 # Maximize compression

@@ -14,6 +14,7 @@ import pytest
 
 from cutctx.transforms.content_detector import ContentType
 from cutctx.transforms.content_router import (
+    CompressionMode,
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
@@ -189,6 +190,63 @@ def test_force_kompress_routes_anthropic_tool_result_to_targeted_kompress(
     assert result.messages[0]["content"][0]["content"] != tool_content
     assert result.transforms_applied == ["router:tool_result:kompress"]
     assert captured["target_ratio"] == 0.10
+
+
+def test_compression_mode_off_is_byte_preserving_for_content_and_messages(router, tokenizer):
+    router.config.compression_mode = CompressionMode.OFF
+    content = "  caf\u00e9\n\n  exact   whitespace  "
+
+    result = router.compress(content)
+    assert result.compressed == content
+    assert result.original == content
+    assert result.strategy_used is CompressionStrategy.PASSTHROUGH
+    assert result.diagnostics["compression_mode"] == "off"
+
+    messages = [{"role": "tool", "content": content}]
+    applied = router.apply(messages, tokenizer)
+    assert applied.messages is messages
+    assert applied.messages[0]["content"] == content
+    assert applied.transforms_applied == ["router:off"]
+    assert applied.tokens_before == applied.tokens_after
+
+
+def test_aggressive_mode_routes_plain_text_to_kompress_with_tighter_target(router, monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeKompress:
+        def compress(self, content, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(compressed="short version", compressed_tokens=2)
+
+    router.config.compression_mode = "aggressive"
+    monkeypatch.setattr(router, "_get_kompress", lambda: FakeKompress())
+
+    result = router.compress("This is ordinary prose that should take the ML path.")
+
+    assert result.strategy_used is CompressionStrategy.KOMPRESS
+    assert result.compressed == "short version"
+    assert captured["target_ratio"] == 0.40
+    assert result.diagnostics["compression_mode"] == "aggressive"
+
+
+def test_aggressive_mode_falls_back_when_kompress_declines(router, monkeypatch):
+    class NoopKompress:
+        def compress(self, content, **kwargs):
+            return SimpleNamespace(compressed=content, compressed_tokens=len(content.split()))
+
+    router.config.compression_mode = CompressionMode.AGGRESSIVE
+    monkeypatch.setattr(router, "_get_kompress", lambda: NoopKompress())
+    content = (
+        "The deployment succeeded. CUTCTX_TIMEOUT is 30 seconds. "
+        "Routine diagnostics are available. Audit records are stored in audit.jsonl. "
+        "Additional implementation detail follows."
+    )
+
+    result = router.compress(content)
+
+    assert len(result.compressed) < len(content)
+    assert "CUTCTX_TIMEOUT" in result.compressed
+    assert "audit.jsonl" in result.compressed
 
 
 def test_force_kompress_overrides_disabled_default(tokenizer, monkeypatch):

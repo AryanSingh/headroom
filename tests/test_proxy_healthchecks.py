@@ -88,6 +88,7 @@ def test_health_config_preserves_backwards_compatible_config_payload(client):
     assert config["optimize"] is False
     assert config["cache"] is False
     assert config["rate_limit"] is False
+    assert config["compression_mode"] == "safe"
     assert config["memory"] is False
     assert config["learn"] is False
     assert config["code_graph"] is False
@@ -134,6 +135,23 @@ def test_health_reports_agent_savings_config():
     assert reported["max_items_after_crush"] == 8
     assert reported["smart_crusher_with_compaction"] is False
     assert reported["accuracy_guard"] == "strict"
+
+
+def test_health_reports_explicit_compression_policy():
+    config = ProxyConfig(
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        cost_tracking_enabled=False,
+        compression_mode="aggressive",
+    )
+    app = create_app(config)
+
+    with TestClient(app) as client:
+        response = client.get("/health/config")
+
+    assert response.status_code == 200
+    assert response.json()["config"]["compression_mode"] == "aggressive"
 
 
 def test_health_includes_deployment_metadata_when_present(monkeypatch):

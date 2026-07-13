@@ -12,6 +12,7 @@ class MockConfig:
     def __init__(self, optimize: bool = True):
         self.optimize = optimize
 
+
 class MockUsageReporter:
     def __init__(self, should_compress: bool = True):
         self.should_compress = should_compress
@@ -73,10 +74,10 @@ def test_compression_decline_telemetry() -> None:
     # Verify export output contains the new metric block
     export_text = asyncio.run(metrics.export())
 
-    assert "cutctx_compression_declined_total{reason=\"bypass_header\"} 1" in export_text
-    assert "cutctx_compression_declined_total{reason=\"compression_disabled\"} 1" in export_text
-    assert "cutctx_compression_declined_total{reason=\"no_messages\"} 1" in export_text
-    assert "cutctx_compression_declined_total{reason=\"license_denied\"} 1" in export_text
+    assert 'cutctx_compression_declined_total{reason="bypass_header"} 1' in export_text
+    assert 'cutctx_compression_declined_total{reason="compression_disabled"} 1' in export_text
+    assert 'cutctx_compression_declined_total{reason="no_messages"} 1' in export_text
+    assert 'cutctx_compression_declined_total{reason="license_denied"} 1' in export_text
 
 
 def test_gemini_handle_google_cloudcode_stream_compression_decline_telemetry() -> None:

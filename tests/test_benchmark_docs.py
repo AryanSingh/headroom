@@ -25,7 +25,10 @@ def test_benchmarks_doc_no_longer_claims_llmlingua_missing_from_env() -> None:
 def test_benchmarks_doc_reflects_fixed_local_code_path_story() -> None:
     doc = (ROOT / "docs" / "benchmarks.md").read_text(encoding="utf-8")
 
-    assert "| CodeSamples | ContentRouter | 74.8% | 111 | 3,225.8 | 0.823 | 1.000 | 1.000 | 1.000 |" in doc
+    assert (
+        "| CodeSamples | ContentRouter | 74.8% | 111 | 3,225.8 | 0.823 | 1.000 | 1.000 | 1.000 |"
+        in doc
+    )
     assert "The previously broken local code-path proof is fixed" in doc
     assert "safe fallback removes low-value comments and redundant whitespace" in doc
 

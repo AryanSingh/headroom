@@ -396,7 +396,11 @@ class DeterministicRoutingEngine:
             }:
                 return "data_classification_not_allowed"
             supported = metadata.get("data_classifications", [])
-            supported_values = {str(value).lower() for value in supported} if isinstance(supported, list) else set()
+            supported_values = (
+                {str(value).lower() for value in supported}
+                if isinstance(supported, list)
+                else set()
+            )
             if request.data_classification.lower() not in supported_values:
                 return "data_classification_not_allowed"
         if request.max_cost_usd is not None:

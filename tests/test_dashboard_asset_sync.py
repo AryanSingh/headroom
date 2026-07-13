@@ -34,7 +34,9 @@ def test_sync_replaces_stale_hashed_assets_and_copies_entrypoint(tmp_path: Path)
 
     sync.sync_dashboard_assets(source, destination)
 
-    assert (destination / "index.html").read_text() == '<script src="/assets/index-new.js"></script>'
+    assert (
+        destination / "index.html"
+    ).read_text() == '<script src="/assets/index-new.js"></script>'
     assert (destination / "favicon.svg").read_text() == "new-favicon"
     assert (stale_assets / "index-new.js").read_text() == "new-js"
     assert (stale_assets / "index-new.css").read_text() == "new-css"
@@ -66,4 +68,7 @@ def test_release_and_container_builds_prepare_dashboard_assets() -> None:
 
     dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
     assert "FROM node:20-bookworm-slim AS dashboard-builder" in dockerfile
-    assert "COPY --from=dashboard-builder /dashboard/dist/assets/ cutctx/dashboard/assets/" in dockerfile
+    assert (
+        "COPY --from=dashboard-builder /dashboard/dist/assets/ cutctx/dashboard/assets/"
+        in dockerfile
+    )

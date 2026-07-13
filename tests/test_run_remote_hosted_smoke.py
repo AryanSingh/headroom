@@ -47,7 +47,10 @@ def test_remote_hosted_smoke_writes_redacted_latency_artifacts(tmp_path: Path, m
 
     assert payload["status"] == "passed"
     assert [case["size"] for case in payload["cases"]] == ["small", "medium", "large"]
-    assert json.loads(json_output.read_text(encoding="utf-8"))["cases"][0]["tokens_saved"]["mean"] == 11
+    assert (
+        json.loads(json_output.read_text(encoding="utf-8"))["cases"][0]["tokens_saved"]["mean"]
+        == 11
+    )
     markdown = markdown_output.read_text(encoding="utf-8")
     assert "secret" not in markdown
     assert "small" in markdown and "large" in markdown

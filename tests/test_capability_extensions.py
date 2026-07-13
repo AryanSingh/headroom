@@ -214,9 +214,7 @@ class TestStripeWebhook:
                 "subscription": "sub_456",
                 "metadata": {"tier": "team", "seats": "10"},
                 "customer_details": {"email": "test@example.com"},
-                "line_items": {
-                    "data": [{"price": {"id": "price_team_test"}, "quantity": 10}]
-                },
+                "line_items": {"data": [{"price": {"id": "price_team_test"}, "quantity": 10}]},
             }
         }
 
@@ -308,9 +306,7 @@ class TestStripeWebhook:
                 "subscription": "sub_seats",
                 "metadata": {"tier": "enterprise", "seats": "9999"},
                 "customer_details": {"email": "buyer@example.com"},
-                "line_items": {
-                    "data": [{"price": {"id": "price_team_real"}, "quantity": 3}]
-                },
+                "line_items": {"data": [{"price": {"id": "price_team_real"}, "quantity": 3}]},
             }
         }
 

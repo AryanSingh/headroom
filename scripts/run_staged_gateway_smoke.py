@@ -100,7 +100,9 @@ def run_staged_gateway_smoke(
             response.raise_for_status()
             request_id = response.json().get("request_id")
             if not request_id:
-                raise RuntimeError(f"compression request {index} did not return a stable request ID")
+                raise RuntimeError(
+                    f"compression request {index} did not return a stable request ID"
+                )
             observed_request_ids.append(str(request_id))
 
         for scenario in scenarios or []:
@@ -125,7 +127,9 @@ def run_staged_gateway_smoke(
             if request_id:
                 scenario_request_ids[scenario["name"]] = str(request_id)
 
-        traces_response = client.get(f"{base_url}/transformations/traces?limit=100", headers=headers)
+        traces_response = client.get(
+            f"{base_url}/transformations/traces?limit=100", headers=headers
+        )
         traces_response.raise_for_status()
         traces = traces_response.json().get("traces", [])
 

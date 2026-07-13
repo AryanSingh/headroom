@@ -67,9 +67,14 @@ def evaluate_release_evidence(
 
     required_external = {
         "remote_hosted_python": root / "artifacts" / "remote-hosted-compression-smoke.json",
-        "remote_hosted_typescript": root / "artifacts" / "remote-hosted-compression-smoke-typescript.json",
+        "remote_hosted_typescript": root
+        / "artifacts"
+        / "remote-hosted-compression-smoke-typescript.json",
         "staged_gateway": root / "artifacts" / "staged-gateway-smoke.json",
-        "staging_dashboard": root / "artifacts" / "staging-dashboard-smoke" / "staging-dashboard-smoke.json",
+        "staging_dashboard": root
+        / "artifacts"
+        / "staging-dashboard-smoke"
+        / "staging-dashboard-smoke.json",
     }
     missing = [name for name, path in required_external.items() if not _passed_artifact(path)]
 

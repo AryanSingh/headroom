@@ -58,7 +58,9 @@ def test_tracker_accumulates_per_client_and_persists(tmp_path):
     path = tmp_path / "savings.json"
     tracker = SavingsTracker(path=str(path))
 
-    tracker.record_request(model="gpt-4o", input_tokens=1000, tokens_saved=400, client="claude-code")
+    tracker.record_request(
+        model="gpt-4o", input_tokens=1000, tokens_saved=400, client="claude-code"
+    )
     tracker.record_request(model="gpt-4o", input_tokens=500, tokens_saved=100, client="claude-code")
     tracker.record_request(model="gpt-4o", input_tokens=200, tokens_saved=50, client="opencode")
     tracker.record_request(model="gpt-4o", input_tokens=99, tokens_saved=9)  # unidentified harness

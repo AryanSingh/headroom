@@ -69,9 +69,7 @@ def run_staging_dashboard_smoke(
                 page.on(
                     "console",
                     lambda message, console_errors=console_errors: (
-                        console_errors.append(message.text)
-                        if message.type == "error"
-                        else None
+                        console_errors.append(message.text) if message.type == "error" else None
                     ),
                 )
                 page.on(
@@ -94,9 +92,7 @@ def run_staging_dashboard_smoke(
                     # they are not JavaScript or route failures. Keep them in
                     # the artifact, but fail only unexpected console errors.
                     expected_auth_denials = [
-                        message
-                        for message in console_errors
-                        if "403 (Forbidden)" in message
+                        message for message in console_errors if "403 (Forbidden)" in message
                     ]
                     unexpected_console_errors = [
                         message
@@ -105,7 +101,13 @@ def run_staging_dashboard_smoke(
                     ]
                     if unexpected_console_errors or page_errors:
                         raise RuntimeError("browser errors")
-                    page.screenshot(path=str(artifact_dir / f"{viewport}-{route.rsplit('/', 1)[-1] or 'dashboard'}.png"), full_page=True)
+                    page.screenshot(
+                        path=str(
+                            artifact_dir
+                            / f"{viewport}-{route.rsplit('/', 1)[-1] or 'dashboard'}.png"
+                        ),
+                        full_page=True,
+                    )
                     checked += 1
                 except Exception as exc:
                     # Keep enough browser diagnostics to make a failed

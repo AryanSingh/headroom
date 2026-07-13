@@ -104,9 +104,11 @@ def _install_metrics_recorder(client: TestClient) -> _RecordingMetricsRecorder:
     recorder = _RecordingMetricsRecorder()
     # Mock the _record_request_outcome method to call our recorder
     original_record = proxy._record_request_outcome
+
     async def stub_record(outcome):
         recorder.outcomes.append(outcome)
         # Don't call original to avoid database writes
+
     proxy._record_request_outcome = stub_record
     return recorder
 
@@ -186,7 +188,7 @@ def test_openai_chat_captures_memoization_hits_and_tokens_saved():
                                         "name": "search",
                                         "arguments": '{"query": "foo"}',
                                     },
-                                }
+                                },
                             ],
                         },
                         {
@@ -208,9 +210,7 @@ def test_openai_chat_captures_memoization_hits_and_tokens_saved():
                                 "description": "Search for documents",
                                 "parameters": {
                                     "type": "object",
-                                    "properties": {
-                                        "query": {"type": "string"}
-                                    },
+                                    "properties": {"query": {"type": "string"}},
                                 },
                             },
                         }
@@ -277,9 +277,7 @@ def test_openai_chat_output_optimizer_uses_correct_api():
                 "/v1/chat/completions",
                 json={
                     "model": "gpt-4o-mini",
-                    "messages": [
-                        {"role": "user", "content": "fix the bug in auth.py"}
-                    ],
+                    "messages": [{"role": "user", "content": "fix the bug in auth.py"}],
                 },
                 headers={"Authorization": "Bearer test-key"},
             )
@@ -337,9 +335,7 @@ def test_openai_chat_handles_output_optimizer_correctly_with_no_actions():
                 "/v1/chat/completions",
                 json={
                     "model": "gpt-4o-mini",
-                    "messages": [
-                        {"role": "user", "content": "what is 2+2?"}
-                    ],
+                    "messages": [{"role": "user", "content": "what is 2+2?"}],
                 },
                 headers={"Authorization": "Bearer test-key"},
             )

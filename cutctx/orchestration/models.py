@@ -343,7 +343,8 @@ def config_from_dict(payload: dict[str, Any]) -> OrchestrationConfig:
                 **{
                     key: value
                     for key, value in migrated.get("settings", {}).items()
-                    if key not in {
+                    if key
+                    not in {
                         "fallback_triggers",
                         "allowed_providers",
                         "allowed_regions",
@@ -355,9 +356,7 @@ def config_from_dict(payload: dict[str, Any]) -> OrchestrationConfig:
                         "fallback_triggers", [trigger.value for trigger in FallbackTrigger]
                     )
                 ),
-                "allowed_providers": set(
-                    migrated.get("settings", {}).get("allowed_providers", [])
-                ),
+                "allowed_providers": set(migrated.get("settings", {}).get("allowed_providers", [])),
                 "allowed_regions": set(migrated.get("settings", {}).get("allowed_regions", [])),
                 "allowed_data_classifications": set(
                     migrated.get("settings", {}).get("allowed_data_classifications", [])

@@ -32,7 +32,9 @@ def audit() -> None:
 @click.option("--limit", "-n", default=20, help="Max events to show")
 @click.option("--admin-key", envvar="CUTCTX_ADMIN_API_KEY", help="Admin API key")
 @click.option("--json", "as_json", is_flag=True, help="Output raw JSON.")
-def list_events(action: str | None, actor: str | None, limit: int, admin_key: str | None, as_json: bool = False) -> None:
+def list_events(
+    action: str | None, actor: str | None, limit: int, admin_key: str | None, as_json: bool = False
+) -> None:
     """List recent audit events."""
     try:
         params = f"?limit={limit}"

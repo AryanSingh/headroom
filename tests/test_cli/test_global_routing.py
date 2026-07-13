@@ -156,9 +156,7 @@ def test_global_uninstall_restores_previous_values(monkeypatch, tmp_path: Path) 
     assert not agent_path.exists()
 
 
-def test_global_load_state_accepts_legacy_two_field_snapshot(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_global_load_state_accepts_legacy_two_field_snapshot(monkeypatch, tmp_path: Path) -> None:
     state_path, _ = _paths(monkeypatch, tmp_path)
     state_path.write_text(
         json.dumps(

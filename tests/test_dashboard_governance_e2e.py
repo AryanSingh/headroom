@@ -62,9 +62,7 @@ def _install_dashboard_routes(page: Page, stats_payload: dict, sections_payload:
             route.fulfill(
                 status=200,
                 content_type="application/json",
-                body=json.dumps(
-                    {"status": "ok", "checks": {"rate_limiter": {"ready": True}}}
-                ),
+                body=json.dumps({"status": "ok", "checks": {"rate_limiter": {"ready": True}}}),
             )
             return
 
@@ -74,7 +72,7 @@ def _install_dashboard_routes(page: Page, stats_payload: dict, sections_payload:
                 content_type="application/json",
                 body=json.dumps(
                     {
-                "live_toggleable": {
+                        "live_toggleable": {
                             "orchestrator": {"enabled": True},
                             "task_aware_enabled": {"enabled": False},
                             "episodic_memory_enabled": {"enabled": False},
@@ -171,7 +169,9 @@ def test_governance_ui_e2e() -> None:
         page.goto("http://cutctx.local/dashboard/governance", wait_until="commit")
 
         expect(page.get_by_text("Rate limiting").first).to_be_visible(timeout=5000)
-        expect(page.get_by_text("Some governance surfaces could not be reached")).not_to_be_visible()
+        expect(
+            page.get_by_text("Some governance surfaces could not be reached")
+        ).not_to_be_visible()
 
         rate_limit_panel = page.locator(".panel").filter(has_text="Rate limiting")
         budget_panel = page.locator(".panel").filter(has_text="Cost budget")
@@ -179,13 +179,13 @@ def test_governance_ui_e2e() -> None:
         expect(rate_limit_panel.locator(".metric-card").filter(has_text="Status")).to_contain_text(
             "Configured"
         )
-        expect(rate_limit_panel.locator(".metric-card").filter(has_text="Token limit")).to_contain_text(
-            "-"
-        )
+        expect(
+            rate_limit_panel.locator(".metric-card").filter(has_text="Token limit")
+        ).to_contain_text("-")
         expect(page.get_by_text("Cost budget").first).to_be_visible()
-        expect(budget_panel.locator(".metric-card").filter(has_text="Budget limit")).to_contain_text(
-            "$25.00"
-        )
+        expect(
+            budget_panel.locator(".metric-card").filter(has_text="Budget limit")
+        ).to_contain_text("$25.00")
         expect(budget_panel.locator(".metric-card").filter(has_text="Spend used")).to_contain_text(
             "$8.750"
         )
@@ -195,7 +195,9 @@ def test_governance_ui_e2e() -> None:
 
         orchestrator_row = page.locator(".feature-config-row").filter(has_text="Routing mode")
         expect(orchestrator_row).to_contain_text("Routing mode")
-        expect(orchestrator_row).to_contain_text("Choose Off, Balanced, or Aggressive on the dedicated routing page.")
+        expect(orchestrator_row).to_contain_text(
+            "Choose Off, Balanced, or Aggressive on the dedicated routing page."
+        )
         expect(orchestrator_row).to_contain_text("CUTCTX_MODEL_ROUTING_PRESET=codex-gpt54mini-high")
         expect(orchestrator_row).to_contain_text("Open routing page")
         expect(orchestrator_row.locator(".feature-toggle")).to_have_count(0)

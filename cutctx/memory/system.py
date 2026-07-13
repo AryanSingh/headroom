@@ -608,7 +608,7 @@ class MemorySystem:
                 "situation": situation,
                 "rationale": rationale,
                 "action": action,
-                "outcome": outcome
+                "outcome": outcome,
             },
         )
 

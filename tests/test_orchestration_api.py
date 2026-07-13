@@ -226,9 +226,7 @@ def test_orchestration_admin_api_config_models_and_strict_preview(
         assert workflow["tasks"]["plan"]["status"] == "pending"
         assert workflow["task_specs"]["review"]["depends_on"] == ["plan"]
 
-        fetched = client.get(
-            f"/v1/orchestration/workflows/{workflow['id']}", headers=headers
-        )
+        fetched = client.get(f"/v1/orchestration/workflows/{workflow['id']}", headers=headers)
         assert fetched.status_code == 200
         assert fetched.json()["workflow"]["id"] == workflow["id"]
 

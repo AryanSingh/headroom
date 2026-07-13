@@ -24,6 +24,14 @@ def test_install_profiles_expose_explicit_missing_capabilities() -> None:
     assert profiles["minimal"]["available"] is True
     assert profiles["proxy"]["available"] is True
     assert profiles["full"]["missing_features"] == [
-        "code_ast", "html_extractor", "llmlingua", "relevance", "image", "log_ml"
+        "code_ast",
+        "html_extractor",
+        "llmlingua",
+        "relevance",
+        "image",
+        "log_ml",
     ]
-    assert profiles["enterprise"]["install_hint"] == "pip install cutctx-ai[proxy,ee,memory,memory-stack]"
+    assert (
+        profiles["enterprise"]["install_hint"]
+        == "pip install cutctx-ai[proxy,ee,memory,memory-stack]"
+    )

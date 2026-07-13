@@ -38,6 +38,20 @@ python run_all.py --output results.json
 python compare.py --tool cutctx --tool llmlingua2 --corpus toolbench --dry-run
 ```
 
+#### Run the publishable-comparison smoke harness:
+
+```bash
+# Both invocations are supported. Use at least three measured runs and one
+# warm-up so one-time model loading does not dominate latency.
+python benchmarks/run_comparison.py --runs 3 --warmup-runs 1 \
+  --output benchmarks/results/latest.json
+```
+
+The harness records cl100k token counts, F1/ROUGE-L retention against the input,
+median per-fixture latency, run counts, interpreter, and platform metadata. It is
+a fixture regression check, not a substitute for a public comparison protocol with
+real corpora and downstream task-quality evaluation.
+
 #### Verify model-routing quality and unsafe-downgrade safety:
 
 ```bash

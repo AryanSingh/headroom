@@ -31,13 +31,26 @@ def _local_evidence(root: Path) -> None:
     )
     reports = {
         arm: {"status": "available", "path": "artifact.json", "sha256": "hash"}
-        for arm in ("raw_passthrough", "content_router", "verbatim_compactor", "canonical_llmlingua_xlmr_large")
+        for arm in (
+            "raw_passthrough",
+            "content_router",
+            "verbatim_compactor",
+            "canonical_llmlingua_xlmr_large",
+        )
     }
-    reports["provider_native_cache_or_compaction"] = {"status": "unavailable", "reason": "no signal"}
-    _write_json(root / "artifacts" / "benchmark-release-bundle.json", {"schema_version": 1, "reports": reports})
+    reports["provider_native_cache_or_compaction"] = {
+        "status": "unavailable",
+        "reason": "no signal",
+    }
+    _write_json(
+        root / "artifacts" / "benchmark-release-bundle.json",
+        {"schema_version": 1, "reports": reports},
+    )
 
 
-def test_release_evidence_is_not_market_claim_eligible_without_external_proof(tmp_path: Path) -> None:
+def test_release_evidence_is_not_market_claim_eligible_without_external_proof(
+    tmp_path: Path,
+) -> None:
     _local_evidence(tmp_path)
 
     for name in ("fixture", "artifact.json"):

@@ -599,10 +599,7 @@ class TestFallbackCompression:
         ):
             compressor = CodeAwareCompressor(default_config)
             code = (
-                "import os\n"
-                "# explain retry settings\n"
-                "def important(value):\n"
-                "    return value + 1\n"
+                "import os\n# explain retry settings\ndef important(value):\n    return value + 1\n"
             )
 
             result = compressor.compress(code)

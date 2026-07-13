@@ -12,7 +12,7 @@ from cutctx.proxy.savings_tracker import SCHEMA_VERSION, SavingsTracker
 def test_savings_tracker_schema_migration():
     with tempfile.TemporaryDirectory() as tempdir:
         db_path = Path(tempdir) / "test_savings.json"
-        
+
         # Create a v3 state manually
         v3_state = {
             "schema_version": 3,
@@ -58,23 +58,26 @@ def test_savings_tracker_schema_migration():
                     "total_input_cost_usd": 0.1,
                     "delta_tokens_saved": 500,
                     "delta_savings_usd": 0.025,
-                }
+                },
             ],
             "projects": {},
             "models": {},
             "clients": {},
         }
-        
+
         with open(db_path, "w") as f:
             json.dump(v3_state, f)
-            
+
         storage = SavingsTracker(db_path)
         snapshot = storage.snapshot()
-        
+
         # Check migration note
         assert snapshot["schema_version"] == 6
         assert "attribution_note" in snapshot
-        assert "explicit created/observed token attribution introduced in schema v6" in snapshot["attribution_note"]
+        assert (
+            "explicit created/observed token attribution introduced in schema v6"
+            in snapshot["attribution_note"]
+        )
         assert snapshot["lifetime"]["attribution_coverage"]["complete"] is False
 
         # Check that created/observed USD tracks were backfilled gracefully.
@@ -84,28 +87,29 @@ def test_savings_tracker_schema_migration():
         assert snapshot["lifetime"]["observed_provider_savings_usd"] == 0.02
         assert snapshot["lifetime"]["compression_savings_observed_usd"] == 0.0
 
+
 def test_savings_tracker_observed_usd_split():
     with tempfile.TemporaryDirectory() as tempdir:
         db_path = Path(tempdir) / "test_savings.json"
         storage = SavingsTracker(db_path)
-        
+
         # We record a request that simulates both list price savings and observed discounts
         # Let's say model list price is $3.00 per 1M input tokens. So 1M tokens = $3
         # If we save 100k tokens via cache read, the list price value (created) is $0.30
         # If the provider discount is 50%, actual cash saved (observed) is $0.15
-        
+
         # Litellm doesn't have custom caching pricing natively, so cache_savings_usd_delta is passed in
         storage.record_request(
             model="gpt-4o",  # cost per 1M tokens is $2.50 -> 1000 tokens = $0.0025
             input_tokens=2000,
-            tokens_saved=1000, # 1000 cache read + 0 cutctx
+            tokens_saved=1000,  # 1000 cache read + 0 cutctx
             cache_read_tokens=1000,
-            cache_savings_usd_delta=0.00125, # Observed discount (50% off)
+            cache_savings_usd_delta=0.00125,  # Observed discount (50% off)
         )
-        
+
         snapshot = storage.snapshot()
         lifetime = snapshot["lifetime"]
-        
+
         # Cache savings
         assert "cache_savings_usd" in lifetime
         assert "cache_savings_observed_usd" in lifetime

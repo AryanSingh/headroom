@@ -21,6 +21,7 @@ scripts/*
 !scripts/run_staged_gateway_smoke.py
 !scripts/run_staging_dashboard_smoke.py
 !scripts/evaluate_release_evidence.py
+!scripts/summarize_pytest_skips.py
 !scripts/generate_benchmark_release_manifest.py
 !scripts/check_secret_patterns.py
 !scripts/tests/

@@ -216,7 +216,9 @@ class WorkflowStateStore:
             raise WorkflowValidationError("max_attempts must be at least one")
         if any(task.retry_delay_seconds < 0 for task in spec.tasks):
             raise WorkflowValidationError("retry_delay_seconds cannot be negative")
-        if any(task.timeout_seconds is not None and task.timeout_seconds <= 0 for task in spec.tasks):
+        if any(
+            task.timeout_seconds is not None and task.timeout_seconds <= 0 for task in spec.tasks
+        ):
             raise WorkflowValidationError("timeout_seconds must be positive")
         if any(task.artifact.version != 1 for task in spec.tasks):
             raise WorkflowValidationError("unsupported task artifact version")
@@ -328,7 +330,11 @@ class WorkflowStateStore:
             if state.status != "running" or not self._owns_active_lease(task, lease_epoch):
                 raise WorkflowValidationError("task is not running")
             task_spec = state.task_specs.get(task_id)
-            task.status = "awaiting_verification" if task_spec and task_spec.requires_verification else "completed"
+            task.status = (
+                "awaiting_verification"
+                if task_spec and task_spec.requires_verification
+                else "completed"
+            )
             task.result = copy.deepcopy(result)
             task.lease_owner = ""
             task.lease_expires_at_epoch = None
@@ -386,7 +392,10 @@ class WorkflowStateStore:
                 return False
             if task.retry_at_epoch is not None and task.retry_at_epoch > time.time():
                 return False
-            if any(state.tasks[dependency].status != "completed" for dependency in state.dependencies[task_id]):
+            if any(
+                state.tasks[dependency].status != "completed"
+                for dependency in state.dependencies[task_id]
+            ):
                 return False
             state.status = "running"
             task.status = "running"
@@ -468,7 +477,12 @@ class WorkflowStateStore:
                 return self._clone(state)
             state.status = "cancelled"
             for task in state.tasks.values():
-                if task.status in {"pending", "running", "awaiting_approval", "awaiting_verification"}:
+                if task.status in {
+                    "pending",
+                    "running",
+                    "awaiting_approval",
+                    "awaiting_verification",
+                }:
                     task.status = "cancelled"
                     task.lease_owner = ""
                     task.lease_expires_at_epoch = None
@@ -577,9 +591,9 @@ class WorkflowRunner:
                 if not in_flight:
                     if self.store.has_manual_gates(workflow_id):
                         break
-                    if self.store.has_pending_tasks(workflow_id) or self.store.has_active_task_leases(
+                    if self.store.has_pending_tasks(
                         workflow_id
-                    ):
+                    ) or self.store.has_active_task_leases(workflow_id):
                         await asyncio.sleep(self.cancellation_poll_seconds)
                         continue
                     # A valid submitted DAG should always have a task ready

@@ -291,12 +291,20 @@ def _check_proxy(port: int) -> bool:
         return False
 
 
-def _start_proxy(port: int) -> subprocess.Popen | None:
+def _start_proxy(port: int, compression_mode: str = "safe") -> subprocess.Popen | None:
     """Start Cutctx proxy as a subprocess. Returns process handle."""
     logger.info(f"Starting Cutctx proxy on port {port}...")
     try:
         proc = subprocess.Popen(
-            [sys.executable, "-m", "cutctx.proxy.server", "--port", str(port)],
+            [
+                sys.executable,
+                "-m",
+                "cutctx.proxy.server",
+                "--port",
+                str(port),
+                "--compression-mode",
+                compression_mode,
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -330,6 +338,7 @@ class SuiteRunner:
         budget_usd: float = 20.0,
         cutctx_port: int = 8787,
         auto_start_proxy: bool = True,
+        compression_mode: Literal["off", "safe", "aggressive"] = "safe",
         benchmark_names: list[str] | None = None,
         runner_types: list[Literal["lm_eval", "before_after", "compression_only"]] | None = None,
     ):
@@ -338,6 +347,7 @@ class SuiteRunner:
         self.budget_usd = budget_usd
         self.cutctx_port = cutctx_port
         self.auto_start_proxy = auto_start_proxy
+        self.compression_mode = compression_mode
         self.benchmark_names = benchmark_names
         self.runner_types = runner_types
         self._proxy_proc: subprocess.Popen | None = None
@@ -366,7 +376,7 @@ class SuiteRunner:
         if _check_proxy(self.cutctx_port):
             return True
         if self.auto_start_proxy:
-            self._proxy_proc = _start_proxy(self.cutctx_port)
+            self._proxy_proc = _start_proxy(self.cutctx_port, self.compression_mode)
             return self._proxy_proc is not None
         return False
 

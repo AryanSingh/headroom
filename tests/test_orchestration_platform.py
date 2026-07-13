@@ -137,10 +137,14 @@ def test_versioned_routing_profile_resolves_role_and_narrows_budget(tmp_path: Pa
     )
     service.config = config
     service.model_registry.register(model)
-    service.engine = DeterministicRoutingEngine(config, service.model_registry, require_configured_accounts=True)
+    service.engine = DeterministicRoutingEngine(
+        config, service.model_registry, require_configured_accounts=True
+    )
 
     decision = service.route(
-        RoutingRequest(profile="implementer", estimated_input_tokens=100, estimated_output_tokens=100)
+        RoutingRequest(
+            profile="implementer", estimated_input_tokens=100, estimated_output_tokens=100
+        )
     )
 
     assert decision.role == "implementer"
@@ -150,15 +154,11 @@ def test_versioned_routing_profile_resolves_role_and_narrows_budget(tmp_path: Pa
 
 def test_routing_receipt_enforces_provider_residency_data_and_cost_constraints() -> None:
     primary = _model("openai", "gpt-5.4-mini")
-    primary.metadata.update(
-        {"region": "us", "data_classifications": ["internal"]}
-    )
+    primary.metadata.update({"region": "us", "data_classifications": ["internal"]})
     primary.input_cost_per_million = 2.0
     primary.output_cost_per_million = 8.0
     fallback = _model("anthropic", "claude-review")
-    fallback.metadata.update(
-        {"region": "eu", "data_classifications": ["confidential"]}
-    )
+    fallback.metadata.update({"region": "eu", "data_classifications": ["confidential"]})
     fallback.input_cost_per_million = 1.0
     fallback.output_cost_per_million = 4.0
     config = OrchestrationConfig(
@@ -219,9 +219,7 @@ def test_cost_ceiling_requires_token_estimate() -> None:
 def test_policy_bundle_is_stable_and_ed25519_verifiable() -> None:
     config = OrchestrationConfig(
         providers=[ProviderAccount(id="openai-main", provider="openai")],
-        settings=RoutingSettings(
-            allowed_providers={"openai"}, policy_version="org-2026-07"
-        ),
+        settings=RoutingSettings(allowed_providers={"openai"}, policy_version="org-2026-07"),
     )
     bundle = compile_policy_bundle(config)
     private_key = ed25519.Ed25519PrivateKey.generate()
@@ -240,10 +238,16 @@ def test_policy_bundle_is_stable_and_ed25519_verifiable() -> None:
     assert bundle["bundle_version"] == 1
     assert bundle["policy_version"] == "org-2026-07"
     assert verify_policy_bundle(bundle, token=token, public_keys={"org-key-1": public_bytes.hex()})
-    assert not verify_policy_bundle({**bundle, "policy_version": "tampered"}, token=token, public_keys={"org-key-1": public_bytes.hex()})
+    assert not verify_policy_bundle(
+        {**bundle, "policy_version": "tampered"},
+        token=token,
+        public_keys={"org-key-1": public_bytes.hex()},
+    )
 
 
-def test_external_secret_resolver_is_preferred_without_enumerating_its_namespace(tmp_path: Path) -> None:
+def test_external_secret_resolver_is_preferred_without_enumerating_its_namespace(
+    tmp_path: Path,
+) -> None:
     class Resolver:
         def resolve(self, reference: str) -> dict[str, Any] | None:
             return {"api_key": "managed-secret"} if reference == "vault:team/openai" else None
@@ -281,18 +285,24 @@ def test_receipt_audit_chain_is_exportable_and_detects_tampering(tmp_path: Path)
     assert event["receipt"]["request_id"] == decision.request_id
     assert store.verify() is True
     assert "execution-1" in store.export_jsonl()
-    audit_path.write_text(audit_path.read_text(encoding="utf-8").replace("gpt-5.4-mini", "tampered"), encoding="utf-8")
+    audit_path.write_text(
+        audit_path.read_text(encoding="utf-8").replace("gpt-5.4-mini", "tampered"), encoding="utf-8"
+    )
     assert store.verify() is False
     with pytest.raises(ValueError, match="refusing to append"):
         store.append(decision, execution_id="execution-2")
 
 
-def test_scheduler_recommends_only_observed_verified_policy_eligible_deployments(tmp_path: Path) -> None:
+def test_scheduler_recommends_only_observed_verified_policy_eligible_deployments(
+    tmp_path: Path,
+) -> None:
     model = _model("openai", "gpt-5.4-mini", account_id="openai-main")
     config = OrchestrationConfig(
         providers=[ProviderAccount(id="openai-main", provider="openai")],
         roles=[Role(id="worker", name="Worker")],
-        bindings=[RouteBinding(id="worker", role="worker", model="openai:openai-main:gpt-5.4-mini")],
+        bindings=[
+            RouteBinding(id="worker", role="worker", model="openai:openai-main:gpt-5.4-mini")
+        ],
     )
     service = OrchestrationService(
         config_store=LayeredConfigStore(),
@@ -301,7 +311,9 @@ def test_scheduler_recommends_only_observed_verified_policy_eligible_deployments
     )
     service.config = config
     service.model_registry.register(model)
-    service.engine = DeterministicRoutingEngine(config, service.model_registry, require_configured_accounts=True)
+    service.engine = DeterministicRoutingEngine(
+        config, service.model_registry, require_configured_accounts=True
+    )
     for index in range(3):
         request_id = f"worker-{index}"
         service.telemetry.record(
@@ -327,7 +339,9 @@ def test_scheduler_recommends_only_observed_verified_policy_eligible_deployments
     recommendation = recommend_schedule(
         service,
         RoutingRequest(role="worker", task_type="implementation", request_id="canary-1"),
-        guardrails=SchedulerGuardrails(min_observations=3, min_quality_score=1.0, canary_sample_rate=0.5),
+        guardrails=SchedulerGuardrails(
+            min_observations=3, min_quality_score=1.0, canary_sample_rate=0.5
+        ),
     )
 
     assert recommendation["mode"] == "recommendation_only"
@@ -360,7 +374,9 @@ def test_scheduler_drift_detection_is_advisory_and_requires_two_windows() -> Non
     )
 
 
-def test_offline_routing_evaluation_is_prompt_free_and_makes_no_provider_calls(tmp_path: Path) -> None:
+def test_offline_routing_evaluation_is_prompt_free_and_makes_no_provider_calls(
+    tmp_path: Path,
+) -> None:
     model = _model("openai", "gpt-5.4-mini", account_id="openai-main")
     config = OrchestrationConfig(
         providers=[ProviderAccount(id="openai-main", provider="openai")],
@@ -374,7 +390,9 @@ def test_offline_routing_evaluation_is_prompt_free_and_makes_no_provider_calls(t
     )
     service.config = config
     service.model_registry.register(model)
-    service.engine = DeterministicRoutingEngine(config, service.model_registry, require_configured_accounts=True)
+    service.engine = DeterministicRoutingEngine(
+        config, service.model_registry, require_configured_accounts=True
+    )
 
     evaluation = evaluate_routing_cases(
         service,
@@ -797,9 +815,7 @@ def test_service_policy_defaults_cannot_be_broadened_by_request(tmp_path: Path) 
                 "version": 1,
                 "providers": [{"id": "anthropic-main", "provider": "anthropic"}],
                 "roles": [{"id": "reviewer", "name": "Reviewer"}],
-                "bindings": [
-                    {"id": "reviewer", "role": "reviewer", "model": "anthropic:review"}
-                ],
+                "bindings": [{"id": "reviewer", "role": "reviewer", "model": "anthropic:review"}],
                 "settings": {
                     "allowed_providers": ["anthropic"],
                     "allowed_regions": ["eu"],

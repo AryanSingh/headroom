@@ -169,10 +169,7 @@ def test_canary_transforms_leave_stable_prefix_and_tool_contract_intact():
         {
             "role": "tool",
             "content": json.dumps(
-                [
-                    {"id": index, "name": f"item-{index}", "score": index}
-                    for index in range(6)
-                ]
+                [{"id": index, "name": f"item-{index}", "score": index} for index in range(6)]
             ),
         },
     ]
@@ -261,18 +258,19 @@ def test_canary_feedback_is_idempotent_across_restart(tmp_path):
     coordinator = SavingsCanaryCoordinator(
         enabled=True, salt="stable-secret", state_path=state_path
     )
-    assert coordinator.record_feedback(
-        "model_routing", event_id="eval/task-1", quality_success=True
-    ) is False
-    assert coordinator.record_feedback(
-        "model_routing", event_id="eval/task-1", quality_success=False
-    ) is True
-    restored = SavingsCanaryCoordinator(
-        enabled=True, salt="stable-secret", state_path=state_path
+    assert (
+        coordinator.record_feedback("model_routing", event_id="eval/task-1", quality_success=True)
+        is False
     )
-    assert restored.record_feedback(
-        "model_routing", event_id="eval/task-1", quality_success=False
-    ) is True
+    assert (
+        coordinator.record_feedback("model_routing", event_id="eval/task-1", quality_success=False)
+        is True
+    )
+    restored = SavingsCanaryCoordinator(enabled=True, salt="stable-secret", state_path=state_path)
+    assert (
+        restored.record_feedback("model_routing", event_id="eval/task-1", quality_success=False)
+        is True
+    )
     metrics = restored.report()["metrics"]["model_routing"]
     assert metrics["quality_samples"] == 1
     assert metrics["quality_successes"] == 1
@@ -280,9 +278,7 @@ def test_canary_feedback_is_idempotent_across_restart(tmp_path):
 
 def test_canary_multi_process_style_updates_merge_without_duplicate_feedback(tmp_path):
     state_path = tmp_path / "savings-canary.json"
-    first = SavingsCanaryCoordinator(
-        enabled=True, salt="stable-secret", state_path=state_path
-    )
+    first = SavingsCanaryCoordinator(enabled=True, salt="stable-secret", state_path=state_path)
     stale_sibling = SavingsCanaryCoordinator(
         enabled=True, salt="stable-secret", state_path=state_path
     )
@@ -298,16 +294,13 @@ def test_canary_multi_process_style_updates_merge_without_duplicate_feedback(tmp
         created_savings_usd=0.2,
         observed_provider_savings_usd=0.2,
     )
-    assert first.record_feedback(
-        "control", event_id="shared-event", quality_success=True
-    ) is False
-    assert stale_sibling.record_feedback(
-        "control", event_id="shared-event", quality_success=False
-    ) is True
-
-    restored = SavingsCanaryCoordinator(
-        enabled=True, salt="stable-secret", state_path=state_path
+    assert first.record_feedback("control", event_id="shared-event", quality_success=True) is False
+    assert (
+        stale_sibling.record_feedback("control", event_id="shared-event", quality_success=False)
+        is True
     )
+
+    restored = SavingsCanaryCoordinator(enabled=True, salt="stable-secret", state_path=state_path)
     metrics = restored.report()["metrics"]["control"]
     assert metrics["requests"] == 2
     assert metrics["input_tokens"] == 300
@@ -317,17 +310,13 @@ def test_canary_multi_process_style_updates_merge_without_duplicate_feedback(tmp
 
 def test_canary_salt_change_is_blocked_and_corrupt_state_is_quarantined(tmp_path):
     state_path = tmp_path / "savings-canary.json"
-    original = SavingsCanaryCoordinator(
-        enabled=True, salt="original", state_path=state_path
-    )
+    original = SavingsCanaryCoordinator(enabled=True, salt="original", state_path=state_path)
     original.assign("session", client="codex", model="gpt-5.4")
     with pytest.raises(CanaryStateError, match="salt differs"):
         SavingsCanaryCoordinator(enabled=True, salt="changed", state_path=state_path)
 
     state_path.write_text("{not-json", encoding="utf-8")
-    recovered = SavingsCanaryCoordinator(
-        enabled=True, salt="original", state_path=state_path
-    )
+    recovered = SavingsCanaryCoordinator(enabled=True, salt="original", state_path=state_path)
     assert recovered.report()["metrics"]["control"]["requests"] == 0
     assert list(tmp_path.glob("savings-canary.json.corrupt.*.quarantine"))
 
@@ -364,9 +353,7 @@ def test_codex_identity_is_sticky_private_and_request_fallback_is_excluded():
     }
     assert len(arms) > 1
 
-    fallback = resolve_canary_identity(
-        headers={}, body={}, request_id="request-only", salt="salt"
-    )
+    fallback = resolve_canary_identity(headers={}, body={}, request_id="request-only", salt="salt")
     coordinator = SavingsCanaryCoordinator(enabled=True, salt="salt")
     assignment = coordinator.assign(
         fallback.value,

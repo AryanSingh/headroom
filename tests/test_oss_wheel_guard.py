@@ -26,9 +26,7 @@ def test_guard_accepts_a_valid_oss_wheel(tmp_path: Path) -> None:
     assert guard.main(["guard", str(tmp_path)]) == 0
 
 
-def test_guard_rejects_a_wheel_with_a_corrupt_member(
-    monkeypatch, tmp_path: Path, capsys
-) -> None:
+def test_guard_rejects_a_wheel_with_a_corrupt_member(monkeypatch, tmp_path: Path, capsys) -> None:
     guard = _load_guard()
     wheel = tmp_path / "cutctx_ai-0.30.0-py3-none-any.whl"
     with zipfile.ZipFile(wheel, "w") as archive:

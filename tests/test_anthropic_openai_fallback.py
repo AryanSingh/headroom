@@ -133,7 +133,9 @@ class _FallbackAnthropicHandler(AnthropicHandlerMixin):
         self.anthropic_pipeline = SimpleNamespace(apply=MagicMock())
         self.anthropic_backend = None
         self.fallback_backend = _FallbackBackend(fallback_provider) if enable_fallback else None
-        self.openai_fallback_backend = self.fallback_backend if fallback_provider == "openai" else None
+        self.openai_fallback_backend = (
+            self.fallback_backend if fallback_provider == "openai" else None
+        )
         self.cost_tracker = None
         self.memory_handler = None
         self.cache = None
@@ -240,8 +242,7 @@ def _build_request(body: dict, headers: dict[str, str]) -> Request:
         "raw_path": b"/v1/messages",
         "query_string": b"",
         "headers": [
-            (key.lower().encode("utf-8"), value.encode("utf-8"))
-            for key, value in headers.items()
+            (key.lower().encode("utf-8"), value.encode("utf-8")) for key, value in headers.items()
         ],
         "client": ("127.0.0.1", 12345),
         "server": ("testserver", 443),

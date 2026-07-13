@@ -32,7 +32,22 @@ def test_release_manifest_records_reproducibility_inputs(tmp_path: Path) -> None
 
 
 def test_release_manifest_rejects_unknown_provider_status() -> None:
-    payload = dict.fromkeys(("schema_version", "git_sha", "python_version", "platform", "architecture", "packages", "checkpoint_id", "seed", "fixture_hashes", "timestamp", "provider_arms"), "value")
+    payload = dict.fromkeys(
+        (
+            "schema_version",
+            "git_sha",
+            "python_version",
+            "platform",
+            "architecture",
+            "packages",
+            "checkpoint_id",
+            "seed",
+            "fixture_hashes",
+            "timestamp",
+            "provider_arms",
+        ),
+        "value",
+    )
     payload["fixture_hashes"] = {"fixture": "hash"}
     payload["provider_arms"] = {"native": "simulated"}
 
@@ -45,7 +60,9 @@ def test_release_manifest_rejects_unknown_provider_status() -> None:
 
 
 def test_release_manifest_requires_clean_git_checkout(tmp_path: Path) -> None:
-    with patch("cutctx.evals.release_manifest.subprocess.check_output", return_value=" M proxy.py\n"):
+    with patch(
+        "cutctx.evals.release_manifest.subprocess.check_output", return_value=" M proxy.py\n"
+    ):
         with pytest.raises(ValueError, match="clean checkout"):
             require_clean_checkout(tmp_path)
 

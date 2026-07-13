@@ -2261,10 +2261,14 @@ def _extract_preserved_anchors_from_omitted(
     if protected_symbols:
         anchors.extend(symbol for symbol in protected_symbols if symbol and symbol in omitted_text)
     if query_anchor_symbols:
-        anchors.extend(symbol for symbol in query_anchor_symbols if symbol and symbol in omitted_text)
+        anchors.extend(
+            symbol for symbol in query_anchor_symbols if symbol and symbol in omitted_text
+        )
 
     anchors.extend(match for match in _DOTTED_IDENTIFIER_PATTERN.findall(omitted_text))
-    anchors.extend(match for match in re.findall(r"\b[A-Z][A-Za-z0-9]+(?:Error|Exception)\b", omitted_text))
+    anchors.extend(
+        match for match in re.findall(r"\b[A-Z][A-Za-z0-9]+(?:Error|Exception)\b", omitted_text)
+    )
 
     # Keep exact-string order stable while avoiding noisy duplicates.
     deduped: list[str] = []
@@ -2279,9 +2283,7 @@ def _extract_preserved_anchors_from_omitted(
 
 
 _IDENTIFIER_PATTERN = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\b")
-_DOTTED_IDENTIFIER_PATTERN = re.compile(
-    r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b"
-)
+_DOTTED_IDENTIFIER_PATTERN = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b")
 
 
 def _has_syntax_issues(node: Any) -> bool:
@@ -2310,14 +2312,22 @@ def _infer_query_anchor_symbols_from_context(context: str, code: str) -> set[str
     code_dotted = set(_DOTTED_IDENTIFIER_PATTERN.findall(code))
 
     anchors: set[str] = set()
-    anchors.update(match for match in _DOTTED_IDENTIFIER_PATTERN.findall(context) if match in code_dotted)
-    anchors.update(match for match in _IDENTIFIER_PATTERN.findall(context) if match in code_identifiers)
+    anchors.update(
+        match for match in _DOTTED_IDENTIFIER_PATTERN.findall(context) if match in code_dotted
+    )
+    anchors.update(
+        match for match in _IDENTIFIER_PATTERN.findall(context) if match in code_identifiers
+    )
     return anchors
 
 
 def _filter_high_signal_anchor_symbols(symbols: set[str]) -> set[str]:
     """Keep only anchors that should influence body preservation budgets."""
-    return {symbol for symbol in symbols if "." in symbol or _is_high_signal_protected_identifier(symbol)}
+    return {
+        symbol
+        for symbol in symbols
+        if "." in symbol or _is_high_signal_protected_identifier(symbol)
+    }
 
 
 def _is_high_signal_protected_identifier(identifier: str) -> bool:
