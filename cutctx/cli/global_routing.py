@@ -257,6 +257,27 @@ def global_install(port: int, skip_health_check: bool) -> None:
         try:
             _restore_launchagent(previous_agent)
         except Exception:
+            # Keep rollback best-effort, but make the file restoration
+            # independent of launchctl/bootstrap failures.
+            try:
+                path = _launchagent_path()
+                if previous_agent is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(previous_agent)
+            except Exception:
+                pass
+        # Ensure the on-disk snapshot is exact even when a platform's
+        # launchctl rollback behaves unexpectedly.
+        try:
+            path = _launchagent_path()
+            if previous_agent is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(previous_agent)
+        except Exception:
             pass
         for name, value in rollback_values.items():
             try:
