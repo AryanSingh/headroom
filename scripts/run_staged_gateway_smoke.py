@@ -87,7 +87,14 @@ def run_staged_gateway_smoke(
         raise ValueError("request_count must be at least 20")
     import httpx
 
-    headers = {"x-cutctx-admin-key": admin_key}
+    # The compression route authenticates hosted API traffic separately from
+    # admin-only routes. Keep the admin header for deployments that use it,
+    # and send the same configured staging credential through the hosted API
+    # header so `/v1/compress` works when hosted compression auth is enabled.
+    headers = {
+        "x-cutctx-admin-key": admin_key,
+        "x-cutctx-api-key": admin_key,
+    }
     observed_request_ids: list[str] = []
     scenario_request_ids: dict[str, str] = {}
     with httpx.Client(timeout=60.0) as client:
