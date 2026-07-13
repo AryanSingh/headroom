@@ -115,7 +115,7 @@ jobs:
         working-directory: dashboard
       - name: Verify staging endpoint identity
         run: >-
-          python -c 'import os; from urllib.parse import urlparse; import httpx;
+          uv run python -c 'import os; from urllib.parse import urlparse; import httpx;
           u=os.environ["CUTCTX_STAGED_PROXY_BASE_URL"].rstrip("/");
           print("staging_host=" + (urlparse(u).netloc or "(missing)"));
           r=httpx.get(u + "/readyz", timeout=180); print("readyz_status=" + str(r.status_code)); r.raise_for_status()'
