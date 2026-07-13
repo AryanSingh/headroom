@@ -214,6 +214,7 @@ jobs:
           SITE="$(python -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
           cp "${SITE}/cutctx/"_core*.so cutctx/
           python -c "from cutctx._core import DiffCompressor; print('cutctx._core OK')"
+          python -m playwright install --with-deps chromium
 
       - name: Run test shard ${{ matrix.shard }}/4
         run: |
