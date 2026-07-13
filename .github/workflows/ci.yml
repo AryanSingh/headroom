@@ -280,6 +280,7 @@ jobs:
             --cov-report=term-missing --cov-fail-under=70 \
             --tb=short -q
       - name: Upload Python coverage
+        if: ${{ secrets.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@v5
         with:
           files: coverage-python.xml

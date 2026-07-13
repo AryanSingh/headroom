@@ -39,6 +39,7 @@ _SIDE_EFFECT_COMMAND_MODULES: dict[str, str] = {
     "stack-graph": "stack_graph",
     "tools": "tools",
     "wrap": "wrap",
+    "unwrap": "wrap",
 }
 
 _MANUAL_COMMAND_MODULES: dict[str, tuple[str, str]] = {
