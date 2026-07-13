@@ -371,12 +371,12 @@ export default function OrchestrationStudio() {
           </div>
           <form className="orchestration-form" onSubmit={addProviderAccount}>
             <h3>Add provider account</h3>
-            <select value={newProvider.provider} onChange={(event) => setNewProvider({ ...newProvider, provider: event.target.value })}>
+            <select aria-label="Provider" value={newProvider.provider} onChange={(event) => setNewProvider({ ...newProvider, provider: event.target.value })}>
               {providers.catalog.map((provider) => <option value={provider.id} key={provider.id}>{provider.display_name} — {providerRuntimeLabel(provider)}</option>)}
             </select>
-            <input placeholder="Account display name" value={newProvider.display_name} onChange={(event) => setNewProvider({ ...newProvider, display_name: event.target.value })} />
-            <input placeholder="Custom base URL (optional)" value={newProvider.base_url} onChange={(event) => setNewProvider({ ...newProvider, base_url: event.target.value })} />
-            <input type="password" autoComplete="new-password" placeholder="API key (encrypted at rest)" value={newProvider.api_key} onChange={(event) => setNewProvider({ ...newProvider, api_key: event.target.value })} />
+            <input aria-label="Account display name" placeholder="Account display name" value={newProvider.display_name} onChange={(event) => setNewProvider({ ...newProvider, display_name: event.target.value })} />
+            <input aria-label="Custom base URL" placeholder="Custom base URL (optional)" value={newProvider.base_url} onChange={(event) => setNewProvider({ ...newProvider, base_url: event.target.value })} />
+            <input aria-label="API key" type="password" autoComplete="new-password" placeholder="API key (encrypted at rest)" value={newProvider.api_key} onChange={(event) => setNewProvider({ ...newProvider, api_key: event.target.value })} />
             <button className="primary-button" type="submit">Add account</button>
           </form>
         </div>
@@ -384,7 +384,7 @@ export default function OrchestrationStudio() {
 
       {tab === "models" ? (
         <div className="orchestration-pane">
-          <input className="orchestration-search" placeholder="Search models or capabilities" value={modelSearch} onChange={(event) => setModelSearch(event.target.value)} />
+          <input aria-label="Search models or capabilities" className="orchestration-search" placeholder="Search models or capabilities" value={modelSearch} onChange={(event) => setModelSearch(event.target.value)} />
           <div className="orchestration-model-list">
             {filteredModels.slice(0, 100).map((model) => (
               <article key={modelDeploymentKey(model)}>
@@ -427,6 +427,7 @@ export default function OrchestrationStudio() {
           </div>
           <div className="orchestration-inline-form">
             <input
+              aria-label="New custom role"
               placeholder="New custom role"
               value={newRole}
               onChange={(event) => setNewRole(event.target.value)}
