@@ -514,7 +514,18 @@ def prepare_local_openclaw_plugin(base_env: dict[str, str], tmp_dir: Path) -> Pa
     tarball_path = sdk_dir / tarball_name
     assert_true(tarball_path.exists(), "Expected npm pack to produce a local SDK tarball")
 
-    return PLUGIN_DIR
+    # The SDK is intentionally packed from the checkout for this hermetic
+    # smoke test. The public `cutctx-ai` package is not guaranteed to exist in
+    # the registry used by CI, so point the temporary plugin copy at the
+    # freshly packed local artifact instead of resolving the registry name.
+    plugin_copy = tmp_dir / "openclaw-plugin"
+    shutil.copytree(PLUGIN_DIR, plugin_copy)
+    package_path = plugin_copy / "package.json"
+    package = json.loads(package_path.read_text(encoding="utf-8"))
+    dependencies = package.setdefault("dependencies", {})
+    dependencies["cutctx-ai"] = f"file:{tarball_path}"
+    package_path.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
+    return plugin_copy
 
 
 def verify_proxy_round_trip(base_env: dict[str, str], mock_server: MockOpenAIServer) -> None:
