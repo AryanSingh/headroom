@@ -48,8 +48,10 @@ def test_product_release_evidence_workflow_runs_fixture_and_authenticated_stagin
     assert "Fixture-backed product evidence" in content
     assert "test_dashboard_audit.py" in content
     assert "test_product_contracts.py" in content
-    assert "dashboard-audit-desktop" in content
-    assert "dashboard-audit-mobile" in content
+    assert "dashboard-audit-375" in content
+    assert "dashboard-audit-768" in content
+    assert "dashboard-audit-1280" in content
+    assert "dashboard-audit-1720" in content
     assert "Authenticated staging release blocker" in content
     assert "environment: staging" in content
     assert "scripts/run_remote_hosted_smoke.py" in content

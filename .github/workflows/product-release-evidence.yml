@@ -65,7 +65,10 @@ jobs:
           --output artifacts/fixture-evidence-pytest-skips.json
       - run: npx playwright install --with-deps chromium
         working-directory: dashboard
-      - run: npx playwright test dashboard-audit.spec.js --project=dashboard-audit-desktop --project=dashboard-audit-mobile
+      - run: >-
+          npx playwright test dashboard-audit.spec.js
+          --project=dashboard-audit-375 --project=dashboard-audit-768
+          --project=dashboard-audit-1280 --project=dashboard-audit-1720
         working-directory: dashboard
       - run: npm ci
         working-directory: sdk/typescript
