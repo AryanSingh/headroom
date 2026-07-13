@@ -825,6 +825,9 @@ def verify_zed_wrap(base_env: dict[str, str], project_dir: Path) -> None:
 
 def verify_opencode_wrap(base_env: dict[str, str], project_dir: Path) -> None:
     """Smoke test: `wrap opencode -- --help` launches through Cutctx and injects AGENTS.md."""
+    if shutil.which("opencode", path=base_env.get("PATH")) is None:
+        log("Skipping opencode wrap smoke: opencode CLI is not installed in this image.")
+        return
     run(
         ["cutctx", "wrap", "opencode", "--port", str(OPENCODE_PORT), "--", "--help"],
         env=base_env,

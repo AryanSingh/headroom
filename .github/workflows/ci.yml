@@ -76,6 +76,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PY_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
       - name: Cache pip
         uses: actions/cache@v5
         with:
@@ -235,6 +238,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PY_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
       - name: Cache pip
         uses: actions/cache@v5
         with:
@@ -261,6 +267,11 @@ jobs:
           cp "${SITE}/cutctx/"_core*.so cutctx/
           python -c "from cutctx._core import DiffCompressor; print('cutctx._core OK')"
           python -m playwright install --with-deps chromium
+      - name: Build dashboard assets for browser tests
+        run: |
+          npm --prefix dashboard ci
+          npm --prefix dashboard run build
+          python scripts/sync_dashboard_assets.py
       - name: Core pytest gate
         run: |
           pytest tests \
