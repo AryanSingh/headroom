@@ -102,6 +102,49 @@ def test_openai_cache_mode_freezes_previous_turns() -> None:
         assert captured["frozen_message_count"] == 2
 
 
+def test_openai_chat_forwards_configured_target_ratio_to_pipeline() -> None:
+    """The advertised proxy target ratio must affect automatic chat compression."""
+    captured = {}
+    with _make_proxy_client() as client:
+        proxy = client.app.state.proxy
+        proxy.config.optimize = True
+        proxy.config.target_ratio = 0.5
+
+        def _fake_apply(**kwargs):
+            captured["target_ratio"] = kwargs.get("target_ratio")
+            return SimpleNamespace(
+                messages=kwargs["messages"],
+                transforms_applied=[],
+                timing={},
+                tokens_before=60,
+                tokens_after=60,
+                waste_signals=None,
+            )
+
+        proxy.openai_pipeline.apply = _fake_apply
+
+        async def _fake_retry(method, url, headers, body, stream=False, **kwargs):  # noqa: ANN001
+            return httpx.Response(
+                200,
+                json={
+                    "id": "chatcmpl_target_ratio",
+                    "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+                    "usage": {"prompt_tokens": 60, "completion_tokens": 3, "total_tokens": 63},
+                },
+            )
+
+        proxy._retry_request = _fake_retry
+
+        response = client.post(
+            "/v1/chat/completions",
+            headers={"authorization": "Bearer test-key"},
+            json={"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "turn"}]},
+        )
+
+        assert response.status_code == 200
+        assert captured["target_ratio"] == 0.5
+
+
 def test_openai_cache_mode_restores_mutated_frozen_prefix() -> None:
     captured = {}
     with _make_proxy_client() as client:

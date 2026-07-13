@@ -718,6 +718,13 @@ class OpenAIChatMixin:
         if _decision.should_compress:
             try:
                 context_limit = self.openai_provider.get_context_limit(model)
+                # Keep automatic chat compression aligned with the effective
+                # proxy/profile target advertised by /health and /stats.
+                # ContentRouter uses this to tune strategy aggressiveness.
+                from cutctx.agent_savings import proxy_pipeline_kwargs
+
+                pipeline_kwargs = proxy_pipeline_kwargs(self.config)
+                target_ratio = pipeline_kwargs.get("target_ratio")
 
                 # F2.1 c5/5: per-request CompressionPolicy. Hoisted out of
                 # the is_token_mode branch so the else (non-token) branch
@@ -745,6 +752,7 @@ class OpenAIChatMixin:
                             frozen_message_count=openai_frozen_count,
                             biases=_hook_biases,
                             compression_policy=compression_policy,
+                            target_ratio=target_ratio,
                         ),
                         timeout=COMPRESSION_TIMEOUT_SECONDS,
                     )
@@ -769,6 +777,7 @@ class OpenAIChatMixin:
                             frozen_message_count=openai_frozen_count,
                             biases=_hook_biases,
                             compression_policy=compression_policy,
+                            target_ratio=target_ratio,
                         ),
                         timeout=COMPRESSION_TIMEOUT_SECONDS,
                     )
