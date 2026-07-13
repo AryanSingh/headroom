@@ -295,9 +295,15 @@ jobs:
           SITE="$(python -c 'import sysconfig; print(sysconfig.get_path("platlib"))')"
           cp "${SITE}/cutctx/"_core*.so cutctx/
       - name: pip-audit
-        # cutctx-ai is the local editable project and is intentionally not
-        # published to PyPI; audit all third-party distributions strictly.
-        run: pip-audit --strict --skip-editable
+        # cutctx-ai is the local project and is intentionally not published
+        # to PyPI. Audit every external distribution from a frozen snapshot,
+        # excluding only that local package so strict mode still catches real
+        # third-party vulnerabilities and dependency failures.
+        run: |
+          pip list --format=freeze \
+            | sed '/^cutctx-ai[= @]/d' \
+            > /tmp/cutctx-audit-requirements.txt
+          pip-audit --strict -r /tmp/cutctx-audit-requirements.txt
 
   test-extras:
     needs: [changes, build-wheel]
