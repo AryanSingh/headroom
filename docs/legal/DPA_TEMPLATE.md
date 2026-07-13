@@ -2,7 +2,7 @@
 
 **This Data Processing Addendum** ("DPA") is entered into as of [EFFECTIVE_DATE] and forms part of the Master Service Agreement ("MSA") between:
 
-**Cutctx, Inc.**, with its principal place of business at [CUTCTX_ADDRESS] ("Cutctx"), and
+**Payzli Inc. (operating as Cutctx Labs)**, with its principal place of business at [CUTCTX_ADDRESS] ("Cutctx"), and
 
 **[CUSTOMER_NAME]**, with its principal place of business at [CUSTOMER_ADDRESS] ("Customer").
 
@@ -212,7 +212,7 @@ This DPA is incorporated into and governed by the MSA. In the event of a conflic
 
 **IN WITNESS WHEREOF**, the parties have executed this Data Processing Addendum as of the Effective Date.
 
-**Cutctx, Inc.**
+**Payzli Inc. (operating as Cutctx Labs)**
 
 Signature: ___________________________
 Name: ___________________________

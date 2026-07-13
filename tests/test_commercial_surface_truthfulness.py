@@ -14,6 +14,15 @@ def test_commercial_license_surfaces_use_consistent_entity_and_branding() -> Non
     assert expected_entity in ee_license
     assert '"CutCtx"' not in root_license
 
+    expected_legal_entity = "Payzli Inc. (operating as Cutctx Labs)"
+    for legal_template in [
+        PROJECT_ROOT / "docs/legal/MSA_TEMPLATE.md",
+        PROJECT_ROOT / "docs/legal/DPA_TEMPLATE.md",
+    ]:
+        text = legal_template.read_text(encoding="utf-8")
+        assert "Cutctx, Inc." not in text
+        assert expected_legal_entity in text
+
     public_brand_files = [
         PROJECT_ROOT / "docs/pricing.html",
         PROJECT_ROOT / "docs/enterprise.html",

@@ -2,7 +2,7 @@
 
 **This Master Service Agreement** ("Agreement") is entered into as of [EFFECTIVE_DATE] ("Effective Date") by and between:
 
-**Cutctx, Inc.**, a [JURISDICTION] corporation, with its principal place of business at [CUTCTX_ADDRESS] ("Cutctx"), and
+**Payzli Inc. (operating as Cutctx Labs)**, a [JURISDICTION] corporation, with its principal place of business at [CUTCTX_ADDRESS] ("Cutctx"), and
 
 **[CUSTOMER_NAME]**, a [JURISDICTION] entity, with its principal place of business at [CUSTOMER_ADDRESS] ("Customer").
 
@@ -200,7 +200,7 @@ Customer shall not permit more Authorized Users to access the Cutctx Software th
 
 **IN WITNESS WHEREOF**, the parties have executed this Master Service Agreement as of the Effective Date.
 
-**Cutctx, Inc.**
+**Payzli Inc. (operating as Cutctx Labs)**
 
 Signature: ___________________________
 Name: ___________________________
