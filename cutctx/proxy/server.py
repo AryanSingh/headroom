@@ -2885,7 +2885,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             **details,
         }
 
-    def _health_checks() -> dict[str, dict[str, Any]]:
+    def _health_checks(*, include_upstream_details: bool = False) -> dict[str, dict[str, Any]]:
         memory_status = (
             proxy.memory_handler.health_status()
             if proxy.memory_handler
@@ -2899,6 +2899,17 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
         memory_enabled = bool(memory_status.get("enabled", False))
         memory_initialized = bool(memory_status.get("initialized", False))
+        upstream = _component_health(
+            enabled=os.environ.get("CUTCTX_SKIP_UPSTREAM_CHECK", "").strip() != "1",
+            ready=bool(_upstream_check_cache["ok"]),
+        )
+        # Public probes must not disclose provider topology or transport
+        # failures. Those details are available to authenticated operators via
+        # /health/config.
+        if include_upstream_details:
+            upstream["url"] = _upstream_check_cache["url"]
+            upstream["error"] = _upstream_check_cache["error"]
+
         return {
             "startup": _component_health(
                 enabled=True,
@@ -2930,12 +2941,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 ready=not proxy.component_init_errors,
                 errors=dict(proxy.component_init_errors),
             ),
-            "upstream": _component_health(
-                enabled=os.environ.get("CUTCTX_SKIP_UPSTREAM_CHECK", "").strip() != "1",
-                ready=bool(_upstream_check_cache["ok"]),
-                url=_upstream_check_cache["url"],
-                error=_upstream_check_cache["error"],
-            ),
+            "upstream": upstream,
         }
 
     def _runtime_payload() -> dict[str, Any]:
@@ -2995,7 +3001,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         }
 
     def _health_payload(include_config: bool = False) -> dict[str, Any]:
-        checks = _health_checks()
+        checks = _health_checks(include_upstream_details=include_config)
         ready = all(check["ready"] for check in checks.values())
         payload = {
             "service": "cutctx-proxy",

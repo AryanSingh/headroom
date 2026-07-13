@@ -72,6 +72,8 @@ def test_health_does_not_leak_config_to_unauthenticated_callers(client):
     assert data["status"] == "healthy"
     assert data["ready"] is True
     assert "config" not in data
+    assert "url" not in data["checks"]["upstream"]
+    assert "error" not in data["checks"]["upstream"]
 
 
 def test_health_config_preserves_backwards_compatible_config_payload(client):
@@ -94,6 +96,8 @@ def test_health_config_preserves_backwards_compatible_config_payload(client):
     assert config["max_items_after_crush"] == 50
     assert config["smart_crusher_with_compaction"] is None
     assert isinstance(config["pid"], int)
+    assert "url" in data["checks"]["upstream"]
+    assert "error" in data["checks"]["upstream"]
 
 
 def test_health_reports_agent_savings_config():
@@ -313,7 +317,7 @@ def test_readyz_upstream_check_failure_returns_503(monkeypatch):
     data = response.json()
     assert data["ready"] is False
     assert data["checks"]["upstream"]["ready"] is False
-    assert "connection refused" in data["checks"]["upstream"]["error"]
+    assert "error" not in data["checks"]["upstream"]
 
 
 def test_health_includes_upstream_check_result(monkeypatch):
