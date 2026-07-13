@@ -10,8 +10,8 @@ always take precedence over files on disk.
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping, MutableMapping
 from pathlib import Path
-from typing import Mapping, MutableMapping
 
 
 def load_local_env(

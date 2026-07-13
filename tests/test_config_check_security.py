@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from click.testing import CliRunner
 
 from cutctx.cli.config_check import config_check
