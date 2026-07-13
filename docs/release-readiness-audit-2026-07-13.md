@@ -22,6 +22,7 @@ stronger commercial claims in `release-evidence-runbook.md` can be made.
 | High | Gemini streaming fallback could deliver content then raise `KeyError: 'ttfb_ms'` while recording its final telemetry outcome. | Resolved locally; fallback streams now initialise and capture time-to-first-byte before outcome recording. |
 | High | Concurrent `SQLiteStorage` instances could fail writes with `database is locked`. | Resolved locally; local writers are serialised and every connection now has a bounded SQLite busy timeout. |
 | High | At a 375px viewport, the focused skip link covered the sidebar toggle, blocking the menu with pointer input. | Resolved locally; the focus-visible skip link is now centered away from the mobile control. |
+| High | The documented OSS Docker proxy image exited at startup when `cutctx_ee` was absent because it unconditionally imported commercial entitlements. | Resolved in `987a55b`; OSS now starts with fail-closed Builder-tier entitlement gates while commercial installs retain their checker. |
 
 No unresolved Critical or High product defect was reproduced during this audit.
 
@@ -41,6 +42,7 @@ No unresolved Critical or High product defect was reproduced during this audit.
 | Release wheel | Fresh `maturin build --release` wheels from clean detached commits `6c87d0e` and `067b096` validated with ZIP integrity; the earlier artifact was installed into an isolated environment, imported `cutctx._core`, and exposed `cutctx --version`. The final artifact also packaged the current rebuilt dashboard bundle. | Passed after correcting a Maturin Deflate/SBOM archive corruption issue. |
 | Source distribution | Fresh `maturin sdist` passed the OSS artifact guard; its PEP 639 license metadata resolved to all declared files in the tarball. | Passed after including `LICENSE-COMMERCIAL`, which Maturin declares automatically. |
 | Dashboard artifact freshness | Fresh Vite build synchronized into `cutctx/dashboard`; a new wheel's HTML referenced the new hashed bundle and that bundle contained the Overview content. | Passed; CI/release wheels and Docker builds now rebuild dashboard assets before packaging. |
+| Docker runtime | Clean Linux `runtime` image built and ran as the non-root default user. `/health` reported `ready: true` and `rust_core: loaded`; authenticated `/stats` and `/entitlements` plus `/dashboard` and its current JavaScript asset responded successfully. | Passed after resolving the OSS optional-entitlement startup defect. |
 
 The repository-wide Python suite completed successfully after the fixes above;
 optional integrations account for the recorded skips.
@@ -70,7 +72,7 @@ Primary sources read on 2026-07-13:
 
 | Severity | Item | Evidence / impact | Recommended next step |
 | --- | --- | --- | --- |
-| Medium — release blocker | Built Docker image runtime not verified. | `docker ps` cannot reach Docker Desktop's daemon. | Start Docker Desktop; build/run from a clean environment; exercise authenticated health, `/stats`, compression, fallback, and dashboard flows. |
+| Medium — release evidence scope | Live container covered startup, health, authenticated stats/entitlements, and dashboard assets, but did not send provider requests. | This test intentionally used no provider credentials; upstream compression/fallback remains covered by local integration tests, not this no-secret container run. | Repeat the container scenario with an authorized test provider and retained redacted request evidence before making a provider-runtime deployment claim. |
 | Medium — release blocker | Consented staging evidence absent. | No staging origin/admin key/scenario file is configured. | Execute `release-evidence-runbook.md` and retain redacted artifacts. |
 | Medium — commercial-claim blocker | Two anonymized design-partner snapshots absent. | Broad cost/performance/reliability claims require real privacy-safe data. | Obtain and validate the two snapshots in the release-evidence runbook. |
 | Medium — billing integration | Tests validate contracts, not a merchant account and real Stripe Price IDs. | Live billing cannot be asserted. | Provide authorized Stripe test credentials/Price IDs and verify checkout/webhook lifecycle. |
