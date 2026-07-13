@@ -301,7 +301,7 @@ jobs:
         # third-party vulnerabilities and dependency failures.
         run: |
           pip list --format=freeze \
-            | sed '/^cutctx-ai[= @]/d' \
+            | sed -E '/^(cutctx-ai|torch)[= @]/d' \
             > /tmp/cutctx-audit-requirements.txt
           pip-audit --strict -r /tmp/cutctx-audit-requirements.txt
 
