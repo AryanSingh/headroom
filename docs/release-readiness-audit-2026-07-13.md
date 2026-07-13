@@ -38,7 +38,7 @@ No unresolved Critical or High product defect was reproduced during this audit.
 | Security and identity | Deployment security, hardening/validation, SSO, and billing-contract tests | 91 passed. |
 | Product quality | `cutctx verify --ci --format json` | Passed. Content router: F1 0.9447; information/critical recall 1.0; fidelity 1.0. Smart Crusher: F1/recall/fidelity 1.0. |
 | Static checks | Ruff, dashboard Prettier, Cargo formatting and Clippy | Passed. |
-| Release wheel | A fresh `maturin build --release` wheel from clean detached commit `6c87d0e` validated with ZIP integrity, installed with pip, imported `cutctx._core` from an isolated environment, and exposed `cutctx --version`. | Passed after correcting a Maturin Deflate/SBOM archive corruption issue. |
+| Release wheel | Fresh `maturin build --release` wheels from clean detached commits `6c87d0e` and `067b096` validated with ZIP integrity; the earlier artifact was installed into an isolated environment, imported `cutctx._core`, and exposed `cutctx --version`. The final artifact also packaged the current rebuilt dashboard bundle. | Passed after correcting a Maturin Deflate/SBOM archive corruption issue. |
 | Source distribution | Fresh `maturin sdist` passed the OSS artifact guard; its PEP 639 license metadata resolved to all declared files in the tarball. | Passed after including `LICENSE-COMMERCIAL`, which Maturin declares automatically. |
 | Dashboard artifact freshness | Fresh Vite build synchronized into `cutctx/dashboard`; a new wheel's HTML referenced the new hashed bundle and that bundle contained the Overview content. | Passed; CI/release wheels and Docker builds now rebuild dashboard assets before packaging. |
 
