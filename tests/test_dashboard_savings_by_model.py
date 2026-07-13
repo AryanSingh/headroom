@@ -140,9 +140,7 @@ def test_dashboard_savings_by_model(tmp_path: Path) -> None:
             expect(page.locator(".source-name:has-text('claude-3-opus')")).to_be_visible()
 
             # Save screenshot for walkthrough
-            page.screenshot(
-                path=str(tmp_path / "savings_by_model_screenshot.png")
-            )
+            page.screenshot(path=str(tmp_path / "savings_by_model_screenshot.png"))
 
         finally:
             browser.close()
