@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import httpx
 from unittest.mock import MagicMock
+
+import httpx
 
 from cutctx.billing import get_checkout_url
 
