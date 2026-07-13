@@ -66,7 +66,12 @@ def run_remote_hosted_smoke(
     if samples_per_size < 1:
         raise ValueError("samples_per_size must be at least 1")
 
-    client = HostedCompressionClient(base_url, api_key=api_key, timeout=60.0)
+    # Free hosted instances can take more than a minute to wake. Give the
+    # first request enough time to initialize, and retry a transient transport
+    # failure once without hiding authentication or API contract errors.
+    import httpx
+
+    client = HostedCompressionClient(base_url, api_key=api_key, timeout=180.0)
     cases: list[dict[str, Any]] = []
 
     for size, rows in PAYLOAD_SIZES.items():
@@ -74,13 +79,24 @@ def run_remote_hosted_smoke(
         tokens_saved: list[int] = []
         for _ in range(samples_per_size):
             started = time.perf_counter()
-            result = client.compress_text(
-                _payload(rows),
-                model="gpt-4o",
-                compatibility_mode="tool_output",
-                min_tokens_to_compress=10,
-                protect_recent=0,
-            )
+            result = None
+            last_error: Exception | None = None
+            for attempt in range(2):
+                try:
+                    result = client.compress_text(
+                        _payload(rows),
+                        model="gpt-4o",
+                        compatibility_mode="tool_output",
+                        min_tokens_to_compress=10,
+                        protect_recent=0,
+                    )
+                    break
+                except httpx.HTTPError as exc:
+                    last_error = exc
+                    if attempt == 1:
+                        raise
+            if result is None:
+                raise RuntimeError(f"remote hosted request failed: {last_error}")
             latencies_ms.append((time.perf_counter() - started) * 1000.0)
             tokens_saved.append(result.tokens_saved)
 

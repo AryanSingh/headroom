@@ -27,7 +27,7 @@ def test_remote_hosted_smoke_writes_redacted_latency_artifacts(tmp_path: Path, m
         def __init__(self, base_url: str, *, api_key: str, timeout: float) -> None:
             assert base_url == "https://staging.example.test"
             assert api_key == "secret"
-            assert timeout == 60.0
+            assert timeout == 180.0
 
         def compress_text(self, text: str, **_kwargs):
             assert "remote hosted smoke payload" in text
