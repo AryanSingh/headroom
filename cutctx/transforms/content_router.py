@@ -891,8 +891,9 @@ class ContentRouter(Transform):
 
     def _compression_mode(self) -> CompressionMode:
         """Return the configured mode and fail early on configuration typos."""
+        runtime_mode = getattr(self, "_runtime_compression_mode", None)
         try:
-            return CompressionMode(self.config.compression_mode)
+            return CompressionMode(runtime_mode or self.config.compression_mode)
         except ValueError as exc:
             allowed = ", ".join(mode.value for mode in CompressionMode)
             raise ValueError(
@@ -2438,6 +2439,7 @@ class ContentRouter(Transform):
         self._runtime_target_ratio: float | None = kwargs.get("target_ratio")
         self._runtime_force_kompress: bool = bool(kwargs.get("force_kompress", False))
         self._runtime_kompress_model: str | None = kwargs.get("kompress_model")
+        self._runtime_compression_mode: str | None = kwargs.get("compression_mode")
         # F2.2: capture the per-request CompressionPolicy so
         # ``_record_to_toin`` can gate TOIN writes on
         # ``policy.toin_read_only``. ``None`` when the caller didn't

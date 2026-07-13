@@ -250,6 +250,7 @@ class OpenAICompressMixin:
                     protect_analysis_context = False
                 if min_ratio_override is None:
                     min_ratio_override = 0.99
+                pipeline_kwargs_profile["compression_mode"] = "aggressive"
             else:
                 if compress_user_messages is None:
                     compress_user_messages = False
