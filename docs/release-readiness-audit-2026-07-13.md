@@ -36,6 +36,7 @@ No unresolved Critical or High product defect was reproduced during this audit.
 | Product quality | `cutctx verify --ci --format json` | Passed. Content router: F1 0.9447; information/critical recall 1.0; fidelity 1.0. Smart Crusher: F1/recall/fidelity 1.0. |
 | Static checks | Ruff, dashboard Prettier, Cargo formatting and Clippy | Passed. |
 | Release wheel | Fresh `maturin build --release` wheel validated with ZIP integrity, installed with pip, imported `cutctx._core` from an isolated environment, and exposed `cutctx --version`. | Passed after correcting a Maturin Deflate/SBOM archive corruption issue. |
+| Source distribution | Fresh `maturin sdist` passed the OSS artifact guard; its PEP 639 license metadata resolved to all declared files in the tarball. | Passed after including `LICENSE-COMMERCIAL`, which Maturin declares automatically. |
 
 The repository-wide Python suite collected 8,934 tests and began passing, but
 the interactive execution channel terminated before it returned a final exit

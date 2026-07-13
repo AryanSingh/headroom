@@ -357,7 +357,7 @@ cutctx-ai = { workspace = true }
 # Where the Python package lives. With `python-source = "."` and the
 # package directory `cutctx/` at repo root, maturin includes every file
 # under `cutctx/` in the wheel — that picks up the dashboard HTML
-# templates and bundled YAML configs. `LICENSE` and `NOTICE` are listed
+# templates and bundled YAML configs. The license files are listed
 # explicitly because maturin sdists do not get the package-directory
 # treatment wheels do, and PEP 639 auto-discovery emits both files into
 # `License-File:` metadata — PyPI rejects sdists whose declared license
@@ -365,6 +365,7 @@ cutctx-ai = { workspace = true }
 # exist in distribution file`.
 include = [
     { path = "LICENSE", format = "sdist" },
+    { path = "LICENSE-COMMERCIAL", format = "sdist" },
     { path = "NOTICE", format = "sdist" },
 ]
 python-source = "."
