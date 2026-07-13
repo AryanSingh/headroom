@@ -8,9 +8,9 @@ self-serve billing path is production-ready.
 
 The billing surface is split across two layers:
 
-1. **Hosted checkout / portal helpers** in the OSS and EE billing helpers
-   still default to `https://pitchtoship.com` for checkout and billing-portal
-   URLs.
+1. **Hosted checkout / portal helpers** prefer direct Stripe when it is
+   explicitly configured, and retain the operator-managed PitchToShip path as
+   a compatibility fallback.
 2. **Enterprise subscription mapping** in the EE webhook handler is
    Stripe-based and reads `STRIPE_*` environment variables for tier mapping.
 
@@ -24,7 +24,13 @@ surface**, not a single polished self-serve system.
 - `cutctx/billing.py`
 - `cutctx_ee/billing/__init__.py`
 
-These helpers:
+When direct Stripe is configured, these helpers:
+
+- create a Stripe Checkout Session for the mapped tier/period Price ID
+- look up the Stripe customer by email and create a Billing Portal session
+- return only Stripe-hosted URLs from the direct path
+
+Without direct Stripe configuration, these helpers retain the legacy path:
 
 - default `PITCHTOSHIP_BASE_URL` to `https://pitchtoship.com`
 - call `POST /api/billing/checkout` to request a checkout URL
@@ -71,6 +77,19 @@ See:
 ### Hosted helper layer
 
 ```env
+# Direct Stripe self-service (all required for direct Checkout)
+STRIPE_SECRET_KEY=sk_test_...
+CUTCTX_STRIPE_PRICE_TEAM_ANNUAL=price_...
+CUTCTX_STRIPE_PRICE_TEAM_MONTHLY=price_...
+CUTCTX_STRIPE_PRICE_BUSINESS_ANNUAL=price_...
+CUTCTX_STRIPE_PRICE_BUSINESS_MONTHLY=price_...
+CUTCTX_STRIPE_PRICE_ENTERPRISE_ANNUAL=price_...
+CUTCTX_STRIPE_PRICE_ENTERPRISE_MONTHLY=price_...
+CUTCTX_STRIPE_SUCCESS_URL=https://cutctx.com/billing/success?session_id={CHECKOUT_SESSION_ID}
+CUTCTX_STRIPE_CANCEL_URL=https://cutctx.com/pricing
+CUTCTX_STRIPE_PORTAL_RETURN_URL=https://cutctx.com/billing
+
+# Legacy operator-managed fallback
 PITCHTOSHIP_URL=https://pitchtoship.com
 ```
 
@@ -93,10 +112,11 @@ CUTCTX_OFFLINE_MODE=1
 
 ## Important release note
 
-The repository currently contains hosted billing helpers, but those helpers
-alone are **not evidence of a working customer self-serve checkout flow**.
-Release, go/no-go, and audit work should verify the hosted endpoints separately
-before treating them as launch-ready.
+The repository contains tested direct Stripe request construction, but that is
+**not evidence of a working customer self-serve checkout flow**. Release,
+go/no-go, and audit work must verify Checkout, Portal, and a signed webhook
+against Stripe test-mode credentials and real Price IDs before treating the
+flow as launch-ready.
 
 ## Support guidance
 
