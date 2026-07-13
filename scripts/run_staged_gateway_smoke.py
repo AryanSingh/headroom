@@ -97,13 +97,32 @@ def run_staged_gateway_smoke(
     }
     observed_request_ids: list[str] = []
     scenario_request_ids: dict[str, str] = {}
-    with httpx.Client(timeout=60.0) as client:
+    # Free Render instances can take 50+ seconds to wake. Probe readiness
+    # first, then allow a bounded retry window for the first model load without
+    # masking persistent gateway failures.
+    with httpx.Client(timeout=180.0) as client:
+        try:
+            client.get(f"{base_url}/readyz")
+        except httpx.HTTPError:
+            pass
         for index in range(request_count):
-            response = client.post(
-                f"{base_url}/v1/compress",
-                headers=headers,
-                json={"messages": _messages(index), "model": "gpt-4o"},
-            )
+            response = None
+            last_error: Exception | None = None
+            for attempt in range(2):
+                try:
+                    response = client.post(
+                        f"{base_url}/v1/compress",
+                        headers=headers,
+                        json={"messages": _messages(index), "model": "gpt-4o"},
+                    )
+                    if response.status_code not in {502, 503, 504}:
+                        break
+                except httpx.HTTPError as exc:
+                    last_error = exc
+                    if attempt == 1:
+                        raise
+            if response is None:
+                raise RuntimeError(f"staged compression request {index} failed: {last_error}")
             response.raise_for_status()
             request_id = response.json().get("request_id")
             if not request_id:
