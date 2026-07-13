@@ -504,6 +504,7 @@ jobs:
           CUTCTX_WORKSPACE: ${{ github.workspace }}
         run: |
           mkdir -p .cutctx .claude .codex .gemini
+          chmod -R a+rwX .cutctx .claude .codex .gemini
           trap 'docker compose -f docker/docker-compose.native.yml down -v' EXIT
           docker compose -f docker/docker-compose.native.yml up -d proxy
           for attempt in $(seq 1 30); do

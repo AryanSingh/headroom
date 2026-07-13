@@ -224,13 +224,33 @@ class TestOnnxRouter:
         except ImportError:
             pytest.skip("onnxruntime or tokenizers not installed")
 
+    @staticmethod
+    def _router_or_skip():
+        from cutctx.image.onnx_router import OnnxTechniqueRouter
+
+        try:
+            return OnnxTechniqueRouter(use_siglip=False)
+        except Exception as exc:
+            # The router's optional model is intentionally fetched lazily. In
+            # offline CI, an installed ONNX runtime can exist without the
+            # model cache; that is an unavailable optional capability, not a
+            # product regression.
+            if exc.__class__.__name__ in {"LocalEntryNotFoundError", "OfflineModeIsEnabled"}:
+                pytest.skip(f"ONNX router model is unavailable offline: {exc}")
+            raise
+
     def test_query_classification(self):
         """ONNX router classifies queries into techniques."""
         from cutctx.image.onnx_router import OnnxTechniqueRouter, Technique
 
-        router = OnnxTechniqueRouter(use_siglip=False)
+        router = self._router_or_skip()
 
-        tech, conf = router.classify_query("What does the error message say?")
+        try:
+            tech, conf = router.classify_query("What does the error message say?")
+        except Exception as exc:
+            if exc.__class__.__name__ in {"LocalEntryNotFoundError", "OfflineModeIsEnabled"}:
+                pytest.skip(f"ONNX router model is unavailable offline: {exc}")
+            raise
         assert tech == Technique.TRANSCODE
         assert conf > 0.5
 
@@ -242,9 +262,14 @@ class TestOnnxRouter:
         """Queries needing detail should route to PRESERVE or FULL_LOW."""
         from cutctx.image.onnx_router import OnnxTechniqueRouter, Technique
 
-        router = OnnxTechniqueRouter(use_siglip=False)
+        router = self._router_or_skip()
 
-        tech, _ = router.classify_query("Count every item in this image carefully")
+        try:
+            tech, _ = router.classify_query("Count every item in this image carefully")
+        except Exception as exc:
+            if exc.__class__.__name__ in {"LocalEntryNotFoundError", "OfflineModeIsEnabled"}:
+                pytest.skip(f"ONNX router model is unavailable offline: {exc}")
+            raise
         assert tech in (Technique.PRESERVE, Technique.FULL_LOW)
 
     def test_full_classify_with_image(self):

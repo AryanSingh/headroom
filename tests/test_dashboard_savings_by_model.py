@@ -117,7 +117,7 @@ def _install_dashboard_routes_with_stats(page: Page) -> None:
     page.route("**/*", handler)
 
 
-def test_dashboard_savings_by_model() -> None:
+def test_dashboard_savings_by_model(tmp_path: Path) -> None:
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         try:
@@ -141,7 +141,7 @@ def test_dashboard_savings_by_model() -> None:
 
             # Save screenshot for walkthrough
             page.screenshot(
-                path="/Users/aryansingh/.gemini/antigravity/brain/109383ec-01a4-4dc7-bc11-9f895839864c/savings_by_model_screenshot.png"
+                path=str(tmp_path / "savings_by_model_screenshot.png")
             )
 
         finally:
