@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+
+import pytest
 
 from click.testing import CliRunner
 
 from cutctx.cli.config_check import config_check
+
+
+@pytest.fixture(autouse=True)
+def _isolated_working_directory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Avoid inheriting a developer's project-local credentials in CLI tests."""
+    monkeypatch.chdir(tmp_path)
 
 
 def test_network_host_without_auth_is_a_launch_blocker(monkeypatch) -> None:
@@ -53,3 +62,15 @@ def test_json_output_is_redacted_and_machine_readable(monkeypatch) -> None:
     assert payload["valid"] is False
     assert payload["issues"][0]["code"] == "admin_auth_required"
     assert "CUTCTX_ADMIN_API_KEY" in payload["issues"][0]["remediation"]
+
+
+def test_config_check_loads_documented_local_provider_configuration(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / ".env.local").write_text("CUTCTX_UPSTREAM_OPENAI_API_KEY=example\n")
+    monkeypatch.delenv("CUTCTX_UPSTREAM_OPENAI_API_KEY", raising=False)
+
+    result = CliRunner().invoke(config_check, ["--port", "0"])
+
+    assert result.exit_code == 0, result.output
+    assert "OpenAI: configured" in result.output

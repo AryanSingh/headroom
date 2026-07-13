@@ -977,6 +977,10 @@ def proxy(
     Usage with OpenAI-compatible clients:
         OPENAI_BASE_URL=http://localhost:8787/v1 your-app
     """
+    from cutctx.env import load_local_env
+
+    load_local_env()
+
     # Import here to avoid slow startup
     try:
         from cutctx.proxy.server import ProxyConfig, run_server

@@ -47,9 +47,11 @@ def config_check(port: int, host: str | None, production: bool, output_format: s
       - Admin API key
       - License key
     """
+    from cutctx.env import load_local_env
     from cutctx.proxy.deployment_security import deployment_security_issues
     from cutctx.proxy.models import ProxyConfig
 
+    load_local_env()
     effective_host = host or "127.0.0.1"
     cors_origins = [
         origin.strip()
@@ -127,15 +129,14 @@ def config_check(port: int, host: str | None, production: bool, output_format: s
     # Provider keys
     click.echo("\n[Providers]")
     providers = [
-        ("ANTHROPIC_API_KEY", "Anthropic"),
-        ("OPENAI_API_KEY", "OpenAI"),
-        ("GOOGLE_API_KEY", "Google"),
-        ("AWS_ACCESS_KEY_ID", "AWS Bedrock"),
+        (("ANTHROPIC_API_KEY", "CUTCTX_UPSTREAM_ANTHROPIC_API_KEY"), "Anthropic"),
+        (("OPENAI_API_KEY", "CUTCTX_UPSTREAM_OPENAI_API_KEY"), "OpenAI"),
+        (("GOOGLE_API_KEY", "GEMINI_API_KEY", "CUTCTX_UPSTREAM_GOOGLE_API_KEY"), "Google"),
+        (("AWS_ACCESS_KEY_ID", "CUTCTX_UPSTREAM_BEDROCK_API_KEY"), "AWS Bedrock"),
     ]
     found_any = False
-    for var, name in providers:
-        info = _check_env(var)
-        if info["set"]:
+    for variables, name in providers:
+        if any(_check_env(variable)["set"] for variable in variables):
             click.echo(f"  {name}: {click.style('configured', fg='green')}")
             found_any = True
     if not found_any:
