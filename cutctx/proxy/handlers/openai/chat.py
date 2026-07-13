@@ -404,6 +404,10 @@ class OpenAIChatMixin:
         _pre_strip_count_chat = sum(1 for k in headers if k.lower().startswith("x-cutctx-"))
         headers = _strip_internal_headers(headers)
         headers = _strip_openai_internal_headers(headers)
+        from cutctx.proxy.auth_keyring import inject_provider_authorization
+
+        if inject_provider_authorization(headers, "openai"):
+            logger.debug("[%s] injected OpenAI Authorization from configured credentials", request_id)
         log_outbound_headers(
             forwarder="openai_chat_completions",
             stripped_count=_pre_strip_count_chat,

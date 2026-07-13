@@ -16,8 +16,30 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger("cutctx.proxy.routes.admin")
+
+
+class WebhookSubscriptionInput(BaseModel):
+    """Schema for an admin-managed webhook subscription.
+
+    This model must be module scoped. FastAPI resolves postponed annotations
+    while generating OpenAPI after ``create_admin_router`` returns, at which
+    point a function-local model is no longer available to Pydantic.
+    """
+
+    url: str = Field(..., min_length=1, max_length=2048)
+    secret: str = Field(..., min_length=8, max_length=256)
+    event_types: list[str] | None = Field(
+        default=None,
+        description="If null, all events. Else, only listed types.",
+    )
+    org_id: str | None = Field(
+        default=None,
+        description="If set, only events for this org are delivered.",
+    )
+    enabled: bool = Field(default=True)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -300,22 +322,6 @@ def create_admin_router(
     # test subscriptions from the same /admin surface that
     # already serves the dashboard.
 
-    from pydantic import BaseModel
-    from pydantic import Field as _Field
-
-    class _WebhookSubIn(BaseModel):
-        url: str = _Field(..., min_length=1, max_length=2048)
-        secret: str = _Field(..., min_length=8, max_length=256)
-        event_types: list[str] | None = _Field(
-            default=None,
-            description="If null, all events. Else, only listed types.",
-        )
-        org_id: str | None = _Field(
-            default=None,
-            description="If set, only events for this org are delivered.",
-        )
-        enabled: bool = _Field(default=True)
-
     @router.get(
         "/webhooks/subscriptions",
         dependencies=[
@@ -338,7 +344,7 @@ def create_admin_router(
             _Dep(require_rbac_permission("webhooks.write")),
         ],
     )
-    async def webhooks_subscribe(body: _WebhookSubIn):
+    async def webhooks_subscribe(body: WebhookSubscriptionInput):
         """Register a new webhook subscription (idempotent on URL)."""
         from cutctx.proxy.webhooks import (
             WebhookEventType,

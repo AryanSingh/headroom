@@ -31,6 +31,8 @@ def test_root_help_groups_commands_by_operator_phase() -> None:
     assert "setup" in result.output
     assert "proxy" in result.output
     assert "config" in result.output
+    assert "Unavailable in this installation ('compress')" not in result.output
+    assert "  compress" not in result.output
 
 
 def test_root_without_command_shows_first_run_guidance() -> None:

@@ -62,7 +62,7 @@ _COMMAND_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Getting Started", ("setup", "init", "install", "integrations", "wrap")),
     (
         "Daily Use",
-        ("proxy", "compress", "memory", "capture", "learn", "report", "savings", "perf"),
+        ("proxy", "memory", "capture", "learn", "report", "savings", "perf"),
     ),
     ("Optimize and Evaluate", ("benchmark", "bench", "evals", "verify", "tools", "stack-graph")),
     (

@@ -2163,6 +2163,10 @@ class OpenAIResponsesMixin:
         _pre_strip_count_resp = sum(1 for k in headers if k.lower().startswith("x-cutctx-"))
         headers = _strip_internal_headers(headers)
         headers = _strip_openai_internal_headers(headers)
+        from cutctx.proxy.auth_keyring import inject_provider_authorization
+
+        if inject_provider_authorization(headers, "openai"):
+            logger.debug("[%s] injected OpenAI Authorization from configured credentials", request_id)
         log_outbound_headers(
             forwarder="openai_responses",
             stripped_count=_pre_strip_count_resp,
@@ -3384,8 +3388,6 @@ class OpenAIResponsesMixin:
         )
 
         upstream_headers, is_chatgpt_auth = _resolve_codex_routing_headers(upstream_headers)
-        _lower_headers = {k.lower(): v for k, v in upstream_headers.items()}
-
         # Build upstream WebSocket URL based on auth mode
         if is_chatgpt_auth:
             # ChatGPT session auth → route to chatgpt.com backend
@@ -3421,20 +3423,12 @@ class OpenAIResponsesMixin:
             client_subprotocols,
         )
 
-        # Ensure Authorization header is present — fall back to OPENAI_API_KEY env var.
-        # Safety net for clients that don't forward auth headers via WebSocket upgrade.
-        if "authorization" not in _lower_headers:
-            from cutctx.proxy.auth_keyring import get_api_key
+        # Safety net for clients that don't forward auth headers via the
+        # WebSocket upgrade. The helper never overwrites client credentials.
+        from cutctx.proxy.auth_keyring import inject_provider_authorization
 
-            api_key = get_api_key("openai")
-            if api_key:
-                upstream_headers["Authorization"] = f"Bearer {api_key}"
-                logger.debug(f"[{request_id}] WS: injected Authorization from OPENAI_API_KEY env")
-            else:
-                logger.warning(
-                    f"[{request_id}] WS: no Authorization header from client and "
-                    f"OPENAI_API_KEY not set — upstream will likely reject"
-                )
+        if inject_provider_authorization(upstream_headers, "openai"):
+            logger.debug("[%s] WS injected OpenAI Authorization from configured credentials", request_id)
 
         upstream_headers = await apply_copilot_api_auth(upstream_headers, url=upstream_url)
 

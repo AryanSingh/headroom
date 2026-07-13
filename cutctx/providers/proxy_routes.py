@@ -595,7 +595,9 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
     async def openai_v1_codex_responses_ws(websocket: WebSocket):
         await proxy.handle_openai_responses_ws(websocket)
 
-    @app.api_route("/v1/responses/{sub_path:path}", methods=["GET", "POST", "DELETE"])
+    @app.get("/v1/responses/{sub_path:path}", name="openai_responses_sub_get")
+    @app.post("/v1/responses/{sub_path:path}", name="openai_responses_sub_post")
+    @app.delete("/v1/responses/{sub_path:path}", name="openai_responses_sub_delete")
     async def openai_responses_sub(request: Request, sub_path: str):
         headers = dict(request.headers.items())
         headers.pop("host", None)
@@ -636,7 +638,9 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
             logger.error("Passthrough /v1/responses/%s failed: %s", sub_path, exc)
             return Response(content=str(exc), status_code=502)
 
-    @app.api_route("/v1/codex/responses/{sub_path:path}", methods=["GET", "POST", "DELETE"])
+    @app.get("/v1/codex/responses/{sub_path:path}", name="openai_v1_codex_responses_sub_get")
+    @app.post("/v1/codex/responses/{sub_path:path}", name="openai_v1_codex_responses_sub_post")
+    @app.delete("/v1/codex/responses/{sub_path:path}", name="openai_v1_codex_responses_sub_delete")
     async def openai_v1_codex_responses_sub(request: Request, sub_path: str):
         return await openai_responses_sub(request, sub_path)
 
@@ -648,13 +652,15 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
     async def openai_codex_nested_responses_ws(websocket: WebSocket):
         await proxy.handle_openai_responses_ws(websocket)
 
-    @app.api_route("/backend-api/responses/{sub_path:path}", methods=["GET", "POST", "DELETE"])
+    @app.get("/backend-api/responses/{sub_path:path}", name="openai_codex_responses_sub_get")
+    @app.post("/backend-api/responses/{sub_path:path}", name="openai_codex_responses_sub_post")
+    @app.delete("/backend-api/responses/{sub_path:path}", name="openai_codex_responses_sub_delete")
     async def openai_codex_responses_sub(request: Request, sub_path: str):
         return await openai_responses_sub(request, sub_path)
 
-    @app.api_route(
-        "/backend-api/codex/responses/{sub_path:path}", methods=["GET", "POST", "DELETE"]
-    )
+    @app.get("/backend-api/codex/responses/{sub_path:path}", name="openai_codex_nested_responses_sub_get")
+    @app.post("/backend-api/codex/responses/{sub_path:path}", name="openai_codex_nested_responses_sub_post")
+    @app.delete("/backend-api/codex/responses/{sub_path:path}", name="openai_codex_nested_responses_sub_delete")
     async def openai_codex_nested_responses_sub(request: Request, sub_path: str):
         return await openai_responses_sub(request, sub_path)
 
@@ -1047,7 +1053,10 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
             "gemini",
         )
 
-    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+    @app.get("/{path:path}", name="passthrough_get")
+    @app.post("/{path:path}", name="passthrough_post")
+    @app.put("/{path:path}", name="passthrough_put")
+    @app.delete("/{path:path}", name="passthrough_delete")
     async def passthrough(request: Request, path: str):
         custom_base = request.headers.get("x-cutctx-base-url")
         if custom_base:
