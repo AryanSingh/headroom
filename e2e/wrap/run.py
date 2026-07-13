@@ -936,8 +936,10 @@ def verify_openclaw_wrap(
         "OpenClaw wrap should set context engine slot",
     )
 
+    # The installed OpenClaw unwrap command owns proxy lifecycle internally;
+    # its public CLI does not expose the wrap-time `--proxy-port` option.
     run(
-        ["cutctx", "unwrap", "openclaw", "--proxy-port", str(port)],
+        ["cutctx", "unwrap", "openclaw", "--no-stop-proxy"],
         env=openclaw_env,
         cwd=project_dir,
         timeout=120,
