@@ -8,7 +8,9 @@ metadata:
     app.kubernetes.io/component: proxy
     app.kubernetes.io/version: "0.29.0"
 spec:
-  replicas: 2
+  # The bundled PVC is ReadWriteOnce. Deploy one replica by default; use a
+  # shared RWX volume/external state backend before enabling horizontal scale.
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:

@@ -93,6 +93,8 @@ spec:
             - name: data
               mountPath: /home/nonroot/.cutctx
             {{- end }}
+            - name: tmp
+              mountPath: /tmp
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -102,6 +104,11 @@ spec:
           persistentVolumeClaim:
             claimName: {{ include "cutctx.fullname" . }}-pvc
         {{- end }}
+        # The image runs with a read-only root filesystem. Python, TLS, and
+        # optional provider SDKs need a writable temporary directory.
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

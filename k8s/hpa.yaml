@@ -11,8 +11,10 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: cutctx-proxy
-  minReplicas: 2
-  maxReplicas: 10
+  # Do not scale a ReadWriteOnce-backed deployment above one replica. Enable
+  # this HPA only after migrating state to shared RWX/external storage.
+  minReplicas: 1
+  maxReplicas: 1
   metrics:
     - type: Resource
       resource:

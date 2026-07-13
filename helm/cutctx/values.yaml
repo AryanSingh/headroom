@@ -2,7 +2,10 @@
 # Override via: helm install cutctx . -f custom-values.yaml
 # Or: helm install cutctx . --set key=value
 
-replicaCount: 2
+# The default persistence volume is ReadWriteOnce, so a stateful default must
+# stay on one replica. For horizontal scaling, use a shared RWX volume or an
+# external state backend, then explicitly enable autoscaling.
+replicaCount: 1
 
 image:
   repository: ghcr.io/cutctx/cutctx
@@ -100,8 +103,8 @@ startupProbe:
 
 # ── Autoscaling ───────────────────────────────────────────────────────
 autoscaling:
-  enabled: true
-  minReplicas: 2
+  enabled: false
+  minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
