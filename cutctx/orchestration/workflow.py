@@ -27,6 +27,20 @@ class WorkflowConflictError(WorkflowValidationError):
 
 
 @dataclass
+class TaskArtifact:
+    """Explicit, harness-neutral handoff metadata; never hidden chat state."""
+
+    version: int = 1
+    repository_ref: str = ""
+    worktree_ref: str = ""
+    allowed_tools: list[str] = field(default_factory=list)
+    patch_ref: str = ""
+    test_evidence_ref: str = ""
+    review_evidence_ref: str = ""
+    provenance: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
 class TaskSpec:
     id: str
     role: str
@@ -35,6 +49,9 @@ class TaskSpec:
     max_attempts: int = 3
     retry_delay_seconds: float = 0.25
     timeout_seconds: float | None = None
+    artifact: TaskArtifact = field(default_factory=TaskArtifact)
+    requires_approval: bool = False
+    requires_verification: bool = False
 
 
 @dataclass
@@ -53,6 +70,8 @@ class TaskState:
     lease_owner: str = ""
     lease_expires_at_epoch: float | None = None
     lease_epoch: int = 0
+    approval_granted: bool = False
+    verification_approved: bool = False
 
 
 @dataclass
@@ -106,7 +125,12 @@ class WorkflowStateStore:
         try:
             for item in payload.get("workflows", []):
                 specs = {
-                    task_id: TaskSpec(**task)
+                    task_id: TaskSpec(
+                        **{
+                            **task,
+                            "artifact": TaskArtifact(**task.get("artifact", {})),
+                        }
+                    )
                     for task_id, task in item.get("task_specs", {}).items()
                 }
                 state = WorkflowState(
@@ -194,6 +218,10 @@ class WorkflowStateStore:
             raise WorkflowValidationError("retry_delay_seconds cannot be negative")
         if any(task.timeout_seconds is not None and task.timeout_seconds <= 0 for task in spec.tasks):
             raise WorkflowValidationError("timeout_seconds must be positive")
+        if any(task.artifact.version != 1 for task in spec.tasks):
+            raise WorkflowValidationError("unsupported task artifact version")
+        if any(not isinstance(task.artifact.allowed_tools, list) for task in spec.tasks):
+            raise WorkflowValidationError("task artifact allowed_tools must be a list")
         known = set(task_ids)
         if any(dependency not in known for task in spec.tasks for dependency in task.depends_on):
             raise WorkflowValidationError("unknown task dependency")
@@ -240,7 +268,12 @@ class WorkflowStateStore:
             state = WorkflowState(
                 id=uuid.uuid4().hex,
                 status="pending",
-                tasks={task.id: TaskState() for task in spec.tasks},
+                tasks={
+                    task.id: TaskState(
+                        status="awaiting_approval" if task.requires_approval else "pending"
+                    )
+                    for task in spec.tasks
+                },
                 idempotency_key=spec.idempotency_key,
                 dependencies={task.id: list(task.depends_on) for task in spec.tasks},
                 task_specs={task.id: copy.deepcopy(task) for task in spec.tasks},
@@ -294,7 +327,8 @@ class WorkflowStateStore:
             state, task = self._task(workflow_id, task_id)
             if state.status != "running" or not self._owns_active_lease(task, lease_epoch):
                 raise WorkflowValidationError("task is not running")
-            task.status = "completed"
+            task_spec = state.task_specs.get(task_id)
+            task.status = "awaiting_verification" if task_spec and task_spec.requires_verification else "completed"
             task.result = copy.deepcopy(result)
             task.lease_owner = ""
             task.lease_expires_at_epoch = None
@@ -364,6 +398,41 @@ class WorkflowStateStore:
             self._save()
             return True
 
+    def approve_task(self, workflow_id: str, task_id: str) -> WorkflowState:
+        """Release an explicit human approval gate without changing task inputs."""
+        with self._transaction():
+            state, task = self._task(workflow_id, task_id)
+            if task.status != "awaiting_approval":
+                raise WorkflowValidationError("task is not awaiting approval")
+            task.status = "pending"
+            task.approval_granted = True
+            self._save()
+            return self._clone(state)
+
+    def verify_task(self, workflow_id: str, task_id: str) -> WorkflowState:
+        """Accept a completed result after out-of-band verification evidence."""
+        with self._transaction():
+            state, task = self._task(workflow_id, task_id)
+            if task.status != "awaiting_verification":
+                raise WorkflowValidationError("task is not awaiting verification")
+            task.status = "completed"
+            task.verification_approved = True
+            if all(item.status == "completed" for item in state.tasks.values()):
+                state.status = "completed"
+            self._save()
+            return self._clone(state)
+
+    def has_manual_gates(self, workflow_id: str) -> bool:
+        with self._transaction():
+            state = self._states.get(workflow_id)
+            return bool(
+                state
+                and any(
+                    task.status in {"awaiting_approval", "awaiting_verification"}
+                    for task in state.tasks.values()
+                )
+            )
+
     def renew_task_lease(
         self, workflow_id: str, task_id: str, *, lease_epoch: int | None = None
     ) -> bool:
@@ -399,7 +468,7 @@ class WorkflowStateStore:
                 return self._clone(state)
             state.status = "cancelled"
             for task in state.tasks.values():
-                if task.status in {"pending", "running"}:
+                if task.status in {"pending", "running", "awaiting_approval", "awaiting_verification"}:
                     task.status = "cancelled"
                     task.lease_owner = ""
                     task.lease_expires_at_epoch = None
@@ -506,6 +575,8 @@ class WorkflowRunner:
                         in_flight[future] = (task_id, lease_epoch)
 
                 if not in_flight:
+                    if self.store.has_manual_gates(workflow_id):
+                        break
                     if self.store.has_pending_tasks(workflow_id) or self.store.has_active_task_leases(
                         workflow_id
                     ):

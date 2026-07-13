@@ -120,7 +120,7 @@ class LayeredConfigStore:
     def _merge(cls, base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
         result = dict(base)
         for key, value in overlay.items():
-            if key in {"providers", "models", "roles", "bindings"} and isinstance(value, list):
+            if key in {"providers", "models", "roles", "profiles", "bindings"} and isinstance(value, list):
 
                 def entity_id(item: dict[str, Any], entity_key: str = key) -> str | None:
                     if entity_key == "models":
@@ -151,10 +151,44 @@ class LayeredConfigStore:
                         order.append(item_id)
                     indexed[item_id] = cls._merge(indexed.get(item_id, {}), item)
                 result[key] = [indexed[item_id] for item_id in order]
+            elif key == "settings" and isinstance(value, dict) and isinstance(result.get(key), dict):
+                result[key] = cls._merge_settings(result[key], value)
             elif isinstance(value, dict) and isinstance(result.get(key), dict):
                 result[key] = cls._merge(result[key], value)
             else:
                 result[key] = value
+        return result
+
+    @classmethod
+    def _merge_settings(cls, base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+        """Merge policy limits monotonically across config layers.
+
+        A lower-precedence organization/workspace policy must never be broadened
+        by a project layer. Empty lists mean unrestricted only when no earlier
+        layer set a limit; once a limit exists, an empty overlay preserves it.
+        """
+        result = dict(base)
+        constrained_lists = {
+            "allowed_providers",
+            "allowed_regions",
+            "allowed_data_classifications",
+        }
+        for key, value in overlay.items():
+            if key in constrained_lists:
+                if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+                    raise ValueError(f"settings.{key} must be a list of strings")
+                previous = result.get(key, [])
+                if not isinstance(previous, list):
+                    raise ValueError(f"settings.{key} must be a list of strings")
+                if previous and value:
+                    previous_values = {item.casefold() for item in previous}
+                    result[key] = [item for item in value if item.casefold() in previous_values]
+                elif previous:
+                    result[key] = list(previous)
+                else:
+                    result[key] = list(value)
+                continue
+            result[key] = value
         return result
 
 

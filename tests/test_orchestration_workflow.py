@@ -8,6 +8,7 @@ import pytest
 
 from cutctx.orchestration import workflow as workflow_module
 from cutctx.orchestration.workflow import (
+    TaskArtifact,
     TaskSpec,
     WorkflowConflictError,
     WorkflowRunner,
@@ -80,6 +81,51 @@ def test_task_claim_is_single_owner_and_requires_dependencies(tmp_path) -> None:
     assert store.claim_ready_task(workflow.id, "b") is False
     assert store.claim_ready_task(workflow.id, "a") is True
     assert store.claim_ready_task(workflow.id, "a") is False
+
+
+@pytest.mark.asyncio
+async def test_workflow_artifact_and_manual_gates_require_explicit_human_transitions(tmp_path) -> None:
+    store = WorkflowStateStore(tmp_path / "workflows.json")
+    spec = WorkflowSpec(
+        id="gated-handoff",
+        tasks=[
+            TaskSpec(
+                id="implement",
+                role="implementer",
+                artifact=TaskArtifact(
+                    repository_ref="git:example/repo@abc",
+                    worktree_ref="worktree:feature-42",
+                    allowed_tools=["read", "edit", "test"],
+                    provenance={"source_harness": "codex"},
+                ),
+                requires_approval=True,
+                requires_verification=True,
+            )
+        ],
+    )
+    workflow = store.submit(spec)
+    assert workflow.tasks["implement"].status == "awaiting_approval"
+    restored = WorkflowStateStore(store.path).get(workflow.id)
+    assert restored.task_specs["implement"].artifact.repository_ref == "git:example/repo@abc"
+
+    executed: list[str] = []
+
+    async def execute(task_id, _task):
+        executed.append(task_id)
+        return {"patch_ref": "artifact:patch-1", "test_evidence_ref": "artifact:test-1"}
+
+    awaiting_approval = await WorkflowRunner(store, execute).run(workflow.id)
+    assert awaiting_approval.status == "pending"
+    assert executed == []
+
+    store.approve_task(workflow.id, "implement")
+    awaiting_verification = await WorkflowRunner(store, execute).run(workflow.id)
+    assert awaiting_verification.tasks["implement"].status == "awaiting_verification"
+    assert executed == ["implement"]
+
+    completed = store.verify_task(workflow.id, "implement")
+    assert completed.status == "completed"
+    assert completed.tasks["implement"].verification_approved is True
 
 
 @pytest.mark.asyncio

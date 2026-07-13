@@ -63,6 +63,7 @@ class DeterministicRoutingEngine:
         *,
         allow_overrides: bool = False,
     ) -> RoutingDecision:
+        self._validate_request_constraints(request)
         configured_mode = self.config.settings.mode
         if allow_overrides:
             mode = request.mode or configured_mode
@@ -113,9 +114,10 @@ class DeterministicRoutingEngine:
             primary,
             equivalent_candidates,
             required,
+            request,
         )
         if selected is None and mode != RoutingMode.STRICT.value:
-            selected, rejected_reason = self._first_eligible(fallbacks, required)
+            selected, rejected_reason = self._first_eligible(fallbacks, required, request=request)
         if selected is None:
             if mode == RoutingMode.STRICT.value:
                 raise RoutingUnavailableError(
@@ -123,7 +125,9 @@ class DeterministicRoutingEngine:
                     assigned_model=primary,
                     reason=rejected_reason or "unavailable",
                 )
-            selected = self._policy_candidate(policy, required, excluded=set(candidates))
+            selected = self._policy_candidate(
+                policy, required, excluded=set(candidates), request=request
+            )
             if selected is None:
                 raise RoutingUnavailableError(
                     "No configured model satisfies the request capabilities",
@@ -170,6 +174,7 @@ class DeterministicRoutingEngine:
             candidates=candidates,
             attempted_deployments=[selected.deployment_key],
             required_capabilities=required,
+            policy_constraints=self._policy_constraints(request),
             selection_evidence=selection_evidence,
         )
 
@@ -188,10 +193,12 @@ class DeterministicRoutingEngine:
             )
         current_key = self._decision_deployment_key(decision)
         already_failed = {*decision.attempted_deployments, current_key}
+        request = self._request_from_policy_constraints(decision.policy_constraints)
         selected, reason = self._first_eligible(
             decision.candidates,
             decision.required_capabilities,
             excluded=already_failed,
+            request=request,
         )
         if selected is None:
             configured_deployments = {
@@ -203,6 +210,7 @@ class DeterministicRoutingEngine:
                 decision.policy,
                 decision.required_capabilities,
                 excluded={*already_failed, *configured_deployments},
+                request=request,
             )
         if selected is None:
             raise RoutingUnavailableError(
@@ -275,6 +283,7 @@ class DeterministicRoutingEngine:
         required: set[str],
         *,
         excluded: set[str] | None = None,
+        request: RoutingRequest | None = None,
     ) -> tuple[ModelRecord | None, str | None]:
         last_reason: str | None = None
         excluded_deployments = excluded or set()
@@ -297,8 +306,109 @@ class DeterministicRoutingEngine:
             if not model.supports(required):
                 last_reason = FallbackTrigger.UNSUPPORTED_CAPABILITIES.value
                 continue
+            constraint_reason = self._constraint_rejection_reason(model, request)
+            if constraint_reason is not None:
+                last_reason = constraint_reason
+                continue
             return model, None
         return None, last_reason
+
+    @staticmethod
+    def _validate_request_constraints(request: RoutingRequest) -> None:
+        if request.max_cost_usd is not None:
+            if request.max_cost_usd < 0:
+                raise ValueError("max_cost_usd must be non-negative")
+            if request.estimated_input_tokens is None or request.estimated_output_tokens is None:
+                raise ValueError(
+                    "max_cost_usd requires estimated_input_tokens and estimated_output_tokens"
+                )
+        for value, name in (
+            (request.estimated_input_tokens, "estimated_input_tokens"),
+            (request.estimated_output_tokens, "estimated_output_tokens"),
+        ):
+            if value is not None and value < 0:
+                raise ValueError(f"{name} must be non-negative")
+
+    @staticmethod
+    def _policy_constraints(request: RoutingRequest) -> dict[str, object]:
+        """Return the stable, serializable policy portion of a decision receipt."""
+        return {
+            "allowed_providers": sorted(value.lower() for value in request.allowed_providers),
+            "allowed_regions": sorted(value.lower() for value in request.allowed_regions),
+            "allowed_data_classifications": sorted(
+                value.lower() for value in request.allowed_data_classifications
+            ),
+            "data_classification": request.data_classification,
+            "estimated_input_tokens": request.estimated_input_tokens,
+            "estimated_output_tokens": request.estimated_output_tokens,
+            "max_cost_usd": request.max_cost_usd,
+            "policy_version": request.policy_version,
+        }
+
+    @staticmethod
+    def _request_from_policy_constraints(values: dict[str, object]) -> RoutingRequest:
+        """Recreate constraints for retry/fallback without trusting mutable caller state."""
+        return RoutingRequest(
+            allowed_providers={str(value) for value in values.get("allowed_providers", [])},
+            allowed_regions={str(value) for value in values.get("allowed_regions", [])},
+            allowed_data_classifications={
+                str(value) for value in values.get("allowed_data_classifications", [])
+            },
+            data_classification=(
+                str(values["data_classification"])
+                if values.get("data_classification") is not None
+                else None
+            ),
+            estimated_input_tokens=(
+                int(values["estimated_input_tokens"])
+                if values.get("estimated_input_tokens") is not None
+                else None
+            ),
+            estimated_output_tokens=(
+                int(values["estimated_output_tokens"])
+                if values.get("estimated_output_tokens") is not None
+                else None
+            ),
+            max_cost_usd=(
+                float(values["max_cost_usd"]) if values.get("max_cost_usd") is not None else None
+            ),
+            policy_version=str(values.get("policy_version", "1")),
+        )
+
+    @staticmethod
+    def _constraint_rejection_reason(
+        model: ModelRecord, request: RoutingRequest | None
+    ) -> str | None:
+        if request is None:
+            return None
+        if request.allowed_providers and model.provider.lower() not in {
+            value.lower() for value in request.allowed_providers
+        }:
+            return "provider_not_allowed"
+        metadata = model.metadata if isinstance(model.metadata, dict) else {}
+        if request.allowed_regions:
+            region = str(metadata.get("region", "")).lower()
+            if region not in {value.lower() for value in request.allowed_regions}:
+                return "residency_mismatch"
+        if request.data_classification:
+            if request.allowed_data_classifications and request.data_classification.lower() not in {
+                value.lower() for value in request.allowed_data_classifications
+            }:
+                return "data_classification_not_allowed"
+            supported = metadata.get("data_classifications", [])
+            supported_values = {str(value).lower() for value in supported} if isinstance(supported, list) else set()
+            if request.data_classification.lower() not in supported_values:
+                return "data_classification_not_allowed"
+        if request.max_cost_usd is not None:
+            if model.input_cost_per_million is None or model.output_cost_per_million is None:
+                return "cost_unknown"
+            estimated_cost = (
+                (request.estimated_input_tokens or 0) * model.input_cost_per_million
+                + (request.estimated_output_tokens or 0) * model.output_cost_per_million
+            ) / 1_000_000
+            if estimated_cost > request.max_cost_usd:
+                return "budget_exceeded"
+        return None
 
     def _validated_equivalents(self, primary: str, equivalents: list[str]) -> list[str]:
         primary_model = self.registry.get(primary)
@@ -317,13 +427,14 @@ class DeterministicRoutingEngine:
         primary: str,
         equivalents: list[str],
         required: set[str],
+        request: RoutingRequest,
     ) -> tuple[ModelRecord | None, str | None, dict[str, object]]:
         keys = self._deduplicate([primary, *equivalents])
         eligible: list[ModelRecord] = []
         rejected: list[dict[str, str]] = []
         last_reason: str | None = None
         for key in keys:
-            model, reason = self._first_eligible([key], required)
+            model, reason = self._first_eligible([key], required, request=request)
             if model is None:
                 last_reason = reason
                 rejected.append({"model": key, "reason": reason or "unavailable"})
@@ -418,7 +529,12 @@ class DeterministicRoutingEngine:
         )
 
     def _policy_candidate(
-        self, policy: str, required: set[str], *, excluded: set[str]
+        self,
+        policy: str,
+        required: set[str],
+        *,
+        excluded: set[str],
+        request: RoutingRequest | None = None,
     ) -> ModelRecord | None:
         if policy in {RoutingPolicy.ROLE_LOCKED.value, RoutingPolicy.MANUAL.value}:
             return None
@@ -428,6 +544,7 @@ class DeterministicRoutingEngine:
             if model.deployment_key not in excluded
             and not model.deprecated
             and (not self.require_configured_accounts or self._has_enabled_account(model))
+            and self._constraint_rejection_reason(model, request) is None
         ]
         if not models:
             return None

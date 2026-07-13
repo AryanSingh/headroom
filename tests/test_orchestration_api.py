@@ -39,6 +39,7 @@ def test_orchestration_admin_api_config_models_and_strict_preview(
     )
     monkeypatch.setenv("CUTCTX_ORCHESTRATION_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("CUTCTX_ORCHESTRATION_CONFIG", str(config_path))
+    monkeypatch.setenv("CUTCTX_ORCHESTRATION_AUDIT_KEY", "test-audit-key")
     app = create_app(
         ProxyConfig(
             backend="mock",
@@ -73,6 +74,31 @@ def test_orchestration_admin_api_config_models_and_strict_preview(
         assert models.status_code == 200
         assert any(model["key"] == "openai:gpt-5.4-mini" for model in models.json()["models"])
 
+        manifest = client.get("/v1/orchestration/capability-manifest", headers=headers)
+        assert manifest.status_code == 200
+        assert manifest.json()["manifest_version"] == 1
+        mini = next(
+            item
+            for item in manifest.json()["deployments"]
+            if item["deployment_key"] == "openai:gpt-5.4-mini"
+        )
+        assert mini["verification"]["status"] == "advertised"
+
+        harnesses = client.get("/v1/orchestration/harness-compatibility", headers=headers)
+        assert harnesses.status_code == 200
+        codex = next(item for item in harnesses.json()["harnesses"] if item["id"] == "codex")
+        assert codex["hidden_session_sharing"] is False
+        assert codex["artifact_handoffs"] is True
+
+        bundle = client.get("/v1/orchestration/policy-bundle", headers=headers)
+        assert bundle.status_code == 200
+        assert bundle.json()["bundle_version"] == 1
+        assert bundle.json()["bundle_hash"]
+
+        receipt_audit = client.get("/v1/orchestration/receipt-audit/verify", headers=headers)
+        assert receipt_audit.status_code == 200
+        assert receipt_audit.json()["valid"] is True
+
         preview = client.post(
             "/v1/orchestration/route",
             headers=headers,
@@ -81,6 +107,89 @@ def test_orchestration_admin_api_config_models_and_strict_preview(
         assert preview.status_code == 200
         assert preview.json()["actual_model"] == "gpt-5.4-mini"
         assert preview.json()["provider"] == "openai"
+        assert preview.json()["receipt_version"] == 1
+
+        constrained_preview = client.post(
+            "/v1/orchestration/route",
+            headers=headers,
+            json={"role": "worker", "allowed_providers": ["openai"]},
+        )
+        assert constrained_preview.status_code == 200
+        assert constrained_preview.json()["policy_constraints"]["allowed_providers"] == ["openai"]
+
+        data_classification = client.post(
+            "/v1/orchestration/route",
+            headers=headers,
+            json={
+                "role": "worker",
+                "data_classification": "internal",
+                "allowed_data_classifications": ["internal"],
+            },
+        )
+        assert data_classification.status_code == 409
+        assert data_classification.json()["detail"]["reason"] == "data_classification_not_allowed"
+
+        missing_estimate = client.post(
+            "/v1/orchestration/route",
+            headers=headers,
+            json={"role": "worker", "max_cost_usd": 0.01},
+        )
+        assert missing_estimate.status_code == 400
+        assert "requires estimated_input_tokens" in missing_estimate.json()["detail"]
+
+        shadow = client.post(
+            "/v1/orchestration/route/shadow",
+            headers=headers,
+            json={"role": "worker", "candidate_model": "gpt-4o", "provider": "openai"},
+        )
+        assert shadow.status_code == 200
+        assert shadow.json()["executed"] is False
+        assert shadow.json()["changed"] is True
+        assert shadow.json()["baseline"]["actual_model"] == "gpt-5.4-mini"
+        assert shadow.json()["candidate"]["actual_model"] == "gpt-4o"
+
+        invalid_shadow = client.post(
+            "/v1/orchestration/route/shadow",
+            headers=headers,
+            json={"role": "worker"},
+        )
+        assert invalid_shadow.status_code == 400
+
+        scheduling = client.post(
+            "/v1/orchestration/scheduler/recommend",
+            headers=headers,
+            json={"role": "worker", "task_type": "implementation", "min_observations": 1},
+        )
+        assert scheduling.status_code == 200
+        assert scheduling.json()["mode"] == "recommendation_only"
+        assert scheduling.json()["provider_calls"] == 0
+        assert scheduling.json()["recommendation"] is None
+
+        drift = client.post(
+            "/v1/orchestration/scheduler/drift",
+            headers=headers,
+            json={"task_type": "implementation", "window_size": 1},
+        )
+        assert drift.status_code == 200
+        assert drift.json()["status"] == "insufficient_evidence"
+
+        outcome = client.post(
+            "/v1/orchestration/outcomes",
+            headers=headers,
+            json={
+                "request_id": "route-42",
+                "task_type": "review",
+                "verified": True,
+                "review_accepted": True,
+                "developer_rating": 5,
+            },
+        )
+        assert outcome.status_code == 201
+        assert outcome.json()["outcome"]["recorded_at"]
+        assert "messages" not in outcome.json()["outcome"]
+        outcomes = client.get("/v1/orchestration/outcomes", headers=headers)
+        assert outcomes.status_code == 200
+        assert outcomes.json()["outcomes"][0]["request_id"] == "route-42"
 
         missing = client.post(
             "/v1/orchestration/route", headers=headers, json={"role": "unassigned"}
@@ -94,13 +203,6 @@ def test_orchestration_admin_api_config_models_and_strict_preview(
             json={"role": "worker", "required_capabilities": "reasoning"},
         )
         assert malformed.status_code in {400, 422}
-
-        direct_execution = client.post(
-            "/v1/orchestration/execute",
-            headers=headers,
-            json={"role": "worker", "messages": []},
-        )
-        assert direct_execution.status_code == 404
 
         submitted = client.post(
             "/v1/orchestration/workflows",
@@ -129,6 +231,53 @@ def test_orchestration_admin_api_config_models_and_strict_preview(
         )
         assert fetched.status_code == 200
         assert fetched.json()["workflow"]["id"] == workflow["id"]
+
+        gated = client.post(
+            "/v1/orchestration/workflows",
+            headers=headers,
+            json={
+                "id": "gated-review",
+                "tasks": [
+                    {
+                        "id": "review",
+                        "role": "worker",
+                        "requires_approval": True,
+                        "requires_verification": True,
+                        "artifact": {
+                            "repository_ref": "git:repo@abc",
+                            "allowed_tools": ["read", "test"],
+                            "provenance": {"source_harness": "codex"},
+                        },
+                    }
+                ],
+            },
+        )
+        assert gated.status_code == 201
+        gated_workflow = gated.json()["workflow"]
+        assert gated_workflow["tasks"]["review"]["status"] == "awaiting_approval"
+        approved = client.post(
+            f"/v1/orchestration/workflows/{gated_workflow['id']}/tasks/review/approve",
+            headers=headers,
+        )
+        assert approved.status_code == 200
+        assert approved.json()["workflow"]["tasks"]["review"]["approval_granted"] is True
+
+        invalid_artifact = client.post(
+            "/v1/orchestration/workflows",
+            headers=headers,
+            json={
+                "id": "invalid-artifact",
+                "tasks": [
+                    {
+                        "id": "review",
+                        "role": "worker",
+                        "artifact": {"unexpected": True},
+                    }
+                ],
+            },
+        )
+        assert invalid_artifact.status_code == 400
+        assert "Invalid task artifact" in invalid_artifact.json()["detail"]
 
         duplicate = client.post(
             "/v1/orchestration/workflows",

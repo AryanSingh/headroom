@@ -7,13 +7,69 @@ import os
 import tempfile
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from cryptography.fernet import Fernet, InvalidToken
 
 
 class CredentialStoreError(RuntimeError):
     pass
+
+
+@runtime_checkable
+class CredentialStore(Protocol):
+    """Minimal secret boundary used by orchestration provider adapters."""
+
+    def put(self, reference: str, secret: dict[str, Any]) -> None: ...
+    def get(self, reference: str) -> dict[str, Any] | None: ...
+    def delete(self, reference: str) -> bool: ...
+    def references(self) -> list[str]: ...
+
+
+@runtime_checkable
+class ExternalSecretResolver(Protocol):
+    """Adapter contract for Vault, KMS, cloud secret manager, or HSM-backed stores.
+
+    Implementations own authentication and transport. They return a credential
+    payload only for an explicitly configured reference; no environment or
+    provider credential is discovered implicitly.
+    """
+
+    def resolve(self, reference: str) -> dict[str, Any] | None: ...
+
+
+class ResolverBackedCredentialStore:
+    """Read external references first, with an optional local dev fallback."""
+
+    def __init__(
+        self,
+        resolver: ExternalSecretResolver,
+        *,
+        fallback: CredentialStore | None = None,
+    ) -> None:
+        self.resolver = resolver
+        self.fallback = fallback
+
+    def get(self, reference: str) -> dict[str, Any] | None:
+        resolved = self.resolver.resolve(reference)
+        if resolved is not None:
+            return dict(resolved)
+        return self.fallback.get(reference) if self.fallback is not None else None
+
+    def put(self, reference: str, secret: dict[str, Any]) -> None:
+        if self.fallback is None:
+            raise CredentialStoreError("External credential references are read-only")
+        self.fallback.put(reference, secret)
+
+    def delete(self, reference: str) -> bool:
+        if self.fallback is None:
+            raise CredentialStoreError("External credential references are read-only")
+        return self.fallback.delete(reference)
+
+    def references(self) -> list[str]:
+        # An external resolver need not enumerate a secret namespace. Returning
+        # local references avoids exposing names from a shared secret manager.
+        return self.fallback.references() if self.fallback is not None else []
 
 
 class EncryptedCredentialStore:

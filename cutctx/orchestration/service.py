@@ -9,30 +9,35 @@ import os
 import threading
 import time
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import httpx
 
+from .audit import ReceiptAuditStore
 from .config import LayeredConfigStore, default_config_paths
-from .credentials import EncryptedCredentialStore
+from .credentials import CredentialStore, EncryptedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
 from .models import (
     ExecutionRecord,
     FallbackTrigger,
     OrchestrationConfig,
+    OutcomeRecord,
     ProviderAccount,
     RoutingDecision,
     RoutingMode,
     RoutingPolicy,
     RoutingRequest,
+    TaskType,
     config_from_dict,
     to_dict,
 )
+from .policy_bundle import compile_policy_bundle
 from .providers import ProviderAdapter, ProviderAdapterRegistry, builtin_provider_registry
 from .registry import DynamicModelRegistry
-from .telemetry import ExecutionTelemetryStore
+from .telemetry import ExecutionTelemetryStore, OutcomeTelemetryStore
 from .workflow import TaskSpec, WorkflowRunner, WorkflowSpec, WorkflowState, WorkflowStateStore
 
 
@@ -53,10 +58,12 @@ class OrchestrationService:
         self,
         *,
         config_store: LayeredConfigStore,
-        credential_store: EncryptedCredentialStore,
+        credential_store: CredentialStore,
         model_registry: DynamicModelRegistry,
         provider_registry: ProviderAdapterRegistry | None = None,
         telemetry: ExecutionTelemetryStore | None = None,
+        outcome_telemetry: OutcomeTelemetryStore | None = None,
+        receipt_audit: ReceiptAuditStore | None = None,
         workflow_store: WorkflowStateStore | None = None,
     ) -> None:
         self.config_store = config_store
@@ -64,6 +71,8 @@ class OrchestrationService:
         self.model_registry = model_registry
         self.provider_registry = provider_registry or builtin_provider_registry()
         self.telemetry = telemetry or ExecutionTelemetryStore()
+        self.outcome_telemetry = outcome_telemetry or OutcomeTelemetryStore()
+        self.receipt_audit = receipt_audit
         self.workflow_store = workflow_store or WorkflowStateStore(
             Path.home() / ".cutctx" / "orchestration" / "workflows.json"
         )
@@ -127,7 +136,120 @@ class OrchestrationService:
         allow_overrides: bool = False,
     ) -> RoutingDecision:
         with self._state_lock:
-            return self.engine.route(request, allow_overrides=allow_overrides)
+            return self.engine.route(
+                self._apply_policy_defaults(request), allow_overrides=allow_overrides
+            )
+
+    def _apply_policy_defaults(self, request: RoutingRequest) -> RoutingRequest:
+        """Intersect caller constraints with effective layered policy limits.
+
+        The service owns this merge so every entry point—preview, direct
+        execution, proxy routing, and workflow execution—uses identical,
+        non-bypassable organization/project limits.
+        """
+        if request.task_type is not None and request.task_type not in {
+            value.value for value in TaskType
+        }:
+            raise ValueError(f"Unknown task type: {request.task_type!r}")
+        settings = self.config.settings
+        profile = self._profile(request.profile)
+
+        def narrow(caller: set[str], policy: set[str]) -> set[str]:
+            normalized_policy = {value.casefold() for value in policy}
+            if not normalized_policy:
+                return set(caller)
+            if not caller:
+                return set(policy)
+            narrowed = {value for value in caller if value.casefold() in normalized_policy}
+            if not narrowed:
+                raise ValueError("Request constraints do not satisfy organization/project policy")
+            return narrowed
+
+        if profile is not None:
+            request = replace(
+                request,
+                role=request.role or profile.role,
+                required_capabilities={*request.required_capabilities, *profile.required_capabilities},
+                allowed_providers=narrow(request.allowed_providers, profile.allowed_providers),
+                max_cost_usd=(
+                    min(request.max_cost_usd, profile.max_cost_usd)
+                    if request.max_cost_usd is not None and profile.max_cost_usd is not None
+                    else request.max_cost_usd if profile.max_cost_usd is None else profile.max_cost_usd
+                ),
+            )
+        return replace(
+            request,
+            allowed_providers=narrow(request.allowed_providers, settings.allowed_providers),
+            allowed_regions=narrow(request.allowed_regions, settings.allowed_regions),
+            allowed_data_classifications=narrow(
+                request.allowed_data_classifications, settings.allowed_data_classifications
+            ),
+            policy_version=settings.policy_version,
+        )
+
+    def _profile(self, profile_id: str | None) -> Any | None:
+        if profile_id is None:
+            return None
+        for profile in self.config.profiles:
+            if profile.id.casefold() == profile_id.casefold():
+                return profile
+        raise ValueError(f"Unknown routing profile: {profile_id!r}")
+
+    def routing_profiles(self) -> list[dict[str, Any]]:
+        return [to_dict(profile) for profile in self.config.profiles]
+
+    def record_outcome(self, outcome: OutcomeRecord | dict[str, Any]) -> dict[str, Any]:
+        """Persist bounded evaluation signals after validating their contract."""
+        parsed = OutcomeRecord(**outcome) if isinstance(outcome, dict) else outcome
+        if not parsed.request_id.strip():
+            raise ValueError("Outcome request_id must not be empty")
+        if parsed.task_type not in {value.value for value in TaskType}:
+            raise ValueError(f"Unknown task type: {parsed.task_type!r}")
+        if parsed.developer_rating is not None and not 1 <= parsed.developer_rating <= 5:
+            raise ValueError("developer_rating must be between 1 and 5")
+        if not parsed.recorded_at:
+            parsed = replace(parsed, recorded_at=datetime.now(timezone.utc).isoformat())
+        self.outcome_telemetry.record(parsed)
+        return to_dict(parsed)
+
+    def shadow_route(
+        self,
+        request: RoutingRequest,
+        *,
+        candidate_profile: str | None = None,
+        candidate_policy: str | None = None,
+        candidate_model: str | None = None,
+    ) -> dict[str, Any]:
+        """Compare a candidate route without invoking a provider.
+
+        Shadow mode is intentionally a pure decision comparison: unlike a
+        provider replay it creates no cost, no side effects, and no new model
+        output. That makes it safe to expose before a scheduler is trusted to
+        alter live execution.
+        """
+        baseline = self.route(request, allow_overrides=True)
+        candidate_request = replace(
+            request,
+            profile=None if candidate_model else candidate_profile or request.profile,
+            policy=candidate_policy or request.policy,
+            requested_model=candidate_model or request.requested_model,
+            # A model candidate is a deliberate manual comparison, not a
+            # hidden override of an existing role binding.
+            role=None if candidate_model else request.role,
+        )
+        candidate = self.route(candidate_request, allow_overrides=True)
+        changed = (
+            baseline.provider != candidate.provider
+            or baseline.account_id != candidate.account_id
+            or baseline.actual_model != candidate.actual_model
+        )
+        return {
+            "shadow_version": 1,
+            "executed": False,
+            "changed": changed,
+            "baseline": to_dict(baseline),
+            "candidate": to_dict(candidate),
+        }
 
     def provider_specs(self) -> list[dict[str, Any]]:
         configured = {account.provider for account in self.config.providers}
@@ -145,6 +267,39 @@ class OrchestrationService:
             }
             for spec in self.provider_registry.specs()
         ]
+
+    def capability_manifest(self) -> dict[str, Any]:
+        """Return the deployment-scoped capability contract used for routing.
+
+        Discovery is useful but never treated as verification. Operators mark a
+        deployment verified only after exercising the capability against the
+        target account/region. This makes the public matrix honest about the
+        difference between advertised and supported behavior.
+        """
+        deployments: list[dict[str, Any]] = []
+        for model in self.model_registry.list():
+            metadata = model.metadata if isinstance(model.metadata, dict) else {}
+            verified = metadata.get("capability_verified") is True
+            deployments.append(
+                {
+                    "deployment_key": model.deployment_key,
+                    "provider": model.provider,
+                    "account_id": model.account_id,
+                    "model": model.id,
+                    "capabilities": sorted(model.capabilities),
+                    "verification": {
+                        "status": "verified" if verified else "advertised",
+                        "verified_at": metadata.get("capability_verified_at"),
+                        "source": metadata.get("capability_source", "registry"),
+                    },
+                }
+            )
+        return {"manifest_version": 1, "deployments": deployments}
+
+    def policy_bundle(self) -> dict[str, Any]:
+        """Return the effective bundle; signing occurs in the customer key boundary."""
+        with self._state_lock:
+            return compile_policy_bundle(self.config)
 
     def accounts(self) -> list[dict[str, Any]]:
         credential_refs = set(self.credential_store.references())
@@ -347,8 +502,13 @@ class OrchestrationService:
             output_tokens=output_tokens,
             cache_hit=usage.get("cache_hit"),
             error=str(error) if error else None,
+            policy_version=str(decision.policy_constraints.get("policy_version", "1")),
+            policy_constraints=dict(decision.policy_constraints),
+            task_type=request.task_type,
         )
         self.telemetry.record(record)
+        if self.receipt_audit is not None:
+            self.receipt_audit.append(decision, execution_id=f"{decision.request_id}:{started_at}")
         if error is not None or response is None:
             raise RuntimeError(
                 f"Assigned model {decision.actual_model} failed after {attempts} attempt(s): {error}"
@@ -468,8 +628,13 @@ class OrchestrationService:
                     fallback_trigger=decision.fallback_trigger,
                     fallback_from=decision.fallback_from,
                     error=str(error) if error else None,
+                    policy_version=str(decision.policy_constraints.get("policy_version", "1")),
+                    policy_constraints=dict(decision.policy_constraints),
+                    task_type=request.task_type,
                 )
             )
+            if self.receipt_audit is not None:
+                self.receipt_audit.append(decision, execution_id=f"{decision.request_id}:{started_at}")
         if error is not None:
             raise RuntimeError(
                 f"Assigned model {decision.actual_model} failed during streaming: {error}"
@@ -565,6 +730,7 @@ class OrchestrationService:
 
         unique(config.providers, "provider account")
         unique(config.roles, "role", casefold=True)
+        unique(config.profiles, "profile", casefold=True)
         unique(config.bindings, "binding")
         deployment_keys = [model.deployment_key for model in config.models]
         if len(deployment_keys) != len(set(deployment_keys)):
@@ -632,6 +798,13 @@ class OrchestrationService:
                     )
 
         role_ids = {role.id.casefold() for role in config.roles}
+        for profile in config.profiles:
+            if profile.role.casefold() not in role_ids:
+                raise ValueError(
+                    f"Profile {profile.id!r} references unknown role {profile.role!r}"
+                )
+            if profile.max_cost_usd is not None and profile.max_cost_usd < 0:
+                raise ValueError(f"Profile {profile.id!r} has an invalid max_cost_usd")
         configured_models = {model.deployment_key: model for model in config.models}
         configured_models.update(
             {
@@ -681,10 +854,15 @@ def build_orchestration_service(
         resolved_paths = dict(default_config_paths(root))
     else:
         resolved_paths = config_paths
+    audit_key = os.environ.get("CUTCTX_ORCHESTRATION_AUDIT_KEY", "").strip()
     return OrchestrationService(
         config_store=LayeredConfigStore(resolved_paths),
         credential_store=EncryptedCredentialStore(root / "credentials.enc"),
         model_registry=DynamicModelRegistry(root / "models.json"),
         telemetry=ExecutionTelemetryStore(root / "executions.jsonl"),
+        outcome_telemetry=OutcomeTelemetryStore(root / "outcomes.jsonl"),
+        receipt_audit=(
+            ReceiptAuditStore(root / "receipt-audit.jsonl", key=audit_key) if audit_key else None
+        ),
         workflow_store=WorkflowStateStore(root / "workflows.json"),
     )

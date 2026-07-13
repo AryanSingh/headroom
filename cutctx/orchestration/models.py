@@ -22,6 +22,17 @@ class Capability(str, Enum):
     MCP = "mcp"
 
 
+class TaskType(str, Enum):
+    PLANNING = "planning"
+    IMPLEMENTATION = "implementation"
+    TESTING = "testing"
+    REVIEW = "review"
+    RESEARCH = "research"
+    DOCUMENTATION = "documentation"
+    LONG_CONTEXT_ANALYSIS = "long_context_analysis"
+    SECURITY_REVIEW = "security_review"
+
+
 class RoutingMode(str, Enum):
     STRICT = "strict"
     RELAXED = "relaxed"
@@ -106,6 +117,19 @@ class Role:
 
 
 @dataclass
+class RoutingProfile:
+    """Versioned, user-facing intent mapped to a role and hard constraints."""
+
+    id: str
+    role: str
+    version: str = "1"
+    description: str = ""
+    required_capabilities: set[str] = field(default_factory=set)
+    allowed_providers: set[str] = field(default_factory=set)
+    max_cost_usd: float | None = None
+
+
+@dataclass
 class RouteBinding:
     """A deterministic assignment.
 
@@ -137,6 +161,12 @@ class RoutingSettings:
         default_factory=lambda: {trigger.value for trigger in FallbackTrigger}
     )
     global_fallback_chain: list[str] = field(default_factory=list)
+    # Empty allow-lists mean unrestricted. Non-empty values are hard upper
+    # bounds; callers may narrow them but can never broaden them.
+    allowed_providers: set[str] = field(default_factory=set)
+    allowed_regions: set[str] = field(default_factory=set)
+    allowed_data_classifications: set[str] = field(default_factory=set)
+    policy_version: str = "1"
 
 
 @dataclass
@@ -145,6 +175,7 @@ class OrchestrationConfig:
     providers: list[ProviderAccount] = field(default_factory=list)
     models: list[ModelRecord] = field(default_factory=list)
     roles: list[Role] = field(default_factory=list)
+    profiles: list[RoutingProfile] = field(default_factory=list)
     bindings: list[RouteBinding] = field(default_factory=list)
     settings: RoutingSettings = field(default_factory=RoutingSettings)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -152,6 +183,8 @@ class OrchestrationConfig:
 
 @dataclass
 class RoutingRequest:
+    profile: str | None = None
+    task_type: str | None = None
     role: str | None = None
     requested_model: str | None = None
     requested_provider: str | None = None
@@ -160,6 +193,14 @@ class RoutingRequest:
     mode: str | None = None
     policy: str | None = None
     request_id: str = ""
+    allowed_providers: set[str] = field(default_factory=set)
+    allowed_regions: set[str] = field(default_factory=set)
+    allowed_data_classifications: set[str] = field(default_factory=set)
+    data_classification: str | None = None
+    estimated_input_tokens: int | None = None
+    estimated_output_tokens: int | None = None
+    max_cost_usd: float | None = None
+    policy_version: str = "1"
 
 
 @dataclass
@@ -180,7 +221,9 @@ class RoutingDecision:
     candidates: list[str] = field(default_factory=list)
     attempted_deployments: list[str] = field(default_factory=list)
     required_capabilities: set[str] = field(default_factory=set)
+    policy_constraints: dict[str, Any] = field(default_factory=dict)
     selection_evidence: dict[str, Any] = field(default_factory=dict)
+    receipt_version: int = 1
 
 
 @dataclass
@@ -206,6 +249,23 @@ class ExecutionRecord:
     output_tokens: int | None = None
     cache_hit: bool | None = None
     error: str | None = None
+    policy_version: str = "1"
+    policy_constraints: dict[str, Any] = field(default_factory=dict)
+    task_type: str | None = None
+
+
+@dataclass
+class OutcomeRecord:
+    """Privacy-safe result signals linked to one completed execution."""
+
+    request_id: str
+    task_type: str
+    verified: bool | None = None
+    review_accepted: bool | None = None
+    retry_required: bool | None = None
+    reverted: bool | None = None
+    developer_rating: int | None = None
+    recorded_at: str = ""
 
 
 def _enum_value(value: Any) -> Any:
@@ -255,6 +315,20 @@ def config_from_dict(payload: dict[str, Any]) -> OrchestrationConfig:
             )
             for item in migrated.get("roles", [])
         ],
+        profiles=[
+            RoutingProfile(
+                **{
+                    **{
+                        key: value
+                        for key, value in item.items()
+                        if key not in {"required_capabilities", "allowed_providers"}
+                    },
+                    "required_capabilities": set(item.get("required_capabilities", [])),
+                    "allowed_providers": set(item.get("allowed_providers", [])),
+                }
+            )
+            for item in migrated.get("profiles", [])
+        ],
         bindings=[
             RouteBinding(
                 **{
@@ -269,12 +343,24 @@ def config_from_dict(payload: dict[str, Any]) -> OrchestrationConfig:
                 **{
                     key: value
                     for key, value in migrated.get("settings", {}).items()
-                    if key != "fallback_triggers"
+                    if key not in {
+                        "fallback_triggers",
+                        "allowed_providers",
+                        "allowed_regions",
+                        "allowed_data_classifications",
+                    }
                 },
                 "fallback_triggers": set(
                     migrated.get("settings", {}).get(
                         "fallback_triggers", [trigger.value for trigger in FallbackTrigger]
                     )
+                ),
+                "allowed_providers": set(
+                    migrated.get("settings", {}).get("allowed_providers", [])
+                ),
+                "allowed_regions": set(migrated.get("settings", {}).get("allowed_regions", [])),
+                "allowed_data_classifications": set(
+                    migrated.get("settings", {}).get("allowed_data_classifications", [])
                 ),
             }
         ),
