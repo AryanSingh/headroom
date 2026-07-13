@@ -472,6 +472,10 @@ jobs:
     if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # The native image binds its proxy on 0.0.0.0 inside Docker, so the
+      # deployment-security guard requires an explicit test-only admin key.
+      CUTCTX_ADMIN_API_KEY: ci-native-e2e-key
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
