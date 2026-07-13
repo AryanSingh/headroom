@@ -63,14 +63,7 @@ build-wheel:
 build-dashboard:
 	@echo "── build-dashboard ─────────────────────────────────────────────"
 	cd dashboard && npm run build
-	@echo "Syncing assets into cutctx/dashboard/ ..."
-	cp dashboard/dist/index.html cutctx/dashboard/index.html
-	cp dashboard/dist/favicon.svg cutctx/dashboard/favicon.svg
-	cp dashboard/dist/icons.svg cutctx/dashboard/icons.svg 2>/dev/null || true
-	mkdir -p cutctx/dashboard/assets
-	rm -f cutctx/dashboard/assets/index-*.js cutctx/dashboard/assets/index-*.css
-	cp dashboard/dist/assets/index-*.js cutctx/dashboard/assets/
-	cp dashboard/dist/assets/index-*.css cutctx/dashboard/assets/
+	python3 scripts/sync_dashboard_assets.py
 	@echo "✅ Dashboard built and assets copied."
 
 # Hotfix-A0: maturin-develop + symlink + import-verify in one shot. Run this

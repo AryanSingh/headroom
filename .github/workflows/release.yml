@@ -282,6 +282,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
       - name: Sync version to pyproject.toml + Cargo.toml
         shell: bash
         run: |
@@ -290,6 +295,12 @@ jobs:
       - name: Verify package versions are synchronized
         run: |
           python scripts/verify-versions.py
+
+      - name: Build dashboard package assets
+        run: |
+          npm --prefix dashboard ci
+          npm --prefix dashboard run build
+          python scripts/sync_dashboard_assets.py
 
       - name: Build wheels
         uses: PyO3/maturin-action@v1

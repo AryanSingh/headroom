@@ -3,6 +3,15 @@ ARG UV_VERSION=0.11.18
 ARG DISTROLESS_IMAGE=gcr.io/distroless/python3-debian13
 ARG PYTHON_SITE_PACKAGES=/usr/local/lib/python${PYTHON_VERSION}/site-packages
 
+# ---- Dashboard stage: package the exact React bundle served by the proxy ----
+FROM node:20-bookworm-slim AS dashboard-builder
+
+WORKDIR /dashboard
+COPY dashboard/package.json dashboard/package-lock.json ./
+RUN npm ci
+COPY dashboard/ ./
+RUN npm run build
+
 # ---- Build stage: compile native extensions, build wheel ----
 FROM python:${PYTHON_VERSION}-slim AS builder
 
@@ -47,6 +56,14 @@ COPY cutctx/ cutctx/
 COPY cutctx_ee/ cutctx_ee/
 COPY packaging/cutctx-ee/ packaging/cutctx-ee/
 COPY scripts/ scripts/
+
+# Do not rely on a pre-existing, source-tree dashboard bundle: a Docker build
+# must serve the UI corresponding to the checked-out React source.
+RUN rm -f cutctx/dashboard/assets/index-*.js cutctx/dashboard/assets/index-*.css
+COPY --from=dashboard-builder /dashboard/dist/index.html cutctx/dashboard/index.html
+COPY --from=dashboard-builder /dashboard/dist/favicon.svg cutctx/dashboard/favicon.svg
+COPY --from=dashboard-builder /dashboard/dist/icons.svg cutctx/dashboard/icons.svg
+COPY --from=dashboard-builder /dashboard/dist/assets/ cutctx/dashboard/assets/
 
 ARG CUTCTX_EXTRAS=proxy,code,ee
 RUN --mount=type=cache,target=/root/.cache/uv \
