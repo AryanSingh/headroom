@@ -35,6 +35,7 @@ No unresolved Critical or High product defect was reproduced during this audit.
 | Security and identity | Deployment security, hardening/validation, SSO, and billing-contract tests | 91 passed. |
 | Product quality | `cutctx verify --ci --format json` | Passed. Content router: F1 0.9447; information/critical recall 1.0; fidelity 1.0. Smart Crusher: F1/recall/fidelity 1.0. |
 | Static checks | Ruff, dashboard Prettier, Cargo formatting and Clippy | Passed. |
+| Release wheel | Fresh `maturin build --release` wheel validated with ZIP integrity, installed with pip, imported `cutctx._core` from an isolated environment, and exposed `cutctx --version`. | Passed after correcting a Maturin Deflate/SBOM archive corruption issue. |
 
 The repository-wide Python suite collected 8,934 tests and began passing, but
 the interactive execution channel terminated before it returned a final exit
@@ -70,6 +71,7 @@ Primary sources read on 2026-07-13:
 | Medium — commercial-claim blocker | Two anonymized design-partner snapshots absent. | Broad cost/performance/reliability claims require real privacy-safe data. | Obtain and validate the two snapshots in the release-evidence runbook. |
 | Medium — billing integration | Tests validate contracts, not a merchant account and real Stripe Price IDs. | Live billing cannot be asserted. | Provide authorized Stripe test credentials/Price IDs and verify checkout/webhook lifecycle. |
 | Low — environment hygiene | Local test environment emits requests and SciPy/NumPy compatibility warnings. | Tests are green, but release logs are noisier. | Pin the compatible release dependency set and rerun affected suites. |
+| Low — wheel size trade-off | Wheel members are stored rather than Deflated. | This avoids a reproducible invalid embedded CycloneDX SBOM produced by the local Maturin 1.14 toolchain; the artifact remains valid and installable. | Re-evaluate compression when the Maturin defect is fixed, retaining the artifact-integrity guard. |
 
 ## Release verdict
 

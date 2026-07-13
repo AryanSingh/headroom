@@ -389,6 +389,10 @@ features = ["extension-module"]
 # produce a usable Python extension. Maturin's default `bindings` is "pyo3"
 # which is correct here (see `crates/cutctx-py/src/`).
 bindings = "pyo3"
+# Maturin 1.14 can emit a corrupt deflated CycloneDX SBOM member on macOS
+# (pip then fails before installation). Store wheel members uncompressed so
+# the shipped artifact remains readable by both pip and standard ZIP tooling.
+compression-method = "stored"
 
 [tool.ruff]
 target-version = "py310"

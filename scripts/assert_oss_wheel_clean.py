@@ -17,6 +17,7 @@ from __future__ import annotations
 import sys
 import tarfile
 import zipfile
+import zlib
 from pathlib import Path
 
 FORBIDDEN = ("cutctx_ee/", "packaging/")
@@ -26,6 +27,9 @@ EXPECT_PRESENT = "cutctx/entitlements.py"  # an Apache shim that SHOULD ship
 def _members(path: Path) -> list[str]:
     if path.suffix in (".whl", ".zip"):
         with zipfile.ZipFile(path) as zf:
+            corrupt_member = zf.testzip()
+            if corrupt_member is not None:
+                raise ValueError(f"invalid compressed data in {corrupt_member}")
             return zf.namelist()
     if path.name.endswith((".tar.gz", ".tgz")):
         with tarfile.open(path, "r:gz") as tf:
@@ -42,7 +46,12 @@ def main(argv: list[str]) -> int:
 
     failed = False
     for art in artifacts:
-        names = _members(art)
+        try:
+            names = _members(art)
+        except (OSError, ValueError, zipfile.BadZipFile, tarfile.TarError, zlib.error) as exc:
+            failed = True
+            print(f"::error::CORRUPT ARTIFACT in {art.name}: {exc}")
+            continue
         leaks = sorted({n for n in names if any(f in n for f in FORBIDDEN)})
         if leaks:
             failed = True
@@ -53,9 +62,9 @@ def main(argv: list[str]) -> int:
             print(f"OK: {art.name} — no cutctx_ee/ or packaging/ paths")
 
     if failed:
-        print("LEAK GUARD FAILED: proprietary code present in an OSS artifact.", file=sys.stderr)
+        print("ARTIFACT GUARD FAILED: invalid or proprietary content in an OSS artifact.", file=sys.stderr)
         return 1
-    print(f"Leak guard passed: {len(artifacts)} artifact(s) clean.")
+    print(f"Artifact guard passed: {len(artifacts)} artifact(s) clean.")
     return 0
 
 
