@@ -513,6 +513,18 @@ class ModelRouterConfig:
                     target="claude-haiku-4-5",
                 ),
                 ModelRoute(
+                    source="claude-sonnet-5",
+                    target="claude-haiku-5-20260101",
+                    source_cost_per_mtok=3.0,
+                    target_cost_per_mtok=0.8,
+                ),
+                ModelRoute(
+                    source="claude-sonnet-5-20260101",
+                    target="claude-haiku-5-20260101",
+                    source_cost_per_mtok=3.0,
+                    target_cost_per_mtok=0.8,
+                ),
+                ModelRoute(
                     source="claude-3-5-sonnet-20241022",
                     target="claude-3-5-haiku-20241022",
                 ),
@@ -533,12 +545,67 @@ class ModelRouterConfig:
                     target="gpt-4o-mini",  # already cheapest — identity route
                 ),
                 ModelRoute(
+                    source="gpt-5.6-terra",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=10.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
+                    source="gpt-5.6-sol",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=10.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
+                    source="gpt-5.6-luna",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=5.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
+                    source="gpt-5.5",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=10.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
+                    source="gpt-5.4",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=5.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
+                    source="gpt-5.3",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=5.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
+                    source="gpt-5.2",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=5.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
+                    source="gpt-5.1",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=5.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
+                    source="gpt-5",
+                    target="gpt-5.4-mini",
+                    source_cost_per_mtok=5.0,
+                    target_cost_per_mtok=1.0,
+                ),
+                ModelRoute(
                     source="gemini-2.5-pro",
                     target="gemini-2.5-flash",
                 ),
             ],
             cache_read_threshold=0.8,  # route even when cache-read share is high
             tool_complexity_threshold=5.0,  # route even moderately complex requests
+            transport_safe_targets={"gpt-5.4-mini"},
         )
 
     @classmethod
@@ -1375,6 +1442,19 @@ def prepare_model_routing(
         return requested_model, updated_metadata
 
     if not decision.routing_applied or not decision.target_model:
+        updated_metadata["model_routing"] = {
+            "source_model": requested_model,
+            "target_model": requested_model,
+            "reason": decision.reason,
+            "tokens_saved": 0,
+            "usd_saved": 0.0,
+        }
+        if decision.confidence is not None:
+            updated_metadata["model_routing"]["confidence"] = decision.confidence
+        if decision.scorer:
+            updated_metadata["model_routing"]["scorer"] = decision.scorer
+        if decision.signals:
+            updated_metadata["model_routing"]["signals"] = list(decision.signals)
         attach_model_routing_trace(
             updated_metadata,
             ModelRoutingDecisionTrace(

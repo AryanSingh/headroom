@@ -60,13 +60,21 @@ def _base_stats() -> dict:
             {
                 "request_id": "trace-1",
                 "timestamp": "2026-07-09T00:40:00Z",
-                "model": "gpt-5.4-mini",
+                "model": "gpt-5.6-terra",
                 "input_tokens_original": 1500,
                 "tokens_saved": 300,
                 "cache_saved_tokens": 200,
                 "total_saved_tokens": 500,
                 "total_savings_percent": 33.3,
                 "savings_percent": 20.0,
+                "routing_metadata": {
+                    "requested_model": "gpt-5.6-terra",
+                    "actual_model": "gpt-5.6-terra",
+                    "routed": False,
+                    "source_model": "gpt-5.6-terra",
+                    "target_model": "gpt-5.6-terra",
+                    "reason": "workload_not_downgradeable",
+                },
             }
         ],
     }
@@ -263,7 +271,8 @@ def test_overview_request_trace_inspector_renders_trace_details() -> None:
 
             expect(page.get_by_text("Recent requests", exact=True)).to_be_visible()
             expect(trace_panel).not_to_be_visible()
-            page.get_by_role("button", name="gpt-5.4-mini", exact=True).click()
+            expect(page.get_by_text("workload_not_downgradeable", exact=True)).to_be_visible()
+            page.get_by_role("button", name="gpt-5.6-terra", exact=True).click()
             expect(page.get_by_text("Request trace", exact=True)).to_be_visible()
             expect(trace_panel.get_by_text("trace-1")).to_be_visible()
             expect(trace_panel.get_by_text("Requested model", exact=True)).to_be_visible()
