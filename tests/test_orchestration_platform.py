@@ -583,6 +583,70 @@ def test_explicit_equivalent_deployments_select_best_reliability_in_strict_mode(
     assert decision.selection_evidence["selected"] == "openai:account-b:shared-model"
 
 
+def test_weighted_equivalents_are_stable_and_cover_each_positive_weight_target() -> None:
+    primary = _model("openai", "shared", account_id="account-a")
+    equivalent = _model("openai", "shared", account_id="account-b")
+    binding = RouteBinding(
+        id="worker",
+        role="worker",
+        model=primary.deployment_key,
+        equivalent_deployments=[equivalent.deployment_key],
+        equivalent_deployment_weights={
+            primary.deployment_key: 1.0,
+            equivalent.deployment_key: 1.0,
+        },
+    )
+    engine = _engine(
+        OrchestrationConfig(roles=[Role(id="worker", name="Worker")], bindings=[binding]),
+        primary,
+        equivalent,
+    )
+
+    repeated = [
+        engine.route(RoutingRequest(role="worker", request_id="stable")).account_id for _ in range(2)
+    ]
+    selected = {
+        engine.route(RoutingRequest(role="worker", request_id=f"cohort-{index}")).account_id
+        for index in range(100)
+    }
+
+    assert repeated == [repeated[0], repeated[0]]
+    assert selected == {"account-a", "account-b"}
+    assert (
+        engine.route(RoutingRequest(role="worker", request_id="stable")).selection_evidence["strategy"]
+        == "equivalent_weighted"
+    )
+
+
+def test_weighted_selection_excludes_a_cooled_deployment() -> None:
+    primary = _model("openai", "shared", account_id="account-a")
+    equivalent = _model("openai", "shared", account_id="account-b")
+    registry = DynamicModelRegistry()
+    registry.register(primary)
+    registry.register(equivalent)
+    registry.cool_down(primary.deployment_key, 30)
+    binding = RouteBinding(
+        id="worker",
+        role="worker",
+        model=primary.deployment_key,
+        equivalent_deployments=[equivalent.deployment_key],
+        equivalent_deployment_weights={
+            primary.deployment_key: 1.0,
+            equivalent.deployment_key: 1.0,
+        },
+    )
+    engine = DeterministicRoutingEngine(
+        OrchestrationConfig(roles=[Role(id="worker", name="Worker")], bindings=[binding]),
+        registry,
+    )
+
+    decision = engine.route(RoutingRequest(role="worker", request_id="cooled"))
+
+    assert decision.account_id == "account-b"
+    assert decision.selection_evidence["strategy"] == "equivalent_weighted"
+    assert {"model": primary.deployment_key, "reason": "cooling_down"} in decision.selection_evidence["rejected"]
+
+
 def test_equivalent_set_cannot_substitute_a_different_model() -> None:
     primary = _model("openai", "model-a", account_id="account-a", available=False)
     different = _model("openai", "model-b", account_id="account-b")
@@ -604,6 +668,16 @@ def test_equivalent_set_cannot_substitute_a_different_model() -> None:
         engine.route(RoutingRequest(role="worker"))
 
     assert error.value.reason == "unavailable"
+
+
+def test_binding_rejects_invalid_or_non_equivalent_deployment_weights(tmp_path: Path) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    service.config.bindings[0].equivalent_deployment_weights = {
+        "anthropic:anthropic-main:claude-worker": 1.0
+    }
+
+    with pytest.raises(ValueError, match="equivalent deployment weights"):
+        service.replace_config(service.config)
 
 
 def test_unavailable_primary_can_use_explicit_same_model_equivalent_but_not_fallback() -> None:
@@ -667,6 +741,51 @@ def test_runtime_signal_updates_are_bounded_atomic_and_change_equivalent_selecti
 
     with pytest.raises(ValueError, match="finite"):
         registry.update_runtime_signals("openai:account-b:shared-model", health_score=float("nan"))
+
+
+def test_registry_cooldown_is_deployment_scoped_persisted_and_expires(tmp_path: Path) -> None:
+    cache = tmp_path / "models.json"
+    registry = DynamicModelRegistry(cache)
+    registry.register_many(
+        [
+            _model("openai", "shared", account_id="account-a"),
+            _model("openai", "shared", account_id="account-b"),
+        ]
+    )
+
+    registry.cool_down("openai:account-a:shared", 30, now=100.0)
+
+    assert registry.cooldown_remaining_seconds("openai:account-a:shared", now=110.0) == 20.0
+    assert registry.cooldown_remaining_seconds("openai:account-b:shared", now=110.0) is None
+    restored = DynamicModelRegistry(cache)
+    assert restored.cooldown_remaining_seconds("openai:account-a:shared", now=110.0) == 20.0
+    assert restored.cooldown_remaining_seconds("openai:account-a:shared", now=131.0) is None
+
+
+def test_cooling_primary_selects_declared_same_model_equivalent_in_strict_mode() -> None:
+    primary = _model("openai", "shared", account_id="account-a")
+    equivalent = _model("openai", "shared", account_id="account-b")
+    registry = DynamicModelRegistry()
+    registry.register(primary)
+    registry.register(equivalent)
+    registry.cool_down(primary.deployment_key, 30)
+    config = OrchestrationConfig(
+        roles=[Role(id="worker", name="Worker")],
+        bindings=[
+            RouteBinding(
+                id="worker",
+                role="worker",
+                model=primary.deployment_key,
+                equivalent_deployments=[equivalent.deployment_key],
+            )
+        ],
+        settings=RoutingSettings(mode="strict"),
+    )
+
+    decision = DeterministicRoutingEngine(config, registry).route(RoutingRequest(role="worker"))
+
+    assert decision.account_id == "account-b"
+    assert {"model": primary.deployment_key, "reason": "cooling_down"} in decision.selection_evidence["rejected"]
 
 
 def test_malformed_cached_runtime_signals_use_safe_defaults() -> None:
@@ -877,6 +996,7 @@ def test_layered_config_keeps_same_model_from_multiple_accounts(tmp_path: Path) 
         (RoutingSettings(policy="random"), "Unknown routing policy"),
         (RoutingSettings(retries=11), "retries"),
         (RoutingSettings(timeout_seconds=float("inf")), "timeout_seconds"),
+        (RoutingSettings(deployment_cooldown_seconds=0), "deployment_cooldown_seconds"),
         (RoutingSettings(fallback_triggers={"invented"}), "fallback triggers"),
     ],
 )
@@ -1610,6 +1730,30 @@ async def test_execution_retries_provider_failure_through_configured_fallback(
 
 
 @pytest.mark.asyncio
+async def test_retry_exhausted_failure_cools_only_failed_deployment_and_next_route_avoids_it(
+    tmp_path: Path,
+) -> None:
+    service = _service(
+        tmp_path,
+        {
+            "openai": httpx.ReadTimeout("timeout"),
+            "anthropic": {"content": []},
+        },
+    )
+    service.config.settings.retries = 0
+    service.config.settings.deployment_cooldown_seconds = 30
+
+    decision, _response = await service.execute(RoutingRequest(role="worker"), messages=[])
+
+    assert decision.provider == "anthropic"
+    assert (
+        service.model_registry.cooldown_remaining_seconds("openai:openai-main:gpt-5.4-mini")
+        is not None
+    )
+    assert service.route(RoutingRequest(role="worker")).provider == "anthropic"
+
+
+@pytest.mark.asyncio
 async def test_execution_parameters_cannot_override_the_enforced_route(
     tmp_path: Path,
 ) -> None:
@@ -1660,6 +1804,7 @@ def test_provider_health_only_changes_the_matching_account_models() -> None:
 async def test_account_health_probe_updates_reliability_and_latency_signals(tmp_path: Path) -> None:
     service = _service(tmp_path, {"openai": {}, "anthropic": {}})
     await service.refresh_models("openai-main")
+    service.model_registry.cool_down("openai:openai-main:openai-model", 30)
 
     result = await service.test_account("openai-main")
     model = service.model_registry.get("openai:openai-main:openai-model")
@@ -1670,6 +1815,7 @@ async def test_account_health_probe_updates_reliability_and_latency_signals(tmp_
     assert model.reliability == 1.0
     assert model.latency_ms == pytest.approx(1.0)
     assert model.metadata["health_score"] == 1.0
+    assert service.model_registry.cooldown_remaining_seconds(model.deployment_key) is None
 
 
 def test_disabled_explicit_provider_account_cannot_execute(tmp_path: Path) -> None:
@@ -1768,6 +1914,33 @@ async def test_streaming_falls_back_only_before_the_first_byte(tmp_path: Path) -
     execution = service.telemetry.list()[0]
     assert execution["fallback_used"] is True
     assert execution["fallback_trigger"] == "provider_outage"
+
+
+@pytest.mark.asyncio
+async def test_streaming_post_first_byte_failure_cools_deployment_without_switching_provider(
+    tmp_path: Path,
+) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+
+    class FailingAfterFirstByteAdapter:
+        async def stream(self, _request):
+            yield b"openai:first"
+            raise httpx.ReadTimeout("timeout")
+
+    service.adapter = lambda _account_id: FailingAfterFirstByteAdapter()  # type: ignore[method-assign]
+    received: list[bytes] = []
+
+    with pytest.raises(RuntimeError, match="failed during streaming"):
+        async for _decision, chunk in service.stream(
+            RoutingRequest(role="worker"), messages=[{"role": "user", "content": "hello"}]
+        ):
+            received.append(chunk)
+
+    assert received == [b"openai:first"]
+    assert (
+        service.model_registry.cooldown_remaining_seconds("openai:openai-main:gpt-5.4-mini")
+        is not None
+    )
 
 
 @pytest.mark.asyncio

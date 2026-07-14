@@ -40,6 +40,7 @@ CUTCTX_ADMIN_API_KEY="$ADMIN_KEY" \
 CUTCTX_PROXY_HOST="$HOST" \
 CUTCTX_PROXY_PORT="$PORT" \
 CUTCTX_LOG_LEVEL=INFO \
+CUTCTX_MODEL_ROUTING_PRESET=codex-gpt54mini-high \
 nohup "$(which cutctx)" proxy \
   --host "$HOST" \
   --port "$PORT" \

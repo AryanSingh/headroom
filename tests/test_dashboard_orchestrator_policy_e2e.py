@@ -61,6 +61,30 @@ def _install_dashboard_routes(page: Page) -> None:
             },
         },
     }
+    evidence_payload = {
+        "schema_version": 1,
+        "status": "ready",
+        "samples": 24,
+        "sample_progress": {"observed": 24, "required": 20, "fraction": 1.0},
+        "constraints": {
+            "minimum_samples": 20,
+            "minimum_mean_quality": 0.9,
+            "maximum_unsafe_rate": 0.01,
+            "quality_floor": 0.8,
+        },
+        "recommendation": {
+            "minimum_confidence": 0.85,
+            "routed_samples": 18,
+            "routing_rate": 0.75,
+            "mean_quality": 0.96,
+            "unsafe_rate": 0.0,
+            "total_savings_usd": 4.2,
+            "mean_savings_usd": 0.233,
+        },
+        "frontier": [],
+        "segmented": {"minimum_segment_samples": 20, "dimensions": {}},
+        "shadow": {"enabled": True, "sample_rate": 0.1},
+    }
     providers_payload = {
         "providers": [
             {
@@ -126,6 +150,12 @@ def _install_dashboard_routes(page: Page) -> None:
             )
             return
 
+        if "/v1/orchestration/routing/evidence" in url:
+            route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(evidence_payload)
+            )
+            return
+
         if "/v1/providers" in url:
             route.fulfill(
                 status=200, content_type="application/json", body=json.dumps(providers_payload)
@@ -165,6 +195,13 @@ def test_orchestrator_renders_provider_policy_status() -> None:
             page.wait_for_load_state("networkidle")
 
             expect(page.get_by_text("Routing mode control", exact=True)).to_be_visible()
+            expect(page.get_by_text("Routing evidence", exact=True)).to_be_visible()
+            expect(page.get_by_text("Ready to promote", exact=True)).to_be_visible()
+            expect(page.get_by_text("24 / 20 samples", exact=True)).to_be_visible()
+            expect(page.get_by_text("96.0%", exact=True)).to_be_visible()
+            expect(page.get_by_text("0.0%", exact=True)).to_be_visible()
+            expect(page.get_by_text("$4.200", exact=True)).to_be_visible()
+            expect(page.get_by_text("0.85", exact=True)).to_be_visible()
             expect(page.get_by_text("Fallback and selection posture", exact=True)).to_be_visible()
             expect(
                 page.get_by_text("Compatibility-provider health and overrides", exact=True)

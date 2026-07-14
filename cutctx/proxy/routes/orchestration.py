@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import asdict
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -26,6 +26,12 @@ from cutctx.orchestration.workflow import (
     WorkflowConflictError,
     WorkflowSpec,
     WorkflowValidationError,
+)
+from cutctx.proxy.model_routing_evals import (
+    ModelRoutingEvalStore,
+    build_model_routing_evidence_report,
+    model_routing_shadow_enabled_from_env,
+    model_routing_shadow_sample_rate_from_env,
 )
 
 
@@ -280,6 +286,27 @@ def create_orchestration_router(
     @router.get("/policy-bundle", dependencies=read_deps)
     async def policy_bundle() -> dict[str, Any]:
         return service.policy_bundle()
+
+    @router.get("/routing/evidence", dependencies=read_deps)
+    async def routing_evidence(
+        minimum_samples: int = Query(default=20, ge=1, le=100_000),
+        minimum_mean_quality: float = Query(default=0.9, ge=0, le=1),
+        maximum_unsafe_rate: float = Query(default=0.01, ge=0, le=1),
+        quality_floor: float = Query(default=0.8, ge=0, le=1),
+    ) -> dict[str, Any]:
+        report = build_model_routing_evidence_report(
+            ModelRoutingEvalStore().load(),
+            minimum_samples=minimum_samples,
+            minimum_mean_quality=minimum_mean_quality,
+            maximum_unsafe_rate=maximum_unsafe_rate,
+            quality_floor=quality_floor,
+        )
+        return report | {
+            "shadow": {
+                "enabled": model_routing_shadow_enabled_from_env(),
+                "sample_rate": model_routing_shadow_sample_rate_from_env(),
+            }
+        }
 
     @router.get("/receipt-audit/verify", dependencies=read_deps)
     async def verify_receipt_audit() -> dict[str, Any]:

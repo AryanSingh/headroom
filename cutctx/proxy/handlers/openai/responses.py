@@ -2975,18 +2975,22 @@ class OpenAIResponsesMixin:
                     if isinstance(request_savings_metadata, dict)
                     else None
                 )
-                await self._maybe_model_routing_responses_shadow(
-                    request_id=request_id,
-                    source_model=requested_model,
-                    candidate_model=model,
-                    url=url,
-                    headers=headers,
-                    candidate_body=body,
-                    routing_metadata=routing_metadata,
-                    messages=routing_messages,
-                    candidate_json=resp_json,
-                    original_reasoning=original_reasoning,
-                    client=client,
+                from cutctx.proxy.model_routing_evals import schedule_model_routing_shadow
+
+                schedule_model_routing_shadow(
+                    self._maybe_model_routing_responses_shadow(
+                        request_id=request_id,
+                        source_model=requested_model,
+                        candidate_model=model,
+                        url=url,
+                        headers=headers,
+                        candidate_body=body,
+                        routing_metadata=routing_metadata,
+                        messages=routing_messages,
+                        candidate_json=resp_json,
+                        original_reasoning=original_reasoning,
+                        client=client,
+                    )
                 )
 
                 if self.cost_tracker:

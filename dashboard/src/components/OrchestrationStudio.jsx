@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Boxes, KeyRound, RefreshCw, Route, Save, Users } from "lucide-react";
+import { Activity, Boxes, KeyRound, Network, RefreshCw, Route, Save, Trash2, Users } from "lucide-react";
 
 import { getAdminAuthHeaders } from "../lib/admin-auth";
 import { getProxyUrl } from "../lib/api";
@@ -7,6 +7,7 @@ import { getProxyUrl } from "../lib/api";
 const TABS = [
   ["providers", "Providers", KeyRound],
   ["models", "Models", Boxes],
+  ["harnesses", "Harnesses", Network],
   ["roles", "Roles", Users],
   ["routing", "Routing", Route],
   ["activity", "Activity", Activity],
@@ -66,14 +67,21 @@ function providerRuntimeLabel(provider) {
   return provider.runtime;
 }
 
+function displayLabel(value) {
+  return String(value || "").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export default function OrchestrationStudio() {
   const [tab, setTab] = useState("roles");
   const [config, setConfig] = useState(emptyConfig());
   const [providers, setProviders] = useState({ catalog: [], accounts: [] });
   const [models, setModels] = useState([]);
   const [executions, setExecutions] = useState([]);
+  const [harnesses, setHarnesses] = useState([]);
+  const [harnessManifestAvailable, setHarnessManifestAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [removingCredentialId, setRemovingCredentialId] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [modelSearch, setModelSearch] = useState("");
@@ -90,11 +98,12 @@ export default function OrchestrationStudio() {
   async function load() {
     setLoading(true);
     try {
-      const [nextConfig, nextProviders, nextModels, nextExecutions] = await Promise.all([
+      const [nextConfig, nextProviders, nextModels, nextExecutions, nextHarnesses] = await Promise.all([
         orchestrationApi("/config"),
         orchestrationApi("/providers"),
         orchestrationApi("/models"),
         orchestrationApi("/executions?limit=50"),
+        orchestrationApi("/harness-compatibility").catch(() => null),
       ]);
       const defaults = emptyConfig();
       setConfig({
@@ -112,6 +121,8 @@ export default function OrchestrationStudio() {
       });
       setModels(nextModels?.models || []);
       setExecutions(nextExecutions?.executions || []);
+      setHarnesses(Array.isArray(nextHarnesses?.harnesses) ? nextHarnesses.harnesses : []);
+      setHarnessManifestAvailable(nextHarnesses !== null);
       setError(null);
     } catch (err) {
       setError(err?.message || "Orchestration platform is unavailable");
@@ -282,6 +293,25 @@ export default function OrchestrationStudio() {
     }
   }
 
+  async function removeCredential(account) {
+    const accountName = account.display_name || account.id;
+    if (!window.confirm(`Remove the saved credential for ${accountName}? This cannot be undone.`)) {
+      return;
+    }
+
+    setRemovingCredentialId(account.id);
+    setError(null);
+    try {
+      await orchestrationApi(`/providers/${account.id}/credential`, { method: "DELETE" });
+      await load();
+      setNotice(`Credential removed for ${accountName}`);
+    } catch (err) {
+      setError(err?.message || "Unable to remove provider credential");
+    } finally {
+      setRemovingCredentialId(null);
+    }
+  }
+
   async function runPreview() {
     try {
       const result = await orchestrationApi("/route", {
@@ -365,6 +395,16 @@ export default function OrchestrationStudio() {
                   <button className="ghost-button" onClick={() => refreshModels(account.id)} type="button">
                     <RefreshCw size={13} /> Refresh models
                   </button>
+                  {account.auth_method !== "none" && account.credential_configured ? (
+                    <button
+                      className="ghost-button danger-button"
+                      onClick={() => removeCredential(account)}
+                      disabled={removingCredentialId === account.id}
+                      type="button"
+                    >
+                      <Trash2 size={13} /> {removingCredentialId === account.id ? "Removing…" : "Remove credential"}
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ))}
@@ -402,6 +442,35 @@ export default function OrchestrationStudio() {
               </article>
             ))}
           </div>
+        </div>
+      ) : null}
+
+      {tab === "harnesses" ? (
+        <div className="orchestration-pane">
+          <div className="section-heading">
+            <div>
+              <h3>Harness compatibility</h3>
+              <p className="text-secondary">Model deployment availability is verified separately.</p>
+            </div>
+          </div>
+          {!harnessManifestAvailable ? (
+            <p className="text-secondary">Harness compatibility is unavailable.</p>
+          ) : !harnesses.length ? (
+            <p className="text-secondary">No harness contracts are configured.</p>
+          ) : (
+            <div className="orchestration-card-grid">
+              {harnesses.map((harness) => (
+                <article className="orchestration-card" key={harness.id}>
+                  <span className="status-pill">{displayLabel(harness.support_level)}</span>
+                  <h3>{displayLabel(harness.id)}</h3>
+                  <p>{harness.routing ? "Routing supported" : "Routing unavailable"}</p>
+                  <p>{harness.artifact_handoffs ? "Artifact handoffs supported" : "Artifact handoffs unavailable"}</p>
+                  <p>{harness.hidden_session_sharing ? "Session sharing enabled" : "Session sharing isolated"}</p>
+                  <p className="text-secondary">{harness.notes}</p>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -449,13 +518,71 @@ export default function OrchestrationStudio() {
           <label><span>Routing policy</span><select value={config.settings.policy} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, policy: event.target.value } })}><option value="role_locked">Role locked</option><option value="manual">Manual</option><option value="fastest">Fastest</option><option value="cheapest">Cheapest</option><option value="highest_quality">Highest quality</option><option value="balanced">Balanced</option></select></label>
           <label><span>Retries per model</span><input type="number" min="0" max="10" value={config.settings.retries} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, retries: Number(event.target.value) } })} /></label>
           <label><span>Timeout (seconds)</span><input type="number" min="1" value={config.settings.timeout_seconds} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, timeout_seconds: Number(event.target.value) } })} /></label>
+          <label><span>Deployment cooldown (seconds)</span><input type="number" min="1" max="3600" value={config.settings.deployment_cooldown_seconds ?? 30} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, deployment_cooldown_seconds: Number(event.target.value) } })} /></label>
           <div className="route-preview">
             <h3>Deterministic route preview</h3>
             <div className="orchestration-inline-form">
               <select value={previewRole} onChange={(event) => setPreviewRole(event.target.value)}><option value="">Select role</option>{config.roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select>
               <button className="ghost-button" onClick={runPreview} disabled={!previewRole} type="button">Preview</button>
             </div>
-            {preview ? <div className="route-preview-result"><strong>{preview.provider}:{preview.actual_model}</strong><span>{preview.reason}</span><span>{preview.fallback_used ? `Fallback from ${preview.fallback_from}` : "Assigned model enforced"}</span></div> : null}
+            {preview ? (
+              <div className="route-preview-result">
+                <strong>{preview.provider}:{preview.actual_model}</strong>
+                <span>{preview.reason}</span>
+                <span>{preview.fallback_used ? `Fallback from ${preview.fallback_from}` : "Assigned model enforced"}</span>
+                {Array.isArray(preview.required_capabilities) && preview.required_capabilities.length ? (
+                  <section className="route-preview-evidence">
+                    <h4>Required capabilities</h4>
+                    <div className="capability-list">
+                      {preview.required_capabilities.map((capability) => <span key={capability}>{capability}</span>)}
+                    </div>
+                  </section>
+                ) : null}
+                {Array.isArray(preview.policy_constraints?.allowed_providers) && preview.policy_constraints.allowed_providers.length ? (
+                  <span>Provider policy: {preview.policy_constraints.allowed_providers.join(", ")}</span>
+                ) : null}
+                {preview.selection_evidence?.strategy === "equivalent_weighted" ? (
+                  <section className="route-preview-evidence">
+                    <h4>Weighted allocation</h4>
+                    <span>Cohort {Number(preview.selection_evidence.cohort_fraction).toFixed(2)}</span>
+                    <ul>
+                      {(preview.selection_evidence.eligible_weights || []).map((candidate) => (
+                        <li key={candidate.deployment}>
+                          <span>{candidate.deployment}</span>
+                          <span>Weight {Number(candidate.weight).toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+                {Array.isArray(preview.selection_evidence?.scores) && preview.selection_evidence.scores.length ? (
+                  <section className="route-preview-evidence">
+                    <h4>Candidate scores</h4>
+                    <ul>
+                      {preview.selection_evidence.scores.map((candidate) => (
+                        <li key={candidate.deployment}>
+                          <span>{candidate.deployment}</span>
+                          <span>Score {Number(candidate.score).toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+                {Array.isArray(preview.selection_evidence?.rejected) && preview.selection_evidence.rejected.length ? (
+                  <section className="route-preview-evidence">
+                    <h4>Rejected candidates</h4>
+                    <ul>
+                      {preview.selection_evidence.rejected.map((candidate) => (
+                        <li key={`${candidate.model}:${candidate.reason}`}>
+                          <span>{candidate.model}</span>
+                          <span>{candidate.reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

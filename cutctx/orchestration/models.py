@@ -147,6 +147,8 @@ class RouteBinding:
     # Explicitly interchangeable deployments of the same provider/model.
     # These may differ by account or region, but never by model identity.
     equivalent_deployments: list[str] = field(default_factory=list)
+    # Optional stable traffic allocation across the primary and explicit same-model equivalents.
+    equivalent_deployment_weights: dict[str, float] = field(default_factory=dict)
     required_capabilities: set[str] = field(default_factory=set)
     enabled: bool = True
 
@@ -157,6 +159,7 @@ class RoutingSettings:
     policy: str = RoutingPolicy.ROLE_LOCKED.value
     retries: int = 1
     timeout_seconds: float = 120.0
+    deployment_cooldown_seconds: float = 30.0
     fallback_triggers: set[str] = field(
         default_factory=lambda: {trigger.value for trigger in FallbackTrigger}
     )

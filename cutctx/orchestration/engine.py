@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from dataclasses import replace
 
@@ -88,6 +89,7 @@ class DeterministicRoutingEngine:
             primary = binding.model
             fallbacks = [*binding.fallback_chain, *self.config.settings.global_fallback_chain]
             equivalents = list(binding.equivalent_deployments)
+            equivalent_weights = dict(binding.equivalent_deployment_weights)
             reason = "deterministic_assignment"
         elif request.role:
             raise RoutingUnavailableError(
@@ -100,6 +102,7 @@ class DeterministicRoutingEngine:
             )
             fallbacks = list(self.config.settings.global_fallback_chain)
             equivalents = []
+            equivalent_weights = {}
             reason = "manual_model"
         else:
             raise RoutingUnavailableError("No role or model was requested", reason="missing_route")
@@ -115,6 +118,7 @@ class DeterministicRoutingEngine:
             equivalent_candidates,
             required,
             request,
+            equivalent_weights=equivalent_weights,
         )
         if selected is None and mode != RoutingMode.STRICT.value:
             selected, rejected_reason = self._first_eligible(fallbacks, required, request=request)
@@ -294,6 +298,9 @@ class DeterministicRoutingEngine:
                 continue
             if model.deployment_key in excluded_deployments:
                 continue
+            if self.registry.cooldown_remaining_seconds(model.deployment_key) is not None:
+                last_reason = "cooling_down"
+                continue
             if model.deprecated:
                 last_reason = FallbackTrigger.MODEL_DEPRECATED.value
                 continue
@@ -432,6 +439,8 @@ class DeterministicRoutingEngine:
         equivalents: list[str],
         required: set[str],
         request: RoutingRequest,
+        *,
+        equivalent_weights: dict[str, float],
     ) -> tuple[ModelRecord | None, str | None, dict[str, object]]:
         keys = self._deduplicate([primary, *equivalents])
         eligible: list[ModelRecord] = []
@@ -446,6 +455,36 @@ class DeterministicRoutingEngine:
                 eligible.append(model)
         if not eligible:
             return None, last_reason, {"strategy": "equivalent_reliability", "rejected": rejected}
+        weighted = [
+            (model, float(equivalent_weights.get(model.deployment_key, 0)))
+            for model in eligible
+            if float(equivalent_weights.get(model.deployment_key, 0)) > 0
+        ]
+        if weighted:
+            total_weight = sum(weight for _, weight in weighted)
+            cohort_fraction = self._cohort_fraction(request.request_id)
+            threshold = cohort_fraction * total_weight
+            cumulative = 0.0
+            selected = weighted[-1][0]
+            for model, weight in weighted:
+                cumulative += weight
+                if threshold < cumulative:
+                    selected = model
+                    break
+            return (
+                selected,
+                None,
+                {
+                    "strategy": "equivalent_weighted",
+                    "selected": selected.deployment_key,
+                    "cohort_fraction": cohort_fraction,
+                    "eligible_weights": [
+                        {"deployment": model.deployment_key, "weight": weight}
+                        for model, weight in weighted
+                    ],
+                    "rejected": rejected,
+                },
+            )
         primary_model = self.registry.get(primary)
         scored = [
             (self._reliability_score(model, is_primary=model is primary_model), model)
@@ -466,6 +505,11 @@ class DeterministicRoutingEngine:
                 "rejected": rejected,
             },
         )
+
+    @staticmethod
+    def _cohort_fraction(request_id: str) -> float:
+        digest = hashlib.sha256(request_id.encode("utf-8")).digest()
+        return int.from_bytes(digest, "big") / (1 << (8 * len(digest)))
 
     @staticmethod
     def _reliability_score(

@@ -3178,17 +3178,21 @@ class AnthropicHandlerMixin:
                         if isinstance(request_savings_metadata, dict)
                         else None
                     )
-                    await self._maybe_model_routing_shadow(
-                        request_id=request_id,
-                        source_model=requested_model,
-                        candidate_model=model,
-                        provider_name=provider_name,
-                        url=url,
-                        headers=headers,
-                        original_body_bytes=original_body_bytes,
-                        routing_metadata=routing_metadata,
-                        messages=original_client_messages,
-                        candidate_json=resp_json,
+                    from cutctx.proxy.model_routing_evals import schedule_model_routing_shadow
+
+                    schedule_model_routing_shadow(
+                        self._maybe_model_routing_shadow(
+                            request_id=request_id,
+                            source_model=requested_model,
+                            candidate_model=model,
+                            provider_name=provider_name,
+                            url=url,
+                            headers=headers,
+                            original_body_bytes=original_body_bytes,
+                            routing_metadata=routing_metadata,
+                            messages=original_client_messages,
+                            candidate_json=resp_json,
+                        )
                     )
 
                     # Track cache bust: tokens that lost their cache discount due to compression.

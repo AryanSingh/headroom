@@ -3,7 +3,7 @@ import { ArrowDownCircle, CheckCircle2, Network, X } from "lucide-react";
 
 import { getAdminAuthHeaders } from "../lib/admin-auth";
 import { getProxyUrl } from "../lib/api";
-import { formatCurrency, formatInteger } from "../lib/format";
+import { formatCurrency, formatInteger, formatPercent } from "../lib/format";
 import {
   fetchDashboardJson,
   isUnsupportedDashboardEndpointError,
@@ -63,6 +63,9 @@ export default function Orchestrator() {
   const [policyStatus, setPolicyStatus] = useState(null);
   const [policyError, setPolicyError] = useState(null);
   const [policyLoading, setPolicyLoading] = useState(true);
+  const [routingEvidence, setRoutingEvidence] = useState(null);
+  const [routingEvidenceError, setRoutingEvidenceError] = useState(null);
+  const [routingEvidenceLoading, setRoutingEvidenceLoading] = useState(true);
   const [providerStatus, setProviderStatus] = useState([]);
   const [providerError, setProviderError] = useState(null);
   const [providerLoading, setProviderLoading] = useState(true);
@@ -129,8 +132,31 @@ export default function Orchestrator() {
       }
     }
 
+    async function loadRoutingEvidence() {
+      setRoutingEvidenceLoading(true);
+      try {
+        const data = await fetchDashboardJson("/v1/orchestration/routing/evidence");
+        if (!active) {
+          return;
+        }
+        setRoutingEvidence(data);
+        setRoutingEvidenceError(null);
+      } catch (err) {
+        if (!active) {
+          return;
+        }
+        setRoutingEvidence(null);
+        setRoutingEvidenceError(err?.message || "Unable to load routing evidence");
+      } finally {
+        if (active) {
+          setRoutingEvidenceLoading(false);
+        }
+      }
+    }
+
     loadPolicyStatus();
     loadProviderStatus();
+    loadRoutingEvidence();
 
     return () => {
       active = false;
@@ -244,6 +270,14 @@ export default function Orchestrator() {
   );
   const canToggle = !configFlagsError;
   const providerDecisions = policyStatus?.provider_decisions || {};
+  const evidenceRecommendation = routingEvidence?.recommendation || null;
+  const evidenceStatus = routingEvidence?.status || "no_evidence";
+  const evidenceStatusLabel = {
+    no_evidence: "No evidence",
+    collecting: "Collecting evidence",
+    quality_blocked: "Quality blocked",
+    ready: "Ready to promote",
+  }[evidenceStatus] || "Unknown";
   const modeDescription = activeMode === "custom"
     ? "A custom routing preset is active. Choosing a preset will replace it."
     : activeMode === "aggressive"
@@ -355,6 +389,90 @@ export default function Orchestrator() {
             <div className="metric-value">{formatInteger(tokensSaved)}</div>
             <div className="metric-footnote">Offloaded lower-cost route targets</div>
           </article>
+        </section>
+
+        <section className="panel routing-evidence-panel">
+          <div className="section-heading">
+            <div>
+              <div className="eyebrow">Measured policy</div>
+              <h2>Routing evidence</h2>
+              <p>Shadow comparisons verify quality and savings without storing prompt or response text.</p>
+            </div>
+            {!routingEvidenceLoading && !routingEvidenceError ? (
+              <span className={`status-pill routing-evidence-${evidenceStatus}`}>
+                {evidenceStatusLabel}
+              </span>
+            ) : null}
+          </div>
+
+          {routingEvidenceError ? (
+            <div className="alert-card" role="status">
+              Routing evidence unavailable: {routingEvidenceError}
+            </div>
+          ) : null}
+
+          {routingEvidenceLoading ? (
+            <div className="metric-grid metric-grid-three">
+              <article className="metric-card metric-card-compact">
+                <div className="metric-label">Evidence status</div>
+                <div className="metric-value">Loading</div>
+              </article>
+            </div>
+          ) : null}
+
+          {!routingEvidenceLoading && !routingEvidenceError ? (
+            <>
+              <div className="routing-evidence-summary">
+                <strong>
+                  {formatInteger(routingEvidence?.sample_progress?.observed || 0)} / {formatInteger(routingEvidence?.sample_progress?.required || 0)} samples
+                </strong>
+                <span>
+                  Shadow sampling {routingEvidence?.shadow?.enabled ? "enabled" : "disabled"}
+                  {routingEvidence?.shadow?.enabled
+                    ? ` at ${formatPercent((routingEvidence?.shadow?.sample_rate || 0) * 100)}`
+                    : ""}
+                </span>
+              </div>
+
+              {evidenceStatus === "ready" && evidenceRecommendation ? (
+                <div className="metric-grid metric-grid-three">
+                  <article className="metric-card metric-card-compact">
+                    <div className="metric-label">Measured mean quality</div>
+                    <div className="metric-value">{formatPercent(evidenceRecommendation.mean_quality * 100)}</div>
+                    <div className="metric-footnote">Floor {formatPercent((routingEvidence?.constraints?.minimum_mean_quality || 0) * 100)}</div>
+                  </article>
+                  <article className="metric-card metric-card-compact">
+                    <div className="metric-label">Unsafe rate</div>
+                    <div className="metric-value">{formatPercent(evidenceRecommendation.unsafe_rate * 100)}</div>
+                    <div className="metric-footnote">Maximum {formatPercent((routingEvidence?.constraints?.maximum_unsafe_rate || 0) * 100)}</div>
+                  </article>
+                  <article className="metric-card metric-card-compact">
+                    <div className="metric-label">Verified savings</div>
+                    <div className="metric-value">{formatCurrency(evidenceRecommendation.total_savings_usd)}</div>
+                    <div className="metric-footnote">Across {formatInteger(evidenceRecommendation.routed_samples)} routed samples</div>
+                  </article>
+                  <article className="metric-card metric-card-compact">
+                    <div className="metric-label">Recommended confidence</div>
+                    <div className="metric-value">{Number(evidenceRecommendation.minimum_confidence).toFixed(2)}</div>
+                    <div className="metric-footnote">Read-only recommendation</div>
+                  </article>
+                  <article className="metric-card metric-card-compact">
+                    <div className="metric-label">Measured routing rate</div>
+                    <div className="metric-value">{formatPercent(evidenceRecommendation.routing_rate * 100)}</div>
+                    <div className="metric-footnote">At the recommended threshold</div>
+                  </article>
+                </div>
+              ) : (
+                <p className="text-secondary routing-evidence-guidance">
+                  {evidenceStatus === "collecting"
+                    ? "Continue shadow sampling until the minimum evidence requirement is met."
+                    : evidenceStatus === "quality_blocked"
+                      ? "Observed candidates do not satisfy the configured quality and unsafe-rate guardrails."
+                      : "Enable sampled shadow evaluation to build a verified quality and cost frontier."}
+                </p>
+              )}
+            </>
+          ) : null}
         </section>
 
         <section className="panel">

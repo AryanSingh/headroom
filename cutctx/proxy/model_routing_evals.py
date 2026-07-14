@@ -8,12 +8,13 @@ calibration.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import math
 import os
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +24,24 @@ MODEL_ROUTING_EVAL_PATH_ENV = "CUTCTX_MODEL_ROUTING_EVAL_PATH"
 MODEL_ROUTING_SHADOW_MODE_ENV = "CUTCTX_MODEL_ROUTING_SHADOW_MODE"
 MODEL_ROUTING_SHADOW_SAMPLE_RATE_ENV = "CUTCTX_MODEL_ROUTING_SHADOW_SAMPLE_RATE"
 DEFAULT_MODEL_ROUTING_EVAL_PATH = ".cutctx/model_routing_evals.jsonl"
+_MODEL_ROUTING_SHADOW_TASKS: set[asyncio.Task[Any]] = set()
+
+
+def schedule_model_routing_shadow(
+    coroutine: Coroutine[Any, Any, Any],
+) -> asyncio.Task[Any]:
+    """Schedule best-effort shadow work without delaying the primary response."""
+
+    task = asyncio.get_running_loop().create_task(coroutine)
+    _MODEL_ROUTING_SHADOW_TASKS.add(task)
+
+    def consume_result(completed: asyncio.Task[Any]) -> None:
+        _MODEL_ROUTING_SHADOW_TASKS.discard(completed)
+        if not completed.cancelled():
+            completed.exception()
+
+    task.add_done_callback(consume_result)
+    return task
 
 
 def should_sample_model_routing_shadow(request_id: str, sample_rate: float) -> bool:
@@ -434,6 +453,74 @@ def build_segmented_recommendations(
     }
 
 
+def build_model_routing_evidence_report(
+    records: list[ModelRoutingEvalRecord],
+    *,
+    minimum_samples: int = 20,
+    minimum_mean_quality: float = 0.9,
+    maximum_unsafe_rate: float = 0.01,
+    quality_floor: float = 0.8,
+) -> dict[str, Any]:
+    """Build a privacy-safe readiness report for operator routing decisions."""
+
+    required_samples = max(1, int(minimum_samples))
+    sample_count = len(records)
+    frontier = build_quality_cost_frontier(records, quality_floor=quality_floor)
+    recommendation = (
+        recommend_confidence_threshold(
+            records,
+            minimum_mean_quality=minimum_mean_quality,
+            maximum_unsafe_rate=maximum_unsafe_rate,
+            quality_floor=quality_floor,
+        )
+        if sample_count >= required_samples
+        else None
+    )
+    if sample_count == 0:
+        status = "no_evidence"
+    elif sample_count < required_samples:
+        status = "collecting"
+    elif recommendation is None:
+        status = "quality_blocked"
+    else:
+        status = "ready"
+
+    segmented = build_segmented_recommendations(
+        records,
+        minimum_samples=required_samples,
+        minimum_mean_quality=minimum_mean_quality,
+        maximum_unsafe_rate=maximum_unsafe_rate,
+        quality_floor=quality_floor,
+    )
+    if sample_count < required_samples:
+        segmented["global_recommendation"] = None
+        for dimension_rows in segmented["dimensions"].values():
+            for row in dimension_rows.values():
+                row["status"] = "collecting"
+                row["recommendation"] = None
+                row["effective_minimum_confidence"] = None
+
+    return {
+        "schema_version": 1,
+        "status": status,
+        "samples": sample_count,
+        "sample_progress": {
+            "observed": sample_count,
+            "required": required_samples,
+            "fraction": min(sample_count / required_samples, 1.0),
+        },
+        "constraints": {
+            "minimum_samples": required_samples,
+            "minimum_mean_quality": minimum_mean_quality,
+            "maximum_unsafe_rate": maximum_unsafe_rate,
+            "quality_floor": quality_floor,
+        },
+        "recommendation": recommendation,
+        "frontier": frontier,
+        "segmented": segmented,
+    }
+
+
 def sanitize_routing_segments(segments: dict[str, str]) -> dict[str, str]:
     """Keep low-cardinality labels and hash repository/workspace identities."""
 
@@ -484,6 +571,7 @@ __all__ = [
     "ModelRoutingEvalRecord",
     "ModelRoutingEvalStore",
     "ROUTING_FEATURE_NAMES",
+    "build_model_routing_evidence_report",
     "build_quality_cost_frontier",
     "build_segmented_recommendations",
     "extract_routing_features",
@@ -494,5 +582,6 @@ __all__ = [
     "record_model_routing_comparison",
     "recommend_confidence_threshold",
     "sanitize_routing_segments",
+    "schedule_model_routing_shadow",
     "should_sample_model_routing_shadow",
 ]

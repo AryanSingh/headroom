@@ -3,10 +3,75 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
+from cutctx.proxy.model_routing_evals import ModelRoutingEvalRecord, ModelRoutingEvalStore
 from cutctx.proxy.models import ProxyConfig
 from cutctx.proxy.server import create_app
+
+
+def _routing_eval_record(request_id: str, confidence: float, quality: float, savings: float):
+    return ModelRoutingEvalRecord(
+        request_id=request_id,
+        prompt_hash="a" * 64,
+        source_model="gpt-5.5",
+        candidate_model="gpt-5.4-mini",
+        scorer="test",
+        confidence=confidence,
+        quality_score=quality,
+        source_cost_usd=1.0,
+        candidate_cost_usd=1.0 - savings,
+        segments={"client": "codex", "workspace_hash": "b" * 64},
+    )
+
+
+def test_orchestration_routing_evidence_is_authenticated_private_and_read_only(
+    tmp_path: Path, monkeypatch
+) -> None:
+    evidence_path = tmp_path / "private-customer-routing-evidence.jsonl"
+    monkeypatch.setenv("CUTCTX_MODEL_ROUTING_EVAL_PATH", str(evidence_path))
+    monkeypatch.setenv("CUTCTX_MODEL_ROUTING_SHADOW_MODE", "true")
+    monkeypatch.setenv("CUTCTX_MODEL_ROUTING_SHADOW_SAMPLE_RATE", "0.25")
+    monkeypatch.setenv("CUTCTX_ORCHESTRATION_DIR", str(tmp_path / "state"))
+    app = create_app(
+        ProxyConfig(
+            backend="mock",
+            cache_enabled=False,
+            admin_api_key="admin_12345",
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
+        )
+    )
+    headers = {"x-cutctx-admin-key": "admin_12345"}
+
+    with TestClient(app) as client:
+        unauthorized = client.get("/v1/orchestration/routing/evidence")
+        assert unauthorized.status_code in {401, 403}
+
+        empty = client.get(
+            "/v1/orchestration/routing/evidence?minimum_samples=2&maximum_unsafe_rate=0",
+            headers=headers,
+        )
+        assert empty.status_code == 200
+        assert empty.json()["status"] == "no_evidence"
+        assert empty.json()["shadow"] == {"enabled": True, "sample_rate": 0.25}
+
+        store = ModelRoutingEvalStore(evidence_path)
+        store.append(_routing_eval_record("safe-1", 0.95, 0.98, 0.4))
+        store.append(_routing_eval_record("safe-2", 0.85, 0.92, 0.3))
+
+        ready = client.get(
+            "/v1/orchestration/routing/evidence?minimum_samples=2&maximum_unsafe_rate=0",
+            headers=headers,
+        )
+        assert ready.status_code == 200
+        payload = ready.json()
+        assert payload["schema_version"] == 1
+        assert payload["status"] == "ready"
+        assert payload["recommendation"]["minimum_confidence"] == 0.85
+        assert payload["recommendation"]["total_savings_usd"] == pytest.approx(0.7)
+        assert str(evidence_path) not in ready.text
+        assert "private-customer" not in ready.text
 
 
 def test_orchestration_admin_api_config_models_and_strict_preview(
@@ -383,3 +448,13 @@ def test_orchestration_provider_credentials_persist_across_restarts(
                 "credential_configured": True,
             }
         ]
+
+        deleted = client.delete(
+            "/v1/orchestration/providers/openai-main/credential", headers=headers
+        )
+        assert deleted.status_code == 200
+        assert deleted.json() == {"account_id": "openai-main", "deleted": True}
+
+        providers_after_delete = client.get("/v1/orchestration/providers", headers=headers)
+        assert providers_after_delete.status_code == 200
+        assert providers_after_delete.json()["accounts"][0]["credential_configured"] is False

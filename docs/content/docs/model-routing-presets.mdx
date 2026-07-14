@@ -129,9 +129,10 @@ python3 -m benchmarks.model_routing_calibrate \
 
 The command returns no recommendation when the evidence cannot satisfy the
 configured quality limits. Shadow execution remains opt-in and never replaces
-or changes the primary response. The current non-streaming hooks await the
-sampled baseline before returning, so operators should use a low sample rate
-and account for the additional latency while collecting calibration evidence.
+or changes the primary response. Once the candidate response completes, the
+non-streaming hooks schedule sampled baseline evaluation as retained best-effort
+background work. The visible response does not wait for the baseline provider
+call or local judge.
 
 The report also recommends thresholds independently by client, task type,
 source/target model pair, and hashed workspace/repository identity. Client and
@@ -141,10 +142,26 @@ minimum inherits the global recommendation. A sufficiently populated segment
 that fails its quality limits is marked `quality_blocked` rather than silently
 receiving a weaker segment policy.
 
+Authenticated operators can inspect the same privacy-safe evidence through
+`GET /v1/orchestration/routing/evidence`. Its versioned response reports one of
+four readiness states:
+
+- `no_evidence`: no shadow comparisons have been recorded
+- `collecting`: evidence exists but has not reached the minimum sample requirement
+- `quality_blocked`: enough evidence exists, but no threshold satisfies the quality limits
+- `ready`: a confidence threshold satisfies the configured quality and unsafe-rate limits
+
+The endpoint defaults to 20 samples, mean quality of at least `0.90`, unsafe
+rate of at most `0.01`, and an unsafe quality floor of `0.80`. Query parameters
+provide read-only simulation of different constraints; they do not promote a
+scorer or mutate live routing. Responses never contain prompts, generated
+responses, raw workspace or repository identities, credentials, or the local
+evidence path.
+
 ### Transport coverage
 
 - Direct Anthropic `/v1/messages`, OpenAI `/v1/chat/completions`, and OpenAI
-  `/v1/responses` non-streaming requests support sampled baseline replay.
+  `/v1/responses` non-streaming requests support background sampled baseline replay.
 - Streaming and WebSocket requests are not replayed. A second live stream can
   consume tools or produce side effects, and switching or joining streams after
   output starts would violate the proxy's transport contract.
@@ -210,6 +227,52 @@ Transport mismatch errors carry the same trace on
 auditable even though the request is rejected. Shadow evaluation rows use the
 same request ID, allowing quality/cost evidence to be joined to the original
 decision without storing prompt or response text.
+
+## Harness compatibility
+
+The Orchestrator's **Harnesses** tab reports the supported gateway contracts
+for Codex, Claude Code, and OpenCode. A supported harness does not authorize
+cross-provider routing by itself: the **Models** tab must show an enabled,
+eligible deployment and the proxy must have verified adapter compatibility for
+the request protocol before a route can execute.
+
+## Deployment cooldowns
+
+After the configured retry budget for a deployment is exhausted by a timeout,
+rate limit, provider outage, authentication failure, or quota exhaustion, the
+orchestrator temporarily isolates that exact provider/account/model deployment.
+The default cooldown is 30 seconds and can be configured with
+`deployment_cooldown_seconds` in orchestration settings (1–3600 seconds).
+
+Cooldown is scoped to the deployment, not the provider or model family. It
+expires automatically, and a successful account health probe clears it early.
+The route receipt and Orchestrator preview report `cooling_down` among rejected
+candidates. Strict mode may use only an explicit same-model equivalent during a
+cooldown; relaxed mode follows the already configured fallback policy. Streams
+never switch deployment after their first response byte, even when that byte is
+followed by a failure.
+
+## Weighted equivalent deployments
+
+Role bindings may set `equivalent_deployment_weights` to allocate traffic
+between the primary deployment and explicitly configured same-model
+equivalents. A request ID is deterministically hashed into the configured
+positive-weight cohort, so a repeated request ID remains on the same
+deployment. The routing receipt and Orchestrator preview expose the resulting
+cohort and effective weights.
+
+Weights never broaden model choice: they cannot target a different model,
+provider fallback, or arbitrary harness transport. Policy, capability,
+account, and cooldown checks run first; an ineligible or cooled deployment
+receives zero traffic and appears in the receipt's rejected-candidate list. If
+no eligible positive-weight deployment remains, the router retains its existing
+reliability-based equivalent selection.
+
+The Orchestrator route preview exposes the request's required capabilities and
+provider policy alongside the chosen deployment, weighted cohort (when used),
+candidate scores, and rejected-candidate reasons. This lets operators tell
+whether a route was constrained by request semantics, policy, temporary
+deployment isolation, or the configured allocation.
 
 ## Implementation notes
 

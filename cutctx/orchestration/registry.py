@@ -7,6 +7,7 @@ import json
 import os
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 from .models import Capability, ModelRecord, to_dict
@@ -116,6 +117,68 @@ class DynamicModelRegistry:
                     account_id is None or model.account_id == account_id
                 ):
                     model.available = available
+
+    def cool_down(
+        self,
+        deployment_key: str,
+        duration_seconds: float,
+        *,
+        now: float | None = None,
+    ) -> ModelRecord:
+        """Temporarily isolate one deployment without changing its health state."""
+
+        duration = _finite_signal(duration_seconds)
+        if duration <= 0:
+            raise ValueError("Deployment cooldown duration must be positive")
+        current_time = time.time() if now is None else _finite_signal(now)
+        with self._lock:
+            model = self._models.get(deployment_key)
+            if model is None:
+                raise KeyError(deployment_key)
+            model.metadata["cooldown_until_epoch"] = current_time + duration
+            self._save_cache()
+            return model
+
+    def cooldown_remaining_seconds(
+        self,
+        deployment_key: str,
+        *,
+        now: float | None = None,
+    ) -> float | None:
+        """Return remaining cooldown duration, removing expired/malformed state."""
+
+        current_time = time.time() if now is None else _finite_signal(now)
+        with self._lock:
+            model = self._models.get(deployment_key)
+            if model is None:
+                return None
+            raw_expiry = model.metadata.get("cooldown_until_epoch")
+            try:
+                expiry = _finite_signal(raw_expiry)
+            except (TypeError, ValueError):
+                expiry = current_time
+            remaining = expiry - current_time
+            if remaining > 0:
+                return remaining
+            if "cooldown_until_epoch" in model.metadata:
+                del model.metadata["cooldown_until_epoch"]
+                self._save_cache()
+            return None
+
+    def clear_provider_cooldowns(self, provider: str, *, account_id: str | None = None) -> int:
+        """Clear temporary isolation after a successful account health probe."""
+
+        with self._lock:
+            cleared = 0
+            for model in self._models.values():
+                if model.provider != provider or (account_id is not None and model.account_id != account_id):
+                    continue
+                if "cooldown_until_epoch" in model.metadata:
+                    del model.metadata["cooldown_until_epoch"]
+                    cleared += 1
+            if cleared:
+                self._save_cache()
+            return cleared
 
     def update_runtime_signals(
         self,

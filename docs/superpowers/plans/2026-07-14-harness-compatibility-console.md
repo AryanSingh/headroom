@@ -67,7 +67,7 @@ test('shows the authenticated harness contract without implying model compatibil
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `rtk test npm run test:e2e -- --grep "shows the authenticated harness contract"`
+Run from `dashboard/`: `rtk test npx playwright test e2e/orchestrator.spec.js --grep "shows the authenticated harness contract"`
 
 Expected: FAIL because no `Harnesses` tab exists.
 
@@ -97,7 +97,7 @@ Render a `tab === 'harnesses'` pane with an `h3` titled `Harness compatibility`,
 
 - [ ] **Step 4: Run the focused test to verify it passes**
 
-Run: `rtk test npm run test:e2e -- --grep "shows the authenticated harness contract"`
+Run from `dashboard/`: `rtk test npx playwright test e2e/orchestrator.spec.js --grep "shows the authenticated harness contract"`
 
 Expected: PASS.
 
@@ -130,7 +130,7 @@ test('keeps routing controls available when the harness manifest cannot load', a
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `rtk test npm run test:e2e -- --grep "keeps routing controls available"`
+Run from `dashboard/`: `rtk test npx playwright test e2e/orchestrator.spec.js --grep "keeps routing controls available"`
 
 Expected: FAIL because an empty manifest has no explanatory state.
 
@@ -140,7 +140,7 @@ Keep an explicit `harnessManifestAvailable` React state. Set it to `false` only 
 
 - [ ] **Step 4: Run the focused test to verify it passes**
 
-Run: `rtk test npm run test:e2e -- --grep "keeps routing controls available"`
+Run from `dashboard/`: `rtk test npx playwright test e2e/orchestrator.spec.js --grep "keeps routing controls available"`
 
 Expected: PASS.
 
@@ -171,7 +171,7 @@ Run:
 
 ```bash
 rtk pytest tests/test_orchestration_platform.py tests/test_orchestration_api.py -q
-rtk test npm run test:e2e -- --grep "Orchestrator Modes|authenticated harness contract|keeps routing controls available"
+cd dashboard && rtk test npx playwright test e2e/orchestrator.spec.js --grep "Orchestrator Modes|authenticated harness contract|keeps routing controls available"
 ```
 
 Expected: all selected tests pass.
@@ -181,8 +181,8 @@ Expected: all selected tests pass.
 Run:
 
 ```bash
-rtk test npm run lint
-rtk test npm run build
+cd dashboard && rtk test npm run lint
+cd dashboard && rtk test npm run build
 rtk git diff --check
 ```
 

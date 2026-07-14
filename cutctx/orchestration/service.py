@@ -53,6 +53,13 @@ class OrchestrationService:
         "selectors",
         "stream",
     }
+    _COOLDOWN_TRIGGERS = {
+        FallbackTrigger.TIMEOUT.value,
+        FallbackTrigger.RATE_LIMIT.value,
+        FallbackTrigger.PROVIDER_OUTAGE.value,
+        FallbackTrigger.AUTH_FAILURE.value,
+        FallbackTrigger.QUOTA_EXHAUSTED.value,
+    }
 
     def __init__(
         self,
@@ -410,6 +417,8 @@ class OrchestrationService:
             health_score=1.0 if health.ok else 0.0,
             latency_ms=health.latency_ms,
         )
+        if health.ok:
+            self.model_registry.clear_provider_cooldowns(account.provider, account_id=account.id)
         return {
             "ok": health.ok,
             "status": health.status,
@@ -464,6 +473,7 @@ class OrchestrationService:
                 trigger = self._classify_failure(exc)
                 if attempts < max_attempts:
                     continue
+                self._cool_down_after_failure(decision, trigger)
                 try:
                     decision = self.engine.fallback(decision, trigger)
                 except RoutingUnavailableError:
@@ -597,13 +607,15 @@ class OrchestrationService:
                     raise
                 except Exception as exc:  # noqa: BLE001 - normalized into fallback policy
                     error = exc
+                    trigger = self._classify_failure(exc)
                     if emitted:
                         # Switching providers after bytes are visible would
                         # corrupt the stream. Report the terminal error instead.
+                        self._cool_down_after_failure(decision, trigger)
                         break
-                    trigger = self._classify_failure(exc)
                     if attempts < max_attempts:
                         continue
+                    self._cool_down_after_failure(decision, trigger)
                     try:
                         decision = self.engine.fallback(decision, trigger)
                     except RoutingUnavailableError:
@@ -690,6 +702,19 @@ class OrchestrationService:
             )
         return sorted(accounts, key=lambda item: item.id)[0]
 
+    def _cool_down_after_failure(self, decision: RoutingDecision, trigger: str) -> None:
+        if trigger not in self._COOLDOWN_TRIGGERS:
+            return
+        try:
+            self.model_registry.cool_down(
+                self.engine._decision_deployment_key(decision),
+                self.config.settings.deployment_cooldown_seconds,
+            )
+        except KeyError:
+            # The execution path can surface a stale registry entry; fallback
+            # remains responsible for its normal unavailable handling.
+            return
+
     def _account(self, account_id: str) -> ProviderAccount:
         for account in self.config.providers:
             if account.id == account_id:
@@ -761,7 +786,12 @@ class OrchestrationService:
             or not 0 < float(config.settings.timeout_seconds) <= 3600
         ):
             raise ValueError("Orchestration timeout_seconds must be between 0 and 3600")
-
+        if (
+            not isinstance(config.settings.deployment_cooldown_seconds, int | float)
+            or not math.isfinite(float(config.settings.deployment_cooldown_seconds))
+            or not 1 <= float(config.settings.deployment_cooldown_seconds) <= 3600
+        ):
+            raise ValueError("Orchestration deployment_cooldown_seconds must be between 1 and 3600")
         provider_specs = {spec.id for spec in self.provider_registry.specs()}
         provider_accounts = {account.id: account for account in config.providers}
         for account in config.providers:
@@ -837,6 +867,22 @@ class OrchestrationService:
                 for model in binding.equivalent_deployments
             ):
                 raise ValueError(f"Binding {binding.id!r} has invalid equivalent deployments")
+            if not isinstance(binding.equivalent_deployment_weights, dict) or any(
+                not isinstance(key, str)
+                or not key.strip()
+                or not isinstance(value, int | float)
+                or isinstance(value, bool)
+                or not math.isfinite(float(value))
+                or float(value) < 0
+                for key, value in binding.equivalent_deployment_weights.items()
+            ):
+                raise ValueError(f"Binding {binding.id!r} has invalid equivalent deployment weights")
+            allowed_weighted_deployments = {binding.model, *binding.equivalent_deployments}
+            if not set(binding.equivalent_deployment_weights).issubset(allowed_weighted_deployments):
+                raise ValueError(
+                    f"Binding {binding.id!r} equivalent deployment weights must target the primary "
+                    "or an explicit equivalent deployment"
+                )
             primary_model = configured_models.get(binding.model)
             if primary_model is not None:
                 for equivalent_key in binding.equivalent_deployments:

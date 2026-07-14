@@ -9,6 +9,7 @@ from benchmarks.model_routing_calibrate import evaluate
 from cutctx.proxy.model_routing_evals import (
     ModelRoutingEvalRecord,
     ModelRoutingEvalStore,
+    build_model_routing_evidence_report,
     build_quality_cost_frontier,
     build_segmented_recommendations,
     maybe_run_model_routing_shadow,
@@ -18,6 +19,7 @@ from cutctx.proxy.model_routing_evals import (
     recommend_confidence_threshold,
     record_model_routing_comparison,
     sanitize_routing_segments,
+    schedule_model_routing_shadow,
     should_sample_model_routing_shadow,
 )
 
@@ -59,6 +61,40 @@ def test_shadow_env_defaults_off_and_clamps_sample_rate(monkeypatch) -> None:
     monkeypatch.setenv("CUTCTX_MODEL_ROUTING_SHADOW_SAMPLE_RATE", "4")
     assert model_routing_shadow_enabled_from_env() is True
     assert model_routing_shadow_sample_rate_from_env() == 1.0
+
+
+def test_shadow_scheduler_returns_before_background_work_completes() -> None:
+    async def scenario() -> None:
+        release = anyio.Event()
+        started = anyio.Event()
+
+        async def shadow_work() -> str:
+            started.set()
+            await release.wait()
+            return "recorded"
+
+        task = schedule_model_routing_shadow(shadow_work())
+
+        await started.wait()
+        assert task.done() is False
+        release.set()
+        assert await task == "recorded"
+
+    anyio.run(scenario)
+
+
+def test_shadow_scheduler_consumes_background_failures() -> None:
+    async def scenario() -> None:
+        async def shadow_work() -> None:
+            raise RuntimeError("shadow provider unavailable")
+
+        task = schedule_model_routing_shadow(shadow_work())
+        await anyio.sleep(0)
+
+        assert task.done() is True
+        assert isinstance(task.exception(), RuntimeError)
+
+    anyio.run(scenario)
 
 
 def test_prompt_fingerprint_does_not_contain_prompt_text() -> None:
@@ -273,6 +309,71 @@ def test_frontier_reports_quality_safety_and_savings_at_each_threshold() -> None
     assert frontier[1]["unsafe_rate"] == 0.0
     assert frontier[1]["total_savings_usd"] == pytest.approx(0.7)
     assert frontier[2]["unsafe_rate"] == pytest.approx(1 / 3)
+
+
+def test_evidence_report_has_explicit_empty_and_collecting_states() -> None:
+    empty = build_model_routing_evidence_report([], minimum_samples=2)
+    collecting = build_model_routing_evidence_report(
+        [_record("first", 0.9, 0.98, 0.4)],
+        minimum_samples=2,
+    )
+
+    assert empty["schema_version"] == 1
+    assert empty["status"] == "no_evidence"
+    assert empty["recommendation"] is None
+    assert empty["sample_progress"] == {"observed": 0, "required": 2, "fraction": 0.0}
+    assert collecting["status"] == "collecting"
+    assert collecting["recommendation"] is None
+    assert collecting["sample_progress"]["fraction"] == 0.5
+    assert collecting["segmented"]["global_recommendation"] is None
+    assert (
+        collecting["segmented"]["dimensions"]["model_pair"]
+        ["gpt-strong->gpt-mini"]["effective_minimum_confidence"]
+        is None
+    )
+
+
+def test_evidence_report_blocks_policy_that_misses_quality_limits() -> None:
+    report = build_model_routing_evidence_report(
+        [
+            _record("unsafe-1", 0.95, 0.30, 0.4),
+            _record("unsafe-2", 0.85, 0.40, 0.3),
+        ],
+        minimum_samples=2,
+        minimum_mean_quality=0.9,
+        maximum_unsafe_rate=0.0,
+    )
+
+    assert report["status"] == "quality_blocked"
+    assert report["recommendation"] is None
+    assert len(report["frontier"]) == 2
+
+
+def test_evidence_report_promotes_highest_savings_safe_frontier_point() -> None:
+    report = build_model_routing_evidence_report(
+        [
+            _record("high", 0.95, 0.98, 0.4),
+            _record("middle", 0.85, 0.92, 0.3),
+        ],
+        minimum_samples=2,
+        maximum_unsafe_rate=0.0,
+    )
+
+    assert report["status"] == "ready"
+    assert report["recommendation"]["minimum_confidence"] == 0.85
+    assert report["recommendation"]["mean_quality"] == pytest.approx(0.95)
+    assert report["recommendation"]["unsafe_rate"] == 0.0
+    assert report["recommendation"]["routing_rate"] == 1.0
+    assert report["recommendation"]["total_savings_usd"] == pytest.approx(0.7)
+    assert report["constraints"] == {
+        "minimum_samples": 2,
+        "minimum_mean_quality": 0.9,
+        "maximum_unsafe_rate": 0.0,
+        "quality_floor": 0.8,
+    }
+    serialized = json.dumps(report)
+    assert "private customer prompt" not in serialized
+    assert "/private/workspace" not in serialized
 
 
 def test_recommendation_maximizes_savings_within_quality_limits() -> None:

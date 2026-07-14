@@ -3107,6 +3107,8 @@ grid-template-columns: 1fr;
 .orchestration-card > .status-pill + .status-pill { margin-left: 6px; }
 .status-pill.warning { background: color-mix(in srgb, var(--amber) 14%, var(--surface-3)); color: var(--amber); }
 .orchestration-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.orchestration-actions .danger-button { color: var(--red); }
+.orchestration-actions .danger-button:hover:not(:disabled) { border-color: color-mix(in srgb, var(--red) 60%, var(--border)); background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); }
 .orchestration-form { display: grid; grid-template-columns: 1fr 1fr 1.4fr 1.4fr auto; gap: 9px; align-items: end; padding: 14px; border: 1px dashed var(--border); border-radius: 10px; }
 .orchestration-form h3 { grid-column: 1 / -1; margin: 0; font-size: 14px; }
 .orchestration-form input, .orchestration-form select, .orchestration-search, .orchestration-role-list select, .routing-settings-grid input, .routing-settings-grid select, .orchestration-inline-form input, .orchestration-inline-form select { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-1); color: var(--text-primary); }
@@ -3127,13 +3129,27 @@ grid-template-columns: 1fr;
 .route-preview h3 { margin: 0; font-size: 14px; }
 .route-preview-result { display: flex; flex-wrap: wrap; gap: 10px 18px; padding-top: 12px; color: var(--text-secondary); font-size: 12px; }
 .route-preview-result strong { color: var(--text-primary); }
+.route-preview-evidence { width: 100%; padding-top: 4px; }
+.route-preview-evidence h4 { margin: 8px 0 4px; color: var(--text-primary); font-size: 12px; }
+.route-preview-evidence ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.route-preview-evidence li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 8px; border-radius: 6px; background: var(--surface-3); }
 .orchestration-table-wrap { overflow-x: auto; }
 .orchestration-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .orchestration-table th, .orchestration-table td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
 .orchestration-table th { color: var(--text-secondary); font-size: 10px; text-transform: uppercase; }
 
+.routing-evidence-panel { margin-top: var(--space-lg); }
+.routing-evidence-summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-lg); color: var(--text-secondary); font-size: var(--text-sm); }
+.routing-evidence-summary strong { color: var(--text-primary); }
+.routing-evidence-guidance { margin: 0; }
+.routing-evidence-ready { color: var(--green); background: color-mix(in srgb, var(--green) 14%, var(--surface-3)); }
+.routing-evidence-collecting { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, var(--surface-3)); }
+.routing-evidence-quality_blocked { color: var(--red); background: color-mix(in srgb, var(--red) 14%, var(--surface-3)); }
+.routing-evidence-no_evidence { color: var(--text-secondary); background: var(--surface-3); }
+
 @media (max-width: 900px) {
   .orchestration-form { grid-template-columns: 1fr; }
   .orchestration-model-list article, .orchestration-role-list article { grid-template-columns: 1fr; }
   .routing-settings-grid { grid-template-columns: 1fr; }
+  .routing-evidence-summary { align-items: flex-start; flex-direction: column; }
 }
