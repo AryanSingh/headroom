@@ -65,6 +65,21 @@ Mini/Luna/strong tier accuracy, per-tier recall, and unsafe-downgrade rate. The
 CI gate requires zero unsafe Mini downgrades and at least 95% balanced and tier
 accuracy.
 
+#### Measure real proxy request-path overhead:
+
+```bash
+.venv/bin/python benchmarks/proxy_request_benchmark.py \
+  --requests 200 --concurrency 20 --warmup 20 \
+  --json artifacts/proxy-request-benchmark.json
+```
+
+This exercises Cutctx's actual OpenAI-compatible
+`POST /v1/chat/completions` handler. The upstream call is a deterministic
+in-process response, so p50/p95/p99 and requests/sec measure Cutctx's own
+request path rather than provider latency or model inference. The JSON output
+records environment metadata, status-code counts, and failures; do not compare
+the number directly with an external network benchmark.
+
 #### Run the fixed-fixture LLMLingua research preset through the main eval CLI:
 ```bash
 cutctx evals benchmark --preset llmlingua_research --parallel 1 --output artifacts/llmlingua-research-preset.json --markdown
