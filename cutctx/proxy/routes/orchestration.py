@@ -35,6 +35,27 @@ from cutctx.proxy.model_routing_evals import (
 )
 
 
+def _routing_scorer_status() -> dict[str, Any]:
+    """Return operator-safe scorer readiness without exposing artifact internals."""
+
+    artifact_path = os.environ.get("CUTCTX_MODEL_ROUTING_SCORER_ARTIFACT", "").strip()
+    if not artifact_path:
+        return {"status": "heuristic", "configured": False}
+    try:
+        from cutctx.proxy.model_routing_training import LinearRoutingArtifact
+
+        artifact = LinearRoutingArtifact.load(artifact_path)
+    except Exception:  # noqa: BLE001 - report a safe status, never a local path
+        return {"status": "invalid", "configured": True}
+    return {
+        "status": "promoted",
+        "configured": True,
+        "training_samples": artifact.training_samples,
+        "minimum_confidence": artifact.minimum_confidence,
+        "quality_floor": artifact.quality_floor,
+    }
+
+
 class RoutingPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -305,7 +326,8 @@ def create_orchestration_router(
             "shadow": {
                 "enabled": model_routing_shadow_enabled_from_env(),
                 "sample_rate": model_routing_shadow_sample_rate_from_env(),
-            }
+            },
+            "scorer": _routing_scorer_status(),
         }
 
     @router.get("/receipt-audit/verify", dependencies=read_deps)

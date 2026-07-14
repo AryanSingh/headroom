@@ -272,6 +272,12 @@ export default function Orchestrator() {
   const providerDecisions = policyStatus?.provider_decisions || {};
   const evidenceRecommendation = routingEvidence?.recommendation || null;
   const evidenceStatus = routingEvidence?.status || "no_evidence";
+  const scorerStatus = routingEvidence?.scorer?.status || "unknown";
+  const scorerLabel = {
+    promoted: "Promoted calibrated scorer",
+    heuristic: "Heuristic scorer",
+    invalid: "Invalid calibrated scorer",
+  }[scorerStatus] || "Scorer status unavailable";
   const evidenceStatusLabel = {
     no_evidence: "No evidence",
     collecting: "Collecting evidence",
@@ -432,6 +438,12 @@ export default function Orchestrator() {
                     ? ` at ${formatPercent((routingEvidence?.shadow?.sample_rate || 0) * 100)}`
                     : ""}
                 </span>
+                <span>{scorerLabel}</span>
+                {scorerStatus === "promoted" ? (
+                  <span>
+                    {formatInteger(routingEvidence?.scorer?.training_samples || 0)} training samples · minimum confidence {Number(routingEvidence?.scorer?.minimum_confidence || 0).toFixed(2)}
+                  </span>
+                ) : null}
               </div>
 
               {evidenceStatus === "ready" && evidenceRecommendation ? (

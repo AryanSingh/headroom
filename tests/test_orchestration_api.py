@@ -55,6 +55,7 @@ def test_orchestration_routing_evidence_is_authenticated_private_and_read_only(
         assert empty.status_code == 200
         assert empty.json()["status"] == "no_evidence"
         assert empty.json()["shadow"] == {"enabled": True, "sample_rate": 0.25}
+        assert empty.json()["scorer"] == {"status": "heuristic", "configured": False}
 
         store = ModelRoutingEvalStore(evidence_path)
         store.append(_routing_eval_record("safe-1", 0.95, 0.98, 0.4))

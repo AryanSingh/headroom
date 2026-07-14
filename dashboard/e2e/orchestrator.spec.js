@@ -50,6 +50,7 @@ test.describe('Orchestrator Modes', () => {
           frontier: [],
           segmented: { minimum_segment_samples: 20, dimensions: {} },
           shadow: { enabled: true, sample_rate: 0.1 },
+          scorer: { status: 'promoted', configured: true, training_samples: 200, minimum_confidence: 0.91 },
         }),
       });
     });
@@ -81,6 +82,8 @@ test.describe('Orchestrator Modes', () => {
     await expect(page.getByText('Routing evidence', { exact: true })).toBeVisible();
     await expect(page.getByText('Collecting evidence', { exact: true })).toBeVisible();
     await expect(page.getByText('7 / 20 samples', { exact: true })).toBeVisible();
+    await expect(page.getByText('Promoted calibrated scorer', { exact: true })).toBeVisible();
+    await expect(page.getByText('200 training samples · minimum confidence 0.91', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Balanced' }).click();
 
