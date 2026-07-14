@@ -1,5 +1,6 @@
 import { CheckCircle2, Copy, MinusCircle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { formatInteger, formatRelativeTime } from "../lib/format";
 import {
@@ -230,24 +231,39 @@ function describeSectionStatus(section, sections) {
 
 function CopyButton({ text, label = "Copy to clipboard" }) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(text).then(() => {
+  const handleCopy = useCallback(async () => {
+    setCopyError(false);
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard API unavailable');
+      }
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    });
+    } catch {
+      setCopyError(true);
+    }
   }, [text]);
 
   return (
-    <button
-      className="copy-btn"
-      onClick={handleCopy}
-      title="Copy to clipboard"
-      aria-label={label}
-      type="button"
-    >
-      {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
-    </button>
+    <>
+      <button
+        className="copy-btn"
+        onClick={handleCopy}
+        title="Copy to clipboard"
+        aria-label={label}
+        type="button"
+      >
+        {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
+      </button>
+      {copyError ? (
+        <span className="copy-feedback" role="status">
+          Could not copy to clipboard. Copy the value manually.
+        </span>
+      ) : null}
+    </>
   );
 }
 
@@ -369,9 +385,9 @@ function FeatureRow({
               <CopyButton text={feature.envVar} label={`Copy ${feature.envVar}`} />
             </div>
             {feature.linkTo ? (
-              <a className="ghost-button" href={feature.linkTo} style={{ width: "fit-content" }}>
+              <Link className="ghost-button" to={feature.linkTo} style={{ width: "fit-content" }}>
                 Open routing page
-              </a>
+              </Link>
             ) : null}
           </>
         )}

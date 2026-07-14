@@ -2685,6 +2685,13 @@ grid-template-columns: 1fr;
   border-color: var(--border-strong);
 }
 
+.copy-feedback {
+  color: var(--red);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  max-width: 15rem;
+}
+
 .tier-badge {
   font-size: 10px;
   font-weight: 600;

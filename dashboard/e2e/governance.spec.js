@@ -68,4 +68,45 @@ test.describe('Governance Toggles', () => {
     
     await expect.poll(() => postFired).toBe(true);
   });
+
+  test('opens the routing page without escaping the dashboard basename', async ({ page }) => {
+    await page.goto('/dashboard/governance');
+
+    await page.getByRole('link', { name: 'Open routing page' }).click();
+
+    await expect(page).toHaveURL(/\/dashboard\/orchestrator$/);
+    await expect(page.locator('.topbar-title-row h2')).toHaveText('Orchestrator');
+  });
+
+  test('reports a clipboard permission failure without leaving the action silent', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: () => Promise.reject(new DOMException('Denied', 'NotAllowedError')) },
+      });
+    });
+    await page.goto('/dashboard/governance');
+
+    await page.getByRole('button', { name: 'Copy CUTCTX_TASK_AWARE_ENABLED=1' }).click();
+
+    await expect(
+      page.getByText('Could not copy to clipboard. Copy the value manually.'),
+    ).toBeVisible();
+  });
+
+  test('reports when the Clipboard API is unavailable', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: undefined,
+      });
+    });
+    await page.goto('/dashboard/governance');
+
+    await page.getByRole('button', { name: 'Copy CUTCTX_TASK_AWARE_ENABLED=1' }).click();
+
+    await expect(
+      page.getByText('Could not copy to clipboard. Copy the value manually.'),
+    ).toBeVisible();
+  });
 });
