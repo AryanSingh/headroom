@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import asyncio
 
+import httpx
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from benchmarks.proxy_request_benchmark import build_proxy_app, run_request_benchmark
+from benchmarks.proxy_request_benchmark import (
+    build_proxy_app,
+    run_http_request_benchmark,
+    run_request_benchmark,
+)
 
 
 def test_request_benchmark_reports_percentiles_throughput_and_failures() -> None:
@@ -95,3 +100,29 @@ def test_proxy_benchmark_exercises_the_openai_compatible_handler() -> None:
 
     assert result.successes == 1
     assert result.status_codes == {200: 1}
+
+
+def test_network_benchmark_uses_the_configured_proxy_url() -> None:
+    observed_urls: list[str] = []
+
+    def responder(request: httpx.Request) -> httpx.Response:
+        observed_urls.append(str(request.url))
+        return httpx.Response(200, json={"ok": True})
+
+    result = asyncio.run(
+        run_http_request_benchmark(
+            base_url="http://proxy.example:8787",
+            path="/v1/chat/completions",
+            payload={"model": "gpt-5.4-mini", "messages": []},
+            requests=2,
+            concurrency=1,
+            headers={"Authorization": "Bearer benchmark-key"},
+            transport=httpx.MockTransport(responder),
+        )
+    )
+
+    assert result.successes == 2
+    assert observed_urls == [
+        "http://proxy.example:8787/v1/chat/completions",
+        "http://proxy.example:8787/v1/chat/completions",
+    ]

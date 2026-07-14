@@ -80,6 +80,21 @@ request path rather than provider latency or model inference. The JSON output
 records environment metadata, status-code counts, and failures; do not compare
 the number directly with an external network benchmark.
 
+#### Measure a running proxy over HTTP/TCP:
+
+```bash
+.venv/bin/python benchmarks/proxy_request_benchmark.py \
+  --base-url http://127.0.0.1:8787 \
+  --requests 500 --concurrency 20 --warmup 50 \
+  --json artifacts/proxy-network-benchmark.json
+```
+
+This mode does not start or configure the proxy. For a fair gateway comparison,
+run every candidate on the same host with the same request body, concurrency,
+and deterministic upstream fixture; retain the resulting JSON artifacts. The
+reported measurement includes network and proxy overhead, and includes provider
+inference unless the configured upstream is fixed.
+
 #### Run the fixed-fixture LLMLingua research preset through the main eval CLI:
 ```bash
 cutctx evals benchmark --preset llmlingua_research --parallel 1 --output artifacts/llmlingua-research-preset.json --markdown

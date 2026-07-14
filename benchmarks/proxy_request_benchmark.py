@@ -144,6 +144,57 @@ async def run_request_benchmark(
     )
 
 
+async def run_http_request_benchmark(
+    *,
+    base_url: str,
+    path: str,
+    payload: dict[str, Any],
+    requests: int,
+    concurrency: int,
+    headers: dict[str, str] | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> RequestBenchmarkResult:
+    """Exercise an already-running proxy over HTTP/TCP.
+
+    ``transport`` is only for deterministic tests; omit it for a real network
+    connection. The proxy and any compared gateway must be run separately on
+    the same host with the same upstream fixture for a fair comparison.
+    """
+    if requests < 1:
+        raise ValueError("requests must be at least 1")
+    if concurrency < 1:
+        raise ValueError("concurrency must be at least 1")
+
+    latencies_ms: list[float] = []
+    statuses: Counter[int] = Counter()
+    semaphore = asyncio.Semaphore(concurrency)
+    async with httpx.AsyncClient(
+        base_url=base_url.rstrip("/"), transport=transport, timeout=30
+    ) as client:
+        async def send_one() -> None:
+            async with semaphore:
+                started = time.perf_counter()
+                response = await client.post(path, json=payload, headers=headers)
+                latencies_ms.append((time.perf_counter() - started) * 1000)
+                statuses[response.status_code] += 1
+
+        started = time.perf_counter()
+        await asyncio.gather(*(send_one() for _ in range(requests)))
+        elapsed_seconds = time.perf_counter() - started
+
+    successes = sum(count for status, count in statuses.items() if 200 <= status < 300)
+    return RequestBenchmarkResult(
+        path=path,
+        requests=requests,
+        concurrency=concurrency,
+        successes=successes,
+        failures=requests - successes,
+        elapsed_seconds=elapsed_seconds,
+        latencies_ms=tuple(latencies_ms),
+        status_codes=dict(sorted(statuses.items())),
+    )
+
+
 def build_proxy_app() -> FastAPI:
     """Build a real Cutctx proxy with a deterministic local upstream."""
     from cutctx.proxy.server import ProxyConfig, create_app
@@ -188,45 +239,55 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--requests", type=int, default=100, help="Measured requests (default: 100)")
     parser.add_argument("--concurrency", type=int, default=10, help="In-flight requests (default: 10)")
     parser.add_argument("--warmup", type=int, default=10, help="Unreported warm-up requests (default: 10)")
+    parser.add_argument(
+        "--base-url",
+        help="Measure an already-running proxy over HTTP instead of the in-process fixture",
+    )
     parser.add_argument("--json", type=Path, help="Write the result and environment metadata as JSON")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    app = build_proxy_app()
     payload = {
         "model": "gpt-5.4-mini",
         "messages": [{"role": "user", "content": "return a concise benchmark response"}],
     }
     headers = {"Authorization": "Bearer benchmark-key"}
-    if args.warmup:
-        asyncio.run(
-            run_request_benchmark(
+    if args.base_url:
+        def run(count: int, concurrency: int):
+            return run_http_request_benchmark(
+                base_url=args.base_url,
+                path="/v1/chat/completions",
+                payload=payload,
+                requests=count,
+                concurrency=concurrency,
+                headers=headers,
+            )
+
+        measurement = "HTTP/TCP to an existing proxy; excludes provider inference only when upstream is fixed"
+    else:
+        app = build_proxy_app()
+        def run(count: int, concurrency: int):
+            return run_request_benchmark(
                 app,
                 path="/v1/chat/completions",
                 payload=payload,
-                requests=args.warmup,
-                concurrency=min(args.concurrency, args.warmup),
+                requests=count,
+                concurrency=concurrency,
                 headers=headers,
             )
-        )
-    result = asyncio.run(
-        run_request_benchmark(
-            app,
-            path="/v1/chat/completions",
-            payload=payload,
-            requests=args.requests,
-            concurrency=args.concurrency,
-            headers=headers,
-        )
-    )
+
+        measurement = "in-process ASGI; fixed upstream response; excludes network and model inference"
+    if args.warmup:
+        asyncio.run(run(args.warmup, min(args.concurrency, args.warmup)))
+    result = asyncio.run(run(args.requests, args.concurrency))
     metadata = {
         "benchmark": "cutctx_proxy_request_path",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "python": platform.python_version(),
         "platform": platform.platform(),
-        "measurement": "in-process ASGI; fixed upstream response; excludes network and model inference",
+        "measurement": measurement,
         "result": result.to_dict(),
     }
     print(json.dumps(metadata, indent=2, sort_keys=True))
