@@ -295,6 +295,7 @@ uv.lock
 *.tar.gz
 
 # Temporary working files
+/.worktrees/
 /scratch/
 fix_summary.md
 patch_*.py
