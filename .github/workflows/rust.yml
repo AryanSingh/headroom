@@ -143,7 +143,11 @@ jobs:
         with:
           tool: cargo-audit,cargo-deny
       - name: cargo audit
-        run: cargo audit
+        # RUSTSEC-2026-0176 applies only to PyList/PyTuple iterator nth;
+        # RUSTSEC-2026-0177 applies only to PyCFunction::new_closure.
+        # cutctx-py imports and calls none of those APIs (guarded by
+        # test_rust_audit_exceptions_are_limited_to_unused_pyo3_apis).
+        run: cargo audit --ignore RUSTSEC-2026-0176 --ignore RUSTSEC-2026-0177
       - name: cargo deny check licenses
         continue-on-error: true
         run: cargo deny check licenses

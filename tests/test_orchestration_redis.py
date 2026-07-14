@@ -1,3 +1,4 @@
+import os
 import time
 
 import pytest
@@ -10,11 +11,25 @@ from cutctx.orchestration.workflow import (
 )
 from cutctx.proxy.model_routing_evals import ModelRoutingEvalRecord, ModelRoutingEvalStore
 
+REDIS_URL = os.environ.get("CUTCTX_TEST_REDIS_URL")
 
-def test_redis_workflow_state_is_shared_across_workers():
-    url = "redis://127.0.0.1:6379/15"
-    first = WorkflowStateStore("unused.json", worker_id="one", redis_url=url)
-    second = WorkflowStateStore("unused.json", worker_id="two", redis_url=url)
+
+@pytest.fixture(scope="module")
+def redis_url() -> str:
+    """Return the explicitly provisioned Redis endpoint for integration tests.
+
+    Core unit-test jobs do not require an external Redis server.  The dedicated
+    CI integration job sets this variable and verifies the shared-state
+    contract against a writable Redis service.
+    """
+    if not REDIS_URL:
+        pytest.skip("Redis integration server is not configured")
+    return REDIS_URL
+
+
+def test_redis_workflow_state_is_shared_across_workers(redis_url: str):
+    first = WorkflowStateStore("unused.json", worker_id="one", redis_url=redis_url)
+    second = WorkflowStateStore("unused.json", worker_id="two", redis_url=redis_url)
     first.clear_redis_state()
     state = first.submit(WorkflowSpec(id="shared", tasks=[TaskSpec(id="task", role="worker")]))
 
@@ -23,10 +38,9 @@ def test_redis_workflow_state_is_shared_across_workers():
     assert first.claim_ready_task(state.id, "task") is False
 
 
-def test_redis_routing_evidence_is_shared_across_workers():
-    url = "redis://127.0.0.1:6379/15"
-    writer = ModelRoutingEvalStore("unused.jsonl", redis_url=url)
-    reader = ModelRoutingEvalStore("unused.jsonl", redis_url=url)
+def test_redis_routing_evidence_is_shared_across_workers(redis_url: str):
+    writer = ModelRoutingEvalStore("unused.jsonl", redis_url=redis_url)
+    reader = ModelRoutingEvalStore("unused.jsonl", redis_url=redis_url)
     writer.clear_redis_state()
     writer.append(
         ModelRoutingEvalRecord(
@@ -39,10 +53,13 @@ def test_redis_routing_evidence_is_shared_across_workers():
     assert [record.request_id for record in reader.load()] == ["shared"]
 
 
-def test_expired_redis_lease_is_reclaimed_and_stale_worker_cannot_complete():
-    url = "redis://127.0.0.1:6379/15"
-    first = WorkflowStateStore("unused.json", worker_id="first", lease_seconds=1, redis_url=url)
-    second = WorkflowStateStore("unused.json", worker_id="second", lease_seconds=1, redis_url=url)
+def test_expired_redis_lease_is_reclaimed_and_stale_worker_cannot_complete(redis_url: str):
+    first = WorkflowStateStore(
+        "unused.json", worker_id="first", lease_seconds=1, redis_url=redis_url
+    )
+    second = WorkflowStateStore(
+        "unused.json", worker_id="second", lease_seconds=1, redis_url=redis_url
+    )
     first.clear_redis_state()
     state = first.submit(WorkflowSpec(id="lease", tasks=[TaskSpec(id="task", role="worker")]))
 

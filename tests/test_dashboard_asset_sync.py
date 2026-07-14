@@ -72,3 +72,10 @@ def test_release_and_container_builds_prepare_dashboard_assets() -> None:
         "COPY --from=dashboard-builder /dashboard/dist/assets/ cutctx/dashboard/assets/"
         in dockerfile
     )
+
+
+def test_docker_build_context_excludes_dashboard_dependencies() -> None:
+    root = Path(__file__).parents[1]
+    dockerignore = (root / ".dockerignore").read_text(encoding="utf-8")
+
+    assert "dashboard/node_modules/" in dockerignore

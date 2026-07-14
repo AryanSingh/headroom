@@ -19,6 +19,20 @@ def test_all_github_workflows_are_valid_yaml() -> None:
         assert "jobs" in parsed, f"{path.name} must declare jobs"
 
 
+def test_ci_provisions_redis_for_redis_orchestration_integration_tests() -> None:
+    """The Redis durability contract needs a real writable Redis service in CI."""
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "redis-orchestration-integration:" in content
+    assert "redis:7-alpine" in content
+    assert "CUTCTX_TEST_REDIS_URL: redis://127.0.0.1:6379/15" in content
+    assert "tests/test_orchestration_redis.py" in content
+
+    redis_tests = (ROOT / "tests" / "test_orchestration_redis.py").read_text(encoding="utf-8")
+    assert "CUTCTX_TEST_REDIS_URL" in redis_tests
+    assert "Redis integration server is not configured" in redis_tests
+
+
 def test_docker_workflow_normalizes_repository_name_for_signing() -> None:
     content = (ROOT / ".github" / "workflows" / "docker.yml").read_text(encoding="utf-8")
 
@@ -140,6 +154,34 @@ def test_rust_ci_generates_and_uploads_llvm_coverage() -> None:
     assert "cargo llvm-cov --workspace --lcov" in workflow
     assert "coverage-rust.lcov" in workflow
     assert "flags: rust" in workflow
+
+
+def test_workspace_pins_reachable_security_fixed_pyo3_release() -> None:
+    """Keep the extension on the smallest PyO3 release fixing its reachable advisory."""
+    cargo = (ROOT / "Cargo.toml").read_text(encoding="utf-8")
+
+    assert 'rust-version = "1.80"' in cargo
+    assert 'pyo3 = { version = "0.24.1", features = ["abi3-py310"] }' in cargo
+
+
+def test_rust_audit_exceptions_are_limited_to_unused_pyo3_apis() -> None:
+    """PyO3 waivers are allowed only for APIs the extension never imports or calls."""
+    extension = (ROOT / "crates" / "cutctx-py" / "src" / "lib.rs").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github" / "workflows" / "rust.yml").read_text(encoding="utf-8")
+
+    assert "new_closure" not in extension
+    assert "new_closure_bound" not in extension
+    assert "PyCFunction" not in extension
+    assert "PyList" not in extension
+    assert "PyTuple" not in extension
+    assert "cargo audit --ignore RUSTSEC-2026-0176 --ignore RUSTSEC-2026-0177" in workflow
+
+
+def test_proxy_pins_security_fixed_lru_release() -> None:
+    """The proxy cache must stay above the published LruCache soundness advisory."""
+    cargo = (ROOT / "crates" / "cutctx-proxy" / "Cargo.toml").read_text(encoding="utf-8")
+
+    assert 'lru = "0.16"' in cargo
 
 
 @pytest.mark.skipif(shutil.which("cargo") is None, reason="cargo not installed")

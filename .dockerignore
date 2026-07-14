@@ -44,6 +44,7 @@ plugins/
 !plugins/cutctx-agent-hooks/
 !plugins/cutctx-agent-hooks/**
 node_modules/
+dashboard/node_modules/
 *.tgz
 
 # Secrets & local config
