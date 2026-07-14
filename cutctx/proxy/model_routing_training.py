@@ -125,6 +125,8 @@ def train_linear_routing_artifact(
     minimum_mean_quality: float = 0.9,
     maximum_unsafe_rate: float = 0.01,
     minimum_segment_samples: int = 20,
+    minimum_holdout_samples: int = 20,
+    minimum_selected_holdout_samples: int = 10,
     iterations: int = 600,
     learning_rate: float = 0.25,
     l2: float = 0.02,
@@ -136,6 +138,11 @@ def train_linear_routing_artifact(
             f"found {len(usable)}"
         )
     training, validation = _deterministic_split(usable)
+    if len(validation) < minimum_holdout_samples:
+        raise ValueError(
+            f"At least {minimum_holdout_samples} holdout records are required for scorer promotion; "
+            f"found {len(validation)}"
+        )
     weights = dict.fromkeys(ROUTING_FEATURE_NAMES, 0.0)
     positive_rate = sum(record.quality_score >= quality_floor for record in training) / len(
         training
@@ -191,6 +198,11 @@ def train_linear_routing_artifact(
         for record, prediction in zip(validation, predictions, strict=True)
         if prediction >= threshold
     ]
+    if len(selected) < minimum_selected_holdout_samples:
+        raise ValueError(
+            f"At least {minimum_selected_holdout_samples} selected holdout records are required "
+            f"for scorer promotion; found {len(selected)}"
+        )
     metrics = {
         "brier_score": sum(
             (prediction - label) ** 2 for prediction, label in zip(predictions, labels, strict=True)

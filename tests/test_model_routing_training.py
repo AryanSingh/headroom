@@ -26,7 +26,7 @@ from cutctx.proxy.model_routing_training import (
 
 def _training_records() -> list[ModelRoutingEvalRecord]:
     records = []
-    for index in range(24):
+    for index in range(120):
         messages = [{"role": "user", "content": f"What is item {index}?"}]
         records.append(
             ModelRoutingEvalRecord(
@@ -43,7 +43,7 @@ def _training_records() -> list[ModelRoutingEvalRecord]:
                 segments={"client": "codex", "task_type": "informational"},
             )
         )
-    for index in range(16):
+    for index in range(80):
         messages = [
             {
                 "role": "user",
@@ -134,7 +134,7 @@ def test_training_command_writes_artifact(tmp_path) -> None:
 
     assert output.exists()
     assert payload["type"] == "linear_logistic"
-    assert LinearRoutingArtifact.load(output).training_samples == 40
+    assert LinearRoutingArtifact.load(output).training_samples == 200
 
 
 def test_router_loads_artifact_opt_in_and_falls_back_on_invalid_artifact(
@@ -190,7 +190,35 @@ def test_training_rejects_insufficient_or_unpromotable_evidence() -> None:
         for index in range(20)
     ]
     with pytest.raises(ValueError, match="No learned confidence threshold"):
-        train_linear_routing_artifact(bad, minimum_samples=20, minimum_mean_quality=0.9)
+        train_linear_routing_artifact(
+            bad,
+            minimum_samples=20,
+            minimum_mean_quality=0.9,
+            minimum_holdout_samples=1,
+            minimum_selected_holdout_samples=1,
+        )
+
+
+def test_training_rejects_small_holdouts_even_when_a_threshold_looks_safe() -> None:
+    records = []
+    for index in range(20):
+        records.append(
+            ModelRoutingEvalRecord(
+                request_id=f"noise-{index}",
+                prompt_hash=str(index),
+                source_model="strong",
+                candidate_model="mini",
+                scorer="heuristic",
+                confidence=0.9,
+                quality_score=0.96 if index % 2 else 0.1,
+                source_cost_usd=1,
+                candidate_cost_usd=0.1,
+                features=extract_routing_features([{"role": "user", "content": "What is this?"}]),
+            )
+        )
+
+    with pytest.raises(ValueError, match="holdout"):
+        train_linear_routing_artifact(records, minimum_samples=20, maximum_unsafe_rate=0.0)
 
 
 def test_router_applies_model_pair_then_client_segment_thresholds() -> None:
