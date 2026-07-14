@@ -159,6 +159,16 @@ docker compose -f docker/docker-compose.native.yml up -d proxy
 
 That keeps `localhost:8787` stable and restarts the proxy automatically.
 
+### Stop services gracefully
+
+Use the managed `cutctx install stop` / `restart` commands, or a normal
+container stop (`docker compose stop proxy`), rather than forcibly killing the
+proxy. A graceful stop flushes and compacts the asynchronous savings journal.
+`SIGKILL`, OOM termination, and power loss can lose monitoring-only savings
+updates from the most recent 250 ms persistence window; requests and model
+responses are not affected. See [Metrics & Monitoring](/docs/metrics#savings-durability)
+for the complete durability contract.
+
 <Callout type="info" title="CUTCTX_WORKSPACE vs CUTCTX_WORKSPACE_DIR">
 `CUTCTX_WORKSPACE` (the host-side bind-mount source used by the compose file) is **not** the same variable as `CUTCTX_WORKSPACE_DIR` (the canonical Cutctx state root inside the container). Both are retained; the compose file sets the latter automatically. See [Filesystem Contract](/docs/filesystem-contract) for the full bucket model.
 </Callout>
