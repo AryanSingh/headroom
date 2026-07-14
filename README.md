@@ -96,7 +96,10 @@ Cutctx compresses everything your AI agent reads — tool outputs, logs, RAG chu
 pip install "cutctx-ai[all]"          # Python (broad bundle; some heavy/proprietary extras omitted)
 npm install cutctx-ai                 # Node / TypeScript
 
-# 2 — Pick your mode
+# 2 — Set up an AI coding agent (recommended)
+cutctx setup                         # detects agents, registers MCP, starts and verifies the proxy
+
+# Or choose a manual mode
 cutctx wrap claude                    # wrap a coding agent
 cutctx proxy --port 8787              # drop-in proxy, zero code changes
 # macOS: route compatible desktop and CLI harnesses through one local proxy

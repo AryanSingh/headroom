@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from click.testing import CliRunner
 
 from cutctx.cli.setup import setup
@@ -74,3 +76,12 @@ def test_setup_no_start_exits_zero_and_describes_skip(monkeypatch) -> None:
     assert result.exit_code == 0, result.output
     assert "Setup skipped proxy start." in result.output
     assert "Setup needs attention" not in result.output
+
+
+def test_readme_promotes_unified_setup_before_manual_agent_wrapping() -> None:
+    readme = Path("README.md").read_text()
+    quickstart_start = readme.index("## Get started (60 seconds)")
+    quickstart_end = readme.index("**Accuracy guard**", quickstart_start)
+    quickstart = readme[quickstart_start:quickstart_end]
+
+    assert quickstart.index("cutctx setup") < quickstart.index("cutctx wrap claude")
