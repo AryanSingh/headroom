@@ -163,7 +163,7 @@ and configuration. Operators with admin authentication can use
 
 ### `GET /stats`
 
-Live session statistics plus durable `persistent_savings` totals. Stored at `~/.cutctx/proxy_savings.json` (override with `CUTCTX_SAVINGS_PATH`).
+Live session statistics plus durable `persistent_savings` totals. Stored at `~/.cutctx/proxy_savings.json` (override with `CUTCTX_SAVINGS_PATH`). Savings persistence is journaled asynchronously for request-path performance; graceful shutdown flushes it. See [Metrics & Monitoring](metrics#savings-durability) for the bounded hard-kill data-loss window.
 
 ```bash
 curl http://localhost:8787/stats

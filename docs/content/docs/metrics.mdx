@@ -46,6 +46,21 @@ curl http://localhost:8787/stats
 
 Persistent savings are stored at `~/.cutctx/proxy_savings.json` and survive proxy restarts. Override the path with `CUTCTX_SAVINGS_PATH`.
 
+### Savings durability
+
+The proxy batches savings-ledger persistence for request-path performance. A
+graceful shutdown flushes the journal and compacts it into the JSON snapshot;
+calling `GET /stats-history` also establishes that durability boundary before
+returning history. A sudden process termination that cannot run shutdown—for
+example `SIGKILL`, an OOM kill, or power loss—can lose savings updates from the
+most recent **250 ms** debounce window. This bounded window applies only to
+savings/monitoring data; it does not change request forwarding or response
+delivery.
+
+For strict per-update durability in direct library integrations, construct
+`SavingsTracker` with `persistence_mode="sync"`. The proxy deliberately uses
+the asynchronous journal mode to avoid blocking live requests on disk fsync.
+
 ### Historical Savings
 
 ```bash
