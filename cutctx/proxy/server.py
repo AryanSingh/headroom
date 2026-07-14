@@ -1777,6 +1777,11 @@ class CutctxProxy(
         if self.memory_handler and hasattr(self.memory_handler, "close"):
             await self.memory_handler.close()
 
+        # The request-path metrics tracker coalesces durable savings writes.
+        # A graceful shutdown is the explicit boundary that makes all accepted
+        # request outcomes durable before the proxy exits.
+        self.metrics.savings_tracker.close()
+
         with contextlib.suppress(Exception):
             from cutctx.models.ml_models import MLModelRegistry
 

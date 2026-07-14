@@ -234,6 +234,126 @@ def test_savings_tracker_persists_provider_cache_only_row(tmp_path):
         assert sum(by_source.values()) == 300
 
 
+def test_async_tracker_defers_disk_persistence_until_flush(tmp_path, monkeypatch):
+    """The proxy persistence mode must not fsync inside request completion."""
+    from cutctx.proxy.savings_tracker import SavingsTracker
+
+    tracker = SavingsTracker(
+        path=tmp_path / "savings.json",
+        persistence_mode="async",
+        flush_interval_seconds=60,
+    )
+    persisted: list[dict] = []
+    monkeypatch.setattr(tracker, "_append_journal", lambda records: persisted.extend(records))
+    try:
+        tracker.record_request(model="gpt-4o", input_tokens=10, tokens_saved=1)
+        assert persisted == []
+
+        assert tracker.flush(timeout=1)
+        assert len(persisted) == 1
+        assert persisted[0]["lifetime"]["requests"] == 1
+    finally:
+        tracker.close()
+
+
+def test_sync_tracker_persists_before_record_request_returns(tmp_path, monkeypatch):
+    """Direct tracker callers retain the historical strict-durability contract."""
+    from cutctx.proxy.savings_tracker import SavingsTracker
+
+    tracker = SavingsTracker(path=tmp_path / "savings.json", persistence_mode="sync")
+    persisted: list[dict] = []
+    monkeypatch.setattr(tracker, "_persist_snapshot", lambda snapshot: persisted.append(snapshot))
+
+    tracker.record_request(model="gpt-4o", input_tokens=10, tokens_saved=1)
+
+    assert len(persisted) == 1
+
+
+def test_async_flush_coalesces_updates_into_latest_snapshot(tmp_path, monkeypatch):
+    """One flush persists the latest state rather than one snapshot per request."""
+    from cutctx.proxy.savings_tracker import SavingsTracker
+
+    tracker = SavingsTracker(
+        path=tmp_path / "savings.json",
+        persistence_mode="async",
+        flush_interval_seconds=60,
+    )
+    persisted: list[list[dict]] = []
+    monkeypatch.setattr(tracker, "_append_journal", lambda records: persisted.append(records))
+    try:
+        for _ in range(3):
+            tracker.record_request(model="gpt-4o", input_tokens=10, tokens_saved=1)
+
+        assert tracker.flush(timeout=1)
+        assert len(persisted) == 1
+        assert persisted[0][-1]["lifetime"]["requests"] == 3
+    finally:
+        tracker.close()
+
+
+def test_async_flush_surfaces_writer_failure(tmp_path, monkeypatch):
+    """A failed background write is never silently reported as durable."""
+    from cutctx.proxy.savings_tracker import SavingsTracker
+
+    tracker = SavingsTracker(
+        path=tmp_path / "savings.json",
+        persistence_mode="async",
+        flush_interval_seconds=60,
+    )
+
+    def fail_write(_snapshot):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(tracker, "_append_journal", fail_write)
+    try:
+        tracker.record_request(model="gpt-4o", input_tokens=10, tokens_saved=1)
+        with pytest.raises(OSError, match="disk full"):
+            tracker.flush(timeout=1)
+    finally:
+        try:
+            tracker.close()
+        except OSError:
+            pass
+        assert tracker._writer is None or not tracker._writer.is_alive()
+
+
+def test_async_snapshot_does_not_deep_copy_immutable_history(tmp_path, monkeypatch):
+    """Writer snapshots must not copy every historical point on each batch."""
+    import cutctx.proxy.savings_tracker as savings_tracker_module
+    from cutctx.proxy.savings_tracker import SavingsTracker
+
+    tracker = SavingsTracker(path=tmp_path / "savings.json")
+    tracker.record_request(model="gpt-4o", input_tokens=10, tokens_saved=1)
+
+    def forbid_deepcopy(_value):
+        raise AssertionError("full-state deepcopy is forbidden in the async writer path")
+
+    monkeypatch.setattr(savings_tracker_module.copy, "deepcopy", forbid_deepcopy)
+    with tracker._lock:
+        snapshot = tracker._snapshot_locked()
+
+    assert snapshot["history"][-1]["delta_tokens_saved"] == 1
+
+
+def test_async_journal_replays_after_an_abrupt_stop(tmp_path):
+    """A fsynced journal survives before a graceful snapshot compaction occurs."""
+    from cutctx.proxy.savings_tracker import SavingsTracker
+
+    path = tmp_path / "savings.json"
+    writer = SavingsTracker(path=path, persistence_mode="async", flush_interval_seconds=60)
+    try:
+        writer.record_request(model="gpt-4o", input_tokens=10, tokens_saved=3)
+        assert writer.flush(timeout=1)
+
+        recovered = SavingsTracker(path=path)
+        snapshot = recovered.snapshot()
+        assert snapshot["lifetime"]["requests"] == 1
+        assert snapshot["lifetime"]["tokens_saved"] == 3
+        assert len(snapshot["history"]) == 1
+    finally:
+        writer.close()
+
+
 def test_report_buyer_reads_durable_savings_history(tmp_path, monkeypatch):
     """End-to-end: outcome -> tracker -> on-disk -> report buyer."""
     from cutctx.proxy.cost import CostTracker

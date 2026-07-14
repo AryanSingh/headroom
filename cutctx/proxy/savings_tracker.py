@@ -7,6 +7,7 @@ survive proxy restarts and can be shared by multiple Cutctx frontends.
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 import logging
@@ -15,6 +16,7 @@ import random
 import re
 import tempfile
 import threading
+import time
 from collections.abc import Callable
 from csv import DictWriter
 from datetime import datetime, timedelta, timezone
@@ -38,6 +40,7 @@ PROJECT_NAME_MAX_LENGTH = 128
 DEFAULT_MAX_HISTORY_AGE_DAYS = 365
 DEFAULT_MAX_RESPONSE_HISTORY_POINTS = 500
 DEFAULT_DISPLAY_SESSION_INACTIVITY_MINUTES = 60
+DEFAULT_SAVINGS_FLUSH_INTERVAL_SECONDS = 0.25
 
 # Commercial-readiness runbook Task 1 (Savings Validation Protocol / shadow
 # mode). Every normal per-request/history savings row is an *estimate*
@@ -1101,8 +1104,11 @@ class SavingsTracker:
         max_history_age_days: int = DEFAULT_MAX_HISTORY_AGE_DAYS,
         max_response_history_points: int = DEFAULT_MAX_RESPONSE_HISTORY_POINTS,
         display_session_inactivity_minutes: int = (DEFAULT_DISPLAY_SESSION_INACTIVITY_MINUTES),
+        persistence_mode: str = "sync",
+        flush_interval_seconds: float = DEFAULT_SAVINGS_FLUSH_INTERVAL_SECONDS,
     ) -> None:
         self._path = Path(path or get_default_savings_storage_path())
+        self._journal_path = self._path.with_name(f"{self._path.name}.journal")
         self._max_history_points = max_history_points
         self._max_history_age_days = max_history_age_days
         self._max_response_history_points = max(
@@ -1119,8 +1125,26 @@ class SavingsTracker:
             ),
             1,
         )
+        if persistence_mode not in {"sync", "async"}:
+            raise ValueError("persistence_mode must be 'sync' or 'async'")
+        if flush_interval_seconds <= 0:
+            raise ValueError("flush_interval_seconds must be greater than 0")
+
         self._lock = threading.Lock()
+        self._write_condition = threading.Condition(self._lock)
+        self._persistence_mode = persistence_mode
+        self._flush_interval_seconds = float(flush_interval_seconds)
+        self._dirty_generation = 0
+        self._persisted_generation = 0
+        self._failed_generation: int | None = None
+        self._writer_error: BaseException | None = None
+        self._flush_generation = 0
+        self._writer_stopping = False
+        self._writer: threading.Thread | None = None
         self._state = self._load_state()
+        self._state = self._replay_journal(self._state)
+        self._journal_generation = _coerce_int(self._state.get("journal_generation"))
+        self._pending_journal_records: list[dict[str, Any]] = []
         self._loaded_mtime = self._current_mtime()
 
     @property
@@ -1202,7 +1226,7 @@ class SavingsTracker:
                 }
             )
             self._trim_history_locked(reference_time=timestamp_dt)
-            self._save_locked()
+            self._save_locked(history_entry=True)
             return True
 
     def record_request(
@@ -1846,7 +1870,7 @@ class SavingsTracker:
                 )
                 self._trim_history_locked(reference_time=timestamp_dt)
 
-            self._save_locked()
+            self._save_locked(history_entry=True)
             return True
 
     def record_measured_savings(
@@ -1925,7 +1949,7 @@ class SavingsTracker:
             shadow_checks.append(entry)
             if len(shadow_checks) > DEFAULT_MAX_SHADOW_CHECKS:
                 self._state["shadow_checks"] = shadow_checks[-DEFAULT_MAX_SHADOW_CHECKS:]
-            self._save_locked()
+            self._save_locked(shadow_entry=True)
             return True
 
     def _record_named_bucket_locked(
@@ -2135,6 +2159,13 @@ class SavingsTracker:
 
     def history_response(self, history_mode: str = "compact") -> dict[str, Any]:
         """Return frontend-friendly historical data for `/stats-history`."""
+        # A history/export request is an explicit durability boundary. This
+        # preserves the established contract that the ledger a caller has just
+        # inspected is also present on disk, while keeping fsync out of normal
+        # request completion.
+        self.flush()
+        if self._persistence_mode == "async":
+            self._compact_journal()
         snapshot = self.snapshot()
         raw_history = snapshot["history"]
         series = {
@@ -2325,6 +2356,7 @@ class SavingsTracker:
             "models": {},
             "clients": {},
             "shadow_checks": [],
+            "journal_generation": 0,
         }
 
     def _load_state(self) -> dict[str, Any]:
@@ -2743,19 +2775,237 @@ class SavingsTracker:
 
         return compacted
 
-    def _save_locked(self) -> None:
+    def _snapshot_locked(self) -> dict[str, Any]:
+        """Copy the persisted state while the caller holds ``self._lock``."""
+        def copy_small(value: Any) -> Any:
+            if isinstance(value, dict):
+                return {key: copy_small(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [copy_small(item) for item in value]
+            return value
+
+        # History and shadow-check entries are append-only: subsequent request
+        # updates only add a new entry or replace the containing bounded list.
+        # A shallow copy of those containers is therefore an isolated snapshot
+        # without deep-copying thousands of immutable historical dictionaries.
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "lifetime": copy_small(self._state["lifetime"]),
+            "display_session": copy_small(self._state["display_session"]),
+            "history": copy.copy(self._state["history"]),
+            "projects": copy_small(self._state.get("projects", {})),
+            "models": copy_small(self._state.get("models", {})),
+            "clients": copy_small(self._state.get("clients", {})),
+            "shadow_checks": copy.copy(self._state.get("shadow_checks", [])),
+            "journal_generation": self._journal_generation,
+        }
+
+    def _ensure_writer_locked(self) -> None:
+        if self._writer is None:
+            self._writer = threading.Thread(
+                target=self._writer_loop,
+                name="cutctx-savings-writer",
+                daemon=True,
+            )
+            self._writer.start()
+
+    def _journal_patch_locked(
+        self, *, history_entry: bool = False, shadow_entry: bool = False
+    ) -> dict[str, Any]:
+        """Build a compact replayable patch without serializing full history."""
+        snapshot = self._snapshot_locked()
+        patch = {
+            "generation": self._journal_generation + len(self._pending_journal_records) + 1,
+            "lifetime": snapshot["lifetime"],
+            "display_session": snapshot["display_session"],
+            "projects": snapshot["projects"],
+            "models": snapshot["models"],
+            "clients": snapshot["clients"],
+        }
+        if history_entry and self._state["history"]:
+            patch["history_entry"] = dict(self._state["history"][-1])
+        if shadow_entry and self._state.get("shadow_checks"):
+            patch["shadow_entry"] = dict(self._state["shadow_checks"][-1])
+        return patch
+
+    def _save_locked(self, *, history_entry: bool = False, shadow_entry: bool = False) -> None:
+        """Schedule or synchronously persist a mutation made under ``_lock``."""
+        self._dirty_generation += 1
+        if self._persistence_mode == "sync":
+            self._persist_snapshot(self._snapshot_locked())
+            self._persisted_generation = self._dirty_generation
+            self._loaded_mtime = self._current_mtime()
+            return
+
+        self._pending_journal_records.append(
+            self._journal_patch_locked(history_entry=history_entry, shadow_entry=shadow_entry)
+        )
+        # A newer mutation supersedes a previous failure: its eventual
+        # journal patch contains both the earlier and newer totals.
+        self._writer_error = None
+        self._failed_generation = None
+        self._ensure_writer_locked()
+        self._write_condition.notify_all()
+
+    def _writer_loop(self) -> None:
+        """Persist the newest dirty snapshot outside proxy request handling."""
+        while True:
+            with self._write_condition:
+                while (
+                    self._dirty_generation <= self._persisted_generation
+                    and not self._writer_stopping
+                ):
+                    self._write_condition.wait()
+                if self._writer_stopping:
+                    return
+
+                # Normal writes debounce for a bounded interval. ``flush``
+                # requests skip the delay and establish a durability boundary.
+                target_generation = self._dirty_generation
+                if self._flush_generation < target_generation:
+                    self._write_condition.wait(timeout=self._flush_interval_seconds)
+                    target_generation = self._dirty_generation
+                records = self._pending_journal_records[:]
+                del self._pending_journal_records[: len(records)]
+
+            try:
+                self._append_journal(records)
+            except BaseException as exc:
+                with self._write_condition:
+                    self._writer_error = exc
+                    self._failed_generation = target_generation
+                    self._pending_journal_records[0:0] = records
+                    self._write_condition.notify_all()
+                    if self._writer_stopping:
+                        return
+                    # Do not spin on an unavailable disk. A later mutation or
+                    # shutdown will wake the writer and permit recovery.
+                    while (
+                        self._dirty_generation <= target_generation
+                        and not self._writer_stopping
+                    ):
+                        self._write_condition.wait()
+                continue
+
+            with self._write_condition:
+                self._persisted_generation = max(self._persisted_generation, target_generation)
+                if records:
+                    self._journal_generation = max(
+                        self._journal_generation,
+                        _coerce_int(records[-1].get("generation")),
+                    )
+                self._loaded_mtime = self._current_mtime()
+                self._write_condition.notify_all()
+
+    def flush(self, timeout: float | None = None) -> bool:
+        """Wait until all updates accepted at entry have reached durable storage."""
+        if self._persistence_mode == "sync":
+            return True
+
+        deadline = None if timeout is None else time.monotonic() + timeout
+        with self._write_condition:
+            target_generation = self._dirty_generation
+            if target_generation <= self._persisted_generation:
+                return True
+            self._ensure_writer_locked()
+            self._flush_generation = max(self._flush_generation, target_generation)
+            self._write_condition.notify_all()
+            while self._persisted_generation < target_generation:
+                if (
+                    self._writer_error is not None
+                    and self._failed_generation is not None
+                    and self._failed_generation >= target_generation
+                ):
+                    raise self._writer_error
+                remaining = None if deadline is None else deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
+                    return False
+                self._write_condition.wait(timeout=remaining)
+            return True
+
+    def close(self) -> None:
+        """Flush pending savings and stop the asynchronous writer, if any."""
+        flush_error: BaseException | None = None
+        try:
+            self.flush()
+        except BaseException as exc:
+            flush_error = exc
+        finally:
+            with self._write_condition:
+                self._writer_stopping = True
+                self._write_condition.notify_all()
+                writer = self._writer
+            if writer is not None:
+                writer.join(timeout=5)
+            if flush_error is None:
+                self._compact_journal()
+        if flush_error is not None:
+            raise flush_error
+
+    def _append_journal(self, records: list[dict[str, Any]]) -> None:
+        if not records:
+            return
+        self._journal_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self._journal_path, "a", encoding="utf-8") as handle:
+            for record in records:
+                handle.write(json.dumps(record, separators=(",", ":")))
+                handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+
+    def _compact_journal(self) -> None:
+        """Write one complete snapshot, then discard journal records it covers."""
+        with self._write_condition:
+            snapshot = self._snapshot_locked()
+            snapshot["journal_generation"] = self._journal_generation
+        self._persist_snapshot(snapshot)
+        try:
+            with open(self._journal_path, "w", encoding="utf-8") as handle:
+                handle.flush()
+                os.fsync(handle.fileno())
+        except OSError as exc:
+            logger.warning("Failed to compact savings journal %s: %s", self._journal_path, exc)
+
+    def _replay_journal(self, state: dict[str, Any]) -> dict[str, Any]:
+        """Apply durable append patches written after the last JSON snapshot."""
+        if not self._journal_path.exists():
+            return state
+        compacted_generation = _coerce_int(state.get("journal_generation"))
+        raw = dict(state)
+        raw["history"] = list(state.get("history", []))
+        raw["shadow_checks"] = list(state.get("shadow_checks", []))
+        latest_generation = compacted_generation
+        try:
+            with open(self._journal_path, encoding="utf-8") as handle:
+                for line in handle:
+                    try:
+                        patch = json.loads(line)
+                    except json.JSONDecodeError:
+                        logger.warning("Ignoring incomplete savings journal record in %s", self._journal_path)
+                        break
+                    generation = _coerce_int(patch.get("generation"))
+                    if generation <= compacted_generation:
+                        continue
+                    for key in ("lifetime", "display_session", "projects", "models", "clients"):
+                        if isinstance(patch.get(key), dict):
+                            raw[key] = patch[key]
+                    if isinstance(patch.get("history_entry"), dict):
+                        raw["history"].append(patch["history_entry"])
+                    if isinstance(patch.get("shadow_entry"), dict):
+                        raw["shadow_checks"].append(patch["shadow_entry"])
+                    latest_generation = max(latest_generation, generation)
+        except OSError as exc:
+            logger.warning("Failed to replay savings journal %s: %s", self._journal_path, exc)
+            return state
+        raw["journal_generation"] = latest_generation
+        replayed = self._sanitize_state(raw)
+        replayed["journal_generation"] = latest_generation
+        return replayed
+
+    def _persist_snapshot(self, payload: dict[str, Any]) -> None:
+        """Atomically write one already-copied savings snapshot to disk."""
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            payload = {
-                "schema_version": SCHEMA_VERSION,
-                "lifetime": self._state["lifetime"],
-                "display_session": self._state["display_session"],
-                "history": self._state["history"],
-                "projects": self._state.get("projects", {}),
-                "models": self._state.get("models", {}),
-                "clients": self._state.get("clients", {}),
-                "shadow_checks": self._state.get("shadow_checks", []),
-            }
             json_data = json.dumps(payload, indent=2)
 
             fd, tmp_path = tempfile.mkstemp(
@@ -2777,7 +3027,6 @@ class SavingsTracker:
                 raise
         except OSError as e:
             logger.warning("Failed to save savings history to %s: %s", self._path, e)
-        self._loaded_mtime = self._current_mtime()
 
     def _current_mtime(self) -> float | None:
         try:

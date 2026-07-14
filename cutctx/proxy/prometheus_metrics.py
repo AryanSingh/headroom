@@ -255,7 +255,11 @@ class PrometheusMetrics:
 
         # Cumulative savings history (timestamp → cumulative tokens saved)
         self.savings_history: list[tuple[str, int]] = []
-        self.savings_tracker = savings_tracker or SavingsTracker()
+        # Request completion awaits ``record_request``.  Use coalesced
+        # persistence here so the durable JSON ledger never performs a full
+        # serialization and fsync on the event loop for every request. Direct
+        # SavingsTracker users retain synchronous persistence by default.
+        self.savings_tracker = savings_tracker or SavingsTracker(persistence_mode="async")
         self.cost_tracker = cost_tracker
         tracker_lifetime = self.savings_tracker.snapshot()["lifetime"]
         self._savings_tracker_input_tokens_offset = max(

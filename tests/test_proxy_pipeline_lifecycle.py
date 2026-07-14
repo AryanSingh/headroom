@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, call, patch
 
@@ -90,6 +91,41 @@ def test_proxy_shutdown_unloads_image_models() -> None:
         call("siglip:"),
     ]
     quota_registry.stop_all.assert_awaited_once()
+
+
+def test_proxy_metrics_uses_async_savings_persistence_and_shutdown_flushes(
+    tmp_path, monkeypatch
+) -> None:
+    """Graceful shutdown is the durability boundary for proxy request metrics."""
+    savings_path = tmp_path / "proxy_savings.json"
+    monkeypatch.setenv("CUTCTX_SAVINGS_PATH", str(savings_path))
+    config = ProxyConfig(
+        optimize=False,
+        image_optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        cost_tracking_enabled=False,
+        log_requests=False,
+        ccr_inject_tool=False,
+        ccr_handle_responses=False,
+        ccr_context_tracking=False,
+    )
+    app = create_app(config)
+    proxy = app.state.proxy
+    tracker = proxy.metrics.savings_tracker
+
+    assert tracker._persistence_mode == "async"
+    tracker._flush_interval_seconds = 60
+    tracker.record_request(model="gpt-4o", input_tokens=10, tokens_saved=1)
+    assert not savings_path.exists()
+
+    proxy.http_client = None
+    proxy.memory_handler = None
+    quota_registry = SimpleNamespace(stop_all=AsyncMock())
+    with patch("cutctx.proxy.server.get_quota_registry", return_value=quota_registry):
+        asyncio.run(proxy.shutdown())
+
+    assert json.loads(savings_path.read_text())["lifetime"]["requests"] == 1
 
 
 def test_openai_chat_pipeline_events_cover_proxy_lifecycle(monkeypatch) -> None:
