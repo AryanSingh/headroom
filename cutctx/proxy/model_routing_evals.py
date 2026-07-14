@@ -203,30 +203,55 @@ class ModelRoutingEvalRecord:
 class ModelRoutingEvalStore:
     """Thread-safe append-only JSONL store for sanitized shadow evidence."""
 
-    def __init__(self, path: str | Path | None = None) -> None:
+    def __init__(self, path: str | Path | None = None, *, redis_url: str | None = None) -> None:
         configured = path or os.environ.get(MODEL_ROUTING_EVAL_PATH_ENV)
         self.path = Path(configured or DEFAULT_MODEL_ROUTING_EVAL_PATH).expanduser()
         self._lock = threading.Lock()
+        self._redis = None
+        self._redis_key = ""
+        configured_redis_url = redis_url or os.environ.get("CUTCTX_ORCHESTRATION_REDIS_URL")
+        if configured_redis_url:
+            try:
+                import redis
+            except ImportError as exc:
+                raise RuntimeError("Redis routing evidence requires the redis package") from exc
+            self._redis = redis.Redis.from_url(configured_redis_url, decode_responses=True)
+            self._redis_key = os.environ.get(
+                "CUTCTX_MODEL_ROUTING_EVAL_REDIS_KEY", "cutctx:orchestration:routing-evidence"
+            )
+            self._redis.ping()
 
     def append(self, record: ModelRoutingEvalRecord) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         rendered = json.dumps(record.to_dict(), sort_keys=True, separators=(",", ":"))
+        if self._redis is not None:
+            self._redis.rpush(self._redis_key, rendered)
+            return
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._lock, self.path.open("a", encoding="utf-8") as handle:
             handle.write(rendered + "\n")
 
     def load(self) -> list[ModelRoutingEvalRecord]:
-        if not self.path.exists():
-            return []
+        if self._redis is not None:
+            lines = self._redis.lrange(self._redis_key, 0, -1)
+        else:
+            if not self.path.exists():
+                return []
+            with self._lock, self.path.open(encoding="utf-8") as handle:
+                lines = list(handle)
         records: list[ModelRoutingEvalRecord] = []
-        with self._lock, self.path.open(encoding="utf-8") as handle:
-            for line in handle:
-                try:
-                    payload = json.loads(line)
-                    if isinstance(payload, dict):
-                        records.append(ModelRoutingEvalRecord.from_dict(payload))
-                except (json.JSONDecodeError, TypeError, ValueError):
-                    continue
+        for line in lines:
+            try:
+                payload = json.loads(line)
+                if isinstance(payload, dict):
+                    records.append(ModelRoutingEvalRecord.from_dict(payload))
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
         return records
+
+    def clear_redis_state(self) -> None:
+        if self._redis is None:
+            raise RuntimeError("Redis routing evidence is not configured")
+        self._redis.delete(self._redis_key)
 
 
 def record_model_routing_comparison(

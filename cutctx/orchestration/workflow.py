@@ -99,6 +99,7 @@ class WorkflowStateStore:
         *,
         worker_id: str | None = None,
         lease_seconds: float = 30.0,
+        redis_url: str | None = None,
     ) -> None:
         self.path = Path(path)
         self.lock_path = self.path.with_suffix(f"{self.path.suffix}.lock")
@@ -106,6 +107,17 @@ class WorkflowStateStore:
         self.lease_seconds = max(1.0, lease_seconds)
         self._lock = threading.RLock()
         self._states: dict[str, WorkflowState] = {}
+        self._redis = None
+        self._redis_key = ""
+        configured_redis_url = redis_url or os.environ.get("CUTCTX_ORCHESTRATION_REDIS_URL")
+        if configured_redis_url:
+            try:
+                import redis
+            except ImportError as exc:
+                raise WorkflowValidationError("Redis orchestration state requires the redis package") from exc
+            self._redis = redis.Redis.from_url(configured_redis_url, decode_responses=True)
+            self._redis_key = os.environ.get("CUTCTX_ORCHESTRATION_REDIS_KEY", "cutctx:orchestration:workflows")
+            self._redis.ping()
         self._load()
 
     @staticmethod
@@ -113,13 +125,20 @@ class WorkflowStateStore:
         return copy.deepcopy(state)
 
     def _load(self) -> None:
-        if not self.path.exists():
-            self._states = {}
-            return
-        try:
-            payload = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise WorkflowValidationError(f"cannot load workflow state: {exc}") from exc
+        if self._redis is not None:
+            raw = self._redis.get(self._redis_key)
+            if raw is None:
+                self._states = {}
+                return
+            payload = json.loads(raw)
+        else:
+            if not self.path.exists():
+                self._states = {}
+                return
+            try:
+                payload = json.loads(self.path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise WorkflowValidationError(f"cannot load workflow state: {exc}") from exc
 
         states: dict[str, WorkflowState] = {}
         try:
@@ -149,6 +168,24 @@ class WorkflowStateStore:
 
     def _transaction(self):
         """Serialize state transitions across independent local workers."""
+
+        if self._redis is not None:
+            class _RedisTransaction:
+                def __init__(transaction, store: WorkflowStateStore) -> None:
+                    transaction.store = store
+                    transaction.lock: Any | None = None
+
+                def __enter__(transaction) -> None:
+                    transaction.lock = transaction.store._redis.lock(f"{transaction.store._redis_key}:lock", timeout=15, blocking_timeout=10)
+                    if not transaction.lock.acquire():
+                        raise WorkflowValidationError("could not acquire Redis workflow lock")
+                    transaction.store._load()
+
+                def __exit__(transaction, exc_type, exc, traceback) -> None:
+                    if transaction.lock is not None:
+                        transaction.lock.release()
+
+            return _RedisTransaction(self)
 
         class _Transaction:
             def __init__(transaction, store: WorkflowStateStore) -> None:
@@ -180,6 +217,9 @@ class WorkflowStateStore:
         return _Transaction(self)
 
     def _save(self) -> None:
+        if self._redis is not None:
+            self._redis.set(self._redis_key, json.dumps({"workflows": [asdict(state) for state in self._states.values()]}))
+            return
         self.path.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp_name = tempfile.mkstemp(dir=self.path.parent, prefix=f".{self.path.name}.")
         temp_path = Path(tmp_name)
@@ -202,6 +242,11 @@ class WorkflowStateStore:
         finally:
             if temp_path.exists():
                 temp_path.unlink()
+
+    def clear_redis_state(self) -> None:
+        if self._redis is None:
+            raise WorkflowValidationError("Redis workflow state is not configured")
+        self._redis.delete(self._redis_key)
 
     @staticmethod
     def _validate(spec: WorkflowSpec) -> None:

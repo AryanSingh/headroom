@@ -312,6 +312,9 @@ recommended = [
 full = [
     "cutctx-ai[proxy,proxy-prod,code,ml,memory,relevance,image,html,log-ml,knowledge-graph,reports,otel,mcp]",
 ]
+orchestration-redis = [
+    "redis>=5,<7",
+]
 
 [project.scripts]
 cutctx = "cutctx.cli.main:main"
