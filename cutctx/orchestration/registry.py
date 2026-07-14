@@ -171,7 +171,9 @@ class DynamicModelRegistry:
         with self._lock:
             cleared = 0
             for model in self._models.values():
-                if model.provider != provider or (account_id is not None and model.account_id != account_id):
+                if model.provider != provider or (
+                    account_id is not None and model.account_id != account_id
+                ):
                     continue
                 if "cooldown_until_epoch" in model.metadata:
                     del model.metadata["cooldown_until_epoch"]

@@ -603,7 +603,8 @@ def test_weighted_equivalents_are_stable_and_cover_each_positive_weight_target()
     )
 
     repeated = [
-        engine.route(RoutingRequest(role="worker", request_id="stable")).account_id for _ in range(2)
+        engine.route(RoutingRequest(role="worker", request_id="stable")).account_id
+        for _ in range(2)
     ]
     selected = {
         engine.route(RoutingRequest(role="worker", request_id=f"cohort-{index}")).account_id
@@ -613,7 +614,9 @@ def test_weighted_equivalents_are_stable_and_cover_each_positive_weight_target()
     assert repeated == [repeated[0], repeated[0]]
     assert selected == {"account-a", "account-b"}
     assert (
-        engine.route(RoutingRequest(role="worker", request_id="stable")).selection_evidence["strategy"]
+        engine.route(RoutingRequest(role="worker", request_id="stable")).selection_evidence[
+            "strategy"
+        ]
         == "equivalent_weighted"
     )
 
@@ -644,7 +647,10 @@ def test_weighted_selection_excludes_a_cooled_deployment() -> None:
 
     assert decision.account_id == "account-b"
     assert decision.selection_evidence["strategy"] == "equivalent_weighted"
-    assert {"model": primary.deployment_key, "reason": "cooling_down"} in decision.selection_evidence["rejected"]
+    assert {
+        "model": primary.deployment_key,
+        "reason": "cooling_down",
+    } in decision.selection_evidence["rejected"]
 
 
 def test_equivalent_set_cannot_substitute_a_different_model() -> None:
@@ -785,7 +791,10 @@ def test_cooling_primary_selects_declared_same_model_equivalent_in_strict_mode()
     decision = DeterministicRoutingEngine(config, registry).route(RoutingRequest(role="worker"))
 
     assert decision.account_id == "account-b"
-    assert {"model": primary.deployment_key, "reason": "cooling_down"} in decision.selection_evidence["rejected"]
+    assert {
+        "model": primary.deployment_key,
+        "reason": "cooling_down",
+    } in decision.selection_evidence["rejected"]
 
 
 def test_malformed_cached_runtime_signals_use_safe_defaults() -> None:

@@ -876,9 +876,13 @@ class OrchestrationService:
                 or float(value) < 0
                 for key, value in binding.equivalent_deployment_weights.items()
             ):
-                raise ValueError(f"Binding {binding.id!r} has invalid equivalent deployment weights")
+                raise ValueError(
+                    f"Binding {binding.id!r} has invalid equivalent deployment weights"
+                )
             allowed_weighted_deployments = {binding.model, *binding.equivalent_deployments}
-            if not set(binding.equivalent_deployment_weights).issubset(allowed_weighted_deployments):
+            if not set(binding.equivalent_deployment_weights).issubset(
+                allowed_weighted_deployments
+            ):
                 raise ValueError(
                     f"Binding {binding.id!r} equivalent deployment weights must target the primary "
                     "or an explicit equivalent deployment"

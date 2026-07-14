@@ -2777,6 +2777,7 @@ class SavingsTracker:
 
     def _snapshot_locked(self) -> dict[str, Any]:
         """Copy the persisted state while the caller holds ``self._lock``."""
+
         def copy_small(value: Any) -> Any:
             if isinstance(value, dict):
                 return {key: copy_small(item) for key, item in value.items()}
@@ -2880,10 +2881,7 @@ class SavingsTracker:
                         return
                     # Do not spin on an unavailable disk. A later mutation or
                     # shutdown will wake the writer and permit recovery.
-                    while (
-                        self._dirty_generation <= target_generation
-                        and not self._writer_stopping
-                    ):
+                    while self._dirty_generation <= target_generation and not self._writer_stopping:
                         self._write_condition.wait()
                 continue
 
@@ -2981,7 +2979,9 @@ class SavingsTracker:
                     try:
                         patch = json.loads(line)
                     except json.JSONDecodeError:
-                        logger.warning("Ignoring incomplete savings journal record in %s", self._journal_path)
+                        logger.warning(
+                            "Ignoring incomplete savings journal record in %s", self._journal_path
+                        )
                         break
                     generation = _coerce_int(patch.get("generation"))
                     if generation <= compacted_generation:

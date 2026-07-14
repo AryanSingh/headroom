@@ -44,8 +44,14 @@ def test_redis_routing_evidence_is_shared_across_workers(redis_url: str):
     writer.clear_redis_state()
     writer.append(
         ModelRoutingEvalRecord(
-            request_id="shared", prompt_hash="hash", source_model="strong", candidate_model="mini",
-            scorer="test", confidence=0.9, quality_score=1.0, source_cost_usd=1.0,
+            request_id="shared",
+            prompt_hash="hash",
+            source_model="strong",
+            candidate_model="mini",
+            scorer="test",
+            confidence=0.9,
+            quality_score=1.0,
+            source_cost_usd=1.0,
             candidate_cost_usd=0.1,
         )
     )

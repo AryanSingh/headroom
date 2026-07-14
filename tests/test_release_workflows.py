@@ -33,6 +33,14 @@ def test_ci_provisions_redis_for_redis_orchestration_integration_tests() -> None
     assert "Redis integration server is not configured" in redis_tests
 
 
+def test_native_e2e_coverage_is_reported_without_applying_global_full_suite_threshold() -> None:
+    """Narrow installer/wrapper smoke suites must not inherit the 70% global gate."""
+    for workflow_name in ("wrap-native-e2e.yml", "install-native-e2e.yml"):
+        content = (ROOT / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
+        assert "--cov=cutctx" in content
+        assert "--cov-fail-under=0" in content
+
+
 def test_docker_workflow_normalizes_repository_name_for_signing() -> None:
     content = (ROOT / ".github" / "workflows" / "docker.yml").read_text(encoding="utf-8")
 

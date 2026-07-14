@@ -55,7 +55,7 @@ jobs:
       - name: Run install native smoke tests
         shell: bash
         run: |
-          pytest tests/test_cli/test_install_cli.py tests/test_install/test_paths.py --cov=cutctx --cov-report=xml:coverage-install-native.xml --cov-report=term-missing -q
+          pytest tests/test_cli/test_install_cli.py tests/test_install/test_paths.py --cov=cutctx --cov-fail-under=0 --cov-report=xml:coverage-install-native.xml --cov-report=term-missing -q
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4

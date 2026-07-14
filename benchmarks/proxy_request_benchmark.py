@@ -120,6 +120,7 @@ async def run_request_benchmark(
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
 
     async with httpx.AsyncClient(transport=transport, base_url="http://cutctx-benchmark") as client:
+
         async def send_one() -> None:
             async with semaphore:
                 started = time.perf_counter()
@@ -171,6 +172,7 @@ async def run_http_request_benchmark(
     async with httpx.AsyncClient(
         base_url=base_url.rstrip("/"), transport=transport, timeout=30
     ) as client:
+
         async def send_one() -> None:
             async with semaphore:
                 started = time.perf_counter()
@@ -236,14 +238,22 @@ def build_proxy_app() -> FastAPI:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--requests", type=int, default=100, help="Measured requests (default: 100)")
-    parser.add_argument("--concurrency", type=int, default=10, help="In-flight requests (default: 10)")
-    parser.add_argument("--warmup", type=int, default=10, help="Unreported warm-up requests (default: 10)")
+    parser.add_argument(
+        "--requests", type=int, default=100, help="Measured requests (default: 100)"
+    )
+    parser.add_argument(
+        "--concurrency", type=int, default=10, help="In-flight requests (default: 10)"
+    )
+    parser.add_argument(
+        "--warmup", type=int, default=10, help="Unreported warm-up requests (default: 10)"
+    )
     parser.add_argument(
         "--base-url",
         help="Measure an already-running proxy over HTTP instead of the in-process fixture",
     )
-    parser.add_argument("--json", type=Path, help="Write the result and environment metadata as JSON")
+    parser.add_argument(
+        "--json", type=Path, help="Write the result and environment metadata as JSON"
+    )
     return parser.parse_args()
 
 
@@ -255,6 +265,7 @@ def main() -> int:
     }
     headers = {"Authorization": "Bearer benchmark-key"}
     if args.base_url:
+
         def run(count: int, concurrency: int):
             return run_http_request_benchmark(
                 base_url=args.base_url,
@@ -265,9 +276,12 @@ def main() -> int:
                 headers=headers,
             )
 
-        measurement = "HTTP/TCP to an existing proxy; excludes provider inference only when upstream is fixed"
+        measurement = (
+            "HTTP/TCP to an existing proxy; excludes provider inference only when upstream is fixed"
+        )
     else:
         app = build_proxy_app()
+
         def run(count: int, concurrency: int):
             return run_request_benchmark(
                 app,
@@ -278,7 +292,9 @@ def main() -> int:
                 headers=headers,
             )
 
-        measurement = "in-process ASGI; fixed upstream response; excludes network and model inference"
+        measurement = (
+            "in-process ASGI; fixed upstream response; excludes network and model inference"
+        )
     if args.warmup:
         asyncio.run(run(args.warmup, min(args.concurrency, args.warmup)))
     result = asyncio.run(run(args.requests, args.concurrency))
@@ -293,7 +309,9 @@ def main() -> int:
     print(json.dumps(metadata, indent=2, sort_keys=True))
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        args.json.write_text(
+            json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
     return 0 if result.failures == 0 else 1
 
 

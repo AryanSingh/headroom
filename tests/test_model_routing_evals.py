@@ -327,8 +327,9 @@ def test_evidence_report_has_explicit_empty_and_collecting_states() -> None:
     assert collecting["sample_progress"]["fraction"] == 0.5
     assert collecting["segmented"]["global_recommendation"] is None
     assert (
-        collecting["segmented"]["dimensions"]["model_pair"]
-        ["gpt-strong->gpt-mini"]["effective_minimum_confidence"]
+        collecting["segmented"]["dimensions"]["model_pair"]["gpt-strong->gpt-mini"][
+            "effective_minimum_confidence"
+        ]
         is None
     )
 

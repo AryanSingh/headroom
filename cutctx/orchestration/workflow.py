@@ -114,9 +114,13 @@ class WorkflowStateStore:
             try:
                 import redis
             except ImportError as exc:
-                raise WorkflowValidationError("Redis orchestration state requires the redis package") from exc
+                raise WorkflowValidationError(
+                    "Redis orchestration state requires the redis package"
+                ) from exc
             self._redis = redis.Redis.from_url(configured_redis_url, decode_responses=True)
-            self._redis_key = os.environ.get("CUTCTX_ORCHESTRATION_REDIS_KEY", "cutctx:orchestration:workflows")
+            self._redis_key = os.environ.get(
+                "CUTCTX_ORCHESTRATION_REDIS_KEY", "cutctx:orchestration:workflows"
+            )
             self._redis.ping()
         self._load()
 
@@ -170,13 +174,16 @@ class WorkflowStateStore:
         """Serialize state transitions across independent local workers."""
 
         if self._redis is not None:
+
             class _RedisTransaction:
                 def __init__(transaction, store: WorkflowStateStore) -> None:
                     transaction.store = store
                     transaction.lock: Any | None = None
 
                 def __enter__(transaction) -> None:
-                    transaction.lock = transaction.store._redis.lock(f"{transaction.store._redis_key}:lock", timeout=15, blocking_timeout=10)
+                    transaction.lock = transaction.store._redis.lock(
+                        f"{transaction.store._redis_key}:lock", timeout=15, blocking_timeout=10
+                    )
                     if not transaction.lock.acquire():
                         raise WorkflowValidationError("could not acquire Redis workflow lock")
                     transaction.store._load()
@@ -218,7 +225,10 @@ class WorkflowStateStore:
 
     def _save(self) -> None:
         if self._redis is not None:
-            self._redis.set(self._redis_key, json.dumps({"workflows": [asdict(state) for state in self._states.values()]}))
+            self._redis.set(
+                self._redis_key,
+                json.dumps({"workflows": [asdict(state) for state in self._states.values()]}),
+            )
             return
         self.path.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp_name = tempfile.mkstemp(dir=self.path.parent, prefix=f".{self.path.name}.")
