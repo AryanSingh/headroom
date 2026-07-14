@@ -181,10 +181,24 @@ def setup(port: int, auto_detect: bool, start: bool, do_register_mcp: bool) -> N
 
     # Summary
     click.echo("\n" + click.style("=" * 40, fg="cyan"))
-    click.echo(click.style("Setup Complete!", fg="cyan", bold=True))
+    if health["running"]:
+        completion_heading = "Setup Complete!"
+        completion_color = "cyan"
+    elif start:
+        completion_heading = "Setup needs attention"
+        completion_color = "yellow"
+    else:
+        completion_heading = "Setup skipped proxy start."
+        completion_color = "yellow"
+
+    click.echo(click.style(completion_heading, fg=completion_color, bold=True))
     click.echo(f"  Proxy:  http://127.0.0.1:{port}")
     click.echo(f"  Health: {'OK' if health['running'] else 'Not running'}")
     click.echo(f"  Agents: {len(agents)} detected, {len(mcp_registered)} MCP registered")
     if not health["running"]:
         click.echo(f"\n  Start proxy: cutctx proxy --port {port}")
+        click.echo("  Troubleshooting: https://cutctx.com/docs/troubleshooting")
     click.echo()
+
+    if start and not health["running"]:
+        raise click.exceptions.Exit(1)
