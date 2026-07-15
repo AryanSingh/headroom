@@ -17,7 +17,9 @@ from typing import Any
 import httpx
 
 from .audit import ReceiptAuditStore
+from .compiler import compile_contract
 from .config import LayeredConfigStore, default_config_paths
+from .contracts import WorkloadContract
 from .credentials import CredentialStore, EncryptedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
 from .models import (
@@ -37,6 +39,12 @@ from .models import (
 from .policy_bundle import compile_policy_bundle
 from .providers import ProviderAdapter, ProviderAdapterRegistry, builtin_provider_registry
 from .registry import DynamicModelRegistry
+from .simulation import (
+    SimulationResult,
+    compare_decisions,
+    receipt_from_decision,
+    receipt_from_unavailable,
+)
 from .telemetry import ExecutionTelemetryStore, OutcomeTelemetryStore
 from .workflow import TaskSpec, WorkflowRunner, WorkflowSpec, WorkflowState, WorkflowStateStore
 
@@ -154,12 +162,31 @@ class OrchestrationService:
         execution, proxy routing, and workflow execution—uses identical,
         non-bypassable organization/project limits.
         """
+        return self._apply_policy_defaults_for_config(request, self.config)
+
+    @staticmethod
+    def _apply_policy_defaults_for_config(
+        request: RoutingRequest,
+        config: OrchestrationConfig,
+    ) -> RoutingRequest:
         if request.task_type is not None and request.task_type not in {
             value.value for value in TaskType
         }:
             raise ValueError(f"Unknown task type: {request.task_type!r}")
-        settings = self.config.settings
-        profile = self._profile(request.profile)
+        settings = config.settings
+        profile = None
+        if request.profile is not None:
+            normalized_profile = request.profile.casefold()
+            profile = next(
+                (
+                    item
+                    for item in config.profiles
+                    if item.id.casefold() == normalized_profile
+                ),
+                None,
+            )
+            if profile is None:
+                raise ValueError(f"Unknown routing profile: {request.profile!r}")
 
         def narrow(caller: set[str], policy: set[str]) -> set[str]:
             normalized_policy = {value.casefold() for value in policy}
@@ -198,6 +225,65 @@ class OrchestrationService:
             ),
             policy_version=settings.policy_version,
         )
+
+    def simulate_contract(
+        self,
+        contract: WorkloadContract,
+        request: RoutingRequest,
+    ) -> SimulationResult:
+        """Compare a draft contract with live routing without executing either route."""
+        compiled = compile_contract(contract, self.config)
+        draft_engine = DeterministicRoutingEngine(
+            compiled.config,
+            self.model_registry,
+            require_configured_accounts=True,
+        )
+        live_request = self._apply_policy_defaults(request)
+        draft_request = self._apply_policy_defaults_for_config(request, compiled.config)
+        live_receipt = None
+        with self._state_lock:
+            try:
+                live_decision = self.engine.route(live_request, allow_overrides=True)
+            except RoutingUnavailableError as exc:
+                live_decision = None
+                live_receipt = receipt_from_unavailable(
+                    request_id=live_request.request_id or "simulation-live",
+                    assigned_model=exc.assigned_model,
+                    reason=exc.reason,
+                    message=str(exc),
+                )
+        draft_decision = draft_engine.route(draft_request, allow_overrides=True)
+        if live_decision is not None:
+            live_eligible, live_rejected = self.engine.candidate_evidence(
+                live_request,
+                live_decision,
+            )
+            live_receipt = receipt_from_decision(
+                live_decision,
+                eligible_candidates=live_eligible,
+                rejected_candidates=live_rejected,
+            )
+        draft_eligible, draft_rejected = draft_engine.candidate_evidence(
+            draft_request,
+            draft_decision,
+        )
+        return compare_decisions(
+            live=live_receipt,
+            draft=receipt_from_decision(
+                draft_decision,
+                eligible_candidates=draft_eligible,
+                rejected_candidates=draft_rejected,
+                compiled=compiled,
+            ),
+        )
+
+    def replay_contract(
+        self,
+        contract: WorkloadContract,
+        requests: list[RoutingRequest],
+    ) -> list[SimulationResult]:
+        """Replay historical request features through a draft without provider calls."""
+        return [self.simulate_contract(contract, request) for request in requests]
 
     def _profile(self, profile_id: str | None) -> Any | None:
         if profile_id is None:

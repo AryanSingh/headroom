@@ -226,7 +226,17 @@ class RoutingDecision:
     required_capabilities: set[str] = field(default_factory=set)
     policy_constraints: dict[str, Any] = field(default_factory=dict)
     selection_evidence: dict[str, Any] = field(default_factory=dict)
-    receipt_version: int = 1
+    contract_id: str | None = None
+    contract_version: str | None = None
+    contract_state: str | None = None
+    policy_hash: str | None = None
+    eligible_candidates: list[str] = field(default_factory=list)
+    rejected_candidates: list[dict[str, str]] = field(default_factory=list)
+    selected_model: str | None = None
+    selected_deployment: str | None = None
+    evidence: dict[str, Any] = field(default_factory=dict)
+    reliability_budget: dict[str, Any] = field(default_factory=dict)
+    receipt_version: int = 2
 
 
 @dataclass

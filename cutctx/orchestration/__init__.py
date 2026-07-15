@@ -40,6 +40,7 @@ from .models import (
 )
 from .policy_bundle import compile_policy_bundle, sign_policy_bundle, verify_policy_bundle
 from .service import OrchestrationService, build_orchestration_service
+from .simulation import ContractDecisionReceipt, RejectedCandidate, SimulationResult
 from .workflow import (
     TaskSpec,
     TaskState,
@@ -58,6 +59,7 @@ __all__ = [
     "ContractObjective",
     "ContractObjectiveType",
     "ContractRequirements",
+    "ContractDecisionReceipt",
     "CompiledRoutingPolicy",
     "ContractCompilationError",
     "CredentialStore",
@@ -82,9 +84,11 @@ __all__ = [
     "RoutingPolicy",
     "RoutingProfile",
     "ResolverBackedCredentialStore",
+    "RejectedCandidate",
     "RoutingRequest",
     "TaskType",
     "RoutingUnavailableError",
+    "SimulationResult",
     "sign_policy_bundle",
     "verify_policy_bundle",
     "build_orchestration_service",

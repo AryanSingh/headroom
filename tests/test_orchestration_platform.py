@@ -188,7 +188,7 @@ def test_routing_receipt_enforces_provider_residency_data_and_cost_constraints()
 
     assert decision.provider == "anthropic"
     assert decision.fallback_used is True
-    assert decision.receipt_version == 1
+    assert decision.receipt_version == 2
     assert decision.policy_constraints == {
         "allowed_providers": ["anthropic"],
         "allowed_regions": ["eu"],
