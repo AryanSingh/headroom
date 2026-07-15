@@ -55,6 +55,28 @@ The preset is intentionally conservative:
 - `gpt-5.4 -> gpt-5.4-mini`
 - `gpt-5 -> gpt-5.4-mini`
 
+## Aggressive preset coverage
+
+The dashboard's **Aggressive** mode uses the `economy` preset. It has
+explicit exact-match coverage for the current project model labels, including
+`gpt-5.6-terra`, `gpt-5.6-sol`, `gpt-5.6-luna`, `gpt-5.5`, `gpt-5.4`,
+`gpt-5.3`, `gpt-5.2`, `gpt-5.1`, `gpt-5`, `claude-sonnet-5`, and their
+documented versioned Claude aliases. GPT-5 models route to `gpt-5.4-mini`;
+Sonnet 5 routes to `claude-haiku-5-20260101` when the request is eligible.
+
+The router intentionally does not use family-name wildcards. An unlisted
+provider model is retained and recorded as `no_route_for_model` until a
+provider-validated exact route is added.
+
+## Seeing why a request stayed put
+
+Recent requests now include a **Routing** value alongside the effective model.
+It shows the source-to-target pair for an applied route, or a reason such as
+`no_route_for_model`, `workload_not_downgradeable`,
+`confidence_below_threshold`, or `downgrade_blocked_unproven_transport`.
+Large agent turns with recent tool context, code, or other high-risk signals
+are intentionally retained on the requested model even in Aggressive mode.
+
 ## Complexity heuristic
 
 The router only applies the low-complexity branch when a request is clearly simple, such as:

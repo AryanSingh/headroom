@@ -81,6 +81,25 @@ def test_preset_applied_and_abstained_decisions_emit_same_trace_shape() -> None:
     assert retained["rejected_candidates"]
 
 
+def test_abstained_routing_trace_has_dashboard_safe_summary() -> None:
+    router = ModelRouter(ModelRouterConfig.economy_preset())
+    handler = type("Handler", (), {"_model_router": router})()
+
+    model, metadata = prepare_model_routing(
+        handler,
+        "gpt-5.6-terra",
+        messages=[{"role": "tool", "content": "repository output"}, {"role": "user", "content": "summarize this"}],
+        num_messages=2,
+        request_id="req-tool-context",
+        request_savings_metadata={},
+    )
+
+    assert model == "gpt-5.6-terra"
+    assert metadata["model_routing"]["source_model"] == "gpt-5.6-terra"
+    assert metadata["model_routing"]["target_model"] == "gpt-5.6-terra"
+    assert metadata["model_routing"]["reason"] == "workload_not_downgradeable"
+
+
 def _orchestration_decision(**overrides):  # type: ignore[no-untyped-def]
     values = {
         "actual_model": "gpt-5.4-mini",

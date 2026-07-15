@@ -2045,6 +2045,17 @@ function formatMaybePercent(value) {
   return value == null ? '—' : formatPercent(Math.min(100, Math.max(0, Number(value || 0))));
 }
 
+function formatRoutingDecision(request) {
+  const routing = request?.routing_metadata;
+  if (!routing || typeof routing !== 'object') {
+    return 'Not evaluated';
+  }
+  if (routing.routed) {
+    return `${routing.source_model || request?.model || '—'} → ${routing.target_model || request?.model || '—'}`;
+  }
+  return routing.reason || 'Retained';
+}
+
 const TRACE_SOURCE_LABELS = {
   cutctx_compression: 'Direct compression',
   provider_prompt_cache: 'Provider prompt cache',
@@ -2868,6 +2879,7 @@ export default function Overview({ searchQuery = '' }) {
                   <thead>
                     <tr>
                       <th>Routed model</th>
+                      <th>Routing</th>
                       <th>Input</th>
                       <th>Saved</th>
                       <th>Proxy</th>
@@ -2903,6 +2915,7 @@ export default function Overview({ searchQuery = '' }) {
                             request.model || '—'
                           )}
                         </td>
+                        <td title={formatRoutingDecision(request)}>{formatRoutingDecision(request)}</td>
                         <td>{formatMaybeInteger(inputTokens)}</td>
                         <td className="savings-value">
                           <div className="request-savings-stack">
@@ -2932,7 +2945,8 @@ export default function Overview({ searchQuery = '' }) {
                 <div className="request-table-note">
                   Saved = direct compression plus tracked created savings and observed provider-cache savings.
                   Proxy = tokens Cutctx compressed. Cache = provider prompt-cache or Cutctx response-cache savings.
-                  Model = the routed model CutCtx observed on the request.
+                  Model = the effective model Cutctx observed on the request. Routing explains whether
+                  Cutctx changed the model or retained it and why.
                 </div>
               </div>
           )}

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from cutctx.proxy.model_router import ModelRouterConfig
+from cutctx.proxy.model_router import ModelRouter, ModelRouterConfig
 
 
 class TestDefaultPreset:
@@ -56,6 +56,31 @@ class TestEconomyPreset:
         cfg = ModelRouterConfig.economy_preset()
         pairs = {(r.source, r.target) for r in cfg.routes}
         assert ("gemini-2.5-pro", "gemini-2.5-flash") in pairs
+
+    @pytest.mark.parametrize(
+        ("source", "target"),
+        [
+            ("gpt-5.6-terra", "gpt-5.4-mini"),
+            ("gpt-5.6-sol", "gpt-5.4-mini"),
+            ("gpt-5.6-luna", "gpt-5.4-mini"),
+            ("gpt-5.5", "gpt-5.4-mini"),
+            ("gpt-5.4", "gpt-5.4-mini"),
+            ("gpt-5.3", "gpt-5.4-mini"),
+            ("gpt-5.2", "gpt-5.4-mini"),
+            ("gpt-5.1", "gpt-5.4-mini"),
+            ("gpt-5", "gpt-5.4-mini"),
+            ("claude-sonnet-5", "claude-haiku-5-20260101"),
+        ],
+    )
+    def test_economy_explicitly_covers_current_model_aliases(
+        self, source: str, target: str
+    ) -> None:
+        router = ModelRouter(ModelRouterConfig.economy_preset())
+
+        decision = router.maybe_route(source)
+
+        assert decision.routing_applied is True
+        assert decision.target_model == target
 
     def test_economy_thresholds_are_looser(self) -> None:
         cfg = ModelRouterConfig.economy_preset()
