@@ -19,6 +19,7 @@ import httpx
 from .audit import ReceiptAuditStore
 from .compiler import compile_contract
 from .config import LayeredConfigStore, default_config_paths
+from .contract_store import ContractStore, StoredContract
 from .contracts import WorkloadContract
 from .credentials import CredentialStore, EncryptedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
@@ -80,6 +81,7 @@ class OrchestrationService:
         outcome_telemetry: OutcomeTelemetryStore | None = None,
         receipt_audit: ReceiptAuditStore | None = None,
         workflow_store: WorkflowStateStore | None = None,
+        contract_store: ContractStore | None = None,
     ) -> None:
         self.config_store = config_store
         self.credential_store = credential_store
@@ -90,6 +92,9 @@ class OrchestrationService:
         self.receipt_audit = receipt_audit
         self.workflow_store = workflow_store or WorkflowStateStore(
             Path.home() / ".cutctx" / "orchestration" / "workflows.json"
+        )
+        self.contract_store = contract_store or ContractStore(
+            Path.home() / ".cutctx" / "orchestration" / "contracts.json"
         )
         self._state_lock = threading.RLock()
         self.config = self.config_store.load()
@@ -284,6 +289,22 @@ class OrchestrationService:
     ) -> list[SimulationResult]:
         """Replay historical request features through a draft without provider calls."""
         return [self.simulate_contract(contract, request) for request in requests]
+
+    def list_contracts(self, contract_id: str | None = None) -> list[WorkloadContract]:
+        return self.contract_store.list_contracts(contract_id)
+
+    def get_contract(self, contract_id: str, version: str) -> WorkloadContract:
+        return self.contract_store.get_version(contract_id, version)
+
+    def put_contract_draft(
+        self, contract: WorkloadContract, *, expected_revision: int
+    ) -> StoredContract:
+        return self.contract_store.put_draft(contract, expected_revision=expected_revision)
+
+    def transition_contract(
+        self, contract_id: str, version: str, *, target: str
+    ) -> WorkloadContract:
+        return self.contract_store.transition(contract_id, version, target)
 
     def _profile(self, profile_id: str | None) -> Any | None:
         if profile_id is None:
@@ -1006,4 +1027,5 @@ def build_orchestration_service(
             ReceiptAuditStore(root / "receipt-audit.jsonl", key=audit_key) if audit_key else None
         ),
         workflow_store=WorkflowStateStore(root / "workflows.json"),
+        contract_store=ContractStore(root / "contracts.json"),
     )

@@ -11,6 +11,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from cutctx.orchestration.contract_store import (
+    ContractConflictError,
+    ContractTransitionError,
+)
+from cutctx.orchestration.contracts import contract_from_dict, contract_to_dict
 from cutctx.orchestration.engine import RoutingUnavailableError
 from cutctx.orchestration.harnesses import compatibility_manifest
 from cutctx.orchestration.models import RoutingRequest, to_dict
@@ -132,6 +137,20 @@ class WorkflowPayload(BaseModel):
     tasks: list[WorkflowTaskPayload] = Field(min_length=1, max_length=128)
 
 
+class ContractDraftPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    contract: dict[str, Any]
+    expected_revision: int = Field(ge=0)
+
+
+class ContractSimulationPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    contract: dict[str, Any]
+    scenario: RoutingPayload
+
+
 def _workflow_spec(payload: WorkflowPayload) -> WorkflowSpec:
     def artifact_for(task: WorkflowTaskPayload) -> TaskArtifact:
         try:
@@ -216,6 +235,114 @@ def create_orchestration_router(
             return service.public_config()
         except (TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.get("/contracts", dependencies=read_deps)
+    async def contracts() -> dict[str, Any]:
+        return {
+            "contracts": [contract_to_dict(item) for item in service.list_contracts()],
+            "revision": service.contract_store.revision,
+        }
+
+    @router.get(
+        "/contracts/{contract_id}/versions/{version}", dependencies=read_deps
+    )
+    async def get_contract(contract_id: str, version: str) -> dict[str, Any]:
+        try:
+            contract = service.get_contract(contract_id, version)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return {"contract": contract_to_dict(contract)}
+
+    @router.put(
+        "/contracts/{contract_id}/draft", dependencies=write_deps, status_code=201
+    )
+    async def put_contract_draft(
+        contract_id: str, payload: ContractDraftPayload
+    ) -> dict[str, Any]:
+        try:
+            contract = contract_from_dict(payload.contract)
+            if contract.id != contract_id:
+                raise ValueError("Contract id does not match route")
+            stored = service.put_contract_draft(
+                contract, expected_revision=payload.expected_revision
+            )
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except (ContractConflictError, ContractTransitionError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {
+            "contract": contract_to_dict(stored.contract),
+            "revision": stored.revision,
+            "updated_at": stored.updated_at,
+        }
+
+    @router.post("/contracts/{contract_id}/simulate", dependencies=read_deps)
+    async def simulate_contract(
+        contract_id: str, payload: ContractSimulationPayload
+    ) -> dict[str, Any]:
+        try:
+            contract = contract_from_dict(payload.contract)
+            if contract.id != contract_id:
+                raise ValueError("Contract id does not match route")
+            return asdict(service.simulate_contract(contract, _request(payload.scenario)))
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except RoutingUnavailableError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    async def transition_contract(
+        contract_id: str, version: str, target: str
+    ) -> dict[str, Any]:
+        try:
+            contract = service.transition_contract(contract_id, version, target=target)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ContractTransitionError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {
+            "contract": contract_to_dict(contract),
+            "revision": service.contract_store.revision,
+        }
+
+    @router.post(
+        "/contracts/{contract_id}/versions/{version}/shadow", dependencies=write_deps
+    )
+    async def shadow_contract(contract_id: str, version: str) -> dict[str, Any]:
+        return await transition_contract(contract_id, version, "shadow")
+
+    @router.post(
+        "/contracts/{contract_id}/versions/{version}/canary", dependencies=write_deps
+    )
+    async def canary_contract(contract_id: str, version: str) -> dict[str, Any]:
+        return await transition_contract(contract_id, version, "canary")
+
+    @router.post(
+        "/contracts/{contract_id}/versions/{version}/pause", dependencies=write_deps
+    )
+    async def pause_contract(contract_id: str, version: str) -> dict[str, Any]:
+        return await transition_contract(contract_id, version, "paused")
+
+    @router.post(
+        "/contracts/{contract_id}/versions/{version}/rollback", dependencies=write_deps
+    )
+    async def rollback_contract(contract_id: str, version: str) -> dict[str, Any]:
+        return await transition_contract(contract_id, version, "draft")
+
+    @router.post(
+        "/contracts/{contract_id}/versions/{version}/promote", dependencies=write_deps
+    )
+    async def promote_contract(contract_id: str, version: str) -> dict[str, Any]:
+        try:
+            service.get_contract(contract_id, version)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "insufficient_evidence",
+                "message": "Contract promotion requires verified rollout evidence",
+            },
+        )
 
     @router.get("/providers", dependencies=read_deps)
     async def providers() -> dict[str, Any]:
@@ -525,6 +652,20 @@ def create_orchestration_router(
     @router.get("/executions", dependencies=read_deps)
     async def executions(limit: int = 100) -> dict[str, Any]:
         return {"executions": service.telemetry.list(limit=min(max(limit, 1), 1000))}
+
+    @router.get("/receipts/{request_id}", dependencies=read_deps)
+    async def receipt(request_id: str) -> dict[str, Any]:
+        execution = next(
+            (
+                item
+                for item in service.telemetry.list(limit=1000)
+                if item.get("request_id") == request_id
+            ),
+            None,
+        )
+        if execution is None:
+            raise HTTPException(status_code=404, detail="unknown routing receipt")
+        return {"receipt": execution}
 
     @router.get("/outcomes", dependencies=read_deps)
     async def outcomes(limit: int = 100) -> dict[str, Any]:

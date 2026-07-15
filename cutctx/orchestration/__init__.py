@@ -7,6 +7,12 @@ pulling provider-specific transport details into routing policy.
 
 from .audit import ReceiptAuditStore
 from .compiler import CompiledRoutingPolicy, ContractCompilationError, compile_contract
+from .contract_store import (
+    ContractConflictError,
+    ContractStore,
+    ContractTransitionError,
+    StoredContract,
+)
 from .contracts import (
     ContractEvaluationPolicy,
     ContractLifecycle,
@@ -59,6 +65,9 @@ __all__ = [
     "ContractObjective",
     "ContractObjectiveType",
     "ContractRequirements",
+    "ContractConflictError",
+    "ContractStore",
+    "ContractTransitionError",
     "ContractDecisionReceipt",
     "CompiledRoutingPolicy",
     "ContractCompilationError",
@@ -89,6 +98,7 @@ __all__ = [
     "TaskType",
     "RoutingUnavailableError",
     "SimulationResult",
+    "StoredContract",
     "sign_policy_bundle",
     "verify_policy_bundle",
     "build_orchestration_service",
