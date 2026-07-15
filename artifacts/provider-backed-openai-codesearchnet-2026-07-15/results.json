@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-15T11:27:03.521688",
+  "model": "gpt-4o-mini",
+  "tiers_run": [
+    1,
+    2
+  ],
+  "total_cost_usd": 0,
+  "total_duration_seconds": 55.55,
+  "summary": {
+    "total_benchmarks": 1,
+    "passed": 1,
+    "failed": 0,
+    "all_passed": true,
+    "avg_delta": 0.0,
+    "avg_compression_ratio": 0.2973,
+    "total_tokens_saved": 4380
+  },
+  "benchmarks": [
+    {
+      "name": "CodeSearchNet",
+      "category": "code",
+      "tier": 2,
+      "n_samples": 50,
+      "model": "gpt-4o-mini",
+      "metric": "accuracy_preservation_rate",
+      "metric_label": "Accuracy Preservation Rate",
+      "passed": true,
+      "avg_compression_ratio": 0.2973,
+      "tokens_saved": 4380,
+      "duration_seconds": 45.37,
+      "accuracy_rate": 1.0,
+      "metric_value": 1.0
+    }
+  ]
+}

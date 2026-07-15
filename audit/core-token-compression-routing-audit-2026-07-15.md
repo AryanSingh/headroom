@@ -10,7 +10,7 @@ Cutctx has an unusually broad and differentiated core: content-specific compress
 
 The most important verified defect is a model-routing safety gap. The complexity classifier recognizes `role: tool`, Anthropic `tool_use`/`tool_result`, and `function_call_output` only when nested in `content`. It misses real OpenAI tool-call shapes including top-level Responses API `function_call` items, Chat Completions `tool_calls`, and `function_call` content blocks. Reproductions for all three shapes returned `LOW`, allowing an active tool-loop continuation to route to Mini despite the documented fail-conservative contract.
 
-The largest market gap is proof quality. Cutctx's fixture comparison now includes deterministic bootstrap intervals, but its reported comparison quality remains lexical token retention rather than downstream answer/task correctness. Microsoft LLMLingua positions itself with peer-reviewed downstream-task results and up to 20x compression claims. Cutctx's stronger product story—local-first, reversible, agent-native, cross-provider—needs equally strong public evidence based on real task outcomes, not only compression ratio and F1/ROUGE overlap.
+The audit also closed the first layer of the proof-quality gap. Cutctx now ships deterministic offline downstream consumers that execute structured operational tasks against original and compressed contexts, plus a single `cutctx evidence` receipt joining task outcomes, routing safety, compression verification, savings attribution, assurance, artifact hashes, and limitations. Provider-backed preservation runs have since completed for SQuAD v2 (100 cases, 100% preservation), HotpotQA (50 cases, 100%), and CodeSearchNet (50 cases, 100% at 30% compression). A Claude/Codex subscription-CLI pilot completed without transport failures. These results are still not cross-vendor leadership claims or absolute benchmark-accuracy measurements.
 
 ## Findings
 
@@ -26,33 +26,33 @@ The largest market gap is proof quality. Cutctx's fixture comparison now include
 - **Resolution:** `cutctx/proxy/model_router.py` now uses a recursive provider-neutral detector for tool roles, Chat `tool_calls`, legacy `function_call`, provider call items, and `*_call_output` results. Four regression variants were written and observed failing before implementation, then passed after the minimal fix. Three provider-shape cases were added to the versioned benchmark corpus.
 - **Post-fix evidence:** 178 focused routing/savings tests passed; the expanded 59-case routing benchmark retained 100% tier accuracy and zero unsafe Mini downgrades.
 
-### High — Compression leadership is not yet supported by downstream-task comparison evidence
+### Partially resolved High — Compression leadership needs broader provider-backed task evidence
 
 - **Confidence:** High.
 - **Evidence:** `benchmarks/run_comparison.py:270-273` computes token-level F1 and ROUGE-L against the original text. Its output explicitly labels this a lexical-retention proxy, not downstream task quality. The fixture harness contains uncertainty intervals, but the underlying outcome is still indirect.
-- **Impact:** Buyers cannot determine whether a higher reduction preserves answer correctness, tool-call validity, code behavior, or retrieval accuracy. This weakens otherwise strong savings claims and makes competitive comparisons easy to challenge.
-- **Remediation:** Add task-execution evaluators for structured extraction/tool calls, QA, code repair, and long-context retrieval. Report paired baseline-vs-compressed task accuracy, savings, latency, and confidence intervals with raw versioned artifacts.
+- **Resolution:** `cutctx evals downstream` now executes four deterministic consumer tasks covering JSON aggregation, operational log lookup, configuration-diff interpretation, and failed tool-call extraction. The first red run scored only 50%, exposing that the router discarded query context for logs and that relevant non-severity log facts could be omitted. The router now forwards query context and the log compressor preserves a bounded set of query-relevant lines. The resulting artifact reports 100% baseline and compressed task accuracy with explicit limitations.
+- **Remaining gap:** BFCL requires structured/executable tool-call validation; HumanEval requires executable scoring at scale; long-context work needs a statistically powered run. The product must not extrapolate preservation results into a public cross-vendor quality claim.
 
-### Medium — The routing benchmark is too small and too coupled to the heuristic
+### Partially resolved Medium — Routing evidence remains internally labeled
 
 - **Confidence:** High.
-- **Evidence:** `benchmarks/model_routing_quality.py:31-111` plus the v2 fixture contain 56 deterministic cases. The same repository authors define both the regex heuristic and its labels. The current audit run achieved 100% on every tier and category.
+- **Evidence:** The v2 corpus now contains 59 deterministic cases across Codex, Claude, OpenCode, and generic clients, including provider-native tool-call shapes. The same repository authors still define both the heuristic and labels.
 - **Impact:** The gate is a useful regression suite but weak evidence of generalization. It did not contain the three provider-native tool-call shapes that exposed the verified safety defect.
-- **Remediation:** Add provider-shape fixtures, paraphrase/adversarial variants, blinded human labels, and a larger held-out corpus. Keep zero unsafe Mini downgrades as the hard gate.
+- **Remediation:** Provider-shape fixtures are complete. Add paraphrase/adversarial variants, blinded human labels, and an independently maintained held-out corpus. Keep zero unsafe Mini downgrades as the hard gate.
 
-### Medium — Product proof mixes excellent implementation breadth with uneven evidence strength
+### Resolved Medium — Product proof was fragmented across surfaces
 
 - **Confidence:** High.
 - **Evidence:** `README.md:128-164` combines real-workload savings, benchmark accuracy, and zero-LLM compression tables, but these claims use different evaluation methodologies and are not surfaced as one signed/versioned proof bundle.
 - **Impact:** Technical evaluators must reconstruct what is measured, what is inferred, and which claims are reproducible locally. This creates trust friction at evaluation and procurement time.
-- **Remediation:** Generate a single `cutctx evidence` bundle containing environment, versions, fixture hashes, task outcomes, routing safety, savings attribution, latency, and limitations. Render the same artifact in CLI, dashboard, and docs.
+- **Resolution:** `cutctx evidence` emits versioned JSON or Markdown with first-request and configurable-period activation receipts, additive source attribution, downstream task outcomes, compression verification, model-routing safety, release posture, Context Assurance state, SHA-256 artifact bindings, and explicit limitations. Missing proof is rendered as unavailable instead of inferred.
 
-### Low — Core strength is difficult to explain as one focused product promise
+### Resolved Low — First-value proof lacked one focused product promise
 
 - **Confidence:** Medium.
 - **Evidence:** The product includes compression, routing, cache optimization, memory, governance, learning, images, multiple wrappers, and orchestration. The breadth is real, but first-time evaluation still requires understanding several modes.
 - **Impact:** Users may perceive complexity before experiencing first savings.
-- **Remediation:** Lead with one activation loop: setup → first compressed request → verified quality/savings receipt → seven-day report. Treat advanced capabilities as progressive disclosure.
+- **Resolution:** The new evidence command implements the proof portion of the activation loop: first persisted request receipt plus a seven-day aggregate by default. Setup and proxy workflows can now point to one canonical export rather than several reports.
 
 ## Verified strengths
 
@@ -66,9 +66,10 @@ The largest market gap is proof quality. Cutctx's fixture comparison now include
 ## Recommended phased improvement
 
 1. **Completed — routing safety:** provider-native call/result shapes now fail strong during active tool loops.
-2. **Next — decision-grade proof:** add downstream task evaluators and publish paired, versioned evidence bundles.
-3. **Next — product activation:** expose a simple first-request savings-and-quality receipt and a seven-day proof report.
-4. **Later — tune aggressiveness:** use shadow evidence to increase Mini/Luna coverage without weakening the zero-unsafe-downgrade gate.
+2. **Completed — local decision proof:** deterministic downstream task consumers and a portable versioned evidence receipt.
+3. **Completed — product activation receipt:** first-request and seven-day savings/quality proof surfaces.
+4. **Next — external proof:** complete schema-aware BFCL, executable HumanEval, and statistically powered long-context runs, then obtain independent/partner evidence before market claims.
+5. **Later — tune aggressiveness:** use shadow evidence to increase Mini/Luna coverage without weakening the zero-unsafe-downgrade gate.
 
 ## Verification log
 
@@ -81,6 +82,10 @@ The largest market gap is proof quality. Cutctx's fixture comparison now include
 - TDD GREEN → the four variants plus stale-context coverage passed; full `tests/test_model_router.py` passed 63 tests.
 - Integrated focused suite → 178 passed on Python 3.12 with the compiled Rust extension.
 - Expanded routing benchmark → 59 cases, 100% tier accuracy, zero unsafe Mini downgrades.
+- TDD RED offline task run → 50% compressed task accuracy; deployment target and added timeout were lost.
+- TDD GREEN offline task run → 4/4 task consumers correct, 100% baseline/compressed accuracy.
+- Portable evidence focused suite → 181 passed; Ruff clean.
+- Repository-wide verification after compatibility fixes → 8,749 passed, 267 skipped, 0 failed.
 
 ## External comparison context
 

@@ -94,6 +94,21 @@ All compressors follow the same principle: **fail gracefully, return original co
 LLMLingua out-of-memory during model loading raises a `RuntimeError`. All other failures are silently handled.
 </Callout>
 
+## Evaluation Limits and Honest Claims
+
+- Compression-preservation evaluations compare answers from original and
+  compressed contexts. They do not establish a model's absolute benchmark
+  accuracy or prove a cross-provider winner.
+- A subscription CLI smoke test verifies an authenticated execution route, not
+  statistically meaningful quality. Publish its corpus version, sample count,
+  prompt policy, and scoring method separately from API-backed results.
+- Tool-use evaluations require schema-aware or executable validation. Text
+  similarity to an expected tool call is not sufficient evidence; BFCL remains
+  excluded from product-quality claims until that evaluator is available.
+- Reports with a failed dataset loader, stale manifest, missing provenance, or
+  unverified baseline must be removed or labeled unavailable rather than used
+  in marketing or release decisions.
+
 ## Adaptive K: How Item Retention Works
 
 SmartCrusher does not use fixed K values. It uses information-theoretic sizing:

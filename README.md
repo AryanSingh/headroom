@@ -142,16 +142,20 @@ separate line items. Cutctx is positioned as a local, reversible,
 cross-provider agent context control plane; raw compression-ratio leadership
 should be evaluated with the reproducible benchmark harness.
 
-**Accuracy preserved on standard benchmarks:**
+**Current provider-backed compression checks:**
 
-| Benchmark  | Category | N   | Baseline | Cutctx | Delta      |
-|------------|----------|----:|---------:|---------:|------------|
-| GSM8K      | Math     | 100 |    0.870 |    0.870 | **±0.000** |
-| TruthfulQA | Factual  | 100 |    0.530 |    0.560 | **+0.030** |
-| SQuAD v2   | QA       | 100 |        — |  **97%** | 19% compression |
-| BFCL       | Tools    | 100 |        — |  **97%** | 32% compression |
+| Benchmark | Task | N | Raw-to-compressed preservation | Compression |
+|---|---|---:|---:|---:|
+| SQuAD v2 | question answering | 100 | 100% | 5% |
+| HotpotQA | multi-hop QA | 50 | 100% | 18% |
+| CodeSearchNet | code understanding | 50 | 100% | 30% |
 
-Reproduce: `cutctx evals benchmark --dataset tool_outputs --dataset hotpotqa --dataset squad --compressors all --metrics ratio --metrics tokens_saved --metrics f1 --metrics rouge_l --markdown` · [Full benchmarks & methodology](https://cutctx.com/docs/benchmarks)
+These checks compare a model's answer on original versus compressed context;
+they are not a claim of absolute benchmark accuracy. BFCL is intentionally
+excluded until its evaluator validates structured tool calls against schemas:
+the prior text/F1 scoring path disagreed with baseline tool-call answers.
+Reproduce the documented procedure with an authenticated provider CLI or API
+credential. [Full methodology and limitations](https://cutctx.com/docs/benchmarks)
 
 **Real output from the command above** (seed `42`, zero-LLM):
 

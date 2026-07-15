@@ -565,7 +565,11 @@ def _build_savings_breakdown(
                 float(mr_meta.get("usd", 0.0) or 0.0),
                 float(mr_meta.get("usd_saved", 0.0) or 0.0),
             )
-            if routing_applied or not (source_model or target_model):
+            # Upstream gateways may report model-routing savings even when the
+            # local router retained the requested model.  Keep that explicit
+            # telemetry instead of treating local source==target observability
+            # fields as an instruction to discard it.
+            if routing_applied or not (source_model or target_model) or mr_tokens > 0 or mr_usd > 0:
                 if mr_tokens > model_routing_tokens:
                     model_routing_tokens = mr_tokens
                 if mr_usd > model_routing_usd:

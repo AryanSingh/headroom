@@ -26,7 +26,12 @@ def install_fake_datasets(
 ) -> list[tuple[str, str | None, str | None]]:
     calls: list[tuple[str, str | None, str | None]] = []
 
-    def fake_load_dataset(name: str, subset: str | None = None, split: str | None = None):
+    def fake_load_dataset(
+        name: str,
+        subset: str | None = None,
+        split: str | None = None,
+        **_kwargs: object,
+    ):
         key = (name, subset, split)
         calls.append(key)
         return mapping[key]
@@ -181,7 +186,7 @@ def test_load_longbench_narrativeqa_toolbench_codesearchnet_and_humaneval(
                     "answer": "Call weather",
                 },
             ],
-            ("code_search_net", "python", "test"): [
+            ("code-search-net/code_search_net", "python", "test"): [
                 {"func_code_string": "", "func_documentation_string": "skip"},
                 {
                     "func_code_string": "def add(a, b): return a + b",
@@ -247,6 +252,34 @@ def test_load_longbench_toolbench_and_codesearchnet_wrap_loader_errors(
         datasets.load_toolbench(category="G2")
     with pytest.raises(ValueError, match="Failed to load CodeSearchNet for 'go'"):
         datasets.load_codesearchnet(language="go")
+
+
+def test_load_codesearchnet_streams_large_remote_split(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_load_dataset(
+        name: str,
+        subset: str | None = None,
+        split: str | None = None,
+        **kwargs: object,
+    ) -> list[dict[str, object]]:
+        captured.update(name=name, subset=subset, split=split, **kwargs)
+        return [
+            {
+                "func_code_string": "def add(a, b): return a + b",
+                "func_documentation_string": "Add two numbers.",
+            }
+        ]
+
+    monkeypatch.setitem(sys.modules, "datasets", SimpleNamespace(load_dataset=fake_load_dataset))
+
+    assert len(datasets.load_codesearchnet(n=1).cases) == 1
+    assert captured == {
+        "name": "code-search-net/code_search_net",
+        "subset": "python",
+        "split": "test",
+        "streaming": True,
+    }
 
 
 def test_load_bfcl_success_and_download_failure(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -473,7 +506,7 @@ def test_dataset_loaders_cover_skip_and_limit_branches(
                     "query": "Good",
                 },
             ],
-            ("code_search_net", "python", "test"): [
+            ("code-search-net/code_search_net", "python", "test"): [
                 {
                     "func_code_string": "",
                     "whole_func_string": "",

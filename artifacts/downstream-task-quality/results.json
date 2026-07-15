@@ -1,0 +1,83 @@
+{
+  "benchmarks": [
+    {
+      "avg_compression_ratio": 0.07116839450826562,
+      "baseline_score": 1.0,
+      "category": "task_outcome",
+      "cutctx_score": 1.0,
+      "delta": 0.0,
+      "metric": "accuracy",
+      "model": "deterministic-offline-consumers",
+      "n_samples": 4,
+      "name": "Offline Downstream Task Consumers",
+      "passed": true,
+      "tier": 1,
+      "tokens_saved": 3315
+    }
+  ],
+  "limitations": [
+    "Deterministic offline probes cover structured consumer tasks, not open-ended model reasoning.",
+    "Provider-backed SQuAD, BFCL, HotpotQA, and lm-eval runs remain required for release-grade model quality claims."
+  ],
+  "model": "deterministic-offline-consumers",
+  "summary": {
+    "all_passed": true,
+    "failed": 0,
+    "passed": 1,
+    "total_benchmarks": 1,
+    "total_tokens_saved": 3315
+  },
+  "task_outcomes": [
+    {
+      "baseline_answer": 25,
+      "baseline_correct": true,
+      "compressed_tokens": 49,
+      "cutctx_answer": 25,
+      "cutctx_correct": true,
+      "expected": 25,
+      "id": "incident_duration_total",
+      "original_tokens": 780
+    },
+    {
+      "baseline_answer": "ap-south-1",
+      "baseline_correct": true,
+      "compressed_tokens": 45,
+      "cutctx_answer": "ap-south-1",
+      "cutctx_correct": true,
+      "expected": "ap-south-1",
+      "id": "deployment_target",
+      "original_tokens": 1448
+    },
+    {
+      "baseline_answer": 45,
+      "baseline_correct": true,
+      "compressed_tokens": 75,
+      "cutctx_answer": 45,
+      "cutctx_correct": true,
+      "expected": 45,
+      "id": "configuration_diff",
+      "original_tokens": 592
+    },
+    {
+      "baseline_answer": [
+        "call-b",
+        "call-c"
+      ],
+      "baseline_correct": true,
+      "compressed_tokens": 85,
+      "cutctx_answer": [
+        "call-b",
+        "call-c"
+      ],
+      "cutctx_correct": true,
+      "expected": [
+        "call-b",
+        "call-c"
+      ],
+      "id": "failed_tool_calls",
+      "original_tokens": 749
+    }
+  ],
+  "timestamp": "2026-07-15T04:45:55.600655+00:00",
+  "version": "1.0"
+}

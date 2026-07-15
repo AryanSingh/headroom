@@ -1521,6 +1521,8 @@ class OpenAIResponsesMixin:
         model: str,
         request_id: str,
         timing: dict[str, float] | None = None,
+        compact_tool_schemas: bool = True,
+        allow_payload_mutation: bool = True,
     ) -> tuple[dict[str, Any], bool, int, list[str], str | None, int, int, int]:
         """Compress an OpenAI Responses payload through the shared router.
 
@@ -1540,6 +1542,17 @@ class OpenAIResponsesMixin:
         input_serialization_started = time.perf_counter()
         input_bytes = json.dumps(payload).encode("utf-8")
         _add_timing("compression_input_json_dump", input_serialization_started)
+        if not allow_payload_mutation:
+            return (
+                payload,
+                False,
+                0,
+                [],
+                "subscription_passthrough",
+                len(input_bytes),
+                len(input_bytes),
+                0,
+            )
         # Codex/Responses requests can re-enter this method many times per
         # request_id (one per turn over the same websocket). Tag every
         # event in this single pass with a content-derived id so dashboards
@@ -1577,30 +1590,36 @@ class OpenAIResponsesMixin:
         reason: str | None = None
 
         tool_compaction_started = time.perf_counter()
-        # Use shared schema compressor (30+ key drops + description truncation)
-        try:
-            from cutctx.proxy.schema_compress import compress_tool_results, compress_tool_schemas
+        if compact_tool_schemas:
+            # Use shared schema compressor (30+ key drops + description truncation)
+            try:
+                from cutctx.proxy.schema_compress import (
+                    compress_tool_results,
+                    compress_tool_schemas,
+                )
 
-            _tools_list = working.get("tools")
-            if isinstance(_tools_list, list) and _tools_list:
-                compacted_tools, tools_modified, tools_before_bytes, tools_after_bytes = (
-                    compress_tool_schemas(
-                        _tools_list,
-                        max_description_length=120 if canary_arm == "tool_api_slimming" else 200,
-                        aggressive=canary_arm == "tool_api_slimming",
+                _tools_list = working.get("tools")
+                if isinstance(_tools_list, list) and _tools_list:
+                    compacted_tools, tools_modified, tools_before_bytes, tools_after_bytes = (
+                        compress_tool_schemas(
+                            _tools_list,
+                            max_description_length=120 if canary_arm == "tool_api_slimming" else 200,
+                            aggressive=canary_arm == "tool_api_slimming",
+                        )
                     )
+                    if tools_modified:
+                        compacted_payload = {**working, "tools": compacted_tools}
+                        working = compacted_payload
+                else:
+                    tools_modified, tools_before_bytes, tools_after_bytes = False, 0, 0
+            except ImportError:
+                compacted_payload, tools_modified, tools_before_bytes, tools_after_bytes = (
+                    _compact_openai_responses_tools(working)
                 )
                 if tools_modified:
-                    compacted_payload = {**working, "tools": compacted_tools}
                     working = compacted_payload
-            else:
-                tools_modified, tools_before_bytes, tools_after_bytes = False, 0, 0
-        except ImportError:
-            compacted_payload, tools_modified, tools_before_bytes, tools_after_bytes = (
-                _compact_openai_responses_tools(working)
-            )
-            if tools_modified:
-                working = compacted_payload
+        else:
+            tools_modified, tools_before_bytes, tools_after_bytes = False, 0, 0
         _add_timing("compression_tool_schema_compaction", tool_compaction_started)
         if tools_modified:
             working = compacted_payload
@@ -1804,25 +1823,32 @@ class OpenAIResponsesMixin:
         *,
         model: str,
         request_id: str,
+        compact_tool_schemas: bool = True,
+        allow_payload_mutation: bool = True,
     ) -> tuple[dict[str, Any], bool, int, list[str], str | None, int, int, int, dict[str, float]]:
         timing: dict[str, float] = {}
 
         def _compress():  # noqa: ANN202
-            try:
-                return self._compress_openai_responses_payload(
-                    payload,
-                    model=model,
-                    request_id=request_id,
-                    timing=timing,
-                )
-            except TypeError as exc:
-                if "unexpected keyword argument 'timing'" not in str(exc):
-                    raise
-                return self._compress_openai_responses_payload(
-                    payload,
-                    model=model,
-                    request_id=request_id,
-                )
+            compress_fn = self._compress_openai_responses_payload
+            kwargs: dict[str, Any] = {
+                "model": model,
+                "request_id": request_id,
+                "timing": timing,
+                "compact_tool_schemas": compact_tool_schemas,
+                "allow_payload_mutation": allow_payload_mutation,
+            }
+            # Tests, plugins, and older subclasses may replace this method with
+            # the pre-policy signature. Filter only unsupported keyword
+            # parameters up front so timing still flows whenever the override
+            # supports it, without catching TypeError raised inside compression.
+            parameters = inspect.signature(compress_fn).parameters
+            accepts_kwargs = any(
+                parameter.kind is inspect.Parameter.VAR_KEYWORD
+                for parameter in parameters.values()
+            )
+            if not accepts_kwargs:
+                kwargs = {name: value for name, value in kwargs.items() if name in parameters}
+            return compress_fn(payload, **kwargs)
 
         result = await self._run_compression_in_executor(
             _compress,
@@ -4728,7 +4754,7 @@ class OpenAIResponsesMixin:
                                     else None,
                                 )
                                 frame_surface_saved = frame_surface_result.tokens_saved
-                                if frame_surface_result.modified and isinstance(
+                                if not is_chatgpt_auth and frame_surface_result.modified and isinstance(
                                     inner_payload, dict
                                 ):
                                     inner_payload = {
@@ -4754,6 +4780,8 @@ class OpenAIResponsesMixin:
                                     inner_payload,
                                     model=model_for_frame,
                                     request_id=request_id,
+                                    compact_tool_schemas=not is_chatgpt_auth,
+                                    allow_payload_mutation=not is_chatgpt_auth,
                                 )
                                 if (
                                     original_frame_tools

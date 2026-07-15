@@ -49,6 +49,24 @@ from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
+_QUERY_STOPWORDS = {
+    "about",
+    "after",
+    "before",
+    "from",
+    "have",
+    "that",
+    "the",
+    "this",
+    "what",
+    "when",
+    "which",
+    "with",
+    "were",
+    "was",
+    "for",
+}
+
 
 class LogFormat(Enum):
     """Detected log format."""
@@ -197,25 +215,68 @@ class LogCompressor:
     # ─── Public API ─────────────────────────────────────────────────────
 
     def compress(self, content: str, context: str = "", bias: float = 1.0) -> LogCompressionResult:
-        # `context` is unused upstream and unused here (Python original
-        # also didn't use it). Kept in the signature for drop-in compat.
-        del context
         rust_result = self._rust.compress(content, bias)
+        compressed = self._preserve_query_relevant_lines(
+            original=content,
+            compressed=rust_result.compressed,
+            context=context,
+        )
         cache_key: str | None = rust_result.cache_key
         if cache_key is not None:
-            self._persist_to_python_ccr(content, rust_result.compressed, cache_key)
+            self._persist_to_python_ccr(content, compressed, cache_key)
 
         stats_dict = {k: int(v) for k, v in cast("dict[str, int]", rust_result.stats).items()}
+        compressed_line_count = len(compressed.splitlines()) if content else 0
         return LogCompressionResult(
-            compressed=rust_result.compressed,
+            compressed=compressed,
             original=content,
             original_line_count=rust_result.original_line_count,
-            compressed_line_count=rust_result.compressed_line_count,
+            compressed_line_count=compressed_line_count,
             format_detected=_format_from_str(rust_result.format_detected),
-            compression_ratio=rust_result.compression_ratio,
+            compression_ratio=(
+                compressed_line_count / rust_result.original_line_count
+                if content and rust_result.original_line_count
+                else 1.0
+            ),
             cache_key=cache_key,
             stats=stats_dict,
         )
+
+    @staticmethod
+    def _preserve_query_relevant_lines(*, original: str, compressed: str, context: str) -> str:
+        """Append a few omitted lines that directly match the user's query.
+
+        Severity-only log selection is unsafe for operational facts such as a
+        deployment target or job identifier. Query terms provide a cheap,
+        deterministic relevance signal while the existing severity selection
+        continues to control the bulk of the output.
+        """
+        if not context.strip():
+            return compressed
+        import re
+
+        terms = {
+            term.lower()
+            for term in re.findall(r"[A-Za-z0-9]+", context)
+            if len(term) >= 3 and term.lower() not in _QUERY_STOPWORDS
+        }
+        if not terms:
+            return compressed
+        compressed_lines = set(compressed.splitlines())
+        relevant: list[str] = []
+        for line in original.splitlines():
+            if line in compressed_lines:
+                continue
+            lowered = line.lower()
+            matches = sum(term in lowered for term in terms)
+            if matches >= 2:
+                relevant.append(line)
+            if len(relevant) >= 5:
+                break
+        if not relevant:
+            return compressed
+        suffix = "\n".join(["[query-relevant lines]", *relevant])
+        return f"{compressed.rstrip()}\n{suffix}"
 
     # ─── Legacy internal helpers (test surface compat) ──────────────────
 

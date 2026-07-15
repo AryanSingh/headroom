@@ -517,6 +517,28 @@ def test_prepare_model_routing_attaches_placeholder_metadata() -> None:
     assert metadata["model_routing"]["target_model"] == "claude-sonnet-4-5"
 
 
+def test_prepare_model_routing_preserves_upstream_routing_savings_when_retained() -> None:
+    cfg = ModelRouterConfig(
+        enabled=True,
+        downgrade_when="low_complexity",
+        routes=[ModelRoute(source="gpt-strong", target="gpt-mini")],
+    )
+    handler = type("Handler", (), {"_model_router": ModelRouter(cfg)})()
+
+    model, metadata = prepare_model_routing(
+        handler,
+        "gpt-strong",
+        messages=[{"role": "user", "content": "build an entire orchestrator with AST parsing"}],
+        request_savings_metadata={"model_routing": {"tokens": 25, "usd": 0.03}},
+    )
+
+    assert model == "gpt-strong"
+    assert metadata is not None
+    assert metadata["model_routing"]["tokens"] == 25
+    assert metadata["model_routing"]["usd"] == 0.03
+    assert metadata["model_routing"]["reason"] == "workload_not_downgradeable"
+
+
 def test_prepare_model_routing_attaches_request_overrides_for_codex_slim() -> None:
     cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
 

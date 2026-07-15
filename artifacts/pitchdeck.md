@@ -182,19 +182,24 @@ $ Saved by source
 
 ## Slide 10 — Quality (the "but does the model still get the right answer?" objection)
 
-**Title:** *Compression preserves answer quality.*
+**Title:** *Compression preserves answers on the evaluated contexts.*
 
-| Benchmark | Baseline | With Cutctx | Δ |
+| Benchmark | Cases | Original-to-compressed preservation | Compression |
 |---|---:|---:|---:|
-| GSM8K | 0.870 | 0.870 | **0.000** |
-| TruthfulQA | 0.530 | 0.560 | **+0.030** |
-| SQuAD v2 | — | 97% | 19% compression |
-| BFCL | — | 97% | 32% compression |
+| SQuAD v2 | 100 | 100% | 5% |
+| HotpotQA | 50 | 100% | 18% |
+| CodeSearchNet | 50 | 100% | 30% |
 | CCR needle (worst-case) | — | 100% recall | 77% reduction |
 
-*Source: `wiki/benchmarks.md:84-128`, `wiki/index.md:303-311`.*
+*These are preservation checks, not absolute benchmark-accuracy or
+cross-provider-leadership claims. BFCL is omitted until structured tool-call
+validation is available. Source: `docs/content/docs/benchmarks.mdx`.*
 
-**Speaker note (30s):** "This is the slide for the engineer who says 'but the model needs the full context.' The answer is: same or better answers, fewer tokens, on the benchmarks that matter. CCR needle 100% means we still find the FATAL in the 100-line log even after 77% reduction. Show this slide whenever you hear 'won't compression hurt quality' — it doesn't."
+**Speaker note (30s):** "This is the slide for the engineer who asks whether
+compression changes an answer. On the currently evaluated contexts, original
+and compressed inputs produced the same answer. Keep the claim narrow: it is
+evidence for these tasks, not a blanket guarantee. CCR needle 100% means we
+still find the FATAL in the 100-line log after 77% reduction."
 
 ---
 

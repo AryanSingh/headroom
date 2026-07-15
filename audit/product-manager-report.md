@@ -22,21 +22,21 @@ The next market challenge is not feature count. It is making safety and ROI inde
 
 ## Missing or incomplete product capabilities
 
-### P0 — Decision-grade quality proof
+### Partially resolved P0 — Decision-grade quality proof
 
-The comparison harness measures lexical retention, reduction, and latency with bootstrap intervals, but not whether compressed prompts produce the same correct answer, valid tool call, successful code change, or retrieved fact. Add downstream task execution and paired baseline-vs-compressed outcomes.
+`cutctx evals downstream` now runs zero-provider task consumers and publishes paired baseline-vs-compressed accuracy for JSON aggregation, operational log lookup, diff interpretation, and tool-result extraction. This is credible local task-outcome evidence and already found two real query-preservation defects. Provider-backed preservation is now recorded for SQuAD v2, HotpotQA, and CodeSearchNet, plus a Claude/Codex subscription-CLI route pilot. BFCL remains excluded until tool calls are schema-validated; HumanEval and long-context evaluation still require executable/statistically powered runs before research-grade or cross-vendor claims.
 
 ### Resolved P0 — Provider-complete routing safety
 
 The router previously missed several OpenAI tool-call message shapes and could classify an active tool-loop continuation as low complexity. The recent-context detector now covers provider-native call and result shapes recursively, with TDD regressions and a 59-case benchmark gate. Increasing routing coverage should still remain evidence-gated.
 
-### P1 — One portable evidence bundle
+### Resolved P1 — One portable evidence bundle
 
-Generate a signed/versioned artifact that joins compression, routing, savings attribution, latency, quality checks, environment, and limitations. Use the same artifact in CLI, dashboard, docs, support, and procurement.
+`cutctx evidence` now generates versioned JSON or Markdown joining downstream task outcomes, compression verification, routing safety, release posture, Context Assurance, first-request/seven-day savings attribution, SHA-256 artifact bindings, and limitations. It produces honest unavailable states instead of manufacturing proof.
 
-### P1 — Activation receipt and seven-day report
+### Resolved P1 — Activation receipt and seven-day report
 
-After the first successful proxied request, show a concise receipt: before/after tokens, source attribution, route decision, cache effect, guard result, and CCR availability. Follow with a seven-day report that demonstrates cumulative ROI and highlights unsafe/abstained decisions.
+The evidence command selects the earliest persisted request in the reporting window for the activation receipt and aggregates a seven-day period by default. It uses canonical additive savings-source attribution and includes the routing, quality, release, and assurance proof artifacts alongside ROI.
 
 ### P2 — Privacy-reviewed activation analytics
 
@@ -113,4 +113,4 @@ This positions Cutctx beyond a prompt compressor or generic gateway: an evidence
 
 ## Immediate priority
 
-Provider-native tool-context detection and the corresponding corpus expansion are complete. The next major investment should be downstream-task benchmark execution and a portable evidence bundle. Avoid more aggressive downgrades until those gates are in place.
+Provider-native tool-context detection, the 59-case corpus, deterministic downstream task execution, query-aware log preservation, portable activation/evidence receipt, and initial provider/subscription route evidence are complete. The next major investment is external validation: schema-aware BFCL, executable HumanEval, a statistically powered long-context run, independently labeled routing data, and privacy-reviewed opt-in activation analytics. Avoid more aggressive downgrades until those external gates are in place.

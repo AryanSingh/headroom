@@ -1,9 +1,10 @@
 {
-  "schema_version": 1,
-  "cases": 28,
+  "schema_version": 2,
+  "corpus_version": 2,
+  "cases": 59,
   "confusion_matrix": {
-    "tp": 10,
-    "tn": 18,
+    "tp": 20,
+    "tn": 39,
     "fp": 0,
     "fn": 0
   },
@@ -14,7 +15,168 @@
     "strong_model_recall": 1.0,
     "luna_candidate_recall": 1.0,
     "tier_accuracy": 1.0,
-    "unsafe_downgrade_rate": 0.0
+    "unsafe_downgrade_rate": 0.0,
+    "mean_confidence": 0.9516949152542372
+  },
+  "per_client": {
+    "claude": {
+      "cases": 8,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "codex": {
+      "cases": 15,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "generic": {
+      "cases": 28,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "opencode": {
+      "cases": 8,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    }
+  },
+  "per_category": {
+    "ambiguous": {
+      "cases": 2,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "code": {
+      "cases": 4,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "context_recovery": {
+      "cases": 1,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "contextual": {
+      "cases": 5,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "conversation": {
+      "cases": 2,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "data_safety": {
+      "cases": 1,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "debugging": {
+      "cases": 4,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "design": {
+      "cases": 2,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "evaluation": {
+      "cases": 1,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "execution": {
+      "cases": 1,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "implementation": {
+      "cases": 3,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "informational": {
+      "cases": 6,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "migration": {
+      "cases": 2,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "multimodal": {
+      "cases": 1,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "production": {
+      "cases": 2,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "reference_dependent": {
+      "cases": 1,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "release": {
+      "cases": 2,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "repository_lookup": {
+      "cases": 4,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "security": {
+      "cases": 2,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "small_edit": {
+      "cases": 7,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "tool_use": {
+      "cases": 5,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    },
+    "transformation": {
+      "cases": 1,
+      "tier_accuracy": 1.0,
+      "unsafe_downgrades": 0,
+      "unsafe_downgrade_rate": 0.0
+    }
   },
   "rows": [
     {
@@ -24,10 +186,13 @@
       "category": "conversation",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": true,
       "expected_tier": "mini",
       "predicted_tier": "mini",
       "complexity": "low",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -37,10 +202,13 @@
       "category": "informational",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": true,
       "expected_tier": "mini",
       "predicted_tier": "mini",
       "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -50,10 +218,13 @@
       "category": "repository_lookup",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": true,
       "expected_tier": "mini",
       "predicted_tier": "mini",
       "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -63,10 +234,13 @@
       "category": "informational",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": true,
       "expected_tier": "mini",
       "predicted_tier": "mini",
       "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -76,10 +250,13 @@
       "category": "informational",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": true,
       "expected_tier": "mini",
       "predicted_tier": "mini",
       "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -89,10 +266,13 @@
       "category": "small_edit",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": true,
       "expected_tier": "mini",
       "predicted_tier": "mini",
       "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -102,10 +282,13 @@
       "category": "small_edit",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": true,
       "expected_tier": "mini",
       "predicted_tier": "mini",
       "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -115,10 +298,13 @@
       "category": "small_edit",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": true,
       "expected_tier": "mini",
       "predicted_tier": "mini",
       "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -128,10 +314,13 @@
       "category": "small_edit",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": true,
       "expected_tier": "mini",
       "predicted_tier": "mini",
       "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -141,10 +330,13 @@
       "category": "small_edit",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": true,
       "expected_tier": "mini",
       "predicted_tier": "mini",
       "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -154,10 +346,13 @@
       "category": "design",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -167,10 +362,13 @@
       "category": "security",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -180,10 +378,13 @@
       "category": "debugging",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -193,10 +394,13 @@
       "category": "implementation",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -206,10 +410,13 @@
       "category": "migration",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -219,10 +426,13 @@
       "category": "evaluation",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -232,10 +442,13 @@
       "category": "release",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -245,10 +458,13 @@
       "category": "production",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -258,10 +474,13 @@
       "category": "code",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -271,10 +490,13 @@
       "category": "code",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -284,10 +506,13 @@
       "category": "debugging",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -297,10 +522,13 @@
       "category": "implementation",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -310,10 +538,13 @@
       "category": "tool_use",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -323,10 +554,13 @@
       "category": "ambiguous",
       "expect_luna": false,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "strong",
       "predicted_tier": "strong",
       "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -349,10 +583,13 @@
           "content": "Explain the first module."
         }
       ],
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "luna",
       "predicted_tier": "luna",
       "complexity": "medium",
+      "confidence": 0.85,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -375,10 +612,13 @@
           "content": "Summarize that in bullets."
         }
       ],
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "luna",
       "predicted_tier": "luna",
       "complexity": "medium",
+      "confidence": 0.85,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -388,10 +628,13 @@
       "category": "transformation",
       "expect_luna": true,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "luna",
       "predicted_tier": "luna",
       "complexity": "medium",
+      "confidence": 0.85,
+      "scorer": "heuristic",
       "correct": true
     },
     {
@@ -401,10 +644,653 @@
       "category": "reference_dependent",
       "expect_luna": true,
       "messages": null,
+      "client": "generic",
       "predicted_mini": false,
       "expected_tier": "luna",
       "predicted_tier": "luna",
       "complexity": "medium",
+      "confidence": 0.85,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_status",
+      "prompt": "Show git status.",
+      "expect_mini": true,
+      "category": "repository_lookup",
+      "expect_luna": false,
+      "messages": null,
+      "client": "codex",
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_file_location",
+      "prompt": "Where is the proxy entrypoint?",
+      "expect_mini": true,
+      "category": "repository_lookup",
+      "expect_luna": false,
+      "messages": null,
+      "client": "codex",
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_explain_term",
+      "prompt": "What is a circuit breaker?",
+      "expect_mini": true,
+      "category": "informational",
+      "expect_luna": false,
+      "messages": null,
+      "client": "codex",
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_architecture",
+      "prompt": "Design the multi-region orchestration architecture and migration plan.",
+      "expect_mini": false,
+      "category": "design",
+      "expect_luna": false,
+      "messages": null,
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_debug",
+      "prompt": "Debug the websocket race that loses tool results.",
+      "expect_mini": false,
+      "category": "debugging",
+      "expect_luna": false,
+      "messages": null,
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_security",
+      "prompt": "Audit authorization across all services and implement fixes.",
+      "expect_mini": false,
+      "category": "security",
+      "expect_luna": false,
+      "messages": null,
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_patch",
+      "prompt": "Apply this patch:\n*** Begin Patch\n*** End Patch",
+      "expect_mini": false,
+      "category": "code",
+      "expect_luna": false,
+      "messages": null,
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_contextual",
+      "prompt": "Explain the first one.",
+      "expect_mini": false,
+      "category": "contextual",
+      "expect_luna": true,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect both routing modules."
+        },
+        {
+          "role": "assistant",
+          "content": "I found two."
+        },
+        {
+          "role": "user",
+          "content": "Explain the first one."
+        }
+      ],
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "luna",
+      "predicted_tier": "luna",
+      "complexity": "medium",
+      "confidence": 0.85,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "claude_greeting",
+      "prompt": "hello",
+      "expect_mini": true,
+      "category": "conversation",
+      "expect_luna": false,
+      "messages": null,
+      "client": "claude",
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "claude_docstring",
+      "prompt": "Add a docstring to this helper.",
+      "expect_mini": true,
+      "category": "small_edit",
+      "expect_luna": false,
+      "messages": null,
+      "client": "claude",
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "claude_summary",
+      "prompt": "Summarize the supported providers.",
+      "expect_mini": true,
+      "category": "informational",
+      "expect_luna": false,
+      "messages": null,
+      "client": "claude",
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "claude_tool_result",
+      "prompt": "Fix the failure using this tool output.",
+      "expect_mini": false,
+      "category": "tool_use",
+      "expect_luna": false,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect the test."
+        },
+        {
+          "role": "assistant",
+          "content": "Running it."
+        },
+        {
+          "role": "tool",
+          "content": "Traceback: database unavailable"
+        },
+        {
+          "role": "user",
+          "content": "Fix the failure using this tool output."
+        }
+      ],
+      "client": "claude",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "claude_production",
+      "prompt": "Fix the production billing outage and deploy safely.",
+      "expect_mini": false,
+      "category": "production",
+      "expect_luna": false,
+      "messages": null,
+      "client": "claude",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "claude_multimodal",
+      "prompt": "analyze image",
+      "expect_mini": false,
+      "category": "multimodal",
+      "expect_luna": false,
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "image",
+              "source": "redacted"
+            },
+            {
+              "type": "text",
+              "text": "Analyze this."
+            }
+          ]
+        }
+      ],
+      "client": "claude",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "claude_reference",
+      "prompt": "Summarize that.",
+      "expect_mini": false,
+      "category": "contextual",
+      "expect_luna": true,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Describe the release."
+        },
+        {
+          "role": "assistant",
+          "content": "It had three stages."
+        },
+        {
+          "role": "user",
+          "content": "Summarize that."
+        }
+      ],
+      "client": "claude",
+      "predicted_mini": false,
+      "expected_tier": "luna",
+      "predicted_tier": "luna",
+      "complexity": "medium",
+      "confidence": 0.85,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "claude_migration",
+      "prompt": "Plan and execute a database migration with rollback.",
+      "expect_mini": false,
+      "category": "migration",
+      "expect_luna": false,
+      "messages": null,
+      "client": "claude",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "opencode_list",
+      "prompt": "List the files in this directory.",
+      "expect_mini": true,
+      "category": "repository_lookup",
+      "expect_luna": false,
+      "messages": null,
+      "client": "opencode",
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "opencode_restart",
+      "prompt": "Give me the proxy restart command.",
+      "expect_mini": true,
+      "category": "informational",
+      "expect_luna": false,
+      "messages": null,
+      "client": "opencode",
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "opencode_format",
+      "prompt": "Format the code.",
+      "expect_mini": true,
+      "category": "small_edit",
+      "expect_luna": false,
+      "messages": null,
+      "client": "opencode",
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "opencode_refactor",
+      "prompt": "Refactor all routing modules and preserve API compatibility.",
+      "expect_mini": false,
+      "category": "implementation",
+      "expect_luna": false,
+      "messages": null,
+      "client": "opencode",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "opencode_release",
+      "prompt": "Run tests, commit, push, and publish the release.",
+      "expect_mini": false,
+      "category": "release",
+      "expect_luna": false,
+      "messages": null,
+      "client": "opencode",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "opencode_code_block",
+      "prompt": "Explain this:\n```typescript\nthrow new Error('x')\n```",
+      "expect_mini": false,
+      "category": "code",
+      "expect_luna": false,
+      "messages": null,
+      "client": "opencode",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "opencode_ambiguous",
+      "prompt": "fix it",
+      "expect_mini": false,
+      "category": "ambiguous",
+      "expect_luna": false,
+      "messages": null,
+      "client": "opencode",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "opencode_prior_reference",
+      "prompt": "Rewrite the previous response neutrally.",
+      "expect_mini": false,
+      "category": "contextual",
+      "expect_luna": true,
+      "messages": null,
+      "client": "opencode",
+      "predicted_mini": false,
+      "expected_tier": "luna",
+      "predicted_tier": "luna",
+      "complexity": "medium",
+      "confidence": 0.85,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "short_database_risk",
+      "prompt": "Write SQL to delete duplicate production records.",
+      "expect_mini": false,
+      "category": "data_safety",
+      "expect_luna": false,
+      "messages": null,
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "short_concurrency_risk",
+      "prompt": "Fix the race in this worker.",
+      "expect_mini": false,
+      "category": "debugging",
+      "expect_luna": false,
+      "messages": null,
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "compound_execution",
+      "prompt": "Inspect the config, fix it, test it, and deploy.",
+      "expect_mini": false,
+      "category": "execution",
+      "expect_luna": false,
+      "messages": null,
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_responses_function_call_context",
+      "prompt": "Show status.",
+      "expect_mini": false,
+      "category": "tool_use",
+      "expect_luna": false,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect the repository."
+        },
+        {
+          "type": "function_call",
+          "name": "shell",
+          "arguments": "{}"
+        },
+        {
+          "role": "user",
+          "content": "Show status."
+        }
+      ],
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_chat_tool_calls_context",
+      "prompt": "Show status.",
+      "expect_mini": false,
+      "category": "tool_use",
+      "expect_luna": false,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect the repository."
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "type": "function",
+              "function": {
+                "name": "shell",
+                "arguments": "{}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": "Show status."
+        }
+      ],
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "codex_local_shell_output_context",
+      "prompt": "Show status.",
+      "expect_mini": false,
+      "category": "tool_use",
+      "expect_luna": false,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Inspect the repository."
+        },
+        {
+          "type": "local_shell_call_output",
+          "call_id": "call-1",
+          "output": "done"
+        },
+        {
+          "role": "user",
+          "content": "Show status."
+        }
+      ],
+      "client": "codex",
+      "predicted_mini": false,
+      "expected_tier": "strong",
+      "predicted_tier": "strong",
+      "complexity": "high",
+      "confidence": 1.0,
+      "scorer": "heuristic",
+      "correct": true
+    },
+    {
+      "id": "stale_tool_context",
+      "prompt": "What is idempotency?",
+      "expect_mini": true,
+      "category": "context_recovery",
+      "expect_luna": false,
+      "messages": [
+        {
+          "role": "tool",
+          "content": "old build output"
+        },
+        {
+          "role": "assistant",
+          "content": "old result"
+        },
+        {
+          "role": "user",
+          "content": "old question"
+        },
+        {
+          "role": "assistant",
+          "content": "answer"
+        },
+        {
+          "role": "user",
+          "content": "another question"
+        },
+        {
+          "role": "assistant",
+          "content": "answer"
+        },
+        {
+          "role": "user",
+          "content": "more"
+        },
+        {
+          "role": "assistant",
+          "content": "answer"
+        },
+        {
+          "role": "user",
+          "content": "What is idempotency?"
+        }
+      ],
+      "client": "codex",
+      "predicted_mini": true,
+      "expected_tier": "mini",
+      "predicted_tier": "mini",
+      "complexity": "low",
+      "confidence": 0.9,
+      "scorer": "heuristic",
       "correct": true
     }
   ]

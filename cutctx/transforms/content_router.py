@@ -1645,7 +1645,14 @@ class ContentRouter(Transform):
                     compressor = self._get_log_compressor()
                     if compressor:
                         compressor_name = type(compressor).__name__
-                        result = compressor.compress(content, bias=bias)
+                        try:
+                            result = compressor.compress(content, context=context, bias=bias)
+                        except TypeError as exc:
+                            if "context" not in str(exc):
+                                raise
+                            # Compatibility for third-party/custom compressors
+                            # that implemented the older two-argument shape.
+                            result = compressor.compress(content, bias=bias)
                         # Use the same word-count metric the rest of the
                         # router uses; `compressed_line_count` is in
                         # lines, not tokens — recording it here made
@@ -1757,7 +1764,16 @@ class ContentRouter(Transform):
                         if log_compressor is not None:
                             strategy_chain.append(CompressionStrategy.LOG.value)
                             try:
-                                log_result = log_compressor.compress(content, bias=bias)
+                                try:
+                                    log_result = log_compressor.compress(
+                                        content,
+                                        context=context,
+                                        bias=bias,
+                                    )
+                                except TypeError as exc:
+                                    if "context" not in str(exc):
+                                        raise
+                                    log_result = log_compressor.compress(content, bias=bias)
                             except Exception as exc:  # noqa: BLE001
                                 logger.debug("Log fallback failed for SMART_CRUSHER: %s", exc)
                             else:

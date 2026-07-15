@@ -255,11 +255,13 @@ def _compact_openai_responses_tools(
     # Built-in/reserved tools (namespace wrappers, bare server-side tools
     # like web_search/image_generation) have a provider-pinned schema
     # validated byte-for-byte — compacting them corrupts that schema and
-    # gets the whole request rejected regardless of model. Only
-    # client-defined "function" tools are safe to compact.
+    # gets the whole request rejected regardless of model. Strict function
+    # schemas are provider-validated too, so only non-strict client-defined
+    # functions are safe to compact.
     compacted_tools = [
         tool
-        if isinstance(tool, dict) and tool.get("type") not in (None, "function")
+        if isinstance(tool, dict)
+        and (tool.get("type") not in (None, "function") or tool.get("strict") is True)
         else _compact_openai_tool_schema_value(tool)
         for tool in tools
     ]

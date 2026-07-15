@@ -136,6 +136,33 @@ def test_openai_tool_schema_compaction_leaves_reserved_namespace_tool_untouched(
     assert compacted["tools"][0] == namespace_tool
 
 
+def test_openai_tool_schema_compaction_leaves_strict_function_untouched() -> None:
+    """Strict function schemas are validated by the Responses API.
+
+    Schema compaction drops annotations such as ``additionalProperties`` that
+    are required by strict-mode validation.  Altering one turns a valid Codex
+    resume request into an upstream 400, so strict tools must pass through
+    byte-for-byte.
+    """
+    strict_tool = {
+        "type": "function",
+        "name": "apply_patch",
+        "description": "Apply a patch to the workspace. " * 20,
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {"patch": {"type": "string"}},
+            "required": ["patch"],
+            "additionalProperties": False,
+        },
+    }
+
+    compacted, modified, _, _ = _compact_openai_responses_tools({"tools": [strict_tool]})
+
+    assert modified is False
+    assert compacted["tools"][0] == strict_tool
+
+
 def test_openai_tool_schema_compaction_preserves_property_named_title() -> None:
     """Issue #759: drop-key list must not strip property *names* under `properties`.
 
@@ -298,6 +325,71 @@ def test_openai_responses_payload_compacts_tools_without_unboundlocalerror() -> 
     assert reason is None
     assert "tools" in updated
     assert any("tool_schema_compaction" in t for t in transforms)
+
+
+def test_codex_subscription_payload_skips_tool_schema_compaction() -> None:
+    """Provider-owned Codex tool definitions must never be rewritten."""
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+    payload: dict[str, Any] = {
+        "model": "gpt-5.4-mini",
+        "tools": [
+            {
+                "type": "function",
+                "name": "provider_owned_tool",
+                "description": "Provider-owned tool schema. " * 30,
+                "parameters": {
+                    "type": "object",
+                    "properties": {"path": {"type": "string"}},
+                    "required": ["path"],
+                    "additionalProperties": False,
+                },
+            }
+        ],
+    }
+
+    updated, modified, _, transforms, _, _, _, _ = handler._compress_openai_responses_payload(
+        payload,
+        model="gpt-5.4-mini",
+        request_id="hr_codex_subscription_tools",
+        compact_tool_schemas=False,
+    )
+
+    assert updated["tools"] == payload["tools"]
+    assert "openai:responses:tool_schema_compaction" not in transforms
+    assert modified is False
+
+
+def test_codex_subscription_payload_is_a_full_passthrough() -> None:
+    """Provider-owned subscription frames are never structurally rewritten."""
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+    payload: dict[str, Any] = {
+        "model": "gpt-5.4-mini",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "compressible output " * 400,
+            }
+        ],
+    }
+
+    updated, modified, saved, transforms, _, before, after, attempted = (
+        handler._compress_openai_responses_payload(
+            payload,
+            model="gpt-5.4-mini",
+            request_id="hr_codex_subscription_passthrough",
+            allow_payload_mutation=False,
+        )
+    )
+
+    assert updated == payload
+    assert modified is False
+    assert saved == 0
+    assert transforms == []
+    assert before == after
+    assert attempted == 0
 
 
 def test_responses_compression_failure_refuses_when_context_guard_trips() -> None:

@@ -1462,19 +1462,28 @@ def prepare_model_routing(
         return requested_model, updated_metadata
 
     if not decision.routing_applied or not decision.target_model:
-        updated_metadata["model_routing"] = {
-            "source_model": requested_model,
-            "target_model": requested_model,
-            "reason": decision.reason,
-            "tokens_saved": 0,
-            "usd_saved": 0.0,
-        }
+        # Keep externally supplied routing savings intact.  A retained local
+        # decision adds observability fields but must not erase savings already
+        # attributed by an upstream gateway or harness.
+        routing_metadata = updated_metadata.get("model_routing")
+        if not isinstance(routing_metadata, dict):
+            routing_metadata = {}
+            updated_metadata["model_routing"] = routing_metadata
+        routing_metadata.update(
+            {
+                "source_model": requested_model,
+                "target_model": requested_model,
+                "reason": decision.reason,
+            }
+        )
+        routing_metadata.setdefault("tokens_saved", 0)
+        routing_metadata.setdefault("usd_saved", 0.0)
         if decision.confidence is not None:
-            updated_metadata["model_routing"]["confidence"] = decision.confidence
+            routing_metadata["confidence"] = decision.confidence
         if decision.scorer:
-            updated_metadata["model_routing"]["scorer"] = decision.scorer
+            routing_metadata["scorer"] = decision.scorer
         if decision.signals:
-            updated_metadata["model_routing"]["signals"] = list(decision.signals)
+            routing_metadata["signals"] = list(decision.signals)
         attach_model_routing_trace(
             updated_metadata,
             ModelRoutingDecisionTrace(

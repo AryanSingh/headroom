@@ -726,7 +726,7 @@ def load_codesearchnet(
     Code snippets with natural language descriptions.
     Tests compression on code without losing semantic meaning.
 
-    Dataset: https://huggingface.co/datasets/code_search_net
+    Dataset: https://huggingface.co/datasets/code-search-net/code_search_net
 
     Languages: python, java, javascript, go, ruby, php
 
@@ -742,7 +742,11 @@ def load_codesearchnet(
     from datasets import load_dataset
 
     try:
-        ds = load_dataset("code_search_net", language, split=split)
+        # CodeSearchNet is large; stream so an n-sample evaluation does not
+        # download an entire language split before it can begin.
+        ds = load_dataset(
+            "code-search-net/code_search_net", language, split=split, streaming=True
+        )
     except Exception as e:
         raise ValueError(f"Failed to load CodeSearchNet for '{language}': {e}") from e
 

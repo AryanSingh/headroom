@@ -60,8 +60,11 @@ class TestSmartOrchestratorBDD:
             handler, "gpt-4", messages=messages, request_savings_metadata={}
         )
 
-        # THEN the model should NOT be downgraded
-        assert "model_routing" not in meta
+        # THEN the model should NOT be downgraded, but the retained decision
+        # remains observable for the request trace inspector.
+        assert meta["model_routing"]["source_model"] == "gpt-4"
+        assert meta["model_routing"]["target_model"] == "gpt-4"
+        assert meta["model_routing"]["tokens_saved"] == 0
         assert target_model == "gpt-4"
 
     def test_given_routed_request_when_saved_then_ledger_updated(self):
@@ -127,6 +130,8 @@ class TestSmartOrchestratorBDD:
             request_savings_metadata={},
         )
 
-        # THEN the heavy GPT model is preserved
+        # THEN the heavy GPT model is preserved and the abstention is visible.
         assert target_model == "gpt-5.5"
-        assert "model_routing" not in meta
+        assert meta["model_routing"]["source_model"] == "gpt-5.5"
+        assert meta["model_routing"]["target_model"] == "gpt-5.5"
+        assert meta["model_routing"]["tokens_saved"] == 0

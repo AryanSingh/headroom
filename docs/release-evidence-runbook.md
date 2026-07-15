@@ -70,6 +70,26 @@ show zero canonical-baseline error cells, and mark provider-native comparison as
 The status output must keep `market_claim_eligible` false until every external
 item in this runbook passes.
 
+## Subscription CLI Evaluation
+
+Use this optional route only with the local account holder's consent. It uses
+the existing Claude Code and Codex CLI authentication, not provider API keys.
+Run commands from an isolated temporary directory, disable proxy routing, and
+use non-interactive modes:
+
+```bash
+claude -p '…evaluation prompt…' --output-format json --no-session-persistence
+codex exec --ephemeral --ignore-rules --skip-git-repo-check -C /tmp -s read-only --color never '…evaluation prompt…'
+```
+
+For every case, collect both original-context and compressed-context outputs.
+Record only redacted scores, model metadata returned by the CLI, context sizes,
+and failure state. Do not save credentials, session files, customer prompts, or
+provider transcripts containing sensitive data. Treat a small CLI pilot as a
+transport smoke test, not a benchmark; release evidence requires a declared
+corpus version, sufficient sample size, executable scoring where available,
+and separate provenance for each provider route.
+
 ## Partner Telemetry
 
 Obtain two anonymized snapshots from separate consented design partners. Each

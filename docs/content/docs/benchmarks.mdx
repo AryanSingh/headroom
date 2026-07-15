@@ -23,7 +23,56 @@ Tested on Apple M-series (CPU), Cutctx v0.5.18. Each test runs `compress()` on r
 grep results and Python source show 0% compression. These are already compact structured formats. SmartCrusher only compresses JSON arrays; code passes through to preserve correctness.
 </Callout>
 
-## Accuracy Benchmarks
+## Current Provider-Backed Evaluation
+
+The evaluation goal is **preservation**: does a provider answer equivalently
+when given the original context and when given Cutctx-compressed context? This
+is not the same as absolute benchmark accuracy, and reports must state that
+distinction.
+
+| Benchmark | Task | Cases | Raw-to-compressed preservation | Compression |
+|---|---|---:|---:|---:|
+| SQuAD v2 | question answering | 100 | 100% | 5% |
+| HotpotQA | multi-hop QA | 50 | 100% | 18% |
+| CodeSearchNet | code understanding | 50 | 100% | 30% |
+
+The CodeSearchNet run uses the maintained
+`code-search-net/code_search_net` corpus and streams samples, so a bounded
+evaluation does not download an entire language split. The saved reports are
+versioned local evidence, not a public cross-vendor performance claim.
+
+### Subscription CLI Pilot
+
+Claude Code and Codex CLI can be evaluated through their existing interactive
+subscription authentication, without putting provider API credentials in the
+shell. The initial pilot ran one original/compressed case each from SQuAD v2,
+BFCL, HotpotQA, HumanEval, and LongBench/Qasper through both CLIs with zero
+transport failures. It validates the execution route only; one sample per task
+is not a statistically powered benchmark.
+
+Use the following procedure for a consented local evaluation:
+
+1. Run each provider in an isolated directory with no proxy and a deterministic
+   prompt. Claude uses `claude -p ... --output-format json --no-session-persistence`;
+   Codex uses `codex exec --ephemeral --ignore-rules --skip-git-repo-check -C /tmp -s read-only`.
+2. Send each case twice: original context and compressed context. Store only
+   redacted outputs, model identifiers when returned, task scores, and context
+   size—not credentials, prompts containing customer data, or session files.
+3. Score SQuAD/HotpotQA against accepted answers, execute HumanEval tests, and
+   validate BFCL calls structurally against the supplied tool schema. Compare
+   baseline and compressed scores before reporting a compression delta.
+4. Publish corpus version, sample count, provider route, scoring method, and
+   limitations alongside each report. Never combine subscription and API
+   results without labeling their provenance.
+
+<Callout type="warning" title="BFCL is not a release-quality signal yet">
+The previous BFCL text/F1 evaluator scored baseline answers such as natural
+language results instead of validated calls. Its 30% result is a scoring/prompt
+validity finding, not evidence that compression reduced tool-use quality. Keep
+BFCL out of product claims until structured execution is implemented.
+</Callout>
+
+## Historical Component Benchmarks
 
 ### HTML Extraction
 
@@ -140,7 +189,7 @@ Median compression is modest because many requests are short conversational turn
 | Total savings | ~$4,000 |
 | OS distribution | Linux 57%, macOS 38%, Windows 5% |
 
-## Reproducing Results
+## Reproducing Component Results
 
 ```bash
 git clone https://github.com/cutctx/cutctx.git

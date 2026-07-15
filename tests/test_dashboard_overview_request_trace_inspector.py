@@ -312,7 +312,7 @@ def test_overview_request_trace_inspector_handles_trace_errors() -> None:
 
             expect(page.get_by_text("Recent requests", exact=True)).to_be_visible()
             expect(page.locator(".request-trace-panel")).not_to_be_visible()
-            page.get_by_role("button", name="gpt-5.4-mini", exact=True).click()
+            page.get_by_role("button", name="gpt-5.6-terra", exact=True).click()
             expect(page.get_by_text("Failed to load trace:")).to_be_visible()
         finally:
             browser.close()

@@ -17,6 +17,7 @@ _LAZY_SUBMODULES = {
     "capture",
     "config_check",
     "evals",
+    "evidence",
     "init",
     "install",
     "integrations",

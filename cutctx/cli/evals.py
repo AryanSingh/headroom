@@ -913,6 +913,33 @@ def benchmark(
 main.add_command(benchmark, name="benchmark")
 
 
+@evals.command("downstream")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default="artifacts/downstream-task-quality/results.json",
+    show_default=True,
+    help="Write the offline downstream task report to PATH.",
+)
+def downstream(output: str) -> None:
+    """Run zero-provider task-outcome checks against compressed contexts."""
+    from cutctx.evals.offline_downstream import (
+        run_offline_downstream_evaluation,
+        write_offline_downstream_evaluation,
+    )
+
+    payload = run_offline_downstream_evaluation()
+    write_offline_downstream_evaluation(Path(output), payload)
+    benchmark = payload["benchmarks"][0]
+    click.echo(
+        f"Offline downstream tasks: {benchmark['cutctx_score']:.1%} accuracy; "
+        f"report written to {output}"
+    )
+    if not benchmark["passed"]:
+        raise SystemExit(1)
+
+
 @evals.command("verify")
 @click.option(
     "--dataset",

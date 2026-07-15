@@ -20,6 +20,7 @@ _SIDE_EFFECT_COMMAND_MODULES: dict[str, str] = {
     "capabilities": "capabilities",
     "capture": "capture",
     "evals": "evals",
+    "evidence": "evidence",
     "global": "global_routing",
     "verify": "evals",
     "init": "init",
@@ -65,7 +66,10 @@ _COMMAND_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
         "Daily Use",
         ("proxy", "memory", "capture", "learn", "report", "savings", "perf"),
     ),
-    ("Optimize and Evaluate", ("benchmark", "bench", "evals", "verify", "tools", "stack-graph")),
+    (
+        "Optimize and Evaluate",
+        ("evidence", "benchmark", "bench", "evals", "verify", "tools", "stack-graph"),
+    ),
     (
         "Administration",
         (

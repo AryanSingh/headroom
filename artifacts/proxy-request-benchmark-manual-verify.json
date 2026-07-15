@@ -1,0 +1,23 @@
+{
+  "benchmark": "cutctx_proxy_request_path",
+  "measurement": "in-process ASGI; fixed upstream response; excludes network and model inference",
+  "platform": "macOS-26.2-arm64-arm-64bit",
+  "python": "3.12.12",
+  "result": {
+    "concurrency": 20,
+    "elapsed_seconds": 27.397037749993615,
+    "failures": 0,
+    "mean_ms": 2737.794,
+    "p50_ms": 2676.117,
+    "p95_ms": 3062.659,
+    "p99_ms": 3062.895,
+    "path": "/v1/chat/completions",
+    "requests": 200,
+    "requests_per_second": 7.3,
+    "status_codes": {
+      "200": 200
+    },
+    "successes": 200
+  },
+  "timestamp": "2026-07-14T09:16:09.206510+00:00"
+}

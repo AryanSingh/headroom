@@ -1,0 +1,611 @@
+{
+  "generated_at": "2026-07-15T05:51:48.993283+00:00",
+  "kind": "subscription_cli_pilot",
+  "provenance": {
+    "claude": "authenticated local Claude CLI subscription; no Anthropic API key",
+    "codex": "authenticated local Codex CLI subscription; no OpenAI API key",
+    "cutctx_proxy": "not used for CLI pilot calls",
+    "limitations": [
+      "One case per dataset validates subscription routes; it is not a statistically powered benchmark.",
+      "F1-to-ground-truth is a transparent proxy for these heterogeneous task types; HumanEval requires executable scoring for a release claim."
+    ]
+  },
+  "records": [
+    {
+      "case_id": "squad_0",
+      "compressed_chars": 684,
+      "compression_ratio": 0.921832884097035,
+      "dataset": "SQuAD_v2",
+      "ground_truth_present": true,
+      "original_chars": 742,
+      "providers": {
+        "claude_subscription_cli": {
+          "baseline": {
+            "answer": "France",
+            "f1_to_ground_truth": 1.0,
+            "model_usage": {
+              "claude-sonnet-5": {
+                "cacheCreationInputTokens": 3350,
+                "cacheReadInputTokens": 22698,
+                "contextWindow": 200000,
+                "costUSD": 0.037784399999999996,
+                "inputTokens": 3610,
+                "maxOutputTokens": 64000,
+                "outputTokens": 3,
+                "webSearchRequests": 0
+              }
+            },
+            "ok": true,
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 3350,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 3350,
+              "cache_read_input_tokens": 22698,
+              "inference_geo": "not_available",
+              "input_tokens": 3610,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 3350,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 3350,
+                  "cache_read_input_tokens": 22698,
+                  "input_tokens": 3610,
+                  "output_tokens": 3,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 3,
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            }
+          },
+          "compressed": {
+            "answer": "France",
+            "f1_to_ground_truth": 1.0,
+            "model_usage": {
+              "claude-sonnet-5": {
+                "cacheCreationInputTokens": 3320,
+                "cacheReadInputTokens": 22732,
+                "contextWindow": 200000,
+                "costUSD": 0.0376146,
+                "inputTokens": 3610,
+                "maxOutputTokens": 64000,
+                "outputTokens": 3,
+                "webSearchRequests": 0
+              }
+            },
+            "ok": true,
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 3320,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 3320,
+              "cache_read_input_tokens": 22732,
+              "inference_geo": "not_available",
+              "input_tokens": 3610,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 3320,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 3320,
+                  "cache_read_input_tokens": 22732,
+                  "input_tokens": 3610,
+                  "output_tokens": 3,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 3,
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            }
+          }
+        },
+        "codex_subscription_cli": {
+          "baseline": {
+            "answer": "France",
+            "f1_to_ground_truth": 1.0,
+            "ok": true
+          },
+          "compressed": {
+            "answer": "France",
+            "f1_to_ground_truth": 1.0,
+            "ok": true
+          }
+        }
+      },
+      "source": "SQuAD_v2"
+    },
+    {
+      "case_id": "simple_0",
+      "compressed_chars": 425,
+      "compression_ratio": 0.6640625,
+      "dataset": "BFCL_simple",
+      "ground_truth_present": true,
+      "original_chars": 640,
+      "providers": {
+        "claude_subscription_cli": {
+          "baseline": {
+            "answer": "75 square units",
+            "f1_to_ground_truth": 0.2,
+            "model_usage": {
+              "claude-sonnet-5": {
+                "cacheCreationInputTokens": 3288,
+                "cacheReadInputTokens": 22732,
+                "contextWindow": 200000,
+                "costUSD": 0.037467600000000004,
+                "inputTokens": 3610,
+                "maxOutputTokens": 64000,
+                "outputTokens": 6,
+                "webSearchRequests": 0
+              }
+            },
+            "ok": true,
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 3288,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 3288,
+              "cache_read_input_tokens": 22732,
+              "inference_geo": "not_available",
+              "input_tokens": 3610,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 3288,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 3288,
+                  "cache_read_input_tokens": 22732,
+                  "input_tokens": 3610,
+                  "output_tokens": 6,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 6,
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            }
+          },
+          "compressed": {
+            "answer": "50 units",
+            "f1_to_ground_truth": 0.22222222222222224,
+            "model_usage": {
+              "claude-sonnet-5": {
+                "cacheCreationInputTokens": 34890,
+                "cacheReadInputTokens": 0,
+                "contextWindow": 200000,
+                "costUSD": 0.22040399999999996,
+                "inputTokens": 3663,
+                "maxOutputTokens": 64000,
+                "outputTokens": 5,
+                "webSearchRequests": 0
+              }
+            },
+            "ok": true,
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 34890,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 34890,
+              "cache_read_input_tokens": 0,
+              "inference_geo": "not_available",
+              "input_tokens": 3663,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 34890,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 34890,
+                  "cache_read_input_tokens": 0,
+                  "input_tokens": 3663,
+                  "output_tokens": 5,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 5,
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            }
+          }
+        },
+        "codex_subscription_cli": {
+          "baseline": {
+            "answer": "25 square units",
+            "f1_to_ground_truth": 0.2,
+            "ok": true
+          },
+          "compressed": {
+            "answer": "25 square units",
+            "f1_to_ground_truth": 0.2,
+            "ok": true
+          }
+        }
+      },
+      "source": "BFCL"
+    },
+    {
+      "case_id": "hotpot_0",
+      "compressed_chars": 4094,
+      "compression_ratio": 0.8137547207314649,
+      "dataset": "HotpotQA",
+      "ground_truth_present": true,
+      "original_chars": 5031,
+      "providers": {
+        "claude_subscription_cli": {
+          "baseline": {
+            "answer": "No.",
+            "f1_to_ground_truth": 0.0,
+            "model_usage": {
+              "claude-sonnet-5": {
+                "cacheCreationInputTokens": 5100,
+                "cacheReadInputTokens": 22732,
+                "contextWindow": 200000,
+                "costUSD": 0.0483096,
+                "inputTokens": 3610,
+                "maxOutputTokens": 64000,
+                "outputTokens": 4,
+                "webSearchRequests": 0
+              }
+            },
+            "ok": true,
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 5100,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 5100,
+              "cache_read_input_tokens": 22732,
+              "inference_geo": "not_available",
+              "input_tokens": 3610,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 5100,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 5100,
+                  "cache_read_input_tokens": 22732,
+                  "input_tokens": 3610,
+                  "output_tokens": 4,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 4,
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            }
+          },
+          "compressed": {
+            "answer": "Yes, both Scott Derrickson and Ed Wood are American.",
+            "f1_to_ground_truth": 0.19999999999999998,
+            "model_usage": {
+              "claude-sonnet-5": {
+                "cacheCreationInputTokens": 4722,
+                "cacheReadInputTokens": 22732,
+                "contextWindow": 200000,
+                "costUSD": 0.0463566,
+                "inputTokens": 3610,
+                "maxOutputTokens": 64000,
+                "outputTokens": 25,
+                "webSearchRequests": 0
+              }
+            },
+            "ok": true,
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 4722,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 4722,
+              "cache_read_input_tokens": 22732,
+              "inference_geo": "not_available",
+              "input_tokens": 3610,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 4722,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 4722,
+                  "cache_read_input_tokens": 22732,
+                  "input_tokens": 3610,
+                  "output_tokens": 25,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 25,
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            }
+          }
+        },
+        "codex_subscription_cli": {
+          "baseline": {
+            "answer": "Yes. Scott Derrickson and Ed Wood were both American.",
+            "f1_to_ground_truth": 0.19999999999999998,
+            "ok": true
+          },
+          "compressed": {
+            "answer": "Yes, both were American.",
+            "f1_to_ground_truth": 0.4,
+            "ok": true
+          }
+        }
+      },
+      "source": "HotpotQA"
+    },
+    {
+      "case_id": "humaneval_HumanEval/0",
+      "compressed_chars": 348,
+      "compression_ratio": 1.0,
+      "dataset": "HumanEval",
+      "ground_truth_present": true,
+      "original_chars": 348,
+      "providers": {
+        "claude_subscription_cli": {
+          "baseline": {
+            "answer": "from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n    for i in range(len(numbers)):\n        for j in range(len(numbers)):\n            if i != j:\n                if abs(numbers[i] - numbers[j]) < threshold:\n                    return True\n    return False",
+            "f1_to_ground_truth": 0.25925925925925924,
+            "model_usage": {
+              "claude-sonnet-5": {
+                "cacheCreationInputTokens": 3217,
+                "cacheReadInputTokens": 22732,
+                "contextWindow": 200000,
+                "costUSD": 0.0432066,
+                "inputTokens": 3610,
+                "maxOutputTokens": 64000,
+                "outputTokens": 417,
+                "webSearchRequests": 0
+              }
+            },
+            "ok": true,
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 3217,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 3217,
+              "cache_read_input_tokens": 22732,
+              "inference_geo": "not_available",
+              "input_tokens": 3610,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 3217,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 3217,
+                  "cache_read_input_tokens": 22732,
+                  "input_tokens": 3610,
+                  "output_tokens": 417,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 417,
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            }
+          },
+          "compressed": {
+            "answer": "from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n    for i in range(len(numbers)):\n        for j in range(len(numbers)):\n            if i != j:\n                if abs(numbers[i] - numbers[j]) < threshold:\n                    return True\n    return False",
+            "f1_to_ground_truth": 0.25925925925925924,
+            "model_usage": {
+              "claude-sonnet-5": {
+                "cacheCreationInputTokens": 3217,
+                "cacheReadInputTokens": 22732,
+                "contextWindow": 200000,
+                "costUSD": 0.0432066,
+                "inputTokens": 3610,
+                "maxOutputTokens": 64000,
+                "outputTokens": 417,
+                "webSearchRequests": 0
+              }
+            },
+            "ok": true,
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 3217,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 3217,
+              "cache_read_input_tokens": 22732,
+              "inference_geo": "not_available",
+              "input_tokens": 3610,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 3217,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 3217,
+                  "cache_read_input_tokens": 22732,
+                  "input_tokens": 3610,
+                  "output_tokens": 417,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 417,
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            }
+          }
+        },
+        "codex_subscription_cli": {
+          "baseline": {
+            "answer": "from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\"Check whether any two numbers are closer than the given threshold.\"\"\"\n    sorted_numbers = sorted(numbers)\n    return any(\n        b - a < threshold\n        for a, b in zip(sorted_numbers, sorted_numbers[1:])\n    )",
+            "f1_to_ground_truth": 0.1846153846153846,
+            "ok": true
+          },
+          "compressed": {
+            "answer": "from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    \"\"\" Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    \"\"\"\n    for i, number in enumerate(numbers):\n        for other in numbers[i + 1:]:\n            if abs(number - other) < threshold:\n                return True\n    return False",
+            "f1_to_ground_truth": 0.29126213592233013,
+            "ok": true
+          }
+        }
+      },
+      "source": "HumanEval"
+    },
+    {
+      "case_id": "longbench_qasper_0",
+      "compressed_chars": 17341,
+      "compression_ratio": 0.8748360407627889,
+      "dataset": "LongBench_qasper",
+      "ground_truth_present": true,
+      "original_chars": 19822,
+      "providers": {
+        "claude_subscription_cli": {
+          "baseline": {
+            "answer": "The ground truth is established by manual annotation: an expert manually inspected the text field of the collected viral tweets and labelled each one as containing fake news or not, based on Rubin et al.'s categorization of fake news (serious fabrication, large-scale hoax, jokes taken at face value, slanted reporting/deceptive framing, and stories where the truth is contentious). This annotation was carried out by a single person to ensure consistency, and the authors note it is not claimed to be a perfect or definitive ground truth due to the inherent ambiguity of fake news and the subjectivity of human judgment involved.",
+            "f1_to_ground_truth": 0.10714285714285714,
+            "model_usage": {
+              "claude-sonnet-5": {
+                "cacheCreationInputTokens": 9067,
+                "cacheReadInputTokens": 22732,
+                "contextWindow": 200000,
+                "costUSD": 0.0749766,
+                "inputTokens": 3610,
+                "maxOutputTokens": 64000,
+                "outputTokens": 195,
+                "webSearchRequests": 0
+              }
+            },
+            "ok": true,
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 9067,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 9067,
+              "cache_read_input_tokens": 22732,
+              "inference_geo": "not_available",
+              "input_tokens": 3610,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 9067,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 9067,
+                  "cache_read_input_tokens": 22732,
+                  "input_tokens": 3610,
+                  "output_tokens": 195,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 195,
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            }
+          },
+          "compressed": {
+            "answer": "The ground truth was established manually: a single expert inspected the text field of the 1,327 viral tweets and labelled each one as containing fake news or not, based on Rubin et al.'s categorization (serious fabrication, large-scale hoax, jokes taken at face value, slanted reporting of real facts, and stories where the truth is contentious). This single-annotator labelled dataset was then released publicly, though the authors note it is not perfect and cannot be considered ground truth given the ambiguity of defining fake news and the subjectivity of human judgment involved.",
+            "f1_to_ground_truth": 0.11650485436893204,
+            "model_usage": {
+              "claude-sonnet-5": {
+                "cacheCreationInputTokens": 8380,
+                "cacheReadInputTokens": 22732,
+                "contextWindow": 200000,
+                "costUSD": 0.0706296,
+                "inputTokens": 3610,
+                "maxOutputTokens": 64000,
+                "outputTokens": 180,
+                "webSearchRequests": 0
+              }
+            },
+            "ok": true,
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 8380,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 8380,
+              "cache_read_input_tokens": 22732,
+              "inference_geo": "not_available",
+              "input_tokens": 3610,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 8380,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 8380,
+                  "cache_read_input_tokens": 22732,
+                  "input_tokens": 3610,
+                  "output_tokens": 180,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 180,
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            }
+          }
+        },
+        "codex_subscription_cli": {
+          "baseline": {
+            "answer": "The ground truth was established through manual annotation: a single expert inspected the text of each of the 1,327 viral tweets and labeled it as containing or not containing fake news using Rubin et al.\u2019s five-category definition. The authors caution that, because the classification involves ambiguity and human judgment, the resulting dataset should not be considered a definitive ground truth.",
+            "f1_to_ground_truth": 0.14084507042253522,
+            "ok": true
+          },
+          "compressed": {
+            "answer": "The ground truth was established through manual inspection: a single expert reviewed the text of each of the 1,327 viral tweets and labeled it as containing or not containing fake news using Rubin et al.\u2019s five-category definition. The authors acknowledge the ambiguity and human judgment involved, so they do not consider the dataset a definitive ground truth.",
+            "f1_to_ground_truth": 0.14705882352941174,
+            "ok": true
+          }
+        }
+      },
+      "source": "LongBench"
+    }
+  ],
+  "schema_version": 1
+}

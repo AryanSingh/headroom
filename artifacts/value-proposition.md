@@ -117,13 +117,15 @@ See exactly how your team uses AI agents, where tokens go, and what's being comp
 | GitHub issue triage | 54,174 tokens | 14,761 tokens | **73%** |
 | Codebase exploration | 78,502 tokens | 41,254 tokens | **47%** |
 
-### Accuracy (no quality loss)
-| Benchmark | Baseline | Cutctx | Delta |
-|-----------|---------:|---------:|------:|
-| GSM8K (math) | 0.870 | 0.870 | **±0.000** |
-| TruthfulQA (factual) | 0.530 | 0.560 | **+0.030** |
-| SQuAD v2 (QA) | — | **97%** | 19% compression |
-| BFCL (tools) | — | **97%** | 32% compression |
+### Context-preservation evidence
+| Benchmark | Cases | Original-to-compressed preservation | Compression |
+|-----------|------:|------------------------------------:|------------:|
+| SQuAD v2 (QA) | 100 | **100%** | 5% |
+| HotpotQA (multi-hop QA) | 50 | **100%** | 18% |
+| CodeSearchNet (code understanding) | 50 | **100%** | 30% |
+
+These runs measure answer preservation, not absolute benchmark accuracy. BFCL
+is omitted until schema-aware tool-call validation replaces text/F1 scoring.
 
 ### Architecture
 - Rust core: sub-millisecond compression, 1000+ tests

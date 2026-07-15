@@ -20,6 +20,29 @@ Use it to report:
 
 Provider-native prompt caching, RTK command filtering, model routing, and Cutctx compression are complementary. Do not mix them into one undifferentiated Cutctx compression number.
 
+## Current Provider-Backed Preservation Checks
+
+The current local evidence compares provider answers for original and
+compressed context. It measures answer preservation, not absolute benchmark
+accuracy or a cross-provider performance ranking.
+
+| Benchmark | N | Preservation | Compression |
+|---|---:|---:|---:|
+| SQuAD v2 | 100 | 100% | 5% |
+| HotpotQA | 50 | 100% | 18% |
+| CodeSearchNet | 50 | 100% | 30% |
+
+Claude Code and Codex CLI can also run a consented local smoke test using their
+existing subscription authentication. Run original and compressed context in
+isolated, non-interactive CLI processes; retain redacted outputs and scores
+only. A one-case-per-dataset pilot is transport validation, not a release
+benchmark. See the canonical [documentation-site benchmark page](content/docs/benchmarks.mdx)
+for commands, provenance rules, and scoring requirements.
+
+BFCL is excluded from current claims. Its previous text/F1 scorer did not
+validate tool calls against schemas, so a low result cannot be attributed to
+compression. Reintroduce it only with structural or executable validation.
+
 ## Fresh Local Verification
 
 ### Release Evidence Bundle
@@ -37,10 +60,12 @@ rtk .venv/bin/python scripts/generate_benchmark_release_manifest.py
 rtk .venv/bin/python scripts/generate_benchmark_release_bundle.py
 ```
 
-[`artifacts/benchmark-release-bundle.json`](../artifacts/benchmark-release-bundle.json)
-contains separate entries for raw passthrough, `content_router`,
-`verbatim_compactor`, canonical LLMLingua-2 XLM-R-large, and the explicit
-provider-native unavailable status.
+The generated bundle contains separate entries for raw passthrough,
+`content_router`, `verbatim_compactor`, canonical LLMLingua-2 XLM-R-large, and
+the explicit provider-native unavailable status. It is deliberately not
+committed: manifests bind to a specific repository state and become stale after
+source changes. Regenerate it as part of a release and retain it with that
+release's evidence packet.
 
 ### Dry-Run Product Benchmarks
 

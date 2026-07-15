@@ -112,11 +112,14 @@ def compress_tool_schemas(
     # additionalProperties, truncating descriptions) silently corrupts that
     # pinned schema and the request is rejected with "Function '<name>' is
     # reserved for use by this model and must match the configured schema."
-    # regardless of which model is targeted. Only client-defined "function"
-    # tools are safe to compress.
+    # regardless of which model is targeted. Strict function tools are also
+    # provider-validated: removing fields such as ``additionalProperties``
+    # makes their schema invalid. Only non-strict client-defined functions are
+    # safe to compress.
     compacted = [
         tool
-        if isinstance(tool, dict) and tool.get("type") not in (None, "function")
+        if isinstance(tool, dict)
+        and (tool.get("type") not in (None, "function") or tool.get("strict") is True)
         else _compress_tool(tool, max_description_length, aggressive, depth=0)
         for tool in tools
     ]
