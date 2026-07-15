@@ -24,6 +24,8 @@ import {
   formatPercent,
 } from '../lib/format';
 import { fetchDashboardJson, useDashboardData } from '../lib/use-dashboard-data';
+import { PageHeader } from '../components/PageHeader';
+import { StatePanel } from '../components/StatePanel';
 
 const SOURCE_LABELS = {
   cutctx_compression: 'Direct compression',
@@ -51,19 +53,15 @@ function SkeletonCard() {
 
 function EmptyState({ icon: Icon, title, description }) {
   return (
-    <div className="overview-empty">
-      <div className="overview-empty-illustration">
-        <Icon size={28} />
-      </div>
-      <h3>{title}</h3>
-      <p>{description}</p>
-    </div>
+    <StatePanel tone="empty" icon={Icon} title={title}>
+      {description}
+    </StatePanel>
   );
 }
 
-function MetricCard({ icon: Icon, iconColor, label, value, footnote }) {
+function MetricCard({ icon: Icon, iconColor, label, value, footnote, className = '' }) {
   return (
-    <div className="metric-card">
+    <div className={`metric-card ${className}`.trim()}>
       <div className="metric-header">
         <div className="metric-icon" style={{ color: `var(--${iconColor})` }}>
           <Icon size={18} />
@@ -192,7 +190,7 @@ function SavingsPanel({
   const sortedRows = [...visibleRows].sort((a, b) => (byUsd ? b.usd - a.usd : b.tokens - a.tokens));
 
   return (
-    <section className="panel panel-compact">
+    <section className="panel panel-data panel-compact">
       <div className="section-heading">
         <div>
           {eyebrow ? <div className="eyebrow">{eyebrow}</div> : null}
@@ -253,7 +251,7 @@ function SavingsMixPanel({ metric, created, observed, note, coverage }) {
   ];
 
   return (
-    <section className="panel panel-compact">
+    <section className="panel panel-summary panel-compact">
       <div className="section-heading">
         <div>
           <div className="eyebrow">Savings mix</div>
@@ -438,6 +436,7 @@ export default function Savings() {
   const totalModelUsd = modelRows.reduce((sum, row) => sum + row.usd, 0);
   const totalClientTokens = clientRows.reduce((sum, row) => sum + row.tokens, 0);
   const totalClientUsd = clientRows.reduce((sum, row) => sum + row.usd, 0);
+  const hasAttribution = sourceRows.length > 0 || modelRows.length > 0 || clientRows.length > 0;
 
   const sourcePanelDescription = duration === 'session' || duration === 'lifetime'
     ? 'Direct compression, response cache, routing, and cache surfaces split into their own lines.'
@@ -445,12 +444,11 @@ export default function Savings() {
 
   return (
     <section className="page-stack">
-      <div className="page-header">
-        <div>
-          <h1>Savings & Attribution</h1>
-          <p>Separate value Cutctx creates from value merely observed at the upstream provider.</p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Savings intelligence"
+        title="Savings & Attribution"
+        description="Separate value Cutctx creates from value merely observed at the upstream provider."
+      />
 
       <div className="tab-group" style={{ marginBottom: 'var(--space-md)' }}>
         <button className={`tab-button ${duration === 'session' ? 'active' : ''}`} onClick={() => setDuration('session')}>
@@ -476,9 +474,9 @@ export default function Savings() {
       </div>
 
       {error || contextError ? (
-        <div className="alert-card" role="alert">
-          <span>Failed to load data: {error || contextError}</span>
-        </div>
+        <StatePanel tone="error" icon={AlertTriangle} title="Savings data unavailable">
+          Failed to load data: {error || contextError}
+        </StatePanel>
       ) : null}
 
       {(loading || contextLoading) && !durationData ? (
@@ -494,6 +492,7 @@ export default function Savings() {
               label="Cutctx-created savings"
               value={formatCurrency(createdSavingsUsd)}
               footnote={`${formatPercent(createdSavingsRate)} incremental reduction · ${formatNumber(createdSavingsTokens)} attributed tokens`}
+              className="metric-card-emphasis"
             />
             <MetricCard
               icon={Coins}
@@ -520,7 +519,7 @@ export default function Savings() {
 
           <AttributionMetricToggle metric={attributionMetric} onChange={setAttributionMetric} />
 
-          <div className="overview-bottom-grid">
+          {hasAttribution ? <div className="overview-bottom-grid">
             <div className="overview-side-stack">
               <SavingsMixPanel
                 metric={attributionMetric}
@@ -572,7 +571,16 @@ export default function Savings() {
                   : 'Client attribution is currently exposed on the lifetime view only.'}
               />
             </div>
-          </div>
+          </div> : (
+            <StatePanel
+              tone="empty"
+              icon={Sparkles}
+              title="No attribution yet"
+              data-testid="savings-no-attribution"
+            >
+              Savings will appear after requests flow through Cutctx.
+            </StatePanel>
+          )}
         </>
       )}
     </section>

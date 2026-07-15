@@ -25,6 +25,7 @@ test.describe('Navigation and Layout', () => {
 
   test('dashboard loads exposes major navigation surfaces', async ({ page }) => {
     await page.goto('/dashboard');
+    await expect(page.getByRole('navigation', { name: 'Main Navigation' })).toBeVisible();
     const nav = page.locator('.nav-stack');
     const currentTitle = page.locator('.topbar-title-row h2');
     await expect(currentTitle).toHaveText('Dashboard');

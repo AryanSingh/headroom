@@ -211,6 +211,30 @@ test.describe('Overview Metrics & Panels', () => {
     await expect(page.locator('.metric-card').filter({ hasText: 'Tokens saved' }).locator('.metric-value')).toHaveText('0');
   });
 
+  test('renders activity and attribution empty states', async ({ page }) => {
+    await page.route('**/stats?*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          summary: { saved: 0, input: 0, savings_percent: 0 },
+          tokens: { saved: 0, input: 0, total_before_compression: 0, savings_percent: 0 },
+          requests: { total: 0, failed: 0, cached: 0 },
+          recent_requests: [],
+          persistent_savings: { lifetime: {}, display_session: {} },
+        }),
+      });
+    });
+
+    await page.goto('/dashboard');
+    await expect.soft(page.getByTestId('overview-no-activity')).toHaveAttribute('role', 'status');
+
+    await page.goto('/dashboard/savings');
+    await expect.soft(page.getByTestId('savings-no-attribution')).toContainText(
+      'Savings will appear after requests flow through Cutctx.',
+    );
+  });
+
   test('prefers live session savings over lifetime rollups and keeps attribution USD consistent', async ({ page }) => {
     await page.route('**/stats-history*', async route => {
       await route.fulfill({

@@ -1,7 +1,9 @@
-import { CheckCircle2, Copy, MinusCircle, RefreshCw } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, MinusCircle, RefreshCw, Scale } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { PageHeader } from "../components/PageHeader";
+import { StatePanel } from "../components/StatePanel";
 import { formatInteger, formatRelativeTime } from "../lib/format";
 import {
   fetchDashboardJson,
@@ -548,19 +550,30 @@ export default function Governance({ searchQuery = "" }) {
 
   return (
     <section className="page-stack">
+      <PageHeader
+        eyebrow="Governance and operations"
+        title="Governance"
+        description="Operate rate limits, budget guardrails, and optional governance features without changing the underlying proxy contracts or entitlement checks."
+        status={
+          <span className="stat-badge">
+            {loading ? "Syncing" : lastUpdated ? `Updated ${formatRelativeTime(lastUpdated)}` : "Live"}
+          </span>
+        }
+      />
+
       {failedSections.length > 0 ? (
-        <div className="alert-card" role="alert">
+        <StatePanel tone="error" icon={AlertTriangle} title="Governance surfaces unavailable">
           Some governance surfaces could not be reached: {failedSections.map(([key]) => key).join(", ")}.
-        </div>
+        </StatePanel>
       ) : null}
 
       {configFlagsError ? (
-        <div className="alert-card" role="status">
+        <StatePanel tone="warning" icon={AlertTriangle} title="Runtime config API unavailable">
           Runtime config API unavailable: {configFlagsError}. Dashboard toggles only work once the backend exposes config flag routes.
-        </div>
+        </StatePanel>
       ) : null}
 
-      <div className="panel">
+      <div className="panel panel-summary">
         <div className="section-heading">
           <div>
             <div className="eyebrow">Live control</div>
@@ -606,7 +619,7 @@ export default function Governance({ searchQuery = "" }) {
         </div>
       </div>
 
-      <div className="panel">
+      <div className="panel panel-summary">
         <div className="section-heading">
           <div>
             <div className="eyebrow">Budget guardrail</div>
@@ -658,7 +671,7 @@ export default function Governance({ searchQuery = "" }) {
         </div>
       </div>
 
-      <div className="panel">
+      <div className="panel panel-data">
         <div className="section-heading">
           <div>
             <div className="eyebrow">Feature configuration</div>
@@ -670,23 +683,29 @@ export default function Governance({ searchQuery = "" }) {
         </div>
 
         <div className="feature-config-list">
-          {filteredFeatures.map((feature) => (
-            <FeatureRow
-              key={feature.key}
-              feature={feature}
-              stats={stats}
-              configFlags={configFlags}
-              liveFlags={effectiveLiveFlags}
-              sections={sections}
-              onToggle={handleToggle}
-              toggleBusy={toggleBusy}
-            />
-          ))}
+          {filteredFeatures.length > 0 ? (
+            filteredFeatures.map((feature) => (
+              <FeatureRow
+                key={feature.key}
+                feature={feature}
+                stats={stats}
+                configFlags={configFlags}
+                liveFlags={effectiveLiveFlags}
+                sections={sections}
+                onToggle={handleToggle}
+                toggleBusy={toggleBusy}
+              />
+            ))
+          ) : (
+            <StatePanel tone="empty" icon={Scale} title="No governance matches">
+              Try a broader query or clear the search box to inspect every governance control.
+            </StatePanel>
+          )}
         </div>
       </div>
 
       <div className="metric-grid metric-grid-two">
-        <section className="panel">
+        <section className="panel panel-data">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Enterprise</div>
@@ -710,7 +729,7 @@ export default function Governance({ searchQuery = "" }) {
           </div>
         </section>
 
-        <section className="panel">
+        <section className="panel panel-data">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Enterprise</div>

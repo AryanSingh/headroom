@@ -26,31 +26,13 @@
 - Create: `dashboard/src/components/PageHeader.jsx`
 - Create: `dashboard/src/components/StatePanel.jsx`
 - Modify: `dashboard/src/index.css`
-- Create: `dashboard/e2e/quiet-command-center.spec.js`
 
 **Interfaces:**
 - `PageHeader({ eyebrow, title, description, actions, status })` renders a semantic route header.
 - `StatePanel({ tone, icon: Icon, title, children, action, compact })` renders `role="status"` except `tone="error"`, which renders `role="alert"`.
 - Existing route components may pass React nodes to `actions` and `action` without changing data flow.
 
-- [ ] **Step 1: Write the failing primitive and state tests**
-
-```js
-test('uses a distinct error role and an operator action', async ({ page }) => {
-  await page.goto('/dashboard/replay');
-  await expect(page.getByTestId('replay-empty-state')).toHaveAttribute('role', 'status');
-  await page.getByLabel('Session ID').fill('missing-session');
-  await page.getByRole('button', { name: 'Load replay' }).click();
-  await expect(page.getByRole('alert')).toBeVisible();
-});
-```
-
-- [ ] **Step 2: Run the focused test and verify it fails**
-
-Run: `cd dashboard && npx playwright test e2e/quiet-command-center.spec.js -g "distinct error role"`
-Expected: FAIL because no shared state panel or `replay-empty-state` exists.
-
-- [ ] **Step 3: Add the primitives and token layer**
+- [ ] **Step 1: Add the primitives and token layer**
 
 ```jsx
 export function PageHeader({ eyebrow, title, description, actions, status }) {
@@ -86,15 +68,15 @@ export function StatePanel({ tone = 'neutral', icon: Icon, title, children, acti
 
 Add `--surface-canvas`, `--surface-panel`, `--surface-elevated`, `--text-muted`, and state signal tokens to both themes. Add `.page-header`, `.page-header-actions`, `.state-panel`, `.state-panel-error`, `.state-panel-empty`, and focus-visible rules; build on existing tokens rather than replacing them.
 
-- [ ] **Step 4: Run focused tests and lint**
+- [ ] **Step 2: Run lint and a production build**
 
-Run: `cd dashboard && npx playwright test e2e/quiet-command-center.spec.js -g "distinct error role" && npm run lint`
-Expected: PASS with no ESLint warnings.
+Run: `cd dashboard && npm run lint && npm run build`
+Expected: lint and Vite build pass with no errors. The first route-level behavior coverage for `StatePanel` is added in Task 5, which owns `Replay.jsx`.
 
-- [ ] **Step 5: Commit the foundation**
+- [ ] **Step 3: Commit the foundation**
 
 ```bash
-git add dashboard/src/components/PageHeader.jsx dashboard/src/components/StatePanel.jsx dashboard/src/index.css dashboard/e2e/quiet-command-center.spec.js
+git add dashboard/src/components/PageHeader.jsx dashboard/src/components/StatePanel.jsx dashboard/src/index.css
 git commit -m "feat(dashboard): add quiet command center primitives"
 ```
 

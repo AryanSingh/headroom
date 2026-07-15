@@ -28,6 +28,8 @@ import Capabilities from './pages/Capabilities';
 import Docs from './pages/Docs';
 import Orchestrator from './pages/Orchestrator';
 import Replay from './pages/Replay';
+import { PageHeader } from './components/PageHeader';
+import { StatePanel } from './components/StatePanel';
 import { DashboardDataProvider } from './lib/dashboard-context';
 import { useDashboardData } from './lib/use-dashboard-data';
 import { ThemeProvider, useTheme } from './lib/theme-context';
@@ -324,25 +326,39 @@ function AppFrame() {
 
   if (isUnauthorized) {
     return (
-      <div style={{ padding: 'var(--space-3xl)', color: 'var(--text-primary)', background: 'var(--surface-0)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'fixed', inset: 0, zIndex: 9999 }}>
-        <h2 style={{ marginBottom: 'var(--space-md)' }}>Authentication Required</h2>
-        <p style={{ marginBottom: 'var(--space-xl)', color: 'var(--text-secondary)' }}>The proxy requires an admin API key.</p>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <input 
-            type="password" 
-            placeholder="Enter CUTCTX_ADMIN_API_KEY" 
-            value={adminKey}
-            onChange={(e) => setAdminKey(e.target.value)}
-            style={{ padding: '0.5rem 1rem', borderRadius: '4px', border: '1px solid var(--surface-2)', background: 'var(--surface-1)', color: 'var(--text-primary)', width: '300px' }}
+      <main className="authentication-surface" data-testid="authentication-surface">
+        <section className="authentication-card" aria-label="Connect to Cutctx">
+          <PageHeader
+            eyebrow="Operator access"
+            title="Connect to Cutctx"
+            description="Enter the admin key configured for this proxy to continue to the command center."
           />
-          <button 
-            onClick={handleSaveKey}
-            style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+          <StatePanel tone="error" icon={Shield} title="Authentication required">
+            The proxy requires an admin API key before it can return dashboard data.
+          </StatePanel>
+          <form
+            className="authentication-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSaveKey();
+            }}
           >
-            Save & Reload
-          </button>
-        </div>
-      </div>
+            <label className="authentication-field" htmlFor="admin-api-key">
+              <span>Admin API key</span>
+              <input
+                id="admin-api-key"
+                type="password"
+                placeholder="Enter CUTCTX_ADMIN_API_KEY"
+                value={adminKey}
+                onChange={(event) => setAdminKey(event.target.value)}
+              />
+            </label>
+            <button className="primary-button" type="submit">
+              Save & Reload
+            </button>
+          </form>
+        </section>
+      </main>
     );
   }
 

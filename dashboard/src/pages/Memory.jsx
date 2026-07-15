@@ -1,5 +1,7 @@
-import { BrainCircuit, History, Lock, NotebookTabs, ScanSearch } from 'lucide-react';
+import { AlertTriangle, BrainCircuit, History, Lock, NotebookTabs, ScanSearch } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { PageHeader } from '../components/PageHeader';
+import { StatePanel } from '../components/StatePanel';
 import { formatInteger, formatRelativeTime } from '../lib/format';
 import { fetchDashboardJson, useDashboardData } from '../lib/use-dashboard-data';
 
@@ -55,11 +57,36 @@ export default function Memory({ searchQuery = '' }) {
   const contextTool = stats?.context_tool?.stats || {};
   const memoryEnabled = stats?.config?.memory;
   const memoryIsEE = !loading && items.length === 0 && !error && !memoryEnabled;
+  const filteredItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          !searchQuery
+          || (item.text || item.content)?.toLowerCase().includes(searchQuery)
+          || item.source?.toLowerCase().includes(searchQuery),
+      ),
+    [items, searchQuery],
+  );
+  const memoryStatus = loading
+    ? 'Syncing'
+    : memoryIsEE
+      ? 'Business feature'
+      : `${formatInteger(items.length)} live records`;
 
   return (
     <section className="page-stack">
+      <PageHeader
+        eyebrow="State and retrieval"
+        title="Memory"
+        description="Review persisted operator knowledge, live context-tool usage, and the cross-session memory surface exposed by this proxy."
+        status={<span className="stat-badge">{memoryStatus}</span>}
+      />
 
-      {error && <div className="alert-card" role="alert">Failed to load memory data: {error}</div>}
+      {error ? (
+        <StatePanel tone="error" icon={AlertTriangle} title="Memory data unavailable">
+          Failed to load memory data: {error}
+        </StatePanel>
+      ) : null}
 
       {/* Context-tool stats — conditionally shown if available */}
       <div className="metric-grid metric-grid-four" aria-busy={loading}>
@@ -98,31 +125,32 @@ export default function Memory({ searchQuery = '' }) {
       </div>
 
       {/* Enterprise gate card */}
-      {memoryIsEE && (
-        <div className="panel ee-gate-panel">
-          <div className="ee-gate-icon"><Lock size={22} /></div>
-          <div className="ee-gate-body">
-            <div className="eyebrow">Enterprise feature</div>
-            <h2>Cross-agent memory</h2>
-            <p>
-              Persistent shared memory lets Claude, Codex, Gemini, and other agents
-              share knowledge across sessions — semantic search, learn signals, and
-              correction writing into AGENTS.md / CLAUDE.md. Contact sales to enable.
-            </p>
-            <div className="ee-gate-features">
-              <span>Semantic search across sessions</span>
-              <span>Correction write-back to agent config</span>
-              <span>Cross-agent knowledge sharing</span>
-              <span>Session mining and pattern learning</span>
-            </div>
+      {memoryIsEE ? (
+        <StatePanel
+          tone="empty"
+          icon={Lock}
+          title="Cross-agent memory"
+          data-testid="memory-enterprise-state"
+          className="memory-enterprise-state"
+        >
+          <div className="memory-enterprise-copy">
+            Persistent shared memory lets Claude, Codex, Gemini, and other agents share
+            knowledge across sessions through semantic search, learn signals, and
+            correction write-back into `AGENTS.md` or `CLAUDE.md`.
           </div>
-        </div>
-      )}
+          <div className="memory-feature-list" aria-label="Cross-agent memory capabilities">
+            <span>Semantic search across sessions</span>
+            <span>Correction write-back to agent config</span>
+            <span>Cross-agent knowledge sharing</span>
+            <span>Session mining and pattern learning</span>
+          </div>
+        </StatePanel>
+      ) : null}
 
       {/* Memory table — shown when enabled */}
       {!memoryIsEE && (
         <div className="dashboard-grid" aria-busy={loading}>
-          <section className="panel panel-wide">
+          <section className="panel panel-data panel-wide">
             <div className="section-heading">
               <div>
                 <div className="eyebrow">Memory</div>
@@ -140,14 +168,14 @@ export default function Memory({ searchQuery = '' }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.filter(i => !searchQuery || (i.text || i.content)?.toLowerCase().includes(searchQuery) || i.source?.toLowerCase().includes(searchQuery)).length === 0 ? (
+                  {filteredItems.length === 0 ? (
                     <tr>
                       <td colSpan={3} className="empty-row">
                         {loading ? 'Loading memories…' : 'No memories recorded yet.'}
                       </td>
                     </tr>
                   ) : (
-                    items.filter(i => !searchQuery || (i.text || i.content)?.toLowerCase().includes(searchQuery) || i.source?.toLowerCase().includes(searchQuery)).map((item, index) => (
+                    filteredItems.map((item, index) => (
                       <tr key={item.id || index}>
                         <td>{item.text || item.content || '—'}</td>
                         <td>
@@ -162,7 +190,7 @@ export default function Memory({ searchQuery = '' }) {
             </div>
           </section>
 
-          <aside className="panel panel-side">
+          <aside className="panel panel-summary panel-side">
             <div className="section-heading">
               <div>
                 <div className="eyebrow">How it works</div>
