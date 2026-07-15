@@ -19,9 +19,9 @@ test.describe('Authentication Flow', () => {
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
 
-    // Check that the auth overlay is visible
-    const overlayHeading = page.locator('h2', { hasText: 'Authentication Required' });
-    await expect(overlayHeading).toBeVisible();
+    // Check that the auth surface is visible
+    await expect(page.getByTestId('authentication-surface')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Connect to Cutctx' })).toBeVisible();
 
     // Check that the input and button are visible
     const input = page.getByPlaceholder('Enter CUTCTX_ADMIN_API_KEY');
@@ -74,8 +74,7 @@ test.describe('Authentication Flow', () => {
     expect(storedKey).toBe('testkey');
 
     // After reload, with the key sent in headers, the mocked route returns 200, so overlay should be gone
-    const overlayHeading = page.locator('h2', { hasText: 'Authentication Required' });
-    await expect(overlayHeading).toBeHidden();
+    await expect(page.getByTestId('authentication-surface')).toBeHidden();
   });
 
   test('does not display Auth Overlay when authenticated (200 OK)', async ({ page }) => {
@@ -96,8 +95,7 @@ test.describe('Authentication Flow', () => {
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
 
-    const overlayHeading = page.locator('h2', { hasText: 'Authentication Required' });
-    await expect(overlayHeading).toBeHidden();
+    await expect(page.getByTestId('authentication-surface')).toBeHidden();
 
     // The Dashboard title should be visible
     const dashboardTitle = page.locator('.topbar-title-row h2');
