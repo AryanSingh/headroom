@@ -10,11 +10,16 @@ from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
+from .compiler import CompiledRoutingPolicy
 from .models import OrchestrationConfig, to_dict
 
 
-def compile_policy_bundle(config: OrchestrationConfig) -> dict[str, Any]:
+def compile_policy_bundle(
+    policy: OrchestrationConfig | CompiledRoutingPolicy,
+) -> dict[str, Any]:
     """Compile only enforcement-relevant data into a prompt-free bundle."""
+    compiled = policy if isinstance(policy, CompiledRoutingPolicy) else None
+    config = compiled.config if compiled else policy
     settings = to_dict(config.settings)
     payload = {
         "bundle_version": 1,
@@ -31,6 +36,13 @@ def compile_policy_bundle(config: OrchestrationConfig) -> dict[str, Any]:
             for account in config.providers
         ],
     }
+    if compiled is not None:
+        payload["contract"] = {
+            "id": compiled.contract_id,
+            "version": compiled.contract_version,
+            "lifecycle_state": compiled.lifecycle_state,
+            "policy_hash": compiled.policy_hash,
+        }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return {**payload, "bundle_hash": hashlib.sha256(canonical).hexdigest()}
 

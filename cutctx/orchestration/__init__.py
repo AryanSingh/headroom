@@ -6,6 +6,7 @@ pulling provider-specific transport details into routing policy.
 """
 
 from .audit import ReceiptAuditStore
+from .compiler import CompiledRoutingPolicy, ContractCompilationError, compile_contract
 from .contracts import (
     ContractEvaluationPolicy,
     ContractLifecycle,
@@ -57,9 +58,12 @@ __all__ = [
     "ContractObjective",
     "ContractObjectiveType",
     "ContractRequirements",
+    "CompiledRoutingPolicy",
+    "ContractCompilationError",
     "CredentialStore",
     "ReceiptAuditStore",
     "compile_policy_bundle",
+    "compile_contract",
     "DeterministicRoutingEngine",
     "FallbackTrigger",
     "ExternalSecretResolver",
