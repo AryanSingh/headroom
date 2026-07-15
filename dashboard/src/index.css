@@ -127,24 +127,24 @@
 
 .light {
   --surface-0: #ffffff;
-  --surface-1: #f7f7f9;
-  --surface-2: #efeff2;
-  --surface-3: #e5e6ea;
-  --surface-4: #d4d5db;
-  --surface-raised: rgba(255, 255, 255, 0.9);
-  --surface-overlay: rgba(255, 255, 255, 0.96);
+  --surface-1: #f9fafc;
+  --surface-2: #eef2f7;
+  --surface-3: #e1e7f0;
+  --surface-4: #cfd8e5;
+  --surface-raised: rgba(255, 255, 255, 0.94);
+  --surface-overlay: rgba(255, 255, 255, 0.98);
   --surface-canvas: var(--surface-0);
   --surface-panel: var(--surface-1);
   --surface-elevated: var(--surface-2);
 
-  --border-subtle: rgba(0, 0, 0, 0.05);
-  --border-default: rgba(0, 0, 0, 0.09);
-  --border-strong: rgba(0, 0, 0, 0.16);
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-default: rgba(15, 23, 42, 0.14);
+  --border-strong: rgba(15, 23, 42, 0.24);
   --border-focus: rgba(13, 148, 136, 0.5);
 
   --text-primary: #111318;
-  --text-secondary: #5c6175;
-  --text-tertiary: #70778c;
+  --text-secondary: #2f3748;
+  --text-tertiary: #4f596d;
   --text-inverse: #f0f0f4;
   --text-muted: var(--text-tertiary);
 
@@ -1594,14 +1594,19 @@ text-align: right;
 
 .overview-bottom-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr);
   gap: var(--space-lg);
   min-width: 0;
   align-items: start;
+  order: 3;
 }
 
 .overview-bottom-grid > * {
   min-width: 0;
+}
+
+.activity-panel {
+  order: 2;
 }
 
 .overview-side-stack {
@@ -2320,6 +2325,38 @@ text-align: right;
 
 .request-row-button.active {
   color: var(--accent);
+}
+
+.request-summary-button {
+  width: 100%;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.request-summary-button svg {
+  margin-top: 0.15rem;
+}
+
+.request-summary {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.request-summary-primary {
+  color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.request-summary-secondary {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .request-trace-panel {
