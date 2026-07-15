@@ -265,6 +265,11 @@ class ExecutionRecord:
     policy_version: str = "1"
     policy_constraints: dict[str, Any] = field(default_factory=dict)
     task_type: str | None = None
+    attempts: int = 1
+    deployments_attempted: int = 1
+    total_deadline_seconds: float | None = None
+    deadline_exceeded: bool = False
+    first_token_latency_ms: float | None = None
 
 
 @dataclass

@@ -149,8 +149,10 @@ class DeterministicRoutingEngine:
             for key in equivalent_candidates
             if (model := self.registry.get(key)) is not None
         }
+        primary_model = self.registry.get(primary)
+        primary_deployment = primary_model.deployment_key if primary_model is not None else primary
         fallback_used = (
-            selected.deployment_key != primary
+            selected.deployment_key != primary_deployment
             and selected.deployment_key not in equivalent_deployment_keys
         )
         decision = RoutingDecision(
@@ -165,7 +167,7 @@ class DeterministicRoutingEngine:
             policy=policy,
             reason=(
                 "equivalent_deployment_selected"
-                if selected.deployment_key != primary and not fallback_used
+                if selected.deployment_key != primary_deployment and not fallback_used
                 else reason
                 if not fallback_used
                 else f"fallback:{rejected_reason or 'unavailable'}"

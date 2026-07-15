@@ -17,10 +17,10 @@ from typing import Any
 import httpx
 
 from .audit import ReceiptAuditStore
-from .compiler import compile_contract
+from .compiler import CompiledRoutingPolicy, compile_contract
 from .config import LayeredConfigStore, default_config_paths
 from .contract_store import ContractStore, StoredContract
-from .contracts import WorkloadContract
+from .contracts import ReliabilityBudget, WorkloadContract
 from .credentials import CredentialStore, EncryptedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
 from .models import (
@@ -96,6 +96,7 @@ class OrchestrationService:
         self.contract_store = contract_store or ContractStore(
             Path.home() / ".cutctx" / "orchestration" / "contracts.json"
         )
+        self._active_contract: CompiledRoutingPolicy | None = None
         self._state_lock = threading.RLock()
         self.config = self.config_store.load()
         if self.config.models:
@@ -156,9 +157,46 @@ class OrchestrationService:
         allow_overrides: bool = False,
     ) -> RoutingDecision:
         with self._state_lock:
-            return self.engine.route(
+            decision = self.engine.route(
                 self._apply_policy_defaults(request), allow_overrides=allow_overrides
             )
+            if self._active_contract is None:
+                return decision
+            compiled = self._active_contract
+            return replace(
+                decision,
+                contract_id=compiled.contract_id,
+                contract_version=compiled.contract_version,
+                contract_state=compiled.lifecycle_state,
+                policy_hash=compiled.policy_hash,
+                reliability_budget=to_dict(compiled.reliability),
+            )
+
+    def activate_contract(self, contract: WorkloadContract) -> CompiledRoutingPolicy:
+        """Compile and activate a contract as the service's effective routing policy."""
+        compiled = compile_contract(contract, self.config)
+        with self._state_lock:
+            self._activate_config(compiled.config)
+            self._active_contract = compiled
+        return compiled
+
+    def _execution_budget(self, decision: RoutingDecision) -> ReliabilityBudget:
+        if decision.reliability_budget:
+            values = dict(decision.reliability_budget)
+            values["fallback_triggers"] = set(values.get("fallback_triggers", []))
+            return ReliabilityBudget(**values)
+        attempts = max(1, self.config.settings.retries + 1)
+        deployments = max(1, 1 + len(decision.candidates))
+        timeout = float(self.config.settings.timeout_seconds)
+        return ReliabilityBudget(
+            first_token_timeout_seconds=timeout,
+            attempt_timeout_seconds=timeout,
+            stream_idle_timeout_seconds=timeout,
+            total_deadline_seconds=timeout * attempts * deployments,
+            attempts_per_deployment=attempts,
+            maximum_deployments=deployments,
+            fallback_triggers=set(self.config.settings.fallback_triggers),
+        )
 
     def _apply_policy_defaults(self, request: RoutingRequest) -> RoutingRequest:
         """Intersect caller constraints with effective layered policy limits.
@@ -549,16 +587,30 @@ class OrchestrationService:
     ) -> tuple[RoutingDecision, dict[str, Any]]:
         execution_parameters = self._execution_parameters(parameters)
         decision = self.route(request)
+        budget = self._execution_budget(decision)
         attempts = 0
         started = time.perf_counter()
+        deadline = started + budget.total_deadline_seconds
         started_at = datetime.now(timezone.utc).isoformat()
         error: Exception | None = None
+        terminal_routing_error: RoutingUnavailableError | None = None
         response: dict[str, Any] | None = None
         execution_adapter: ProviderAdapter | None = None
-        max_attempts = max(1, self.config.settings.retries + 1)
+        deployment_attempts = 0
+        deployments = {decision.selected_deployment or f"{decision.provider}:{decision.actual_model}"}
 
-        while attempts < max_attempts:
+        while True:
+            remaining = deadline - time.perf_counter()
+            if remaining <= 0:
+                terminal_routing_error = RoutingUnavailableError(
+                    "The contract total deadline was exhausted",
+                    assigned_model=decision.assigned_model,
+                    reason="total_deadline_exceeded",
+                )
+                error = terminal_routing_error
+                break
             attempts += 1
+            deployment_attempts += 1
             try:
                 account = self._execution_account(decision)
                 adapter = self.adapter(account.id)
@@ -571,21 +623,35 @@ class OrchestrationService:
                             **execution_parameters,
                         }
                     ),
-                    timeout=self.config.settings.timeout_seconds,
+                    timeout=min(budget.attempt_timeout_seconds, remaining),
                 )
                 error = None
                 break
             except Exception as exc:  # noqa: BLE001 - translated to deterministic fallback trigger
                 error = exc
                 trigger = self._classify_failure(exc)
-                if attempts < max_attempts:
+                if deadline - time.perf_counter() <= 0:
+                    terminal_routing_error = RoutingUnavailableError(
+                        "The contract total deadline was exhausted",
+                        assigned_model=decision.assigned_model,
+                        reason="total_deadline_exceeded",
+                    )
+                    error = terminal_routing_error
+                    break
+                if deployment_attempts < budget.attempts_per_deployment:
                     continue
                 self._cool_down_after_failure(decision, trigger)
+                if len(deployments) >= budget.maximum_deployments:
+                    break
                 try:
                     decision = self.engine.fallback(decision, trigger)
                 except RoutingUnavailableError:
                     break
-                max_attempts += max(1, self.config.settings.retries + 1)
+                deployment_attempts = 0
+                deployments.add(
+                    decision.selected_deployment
+                    or f"{decision.provider}:{decision.actual_model}"
+                )
 
         latency_ms = (time.perf_counter() - started) * 1000
         usage = response.get("usage", {}) if isinstance(response, dict) else {}
@@ -627,10 +693,16 @@ class OrchestrationService:
             policy_version=str(decision.policy_constraints.get("policy_version", "1")),
             policy_constraints=dict(decision.policy_constraints),
             task_type=request.task_type,
+            attempts=attempts,
+            deployments_attempted=len(deployments),
+            total_deadline_seconds=budget.total_deadline_seconds,
+            deadline_exceeded=terminal_routing_error is not None,
         )
         self.telemetry.record(record)
         if self.receipt_audit is not None:
             self.receipt_audit.append(decision, execution_id=f"{decision.request_id}:{started_at}")
+        if terminal_routing_error is not None:
+            raise terminal_routing_error
         if error is not None or response is None:
             raise RuntimeError(
                 f"Assigned model {decision.actual_model} failed after {attempts} attempt(s): {error}"
@@ -670,17 +742,33 @@ class OrchestrationService:
     ) -> AsyncIterator[tuple[RoutingDecision, bytes]]:
         execution_parameters = self._execution_parameters(parameters)
         decision = self.route(request)
+        budget = self._execution_budget(decision)
         started = time.perf_counter()
+        total_deadline = started + budget.total_deadline_seconds
         started_at = datetime.now(timezone.utc).isoformat()
         attempts = 0
-        max_attempts = max(1, self.config.settings.retries + 1)
+        deployment_attempts = 0
+        deployments = {decision.selected_deployment or f"{decision.provider}:{decision.actual_model}"}
         error: Exception | None = None
+        emitted_any = False
+        first_token_latency_ms: float | None = None
+        terminal_timeout: TimeoutError | None = None
         iterator: AsyncIterator[bytes] | None = None
 
         try:
-            while attempts < max_attempts:
+            while True:
+                total_remaining = total_deadline - time.perf_counter()
+                if total_remaining <= 0:
+                    terminal_timeout = TimeoutError("contract total deadline exceeded")
+                    error = terminal_timeout
+                    break
                 attempts += 1
+                deployment_attempts += 1
                 emitted = False
+                attempt_deadline = min(
+                    total_deadline,
+                    time.perf_counter() + budget.attempt_timeout_seconds,
+                )
                 try:
                     # Provider/account setup is part of a streaming attempt.
                     # It must receive the same pre-first-byte retry/fallback
@@ -695,16 +783,33 @@ class OrchestrationService:
                             **execution_parameters,
                         }
                     )
-                    deadline = time.perf_counter() + self.config.settings.timeout_seconds
                     while True:
-                        remaining = deadline - time.perf_counter()
+                        now = time.perf_counter()
+                        stage_timeout = (
+                            budget.stream_idle_timeout_seconds
+                            if emitted
+                            else budget.first_token_timeout_seconds
+                        )
+                        remaining = min(attempt_deadline, total_deadline) - now
                         if remaining <= 0:
                             raise TimeoutError("streaming execution deadline exceeded")
                         try:
-                            chunk = await asyncio.wait_for(anext(iterator), timeout=remaining)
+                            chunk = await asyncio.wait_for(
+                                anext(iterator), timeout=min(stage_timeout, remaining)
+                            )
                         except TimeoutError as exc:
-                            raise TimeoutError("streaming execution deadline exceeded") from exc
+                            label = (
+                                "streaming execution deadline exceeded"
+                                if remaining <= stage_timeout
+                                else "stream idle timeout"
+                                if emitted
+                                else "first token timeout"
+                            )
+                            raise TimeoutError(label) from exc
                         emitted = True
+                        emitted_any = True
+                        if first_token_latency_ms is None:
+                            first_token_latency_ms = (time.perf_counter() - started) * 1000
                         yield decision, chunk
                 except StopAsyncIteration:
                     error = None
@@ -719,15 +824,27 @@ class OrchestrationService:
                         # Switching providers after bytes are visible would
                         # corrupt the stream. Report the terminal error instead.
                         self._cool_down_after_failure(decision, trigger)
+                        if isinstance(exc, TimeoutError):
+                            terminal_timeout = exc
                         break
-                    if attempts < max_attempts:
+                    if total_deadline - time.perf_counter() <= 0:
+                        terminal_timeout = TimeoutError("contract total deadline exceeded")
+                        error = terminal_timeout
+                        break
+                    if deployment_attempts < budget.attempts_per_deployment:
                         continue
                     self._cool_down_after_failure(decision, trigger)
+                    if len(deployments) >= budget.maximum_deployments:
+                        break
                     try:
                         decision = self.engine.fallback(decision, trigger)
                     except RoutingUnavailableError:
                         break
-                    max_attempts += max(1, self.config.settings.retries + 1)
+                    deployment_attempts = 0
+                    deployments.add(
+                        decision.selected_deployment
+                        or f"{decision.provider}:{decision.actual_model}"
+                    )
                 finally:
                     if iterator is not None and hasattr(iterator, "aclose"):
                         await iterator.aclose()
@@ -755,12 +872,22 @@ class OrchestrationService:
                     policy_version=str(decision.policy_constraints.get("policy_version", "1")),
                     policy_constraints=dict(decision.policy_constraints),
                     task_type=request.task_type,
+                    attempts=attempts,
+                    deployments_attempted=len(deployments),
+                    total_deadline_seconds=budget.total_deadline_seconds,
+                    deadline_exceeded=(
+                        terminal_timeout is not None
+                        and "total deadline" in str(terminal_timeout)
+                    ),
+                    first_token_latency_ms=first_token_latency_ms,
                 )
             )
             if self.receipt_audit is not None:
                 self.receipt_audit.append(
                     decision, execution_id=f"{decision.request_id}:{started_at}"
                 )
+        if terminal_timeout is not None and emitted_any:
+            raise terminal_timeout
         if error is not None:
             raise RuntimeError(
                 f"Assigned model {decision.actual_model} failed during streaming: {error}"
