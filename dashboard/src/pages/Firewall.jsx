@@ -1,5 +1,7 @@
 import { AlertTriangle, Play, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { PageHeader } from '../components/PageHeader';
+import { StatePanel } from '../components/StatePanel';
 import { formatInteger, formatRelativeTime } from '../lib/format';
 import { fetchDashboardJson } from '../lib/use-dashboard-data';
 import { getAdminAuthHeaders } from '../lib/admin-auth';
@@ -14,6 +16,17 @@ export default function Firewall({ searchQuery = '' }) {
   const [scanResult, setScanResult] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState(null);
+  const filteredEvents = useMemo(
+    () =>
+      events.filter(
+        (event) =>
+          !searchQuery
+          || event.action?.toLowerCase().includes(searchQuery)
+          || event.actor?.toLowerCase().includes(searchQuery)
+          || JSON.stringify(event.detail || {}).toLowerCase().includes(searchQuery),
+      ),
+    [events, searchQuery],
+  );
 
   const handleScan = async () => {
     if (!scanText.trim()) {
@@ -78,8 +91,18 @@ export default function Firewall({ searchQuery = '' }) {
 
   return (
     <section className="page-stack">
+      <PageHeader
+        eyebrow="Security operations"
+        title="Firewall"
+        description="Review firewall posture, recent interceptions, and scan candidate text against the active rule set without changing scan or audit behavior."
+        status={<span className="stat-badge">{loading ? 'Syncing' : stats?.enabled ? 'Active' : 'Disabled'}</span>}
+      />
 
-      {error && <div className="alert-card" role="alert">Failed to load firewall data: {error}</div>}
+      {error ? (
+        <StatePanel tone="error" icon={AlertTriangle} title="Firewall data unavailable">
+          Failed to load firewall data: {error}
+        </StatePanel>
+      ) : null}
 
       <div className="metric-grid metric-grid-four" aria-busy={loading}>
         <MetricCard
@@ -113,7 +136,7 @@ export default function Firewall({ searchQuery = '' }) {
       </div>
 
       <div className="dashboard-grid" aria-busy={loading}>
-        <section className="panel panel-wide">
+        <section className="panel panel-data panel-wide">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Recent interceptions</div>
@@ -122,25 +145,25 @@ export default function Firewall({ searchQuery = '' }) {
             <p>Recent firewall-related audit events from the proxy.</p>
           </div>
 
-          <div className="table-shell">
-            <table>
-              <thead>
-                <tr>
-                  <th>When</th>
-                  <th>Action</th>
-                  <th>Actor</th>
-                  <th>Detail</th>
-                </tr>
-              </thead>
-              <tbody>
-                {events.filter(e => !searchQuery || e.action?.toLowerCase().includes(searchQuery) || e.actor?.toLowerCase().includes(searchQuery) || JSON.stringify(e.detail || {}).toLowerCase().includes(searchQuery)).length === 0 ? (
+          {filteredEvents.length === 0 ? (
+            <StatePanel tone={loading ? 'info' : 'empty'} icon={Shield} title={loading ? 'Loading firewall events' : 'No firewall events recorded yet'}>
+              {loading
+                ? 'Polling recent firewall-related audit events from the proxy.'
+                : 'New firewall interceptions and audit rows will appear here as traffic flows through the scanner.'}
+            </StatePanel>
+          ) : (
+            <div className="table-shell">
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan={4} className="empty-row">
-                      {loading ? 'Loading events…' : 'No firewall events recorded yet.'}
-                    </td>
+                    <th>When</th>
+                    <th>Action</th>
+                    <th>Actor</th>
+                    <th>Detail</th>
                   </tr>
-                ) : (
-                  events.filter(e => !searchQuery || e.action?.toLowerCase().includes(searchQuery) || e.actor?.toLowerCase().includes(searchQuery) || JSON.stringify(e.detail || {}).toLowerCase().includes(searchQuery)).map((event, index) => (
+                </thead>
+                <tbody>
+                  {filteredEvents.map((event, index) => (
                     <tr key={event.event_id || index}>
                       <td>{event.timestamp ? formatRelativeTime(event.timestamp) : '—'}</td>
                       <td>{event.action || '—'}</td>
@@ -149,14 +172,14 @@ export default function Firewall({ searchQuery = '' }) {
                         <code>{JSON.stringify(event.detail || {}).slice(0, 140)}</code>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
-        <aside className="panel panel-side">
+        <aside className="panel panel-summary panel-side">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Operator notes</div>
@@ -185,7 +208,7 @@ export default function Firewall({ searchQuery = '' }) {
       </div>
 
       <div className="dashboard-grid">
-        <section className="panel panel-wide">
+        <section className="panel panel-data panel-wide">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Live scanner</div>
@@ -195,12 +218,16 @@ export default function Firewall({ searchQuery = '' }) {
           </div>
 
           {stats && !stats.enabled && (
-            <div className="alert-card" role="status">
+            <StatePanel tone="warning" icon={AlertTriangle} title="Firewall not initialized">
               Firewall is not initialized on this proxy. Enable it by setting <code style={{ wordBreak: 'break-all' }}>CUTCTX_FIREWALL_ENABLED=1</code> and restarting.
-            </div>
+            </StatePanel>
           )}
 
-          {scanError && <div className="alert-card" role="alert">{scanError}</div>}
+          {scanError ? (
+            <StatePanel tone="error" icon={AlertTriangle} title="Scan failed">
+              {scanError}
+            </StatePanel>
+          ) : null}
 
           <label className="field">
             <span>Text to scan</span>
@@ -250,14 +277,14 @@ export default function Firewall({ searchQuery = '' }) {
                   )}
                 </tbody>
               </table>
-              <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: scanResult.block ? '#f87171' : '#6ee7b7' }}>
+              <div className={`firewall-scan-summary ${scanResult.block ? 'blocked' : 'allowed'}`}>
                 {scanResult.block ? 'This request would be blocked.' : 'This request would be allowed.'}
               </div>
             </div>
           )}
         </section>
 
-        <aside className="panel panel-side">
+        <aside className="panel panel-summary panel-side">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Configuration</div>

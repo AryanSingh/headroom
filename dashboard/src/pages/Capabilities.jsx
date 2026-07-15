@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  AlertTriangle,
   Boxes,
   BrainCircuit,
   Cable,
@@ -10,6 +11,8 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
+import { PageHeader } from '../components/PageHeader';
+import { StatePanel } from '../components/StatePanel';
 import { capabilityGroups } from '../data/capabilities';
 import { formatCurrency, formatInteger, formatPercent, titleize } from '../lib/format';
 import { patchDashboardConfig, useDashboardData } from '../lib/use-dashboard-data';
@@ -269,34 +272,42 @@ export default function Capabilities({ searchQuery = '' }) {
 
   return (
     <section className="page-stack">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Capabilities"
+        description="Inspect the runtime surfaces Cutctx is publishing right now, including toggleable features, savings signals, and capability coverage."
+        status={<span className="stat-badge">{loading ? 'Syncing' : `${liveSurfaces.length} live surfaces`}</span>}
+      />
+
       {error ? (
-        <div className="alert-card" role="alert">
+        <StatePanel tone="error" icon={AlertTriangle} title="Capability signals unavailable">
           Failed to load live capability signals: {error}
-        </div>
+        </StatePanel>
       ) : null}
 
       {configFlagsError ? (
-        <div className="alert-card" role="status">
+        <StatePanel tone="warning" icon={AlertTriangle} title="Runtime config API unavailable">
           Runtime config API unavailable: {configFlagsError}. Idle states below may reflect missing backend
           telemetry rather than disabled features.
-        </div>
+        </StatePanel>
       ) : null}
 
       {toggleError ? (
-        <div className="alert-card" role="alert">
-          <span>Failed to update setting: {toggleError}</span>
-          <button
-            className="ghost-button"
-            style={{ marginLeft: 'auto' }}
-            onClick={() => setToggleError(null)}
-            type="button"
-          >
-            <X size={14} /> Dismiss
-          </button>
-        </div>
+        <StatePanel
+          tone="error"
+          icon={AlertTriangle}
+          title="Setting update failed"
+          action={(
+            <button className="ghost-button" onClick={() => setToggleError(null)} type="button">
+              <X size={14} /> Dismiss
+            </button>
+          )}
+        >
+          Failed to update setting: {toggleError}
+        </StatePanel>
       ) : null}
 
-      <div className="panel">
+      <div className="panel panel-summary">
         <div className="section-heading">
           <div>
             <div className="eyebrow">Live evidence</div>
@@ -350,15 +361,9 @@ export default function Capabilities({ searchQuery = '' }) {
       </div>
 
       {filteredGroups.length === 0 && query ? (
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Search</div>
-              <h2>No capability matches</h2>
-            </div>
-            <p>Try a broader query or clear the search box to see all capability groups.</p>
-          </div>
-        </div>
+        <StatePanel tone="empty" icon={Boxes} title="No capability matches">
+          Try a broader query or clear the search box to see all capability groups.
+        </StatePanel>
       ) : null}
 
       {filteredGroups.map((group) => {
@@ -372,7 +377,7 @@ export default function Capabilities({ searchQuery = '' }) {
         const colorStyle = iconColors[group.title] || { bg: 'var(--accent-muted)', color: 'var(--accent)' };
 
         return (
-          <section key={group.title} className="panel capability-panel">
+          <section key={group.title} className="panel panel-data capability-panel">
             <div className="section-heading">
               <div className="heading-with-icon">
                 <div className="heading-icon" style={{ backgroundColor: colorStyle.bg, color: colorStyle.color }}>
