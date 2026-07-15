@@ -28,6 +28,9 @@
     {"id":"short_database_risk","client":"codex","prompt":"Write SQL to delete duplicate production records.","expected_tier":"strong","category":"data_safety"},
     {"id":"short_concurrency_risk","client":"codex","prompt":"Fix the race in this worker.","expected_tier":"strong","category":"debugging"},
     {"id":"compound_execution","client":"codex","prompt":"Inspect the config, fix it, test it, and deploy.","expected_tier":"strong","category":"execution"},
+    {"id":"codex_responses_function_call_context","client":"codex","prompt":"Show status.","expected_tier":"strong","category":"tool_use","messages":[{"role":"user","content":"Inspect the repository."},{"type":"function_call","name":"shell","arguments":"{}"},{"role":"user","content":"Show status."}]},
+    {"id":"codex_chat_tool_calls_context","client":"codex","prompt":"Show status.","expected_tier":"strong","category":"tool_use","messages":[{"role":"user","content":"Inspect the repository."},{"role":"assistant","content":"","tool_calls":[{"type":"function","function":{"name":"shell","arguments":"{}"}}]},{"role":"user","content":"Show status."}]},
+    {"id":"codex_local_shell_output_context","client":"codex","prompt":"Show status.","expected_tier":"strong","category":"tool_use","messages":[{"role":"user","content":"Inspect the repository."},{"type":"local_shell_call_output","call_id":"call-1","output":"done"},{"role":"user","content":"Show status."}]},
     {"id":"stale_tool_context","client":"codex","prompt":"What is idempotency?","expected_tier":"mini","category":"context_recovery","messages":[{"role":"tool","content":"old build output"},{"role":"assistant","content":"old result"},{"role":"user","content":"old question"},{"role":"assistant","content":"answer"},{"role":"user","content":"another question"},{"role":"assistant","content":"answer"},{"role":"user","content":"more"},{"role":"assistant","content":"answer"},{"role":"user","content":"What is idempotency?"}]}
   ]
 }

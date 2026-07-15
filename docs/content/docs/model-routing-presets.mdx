@@ -77,6 +77,12 @@ is only a few words. Conversely, an old tool result does not permanently pin a
 long-running conversation to the strong model: only the recent context window is
 considered for the tool-context safety gate.
 
+The recent-context gate recognizes provider-native tool activity across Anthropic
+`tool_use`/`tool_result` blocks, OpenAI Chat Completions `tool_calls`, and OpenAI
+Responses call/output items such as `function_call` and `local_shell_call_output`.
+Calls and results in that bounded window keep the requested strong model even when
+the latest user text would otherwise qualify for Mini.
+
 The deterministic benchmark at `benchmarks/model_routing_quality.py` gates Mini, Luna, and
 strong-model assignments with zero tolerated unsafe Mini downgrades.
 

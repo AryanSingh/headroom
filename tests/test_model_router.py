@@ -708,6 +708,46 @@ def test_stale_tool_context_does_not_permanently_block_mini_routing() -> None:
 
 
 @pytest.mark.parametrize(
+    "tool_item",
+    [
+        {"type": "function_call", "name": "shell", "arguments": "{}"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "type": "function",
+                    "function": {"name": "shell", "arguments": "{}"},
+                }
+            ],
+        },
+        {
+            "role": "assistant",
+            "content": [{"type": "function_call", "name": "shell", "arguments": "{}"}],
+        },
+        {"type": "local_shell_call_output", "call_id": "call-1", "output": "done"},
+    ],
+    ids=[
+        "responses-function-call",
+        "chat-tool-calls",
+        "nested-function-call",
+        "responses-local-shell-output",
+    ],
+)
+def test_provider_native_tool_context_stays_on_requested_model(tool_item: dict) -> None:
+    messages = [
+        {"role": "user", "content": "Inspect the repository."},
+        tool_item,
+        {"role": "user", "content": "Show status."},
+    ]
+
+    assessment = assess_task_complexity(messages)
+
+    assert assessment.complexity == TaskComplexity.HIGH
+    assert assessment.signals == ("recent_tool_context",)
+
+
+@pytest.mark.parametrize(
     "content",
     [
         "Write SQL to delete duplicate production records.",

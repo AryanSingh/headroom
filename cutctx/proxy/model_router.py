@@ -144,6 +144,37 @@ def _recent_context_window(
     return messages[-size:]
 
 
+_TOOL_CONTEXT_TYPES = {
+    "function",
+    "function_call",
+    "tool_call",
+    "tool_result",
+    "tool_use",
+}
+
+
+def _contains_tool_context(value: Any) -> bool:
+    """Return whether a provider-native value represents tool activity."""
+    if isinstance(value, dict):
+        if value.get("role") == "tool":
+            return True
+        item_type = value.get("type")
+        if isinstance(item_type, str) and (
+            item_type in _TOOL_CONTEXT_TYPES
+            or item_type.endswith("_call")
+            or item_type.endswith("_call_output")
+        ):
+            return True
+        if value.get("tool_calls"):
+            return True
+        if value.get("function_call"):
+            return True
+        return any(_contains_tool_context(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_tool_context(item) for item in value)
+    return False
+
+
 class TaskComplexityScorer(Protocol):
     """Pluggable scorer contract for model-routing eligibility."""
 
@@ -167,18 +198,7 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         return TaskComplexity.HIGH
 
     recent_messages = _recent_context_window(messages)
-    if any(
-        message.get("role") == "tool"
-        or (
-            isinstance(message.get("content"), list)
-            and any(
-                isinstance(block, dict)
-                and block.get("type") in {"tool_use", "tool_result", "function_call_output"}
-                for block in message.get("content", [])
-            )
-        )
-        for message in recent_messages
-    ):
+    if any(_contains_tool_context(message) for message in recent_messages):
         return TaskComplexity.HIGH
 
     raw_content = last_user_message.get("content", "")
@@ -336,7 +356,7 @@ def assess_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexityAsse
 
     complexity = classify_task_complexity(messages)
     recent_messages = _recent_context_window(messages)
-    has_recent_tool_context = any(message.get("role") == "tool" for message in recent_messages)
+    has_recent_tool_context = any(_contains_tool_context(message) for message in recent_messages)
     if complexity == TaskComplexity.HIGH:
         signals = ("recent_tool_context",) if has_recent_tool_context else ("strong_model_gate",)
         return TaskComplexityAssessment(complexity, 1.0, signals=signals)
