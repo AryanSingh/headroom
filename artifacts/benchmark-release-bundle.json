@@ -1,0 +1,29 @@
+{
+  "reports": {
+    "canonical_llmlingua_xlmr_large": {
+      "path": "artifacts/llmlingua-research-preset.json",
+      "sha256": "f09ac5f5d7a64927d2be4faf75a5d39a1104d881e858c3d5f33728b3caa230d2",
+      "status": "available"
+    },
+    "content_router": {
+      "path": "artifacts/benchmark-breadth.json",
+      "sha256": "500be77bf97e9848848260cc7d2ce22e963d3292aa2bb51ca116c8aa724c5522",
+      "status": "available"
+    },
+    "provider_native_cache_or_compaction": {
+      "reason": "No provider-native signal was supplied by the evaluated provider.",
+      "status": "unavailable"
+    },
+    "raw_passthrough": {
+      "path": "artifacts/raw-passthrough-benchmark.json",
+      "sha256": "842318cf3a02c93629609cf6779c0ed92e6d4d7002d495840195564efad2852b",
+      "status": "available"
+    },
+    "verbatim_compactor": {
+      "path": "artifacts/verbatim-compaction-benchmark.json",
+      "sha256": "25dbcd0350608291f33718e934c8bc2f39956f14c3efd5da8780cb88ede6818b",
+      "status": "available"
+    }
+  },
+  "schema_version": 1
+}
