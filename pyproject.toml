@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "cutctx-ai"
-version = "0.30.0"
+version = "0.31.0"
 description = "The Context Optimization Layer for LLM Applications - Cut costs by 50-90%"
 readme = "README.md"
 # Open-core: this published package is the Apache-2.0 client surface.
