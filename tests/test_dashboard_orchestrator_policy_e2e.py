@@ -101,6 +101,161 @@ def _install_dashboard_routes(page: Page) -> None:
             },
         ]
     }
+    orchestration_config_payload = {
+        "version": 1,
+        "providers": [
+            {"id": "anthropic", "display_name": "Anthropic", "runtime": "anthropic"},
+            {"id": "openai", "display_name": "OpenAI", "runtime": "openai"},
+        ],
+        "roles": [
+            {"id": "worker", "name": "Worker", "description": "General execution role"},
+            {"id": "reviewer", "name": "Reviewer", "description": "Checks outputs"},
+        ],
+        "bindings": [
+            {
+                "id": "worker-default",
+                "role": "worker",
+                "model": "anthropic:claude-sonnet-4",
+                "selectors": {},
+                "fallback_chain": [],
+                "required_capabilities": [],
+                "enabled": True,
+            },
+            {
+                "id": "reviewer-default",
+                "role": "reviewer",
+                "model": "openai:gpt-5.4-mini",
+                "selectors": {},
+                "fallback_chain": [],
+                "required_capabilities": [],
+                "enabled": True,
+            },
+            {
+                "id": "worker-docs",
+                "role": "worker",
+                "model": "openai:gpt-5.4-mini",
+                "selectors": {"workflow": "docs"},
+                "fallback_chain": ["anthropic:claude-sonnet-4"],
+                "required_capabilities": ["tool_calling"],
+                "equivalent_deployments": ["openai:account-b:gpt-5.4-mini"],
+                "enabled": True,
+            },
+        ],
+        "settings": {
+            "mode": "strict",
+            "policy": "role_locked",
+            "retries": 1,
+            "timeout_seconds": 120,
+            "deployment_cooldown_seconds": 30,
+        },
+    }
+    orchestration_providers_payload = {
+        "catalog": [
+            {
+                "id": "anthropic",
+                "display_name": "Anthropic",
+                "runtime": "anthropic",
+                "auth_methods": ["api_key"],
+            },
+            {
+                "id": "openai",
+                "display_name": "OpenAI",
+                "runtime": "openai",
+                "auth_methods": ["api_key"],
+            },
+        ],
+        "accounts": [
+            {
+                "id": "anthropic-main",
+                "provider": "anthropic",
+                "display_name": "Anthropic Main",
+                "auth_method": "api_key",
+                "credential_configured": True,
+                "base_url": "https://api.anthropic.com",
+                "enabled": True,
+            },
+            {
+                "id": "openai-main",
+                "provider": "openai",
+                "display_name": "OpenAI Main",
+                "auth_method": "api_key",
+                "credential_configured": True,
+                "base_url": "https://api.openai.com",
+                "enabled": True,
+            },
+        ],
+    }
+    orchestration_models_payload = {
+        "models": [
+            {
+                "key": "anthropic:claude-sonnet-4",
+                "deployment_key": "anthropic:claude-sonnet-4",
+                "display_name": "Claude Sonnet 4",
+                "account_id": "anthropic-main",
+                "provider": "anthropic",
+                "available": True,
+                "deprecated": False,
+                "executable": True,
+                "capabilities": ["tool_calling", "reasoning"],
+            },
+            {
+                "key": "openai:gpt-5.4-mini",
+                "deployment_key": "openai:gpt-5.4-mini",
+                "display_name": "GPT-5.4 Mini",
+                "account_id": "openai-main",
+                "provider": "openai",
+                "available": True,
+                "deprecated": False,
+                "executable": True,
+                "capabilities": ["tool_calling"],
+            },
+        ]
+    }
+    orchestration_executions_payload = {
+        "executions": [
+            {
+                "request_id": "exec-1",
+                "requested_role": "Worker",
+                "assigned_model": "anthropic:claude-sonnet-4",
+                "provider": "anthropic",
+                "actual_model": "claude-sonnet-4",
+                "latency_ms": 92,
+                "fallback_used": False,
+                "error": None,
+            },
+            {
+                "request_id": "exec-2",
+                "requested_role": "Reviewer",
+                "assigned_model": "openai:gpt-5.4-mini",
+                "provider": "openai",
+                "actual_model": "gpt-5.4-mini",
+                "latency_ms": 118,
+                "fallback_used": True,
+                "fallback_trigger": "capacity",
+                "error": None,
+            },
+        ]
+    }
+    orchestration_harnesses_payload = {
+        "harnesses": [
+            {
+                "id": "codex",
+                "support_level": "native",
+                "routing": True,
+                "artifact_handoffs": True,
+                "hidden_session_sharing": False,
+                "notes": "Use native adapter/proxy paths.",
+            },
+            {
+                "id": "openclaw",
+                "support_level": "bridge",
+                "routing": True,
+                "artifact_handoffs": False,
+                "hidden_session_sharing": True,
+                "notes": "Bridge-backed harness support.",
+            },
+        ]
+    }
 
     def handler(route) -> None:  # type: ignore[no-untyped-def]
         url = route.request.url
@@ -162,6 +317,46 @@ def _install_dashboard_routes(page: Page) -> None:
             )
             return
 
+        if "/v1/orchestration/config" in url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(orchestration_config_payload),
+            )
+            return
+
+        if "/v1/orchestration/providers" in url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(orchestration_providers_payload),
+            )
+            return
+
+        if "/v1/orchestration/models" in url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(orchestration_models_payload),
+            )
+            return
+
+        if "/v1/orchestration/executions" in url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(orchestration_executions_payload),
+            )
+            return
+
+        if "/v1/orchestration/harness-compatibility" in url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(orchestration_harnesses_payload),
+            )
+            return
+
         if "/health" in url:
             route.fulfill(
                 status=200,
@@ -214,5 +409,93 @@ def test_orchestrator_renders_provider_policy_status() -> None:
             expect(page.get_by_text("Healthy", exact=True).first).to_be_visible()
             expect(page.get_by_text("Disabled", exact=True).first).to_be_visible()
             expect(page.get_by_role("button", name="Disable provider").first).to_be_visible()
+        finally:
+            browser.close()
+
+
+def test_orchestrator_search_expands_and_filters_tabs() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            page.add_init_script(
+                """
+                window.localStorage.setItem('cutctxAdminKey', 'testkey');
+                """
+            )
+            _install_dashboard_routes(page)
+
+            page.goto("http://cutctx.local/dashboard/orchestrator")
+            page.wait_for_load_state("networkidle")
+
+            search_shell = page.locator(".search-shell")
+            search_input = page.locator(".search-shell input")
+
+            expect(search_input).to_be_enabled()
+            before_width = search_shell.bounding_box()["width"]
+            search_input.focus()
+            after_focus_width = search_shell.bounding_box()["width"]
+            expect(after_focus_width).to_be_greater_than(before_width)
+
+            search_input.fill("anthropic")
+            page.get_by_role("tab", name="Providers").click()
+            expect(page.get_by_text("Anthropic Main", exact=True)).to_be_visible()
+            expect(page.get_by_text("OpenAI Main", exact=True)).to_have_count(0)
+
+            search_input.fill("worker")
+            page.get_by_role("tab", name="Roles").click()
+            expect(page.get_by_text("Worker", exact=True)).to_be_visible()
+            expect(page.get_by_text("Reviewer", exact=True)).to_have_count(0)
+        finally:
+            browser.close()
+
+
+def test_orchestrator_models_tab_search_filters_without_error() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            page.add_init_script(
+                """
+                window.localStorage.setItem('cutctxAdminKey', 'testkey');
+                """
+            )
+            _install_dashboard_routes(page)
+
+            page.goto("http://cutctx.local/dashboard/orchestrator")
+            page.wait_for_load_state("networkidle")
+            page.get_by_role("tab", name="Models").click()
+
+            search = page.get_by_label("Search models or capabilities")
+            expect(search).to_be_visible()
+            search.fill("gpt")
+            expect(page.get_by_text("GPT-5.4 Mini", exact=True)).to_be_visible()
+            expect(page.get_by_text("Claude Sonnet 4", exact=True)).to_have_count(0)
+        finally:
+            browser.close()
+
+
+def test_orchestrator_roles_expose_advanced_binding_editor() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            page.add_init_script(
+                """
+                window.localStorage.setItem('cutctxAdminKey', 'testkey');
+                """
+            )
+            _install_dashboard_routes(page)
+
+            page.goto("http://cutctx.local/dashboard/orchestrator")
+            page.wait_for_load_state("networkidle")
+            page.get_by_role("tab", name="Roles").click()
+
+            expect(page.get_by_label("Model for Worker")).to_have_value("anthropic:claude-sonnet-4")
+            page.locator(".orchestration-binding-editor summary").first.click()
+            expect(page.get_by_text("Advanced bindings", exact=True).first).to_be_visible()
+            expect(page.get_by_label("Binding id for Worker worker-default")).to_be_visible()
+            expect(page.get_by_label("Selectors for Worker worker-docs")).to_be_visible()
+            expect(page.get_by_label("Required capabilities for Worker worker-docs")).to_be_visible()
         finally:
             browser.close()

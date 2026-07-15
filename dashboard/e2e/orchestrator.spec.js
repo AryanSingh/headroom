@@ -75,8 +75,9 @@ test.describe('Orchestrator Modes', () => {
 
     await page.goto('/orchestrator');
     
-    await expect(page.locator('h2').filter({ hasText: 'Routing mode control' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Off' })).toBeVisible();
+   await expect(page.locator('h2').filter({ hasText: 'Routing mode control' })).toBeVisible();
+    await expect(page.getByText('after role bindings are locked', { exact: false })).toBeVisible();
+   await expect(page.getByRole('button', { name: 'Off' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Balanced' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Aggressive' })).toBeVisible();
     await expect(page.getByText('Routing evidence', { exact: true })).toBeVisible();

@@ -78,7 +78,7 @@ Extend the dashboard test fixture so the preview path proves the selected role, 
 
 - [ ] **Step 5: Run the targeted OrchestrationStudio regression slice**
 
-Run: rtk pytest tests/test_dashboard_orchestrator_policy_e2e.py -q -k "models_tab or roles or routing or activity"
+Run: rtk pytest tests/test_dashboard_orchestrator_policy_e2e.py -q
 
 Expected: the dashboard policy E2E slice passes and the Models tab no longer throws at render time.
 
@@ -116,7 +116,7 @@ Keep the routing evidence, provider decision cards, fallback posture, and provid
 
 - [ ] **Step 4: Run the dashboard browser suite**
 
-Run: rtk npm run test --workspace=dashboard -- --grep "Orchestrator Modes"
+Run: cd dashboard && npx playwright test e2e/orchestrator.spec.js
 
 Expected: routing-mode and evidence coverage pass, including the deterministic preview path.
 
@@ -145,7 +145,7 @@ Keep the current dark-theme visual language, but make active states, disabled st
 
 - [ ] **Step 3: Run the dashboard lint/build pass**
 
-Run: rtk npm run lint and rtk npm run build from the dashboard directory.
+Run: cd dashboard && rtk npm run lint && rtk npm run build
 
 Expected: lint passes with zero warnings and the production build completes successfully.
 

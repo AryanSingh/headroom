@@ -710,14 +710,17 @@ pre {
   padding: 0 var(--space-md);
   min-height: 36px;
   width: 240px;
+  flex-shrink: 0;
+  overflow: hidden;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--text-tertiary);
-  transition: all 0.15s ease;
+  transition: width 0.2s ease, border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 .search-shell:focus-within {
+  width: 320px;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-muted);
 }
@@ -3494,9 +3497,35 @@ grid-template-columns: 1fr;
 .orchestration-form input, .orchestration-form select, .orchestration-search, .orchestration-role-list select, .routing-settings-grid input, .routing-settings-grid select, .orchestration-inline-form input, .orchestration-inline-form select { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-1); color: var(--text-primary); }
 .orchestration-search { margin-bottom: 12px; }
 .orchestration-model-list, .orchestration-role-list { display: grid; gap: 7px; max-height: 520px; overflow: auto; }
-.orchestration-model-list article, .orchestration-role-list article { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(240px, 2fr) auto; gap: 12px; align-items: center; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
-.orchestration-model-list article > div:first-child, .orchestration-role-list article > div:first-child { display: flex; flex-direction: column; gap: 2px; }
-.orchestration-model-list article > div:first-child span, .orchestration-role-list article > div:first-child span { color: var(--text-secondary); font-size: 11px; }
+.orchestration-model-list article { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(240px, 2fr) auto; gap: 12px; align-items: center; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.orchestration-model-list article > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+.orchestration-model-list article > div:first-child span { color: var(--text-secondary); font-size: 11px; }
+.orchestration-role-list article { display: flex; flex-direction: column; gap: 12px; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.orchestration-role-row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(240px, 2fr) auto; gap: 12px; align-items: center; }
+.orchestration-role-row > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+.orchestration-role-row > div:first-child span { color: var(--text-secondary); font-size: 11px; }
+.orchestration-role-summary { font-size: 12px; }
+.orchestration-binding-editor { padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1); }
+.orchestration-binding-editor > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; list-style: none; color: var(--text-primary); font-weight: 600; }
+.orchestration-binding-editor > summary::-webkit-details-marker { display: none; }
+.orchestration-binding-editor-body { display: grid; gap: 12px; padding-top: 12px; }
+.orchestration-binding-list { display: grid; gap: 12px; }
+.orchestration-binding-card { padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.orchestration-binding-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.orchestration-binding-header > div { display: flex; flex-direction: column; gap: 2px; }
+.orchestration-binding-header > div span { color: var(--text-secondary); font-size: 11px; }
+.orchestration-binding-grid { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; }
+.orchestration-binding-grid label { display: flex; flex-direction: column; gap: 6px; color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+.orchestration-binding-grid textarea, .orchestration-binding-grid input, .orchestration-binding-grid select, .orchestration-binding-create input, .orchestration-binding-create select { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-1); color: var(--text-primary); }
+.orchestration-binding-enabled input[type="checkbox"] { width: auto; min-height: auto; padding: 0; border: 0; background: transparent; }
+.orchestration-binding-grid textarea { min-height: 78px; resize: vertical; }
+.orchestration-binding-wide { grid-column: 1 / -1; }
+.orchestration-binding-enabled { display: flex; align-items: center; justify-content: space-between; }
+.orchestration-binding-delete { justify-self: end; align-self: end; }
+.orchestration-binding-create { padding: 12px; border: 1px dashed var(--border); border-radius: 8px; background: color-mix(in srgb, var(--surface-2) 84%, transparent); }
+.orchestration-binding-create h4 { margin: 0; font-size: 13px; }
+.orchestration-binding-create .orchestration-binding-grid { margin-top: 10px; }
+.orchestration-binding-create .primary-button { justify-self: end; align-self: end; }
 .capability-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .capability-list span { padding: 3px 6px; border-radius: 5px; background: var(--surface-3); color: var(--text-secondary); font-size: 10px; }
 .availability, .role-state { padding: 4px 7px; border-radius: 6px; color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, transparent); font-size: 11px; white-space: nowrap; }

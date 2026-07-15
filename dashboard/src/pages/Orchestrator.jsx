@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDownCircle, CheckCircle2, Network, X } from "lucide-react";
 
 import { getAdminAuthHeaders } from "../lib/admin-auth";
@@ -54,7 +54,17 @@ async function postProviderControl(providerName, action) {
   return response.json();
 }
 
-export default function Orchestrator() {
+function matchesSearch(query, ...values) {
+  const normalized = String(query || "").trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  return values
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .some((value) => String(value || "").toLowerCase().includes(normalized));
+}
+
+export default function Orchestrator({ searchQuery = "" }) {
   const { stats, loading, error, configFlagsError, refresh } = useDashboardData();
   const [updating, setUpdating] = useState(false);
   const [optimisticMode, setOptimisticMode] = useState(null);
@@ -204,6 +214,76 @@ export default function Orchestrator() {
     }
   };
 
+  const modelRouting = stats?.model_routing || {};
+  const backendMode = modelRouting.mode || (modelRouting.requested ? "balanced" : "off");
+  const activeMode = optimisticMode ?? backendMode;
+  const currentPreset =
+    modelRouting.preset ||
+    (activeMode === "aggressive"
+      ? "economy"
+      : activeMode === "balanced"
+        ? "codex-gpt54mini-high"
+        : "none");
+  const usdSaved = Math.max(
+    Number(stats?.cost?.savings_by_source?.usd?.model_routing || 0),
+    Number(stats?.savings_by_source?.usd?.model_routing || 0),
+  );
+  const tokensSaved = Math.max(
+    Number(stats?.cost?.savings_by_source?.tokens?.model_routing || 0),
+    Number(stats?.savings_by_source?.tokens?.model_routing || 0),
+  );
+  const normalizedQuery = String(searchQuery || "").trim().toLowerCase();
+  const canToggle = !configFlagsError;
+  const providerDecisions = useMemo(() => policyStatus?.provider_decisions || {}, [policyStatus]);
+  const filteredProviderDecisions = useMemo(
+    () =>
+      Object.entries(providerDecisions).filter(([provider, decision]) =>
+        matchesSearch(
+          normalizedQuery,
+          provider,
+          decision?.strategy_label,
+          decision?.preserve_prefix_for_provider_cache ? "preserve" : "compress",
+          decision?.semantic_cache_enabled ? "semantic cache on" : "semantic cache off",
+          decision?.compress_tool_outputs_only ? "tool outputs only" : "all outputs",
+        ),
+      ),
+    [normalizedQuery, providerDecisions],
+  );
+  const filteredProviderStatus = useMemo(
+    () =>
+      providerStatus.filter((provider) =>
+        matchesSearch(
+          normalizedQuery,
+          provider?.name,
+          provider?.base_url,
+          provider?.priority,
+          provider?.healthy ? "healthy" : "disabled",
+        ),
+      ),
+    [normalizedQuery, providerStatus],
+  );
+  const evidenceRecommendation = routingEvidence?.recommendation || null;
+  const evidenceStatus = routingEvidence?.status || "no_evidence";
+  const scorerStatus = routingEvidence?.scorer?.status || "unknown";
+  const scorerLabel = {
+    promoted: "Promoted calibrated scorer",
+    heuristic: "Heuristic scorer",
+    invalid: "Invalid calibrated scorer",
+  }[scorerStatus] || "Scorer status unavailable";
+  const evidenceStatusLabel = {
+    no_evidence: "No evidence",
+    collecting: "Collecting evidence",
+    quality_blocked: "Quality blocked",
+    ready: "Ready to promote",
+  }[evidenceStatus] || "Unknown";
+  const modeDescription = activeMode === "custom"
+    ? "A custom routing preset is active. Choosing a preset will replace it."
+    : activeMode === "aggressive"
+      ? "Aggressive routes to the economy preset after role bindings are applied."
+      : activeMode === "balanced"
+        ? "Balanced keeps the canonical codex-gpt54mini-high preset after role bindings are applied."
+        : "Off disables routing while preserving locked role assignments.";
+
   if (loading) {
     return (
       <div className="page-shell">
@@ -250,48 +330,6 @@ export default function Orchestrator() {
     );
   }
 
-  const modelRouting = stats?.model_routing || {};
-  const backendMode = modelRouting.mode || (modelRouting.requested ? "balanced" : "off");
-  const activeMode = optimisticMode ?? backendMode;
-  const currentPreset =
-    modelRouting.preset ||
-    (activeMode === "aggressive"
-      ? "economy"
-      : activeMode === "balanced"
-        ? "codex-gpt54mini-high"
-        : "none");
-  const usdSaved = Math.max(
-    Number(stats?.cost?.savings_by_source?.usd?.model_routing || 0),
-    Number(stats?.savings_by_source?.usd?.model_routing || 0),
-  );
-  const tokensSaved = Math.max(
-    Number(stats?.cost?.savings_by_source?.tokens?.model_routing || 0),
-    Number(stats?.savings_by_source?.tokens?.model_routing || 0),
-  );
-  const canToggle = !configFlagsError;
-  const providerDecisions = policyStatus?.provider_decisions || {};
-  const evidenceRecommendation = routingEvidence?.recommendation || null;
-  const evidenceStatus = routingEvidence?.status || "no_evidence";
-  const scorerStatus = routingEvidence?.scorer?.status || "unknown";
-  const scorerLabel = {
-    promoted: "Promoted calibrated scorer",
-    heuristic: "Heuristic scorer",
-    invalid: "Invalid calibrated scorer",
-  }[scorerStatus] || "Scorer status unavailable";
-  const evidenceStatusLabel = {
-    no_evidence: "No evidence",
-    collecting: "Collecting evidence",
-    quality_blocked: "Quality blocked",
-    ready: "Ready to promote",
-  }[evidenceStatus] || "Unknown";
-  const modeDescription = activeMode === "custom"
-    ? "A custom routing preset is active. Choosing a preset will replace it."
-    : activeMode === "aggressive"
-      ? "Aggressive routes to the economy preset."
-      : activeMode === "balanced"
-        ? "Balanced keeps the canonical codex-gpt54mini-high preset."
-        : "Off disables routing while preserving the current preset.";
-
   return (
     <div className="page-stack">
       {toggleError ? (
@@ -327,7 +365,7 @@ export default function Orchestrator() {
         </div>
       ) : null}
 
-      <OrchestrationStudio />
+      <OrchestrationStudio searchQuery={normalizedQuery} />
 
       <section className="panel">
         <div className="section-heading">
@@ -338,7 +376,7 @@ export default function Orchestrator() {
             <div>
               <div className="eyebrow">Orchestrator</div>
               <h2>Routing mode control</h2>
-              <p>Choose how aggressively Cutctx routes requests to cheaper models.</p>
+              <p>Choose how aggressively Cutctx routes requests after role bindings are locked.</p>
             </div>
           </div>
           <div
@@ -559,21 +597,27 @@ export default function Orchestrator() {
                 </div>
               </div>
               <div className="metric-grid metric-grid-three">
-                {Object.entries(providerDecisions).map(([provider, decision]) => (
-                  <article key={provider} className="metric-card metric-card-compact">
-                    <div className="metric-label">{provider}</div>
-                    <div className="metric-value">{decision?.strategy_label || "default"}</div>
-                    <div className="metric-footnote">
-                      Prefix cache: {decision?.preserve_prefix_for_provider_cache ? "preserve" : "compress"}
-                    </div>
-                    <div className="metric-footnote">
-                      Semantic cache: {decision?.semantic_cache_enabled ? "on" : "off"}
-                    </div>
-                    <div className="metric-footnote">
-                      Tool-only compression: {decision?.compress_tool_outputs_only ? "yes" : "no"}
-                    </div>
-                  </article>
-                ))}
+                {filteredProviderDecisions.length > 0 ? (
+                  filteredProviderDecisions.map(([provider, decision]) => (
+                    <article key={provider} className="metric-card metric-card-compact">
+                      <div className="metric-label">{provider}</div>
+                      <div className="metric-value">{decision?.strategy_label || "default"}</div>
+                      <div className="metric-footnote">
+                        Prefix cache: {decision?.preserve_prefix_for_provider_cache ? "preserve" : "compress"}
+                      </div>
+                      <div className="metric-footnote">
+                        Semantic cache: {decision?.semantic_cache_enabled ? "on" : "off"}
+                      </div>
+                      <div className="metric-footnote">
+                        Tool-only compression: {decision?.compress_tool_outputs_only ? "yes" : "no"}
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="text-secondary" style={{ gridColumn: "1 / -1", padding: "0.25rem 0" }}>
+                    No provider policy entries match your search.
+                  </div>
+                )}
               </div>
             </>
           ) : null}
@@ -609,7 +653,7 @@ export default function Orchestrator() {
 
           {!providerLoading && !providerError ? (
             <div className="metric-grid metric-grid-three">
-              {providerStatus.map((provider) => {
+              {filteredProviderStatus.length > 0 ? filteredProviderStatus.map((provider) => {
                 const action = provider.healthy ? "disable" : "enable";
                 const busy = Boolean(providerMutation[provider.name]);
                 return (
@@ -629,7 +673,11 @@ export default function Orchestrator() {
                     </button>
                   </article>
                 );
-              })}
+              }) : (
+                <div className="text-secondary" style={{ gridColumn: "1 / -1", padding: "0.25rem 0" }}>
+                  No provider controls match your search.
+                </div>
+              )}
             </div>
           ) : null}
         </section>

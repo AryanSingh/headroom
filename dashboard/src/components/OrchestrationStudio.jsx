@@ -3,6 +3,7 @@ import { Activity, Boxes, KeyRound, Network, RefreshCw, Route, Save, Trash2, Use
 
 import { getAdminAuthHeaders } from "../lib/admin-auth";
 import { getProxyUrl } from "../lib/api";
+import RoleBindingEditor from "./RoleBindingEditor";
 
 const TABS = [
   ["providers", "Providers", KeyRound],
@@ -71,7 +72,17 @@ function displayLabel(value) {
   return String(value || "").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export default function OrchestrationStudio() {
+function matchesSearch(query, ...values) {
+  const normalized = String(query || "").trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  return values
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .some((value) => String(value || "").toLowerCase().includes(normalized));
+}
+
+export default function OrchestrationStudio({ searchQuery = "" }) {
   const [tab, setTab] = useState("roles");
   const [config, setConfig] = useState(emptyConfig());
   const [providers, setProviders] = useState({ catalog: [], accounts: [] });
@@ -84,8 +95,8 @@ export default function OrchestrationStudio() {
   const [removingCredentialId, setRemovingCredentialId] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
-  const [modelSearch, setModelSearch] = useState("");
   const [newRole, setNewRole] = useState("");
+  const [modelSearch, setModelSearch] = useState("");
   const [previewRole, setPreviewRole] = useState("");
   const [preview, setPreview] = useState(null);
   const [newProvider, setNewProvider] = useState({
@@ -137,8 +148,13 @@ export default function OrchestrationStudio() {
     load();
   }, []);
 
+  const providerById = useMemo(
+    () => new Map(providers.catalog.map((provider) => [provider.id, provider])),
+    [providers.catalog],
+  );
+
   const filteredModels = useMemo(() => {
-    const query = modelSearch.trim().toLowerCase();
+    const query = [searchQuery, modelSearch].filter(Boolean).join(" ").trim().toLowerCase();
     if (!query) {
       return models;
     }
@@ -148,17 +164,144 @@ export default function OrchestrationStudio() {
         .toLowerCase()
         .includes(query),
     );
-  }, [modelSearch, models]);
+  }, [models, modelSearch, searchQuery]);
 
-  const providerById = useMemo(
-    () => new Map(providers.catalog.map((provider) => [provider.id, provider])),
-    [providers.catalog],
-  );
-
-  const bindingForRole = (roleId) =>
-    config.bindings.find(
-      (binding) => binding.role === roleId && Object.keys(binding.selectors || {}).length === 0,
+  const filteredAccounts = useMemo(() => {
+    const query = String(searchQuery || "").trim().toLowerCase();
+    if (!query) {
+      return providers.accounts;
+    }
+    return providers.accounts.filter((account) =>
+      matchesSearch(
+        query,
+        account.id,
+        account.provider,
+        account.display_name,
+        account.auth_method,
+        account.base_url,
+        providerRuntimeLabel(providerById.get(account.provider)),
+        account.credential_configured ? "credential stored" : "credential missing",
+      ),
     );
+  }, [providerById, providers.accounts, searchQuery]);
+
+  const filteredHarnesses = useMemo(() => {
+    const query = String(searchQuery || "").trim().toLowerCase();
+    if (!query) {
+      return harnesses;
+    }
+    return harnesses.filter((harness) =>
+      matchesSearch(query, harness.id, harness.support_level, harness.notes, harness.routing ? "routing" : "", harness.artifact_handoffs ? "artifact handoffs" : "", harness.hidden_session_sharing ? "session sharing" : ""),
+    );
+  }, [harnesses, searchQuery]);
+
+  const filteredRoles = (() => {
+    const query = String(searchQuery || "").trim().toLowerCase();
+    if (!query) {
+      return config.roles;
+    }
+    return config.roles.filter((role) => {
+      const binding = bindingForRole(role.id);
+      return matchesSearch(query, role.id, role.name, role.description, binding?.model);
+    });
+  })();
+
+  const filteredExecutions = useMemo(() => {
+    const query = String(searchQuery || "").trim().toLowerCase();
+    if (!query) {
+      return executions;
+    }
+    return executions.filter((item) =>
+      matchesSearch(
+        query,
+        item.request_id,
+        item.requested_role,
+        item.assigned_model,
+        item.provider,
+        item.actual_model,
+        item.fallback_trigger,
+        item.error,
+      ),
+    );
+  }, [executions, searchQuery]);
+
+  function roleBindingsFor(roleId) {
+    return config.bindings
+      .filter((binding) => binding.role === roleId)
+      .slice()
+      .sort((left, right) => {
+        const leftDefault = Object.keys(left.selectors || {}).length === 0;
+        const rightDefault = Object.keys(right.selectors || {}).length === 0;
+        if (leftDefault !== rightDefault) {
+          return leftDefault ? -1 : 1;
+        }
+        return String(left.id || "").localeCompare(String(right.id || ""));
+      });
+  }
+
+  function bindingForRole(roleId) {
+    return roleBindingsFor(roleId).find(
+      (binding) => Object.keys(binding.selectors || {}).length === 0,
+    );
+  }
+
+  function updateBinding(bindingId, patch) {
+    setConfig((current) => {
+      const nextId = typeof patch.id === "string" ? patch.id.trim() : bindingId;
+      if (Object.prototype.hasOwnProperty.call(patch, "id")) {
+        if (!nextId) {
+          setError("Binding id cannot be empty");
+          return current;
+        }
+        if (nextId !== bindingId && current.bindings.some((binding) => binding.id === nextId)) {
+          setError("Binding " + nextId + " already exists");
+          return current;
+        }
+      }
+      return {
+        ...current,
+        bindings: current.bindings.map((binding) =>
+          binding.id === bindingId ? { ...binding, ...patch, ...(Object.prototype.hasOwnProperty.call(patch, "id") ? { id: nextId } : {}) } : binding,
+        ),
+      };
+    });
+  }
+
+  function removeBinding(bindingId) {
+    setConfig((current) => ({
+      ...current,
+      bindings: current.bindings.filter((binding) => binding.id !== bindingId),
+    }));
+  }
+
+  function addBinding(roleId, draft) {
+    const nextId = String(draft.bindingId || "").trim();
+    const nextModel = String(draft.model || "").trim();
+    const nextSelectors = draft.selectors && typeof draft.selectors === "object" ? draft.selectors : {};
+    if (!nextId || !nextModel || !Object.keys(nextSelectors).length) {
+      return;
+    }
+    if (config.bindings.some((binding) => binding.id === nextId)) {
+      setError("Binding " + nextId + " already exists");
+      return;
+    }
+    setConfig((current) => ({
+      ...current,
+      bindings: [
+        ...current.bindings,
+        {
+          id: nextId,
+          role: roleId,
+          model: nextModel,
+          selectors: nextSelectors,
+          fallback_chain: [],
+          equivalent_deployments: [],
+          required_capabilities: [],
+          enabled: draft.enabled !== false,
+        },
+      ],
+    }));
+  }
 
   async function save(nextConfig = config, message = "Orchestration configuration saved") {
     setSaving(true);
@@ -374,40 +517,44 @@ export default function OrchestrationStudio() {
       {tab === "providers" ? (
         <div className="orchestration-pane">
           <div className="orchestration-card-grid">
-            {providers.accounts.map((account) => (
-              <article className="orchestration-card" key={account.id}>
-                <span className="status-pill">{account.enabled ? "Enabled" : "Disabled"}</span>
-                <span className={`status-pill ${account.credential_configured || account.auth_method === "none" ? "" : "warning"}`}>
-                  {account.auth_method === "none"
-                    ? "Local authentication"
-                    : account.credential_configured
-                      ? "Credential stored"
-                      : "Credential missing"}
-                </span>
-                <h3>{account.display_name || account.id}</h3>
-                <p>{account.provider} · {account.auth_method}</p>
-                <p className="text-secondary">
-                  {providerRuntimeLabel(providerById.get(account.provider))}
-                </p>
-                <p className="text-secondary">{account.base_url || "Provider default endpoint"}</p>
-                <div className="orchestration-actions">
-                  <button className="ghost-button" onClick={() => testProvider(account.id)} type="button">Test</button>
-                  <button className="ghost-button" onClick={() => refreshModels(account.id)} type="button">
-                    <RefreshCw size={13} /> Refresh models
-                  </button>
-                  {account.auth_method !== "none" && account.credential_configured ? (
-                    <button
-                      className="ghost-button danger-button"
-                      onClick={() => removeCredential(account)}
-                      disabled={removingCredentialId === account.id}
-                      type="button"
-                    >
-                      <Trash2 size={13} /> {removingCredentialId === account.id ? "Removing…" : "Remove credential"}
+            {filteredAccounts.length ? (
+              filteredAccounts.map((account) => (
+                <article className="orchestration-card" key={account.id}>
+                  <span className="status-pill">{account.enabled ? "Enabled" : "Disabled"}</span>
+                  <span className={`status-pill ${account.credential_configured || account.auth_method === "none" ? "" : "warning"}`}>
+                    {account.auth_method === "none"
+                      ? "Local authentication"
+                      : account.credential_configured
+                        ? "Credential stored"
+                        : "Credential missing"}
+                  </span>
+                  <h3>{account.display_name || account.id}</h3>
+                  <p>{account.provider} · {account.auth_method}</p>
+                  <p className="text-secondary">
+                    {providerRuntimeLabel(providerById.get(account.provider))}
+                  </p>
+                  <p className="text-secondary">{account.base_url || "Provider default endpoint"}</p>
+                  <div className="orchestration-actions">
+                    <button className="ghost-button" onClick={() => testProvider(account.id)} type="button">Test</button>
+                    <button className="ghost-button" onClick={() => refreshModels(account.id)} type="button">
+                      <RefreshCw size={13} /> Refresh models
                     </button>
-                  ) : null}
-                </div>
-              </article>
-            ))}
+                    {account.auth_method !== "none" && account.credential_configured ? (
+                      <button
+                        className="ghost-button danger-button"
+                        onClick={() => removeCredential(account)}
+                        disabled={removingCredentialId === account.id}
+                        type="button"
+                      >
+                        <Trash2 size={13} /> {removingCredentialId === account.id ? "Removing…" : "Remove credential"}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p className="text-secondary">No provider accounts match your search.</p>
+            )}
           </div>
           <form className="orchestration-form" onSubmit={addProviderAccount}>
             <h3>Add provider account</h3>
@@ -459,7 +606,7 @@ export default function OrchestrationStudio() {
             <p className="text-secondary">No harness contracts are configured.</p>
           ) : (
             <div className="orchestration-card-grid">
-              {harnesses.map((harness) => (
+              {filteredHarnesses.map((harness) => (
                 <article className="orchestration-card" key={harness.id}>
                   <span className="status-pill">{displayLabel(harness.support_level)}</span>
                   <h3>{displayLabel(harness.id)}</h3>
@@ -477,19 +624,36 @@ export default function OrchestrationStudio() {
       {tab === "roles" ? (
         <div className="orchestration-pane">
           <div className="orchestration-role-list">
-            {config.roles.map((role) => {
+            {filteredRoles.map((role) => {
               const binding = bindingForRole(role.id);
+              const bindings = roleBindingsFor(role.id);
               return (
-                <article key={role.id}>
-                  <div><strong>{role.name}</strong><span>{role.description || "Custom role"}</span></div>
-                  <select value={binding?.model || ""} onChange={(event) => updateRoleModel(role.id, event.target.value)} aria-label={`Model for ${role.name}`}>
-                    <option value="">Unassigned</option>
-                    {models.map((model) => {
-                      const deploymentKey = modelDeploymentKey(model);
-                      return <option value={deploymentKey} key={deploymentKey} disabled={model.executable === false}>{model.display_name || model.key} · {model.account_id || model.provider}{model.executable === false ? " · unavailable" : ""}</option>;
-                    })}
-                  </select>
-                  <span className={binding ? "role-state assigned" : "role-state"}>{binding ? "Locked" : "Needs assignment"}</span>
+                <article key={role.id} className="orchestration-role-card">
+                  <div className="orchestration-role-row">
+                    <div>
+                      <strong>{role.name}</strong>
+                      <span>{role.description || "Custom role"}</span>
+                    </div>
+                    <select value={binding?.model || ""} onChange={(event) => updateRoleModel(role.id, event.target.value)} aria-label={"Model for " + role.name}>
+                      <option value="">Unassigned</option>
+                      {models.map((model) => {
+                        const deploymentKey = modelDeploymentKey(model);
+                        return <option value={deploymentKey} key={deploymentKey} disabled={model.executable === false}>{model.display_name || model.key} · {model.account_id || model.provider}{model.executable === false ? " · unavailable" : ""}</option>;
+                      })}
+                    </select>
+                    <span className={binding ? "role-state assigned" : "role-state"}>{binding ? "Locked" : "Needs assignment"}</span>
+                  </div>
+                  <div className="orchestration-role-summary text-secondary">
+                    {bindings.length ? bindings.length + " binding" + (bindings.length === 1 ? "" : "s") + " total" : "No bindings configured"}
+                  </div>
+                  <RoleBindingEditor
+                    role={role}
+                    bindings={bindings}
+                    models={models}
+                    onCreateBinding={addBinding}
+                    onUpdateBinding={updateBinding}
+                    onDeleteBinding={removeBinding}
+                  />
                 </article>
               );
             })}
@@ -589,7 +753,7 @@ export default function OrchestrationStudio() {
 
       {tab === "activity" ? (
         <div className="orchestration-pane orchestration-table-wrap">
-          <table className="orchestration-table"><thead><tr><th>Role</th><th>Assigned</th><th>Actual</th><th>Latency</th><th>Fallback</th><th>Result</th></tr></thead><tbody>{executions.map((item) => <tr key={`${item.request_id}-${item.started_at}`}><td>{item.requested_role || "Manual"}</td><td>{item.assigned_model || "—"}</td><td>{item.provider}:{item.actual_model}</td><td>{Math.round(item.latency_ms || 0)} ms</td><td>{item.fallback_used ? item.fallback_trigger : "No"}</td><td>{item.error || "Success"}</td></tr>)}</tbody></table>
+          <table className="orchestration-table"><thead><tr><th>Role</th><th>Assigned</th><th>Actual</th><th>Latency</th><th>Fallback</th><th>Result</th></tr></thead><tbody>{filteredExecutions.map((item) => <tr key={`${item.request_id}-${item.started_at}`}><td>{item.requested_role || "Manual"}</td><td>{item.assigned_model || "—"}</td><td>{item.provider}:{item.actual_model}</td><td>{Math.round(item.latency_ms || 0)} ms</td><td>{item.fallback_used ? item.fallback_trigger : "No"}</td><td>{item.error || "Success"}</td></tr>)}</tbody></table>
           {!executions.length ? <p className="text-secondary">No orchestrated executions recorded yet.</p> : null}
         </div>
       ) : null}
