@@ -6,6 +6,18 @@ pulling provider-specific transport details into routing policy.
 """
 
 from .audit import ReceiptAuditStore
+from .contracts import (
+    ContractEvaluationPolicy,
+    ContractLifecycle,
+    ContractObjective,
+    ContractObjectiveType,
+    ContractRequirements,
+    ReliabilityBudget,
+    WorkloadContract,
+    contract_from_dict,
+    contract_to_dict,
+    legacy_contracts_from_config,
+)
 from .credentials import CredentialStore, ExternalSecretResolver, ResolverBackedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
 from .evaluation import RoutingEvaluationCase, evaluate_routing_cases
@@ -40,6 +52,11 @@ from .workflow import (
 
 __all__ = [
     "Capability",
+    "ContractEvaluationPolicy",
+    "ContractLifecycle",
+    "ContractObjective",
+    "ContractObjectiveType",
+    "ContractRequirements",
     "CredentialStore",
     "ReceiptAuditStore",
     "compile_policy_bundle",
@@ -53,6 +70,7 @@ __all__ = [
     "OrchestrationConfig",
     "OrchestrationService",
     "ProviderAccount",
+    "ReliabilityBudget",
     "Role",
     "RouteBinding",
     "RoutingDecision",
@@ -74,4 +92,8 @@ __all__ = [
     "WorkflowState",
     "WorkflowStateStore",
     "WorkflowValidationError",
+    "WorkloadContract",
+    "contract_from_dict",
+    "contract_to_dict",
+    "legacy_contracts_from_config",
 ]
