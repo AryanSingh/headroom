@@ -825,6 +825,23 @@ pre {
   min-width: 0;
 }
 
+.panel-summary {
+  background:
+    linear-gradient(135deg, var(--accent-muted), transparent 42%),
+    var(--surface-1);
+}
+
+.panel-data {
+  background: var(--surface-1);
+}
+
+.panel-diagnostic {
+  border-color: color-mix(in srgb, var(--amber) 28%, var(--border-default));
+  background:
+    linear-gradient(135deg, var(--amber-muted), transparent 44%),
+    var(--surface-1);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    METRIC CARDS
    ═══════════════════════════════════════════════════════════════ */
@@ -868,6 +885,17 @@ pre {
 }
 
 .metric-card:hover::after {
+  opacity: 1;
+}
+
+.metric-card-emphasis {
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border-default));
+  background:
+    linear-gradient(135deg, var(--accent-muted), transparent 48%),
+    var(--surface-1);
+}
+
+.metric-card-emphasis::after {
   opacity: 1;
 }
 

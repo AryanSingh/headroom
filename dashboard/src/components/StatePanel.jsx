@@ -1,8 +1,13 @@
-export function StatePanel({ tone = 'neutral', icon: Icon, title, children, action, compact = false }) {
+export function StatePanel({ tone = 'neutral', icon: Icon, title, children, action, compact = false, className = '', ...props }) {
   const role = tone === 'error' ? 'alert' : 'status';
+  const legacyClass = tone === 'error' ? ' alert-card' : '';
 
   return (
-    <div className={`state-panel state-panel-${tone}${compact ? ' state-panel-compact' : ''}`} role={role}>
+    <div
+      {...props}
+      className={`state-panel state-panel-${tone}${compact ? ' state-panel-compact' : ''}${legacyClass}${className ? ` ${className}` : ''}`}
+      role={role}
+    >
       {Icon ? <div className="state-panel-icon"><Icon size={20} aria-hidden="true" /></div> : null}
       <div className="state-panel-copy">
         <strong>{title}</strong>

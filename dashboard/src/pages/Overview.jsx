@@ -27,6 +27,7 @@ import {
 } from '../lib/format';
 import { useDashboardData, fetchDashboardJson } from '../lib/use-dashboard-data';
 import { fetchPeriodStats } from '../lib/period-stats';
+import { StatePanel } from '../components/StatePanel';
 import {
   getAttributionCoverage,
   getCreatedObservedSavingsTokens,
@@ -72,15 +73,17 @@ function SkeletonBar() {
   );
 }
 
-function EmptyState({ icon: Icon, title, description }) {
+function EmptyState({ icon: Icon, title, description, testId, compact = false }) {
   return (
-    <div className="overview-empty">
-      <div className="overview-empty-illustration">
-        <Icon size={28} />
-      </div>
-      <h3>{title}</h3>
-      <p>{description}</p>
-    </div>
+    <StatePanel
+      tone="empty"
+      icon={Icon}
+      title={title}
+      compact={compact}
+      data-testid={testId}
+    >
+      {description}
+    </StatePanel>
   );
 }
 
@@ -996,9 +999,10 @@ function MetricCard({
   footnote,
   sparkline,
   sparklineColor,
+  className = '',
 }) {
   return (
-    <article className="metric-card">
+    <article className={`metric-card ${className}`.trim()}>
       <div className="metric-header">
         <span className="metric-label">{label}</span>
         <div className={`metric-icon ${iconColor}`}>
@@ -1111,7 +1115,7 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, totalUsd, metric, emp
   const sortedRows = [...visibleRows].sort((a, b) => (byUsd ? b.usd - a.usd : b.tokens - a.tokens));
 
   return (
-    <section className="panel">
+    <section className="panel panel-data">
       <div className="section-heading">
         <div>
           <div className="eyebrow">{eyebrow}</div>
@@ -1166,7 +1170,7 @@ function SavingsSplitPanel({ metric, created, observed, coverage }) {
     byUsd ? `${formatCurrency(usd)} · ${formatInteger(value)} tokens` : `${formatInteger(value)} tokens · ${formatCurrency(usd)}`;
 
   return (
-    <section className="panel">
+    <section className="panel panel-summary">
       <div className="section-heading">
         <div>
           <div className="eyebrow">Savings mix</div>
@@ -1346,7 +1350,7 @@ function RouterDiagnosticsPanel({ routeCounts, searchQuery = '' }) {
   }
 
   return (
-    <section className="panel panel-compact">
+    <section className="panel panel-diagnostic panel-compact">
       <div className="section-heading">
         <div>
           <div className="eyebrow">Router diagnostics</div>
@@ -1435,7 +1439,7 @@ function DiagnosticsPanel({ prefixCache, searchQuery = '' }) {
   }
 
   return (
-    <section className="panel panel-compact">
+    <section className="panel panel-diagnostic panel-compact">
       <div className="section-heading">
         <div>
           <div className="eyebrow">Savings diagnosis</div>
@@ -2656,17 +2660,22 @@ export default function Overview({ searchQuery = '' }) {
         </button>
       </div>
       {error ? (
-        <div className="alert-card" role="alert">
-          <span>Failed to load data: {error}</span>
-          <button
-            className="ghost-button"
-            style={{ marginLeft: 'auto' }}
-            onClick={() => window.location.reload()}
-            type="button"
-          >
-            <RefreshCw size={14} /> Retry
-          </button>
-        </div>
+        <StatePanel
+          tone="error"
+          icon={AlertTriangle}
+          title="Dashboard data unavailable"
+          action={(
+            <button
+              className="ghost-button"
+              onClick={() => window.location.reload()}
+              type="button"
+            >
+              <RefreshCw size={14} /> Retry
+            </button>
+          )}
+        >
+          Failed to load data: {error}
+        </StatePanel>
       ) : null}
 
       {loading ? (
@@ -2714,11 +2723,12 @@ export default function Overview({ searchQuery = '' }) {
             label="Money saved"
             value={formatCurrency(effectiveSavingsUsd)}
             footnote={`${moneySavedFootnote} · ${formatCurrency(effectiveCreatedSavingsUsd)} created by Cutctx, ${formatCurrency(effectiveObservedProviderSavingsUsd)} observed at provider`}
+            className="metric-card-emphasis"
           />
         </div>
       )}
 
-      <div className="panel">
+      <div className="panel panel-summary">
         <div className="section-heading">
           <div>
             <div className="eyebrow">Trend</div>
@@ -2751,7 +2761,7 @@ export default function Overview({ searchQuery = '' }) {
 
           <CompressionDeclineStrip stats={stats} />
 
-          <section className="panel panel-compact">
+          <section className="panel panel-data panel-compact">
             <div className="section-heading">
               <div>
                 <div className="eyebrow">Attribution</div>
@@ -2853,7 +2863,7 @@ export default function Overview({ searchQuery = '' }) {
           <PoliciesPanel policies={policies} searchQuery={normalizedQuery} />
         </div>
 
-        <section className="panel">
+        <section className="panel panel-data">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Activity</div>
@@ -2872,6 +2882,7 @@ export default function Overview({ searchQuery = '' }) {
                   ? "Try a broader search term to match models, request IDs, clients, providers, or timestamps."
                   : "Start using the proxy to see request activity here."
               }
+              testId={normalizedQuery ? undefined : 'overview-no-activity'}
             />
           ) : (
             <div className="table-shell request-table-shell">
