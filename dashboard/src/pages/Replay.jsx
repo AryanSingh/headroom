@@ -1,5 +1,7 @@
 import { AlertTriangle, History, Search } from 'lucide-react';
 import { useState } from 'react';
+import { PageHeader } from '../components/PageHeader';
+import { StatePanel } from '../components/StatePanel';
 import { formatRelativeTime } from '../lib/format';
 import { fetchDashboardJson } from '../lib/use-dashboard-data';
 
@@ -47,6 +49,11 @@ export default function Replay() {
 
   return (
     <section className="page-stack">
+      <PageHeader
+        eyebrow="Session replay"
+        title="Replay policy decisions"
+        description="Inspect the structured context-policy events captured for an operator session."
+      />
       <section className="panel panel-wide">
         <div className="section-heading">
           <div>
@@ -76,11 +83,11 @@ export default function Replay() {
         </form>
 
         {error && (
-          <div className="alert-card" role="alert" style={{ marginTop: 'var(--space-md)' }}>
+          <StatePanel tone="error" title="Replay unavailable" style={{ marginTop: 'var(--space-md)' }}>
             {error.includes('404')
               ? 'No replay events found for that session, or replay is disabled on the proxy.'
               : `Failed to load replay: ${error}`}
-          </div>
+          </StatePanel>
         )}
       </section>
 
@@ -94,21 +101,15 @@ export default function Replay() {
         </div>
 
         {!payload && !loading && !error && (
-          <div className="empty-row" style={{ padding: 'var(--space-xl)' }}>
-            Enter a session id to inspect replay events.
-          </div>
+          <StatePanel data-testid="replay-empty-state" title="No session loaded">Enter a session ID to inspect replay events.</StatePanel>
         )}
 
         {loading && (
-          <div className="empty-row" style={{ padding: 'var(--space-xl)' }}>
-            Loading replay timeline…
-          </div>
+          <StatePanel compact title="Loading replay timeline">Retrieving the recorded policy events.</StatePanel>
         )}
 
         {payload && events.length === 0 && (
-          <div className="empty-row" style={{ padding: 'var(--space-xl)' }}>
-            This session has no replay events yet.
-          </div>
+          <StatePanel title="No replay events">This session has no policy decisions recorded yet.</StatePanel>
         )}
 
         {events.length > 0 && (

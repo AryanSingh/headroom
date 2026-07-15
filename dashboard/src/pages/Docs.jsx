@@ -1,5 +1,6 @@
 import { BarChart3, BookOpen, CheckCircle2, Cpu, Globe, Key, Package, Settings, Shield, Terminal, Zap } from 'lucide-react';
 import { useState } from 'react';
+import { PageHeader } from '../components/PageHeader';
 
 const SECTIONS = [
   { id: 'quickstart', label: 'Quick Start', icon: Zap },
@@ -111,6 +112,12 @@ export default function Docs() {
 
       {/* Main content */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+        <PageHeader
+          eyebrow="Operator reference"
+          title="Cutctx documentation"
+          description="CLI, API, deployment, and configuration guidance for running Cutctx safely."
+        />
 
         <div className="panel" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem 1.25rem' }}>
           <BookOpen size={20} style={{ color: 'var(--accent)', flexShrink: 0 }} />
