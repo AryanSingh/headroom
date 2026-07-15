@@ -1196,6 +1196,7 @@ def prepare_model_routing(
     assignment_sticky: bool = True,
     transport_provider: str | None = None,
     implicit_downgrade_allowed: bool = True,
+    allow_transport_safe_targets: bool = True,
 ) -> tuple[str, dict[str, dict[str, Any]] | None]:
     """Apply an enabled router and attach placeholder routing metadata."""
 
@@ -1507,7 +1508,7 @@ def prepare_model_routing(
 
     if not implicit_downgrade_allowed:
         safe_targets = set(getattr(router.config, "transport_safe_targets", set()))
-        if decision.target_model not in safe_targets:
+        if not allow_transport_safe_targets or decision.target_model not in safe_targets:
             attach_model_routing_trace(
                 updated_metadata,
                 ModelRoutingDecisionTrace(
@@ -1526,6 +1527,7 @@ def prepare_model_routing(
                     transport={
                         "provider": transport_provider,
                         "implicit_downgrade_allowed": False,
+                        "allow_transport_safe_targets": allow_transport_safe_targets,
                         "safe_targets": sorted(safe_targets),
                         "target_proven": False,
                     },
@@ -1563,9 +1565,13 @@ def prepare_model_routing(
             transport={
                 "provider": transport_provider,
                 "implicit_downgrade_allowed": implicit_downgrade_allowed,
+                "allow_transport_safe_targets": allow_transport_safe_targets,
                 "target_proven": implicit_downgrade_allowed
-                or decision.target_model
-                in set(getattr(router.config, "transport_safe_targets", set())),
+                or (
+                    allow_transport_safe_targets
+                    and decision.target_model
+                    in set(getattr(router.config, "transport_safe_targets", set()))
+                ),
             },
         ),
     )

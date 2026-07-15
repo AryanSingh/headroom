@@ -360,8 +360,11 @@ def test_handle_openai_responses_chatgpt_oversize_is_truncated_before_upstream(m
             return False, 10, 100, 128_000
         return True, 200_000, 100, 128_000
 
-    def _truncate(body, max_bytes, request_id):  # noqa: ARG001
-        return {"model": body["model"], "input": "shortened"}
+    def _truncate(body, max_bytes, request_id, *, over_budget=None):  # noqa: ARG001
+        shortened = {"model": body["model"], "input": "shortened"}
+        assert over_budget is not None
+        assert over_budget(shortened) is False
+        return shortened
 
     handler._openai_responses_context_guard = _guard  # type: ignore[method-assign]
     monkeypatch.setattr(
@@ -377,6 +380,52 @@ def test_handle_openai_responses_chatgpt_oversize_is_truncated_before_upstream(m
     _, url, _, body = handler.captured_request
     assert url == "https://chatgpt.com/backend-api/codex/responses"
     assert body["input"] == "shortened"
+
+
+def test_handle_openai_responses_opaque_continuation_preserves_model_and_payload(monkeypatch):
+    """HTTP fallback must not reroute or truncate encrypted continuation state."""
+    opaque_input = [
+        {
+            "type": "reasoning",
+            "encrypted_content": "opaque-model-bound-continuation",
+        },
+        {
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": "continue"}],
+        },
+    ]
+    request = _build_request(
+        {"model": "gpt-5.6-sol", "input": opaque_input, "tool_choice": "auto"},
+        {
+            "Authorization": "Bearer sk-test",
+            "ChatGPT-Account-ID": "acct-from-jwt",
+            "User-Agent": "Codex Desktop/1.0",
+        },
+    )
+    handler = _DummyOpenAIHandler()
+    handler._model_router = ModelRouter(ModelRouterConfig.codex_gpt54mini_high_preset())
+    handler._openai_responses_context_guard = MagicMock(
+        return_value=(True, 294_402, 242_400, 258_400)
+    )
+
+    def _unexpected_truncation(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise AssertionError("opaque subscription continuation was destructively truncated")
+
+    monkeypatch.setattr(
+        "cutctx.proxy.handlers.openai.responses._truncate_body_for_chatgpt",
+        _unexpected_truncation,
+    )
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+
+    response = anyio.run(handler.handle_openai_responses, request)
+
+    assert response.status_code == 200
+    assert handler.captured_request is not None
+    _, url, _, body = handler.captured_request
+    assert url == "https://chatgpt.com/backend-api/codex/responses"
+    assert body["model"] == "gpt-5.6-sol"
+    assert body["input"] == opaque_input
 
 
 def test_handle_openai_responses_non_chatgpt_oversize_returns_413(monkeypatch):
@@ -463,6 +512,37 @@ def test_handle_openai_responses_memory_timeout_fails_open(monkeypatch):
 
     assert response.status_code == 200
     assert handler.captured_request is not None
+    _, _, _, body = handler.captured_request
+    assert body.get("instructions") is None
+
+
+def test_handle_openai_responses_trivial_turn_skips_memory_lookup(monkeypatch):
+    class _CountingMemoryHandler:
+        def __init__(self):
+            self.config = SimpleNamespace(inject_context=True, inject_tools=False)
+            self.search_calls = 0
+
+        async def search_and_format_context(self, memory_user_id, messages, **_kwargs):
+            self.search_calls += 1
+            return "should not be used"
+
+        def has_memory_tool_calls(self, response, provider):
+            return False
+
+    request = _build_request(
+        {"model": "gpt-5.4", "input": "hi"},
+        {"Authorization": "Bearer sk-test", "x-cutctx-user-id": "user-1"},
+    )
+    handler = _DummyOpenAIHandler()
+    handler.memory_handler = _CountingMemoryHandler()
+
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+
+    response = anyio.run(handler.handle_openai_responses, request)
+
+    assert response.status_code == 200
+    assert handler.captured_request is not None
+    assert handler.memory_handler.search_calls == 0
     _, _, _, body = handler.captured_request
     assert body.get("instructions") is None
 

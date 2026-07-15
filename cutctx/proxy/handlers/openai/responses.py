@@ -17,6 +17,7 @@ import threading
 import time
 import uuid
 from collections import OrderedDict
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from types import SimpleNamespace
@@ -55,6 +56,35 @@ from cutctx.proxy.tool_surface import (
 
 logger = logging.getLogger("cutctx.proxy")
 _MISSING_ROUTING_FIELD = object()
+
+
+def _summarize_upstream_ws_error(
+    event: dict[str, Any], *, max_message_chars: int = 500
+) -> dict[str, str]:
+    """Return bounded, non-payload metadata for an upstream WS error event."""
+
+    summary: dict[str, str] = {"event_type": str(event.get("type") or "error")}
+    error = event.get("error")
+    if not isinstance(error, dict):
+        error = {}
+
+    for source_key, summary_key in (("type", "error_type"), ("code", "error_code")):
+        value = error.get(source_key)
+        if value is not None:
+            summary[summary_key] = str(value)
+
+    message = error.get("message")
+    if isinstance(message, dict):
+        message_type = message.get("type")
+        if message_type is not None:
+            summary["message_type"] = str(message_type)
+        message = message.get("message")
+    if message is not None:
+        text = str(message)
+        limit = max(0, int(max_message_chars))
+        summary["message"] = text if len(text) <= limit else text[:limit] + "…"
+    return summary
+
 
 _CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS = frozenset(
     # Fields the chatgpt.com/backend-api/codex/responses endpoint rejects.
@@ -101,6 +131,16 @@ _CODEX_RESPONSES_LITE_CONTEXT_LIMITS: dict[str, int] = {
     # local to the Codex Lite sanitizer/WS guard instead of teaching the
     # global OpenAI registry about an internal subscription-only model.
     "gpt-5.5": 272_000,
+    # gpt-5.6-sol / gpt-5.6-terra are Codex-only subscription models with no
+    # entry in the global OpenAI context-limit registry, so unknown-model
+    # requests fell back to the generic 128K default — well under Codex's
+    # own reported model_context_window (258400) for these models. That made
+    # _openai_responses_context_guard misfire "too large" on ordinary
+    # sessions long before they were actually near the real limit, triggering
+    # emergency truncation (dropping messages) that can produce a
+    # structurally invalid conversation and an upstream 400 "Bad Request".
+    "gpt-5.6-sol": 258_400,
+    "gpt-5.6-terra": 258_400,
 }
 _CODEX_RESPONSES_CONTEXT_RESERVE_TOKENS = 16_000
 _CODEX_RESPONSES_CONTEXT_RESERVE_RATIO = 0.05
@@ -134,6 +174,29 @@ def _codex_responses_context_limit(provider: Any, model: str) -> int:
         except Exception:
             pass
     return 0
+
+
+def _contains_opaque_responses_continuation(payload: Any, *, max_nodes: int = 4096) -> bool:
+    """Return whether a Responses payload carries model-bound opaque state.
+
+    ``encrypted_content`` is produced and interpreted by the upstream model.
+    CutCtx must not decode or estimate it as ordinary prompt text. The bounded
+    iterative walk avoids recursion depth failures on adversarial JSON shapes.
+    """
+
+    remaining = max(0, int(max_nodes))
+    stack = [payload]
+    while stack and remaining:
+        remaining -= 1
+        value = stack.pop()
+        if isinstance(value, dict):
+            encrypted = value.get("encrypted_content")
+            if isinstance(encrypted, str) and encrypted:
+                return True
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)
+    return False
 
 
 def _ws_connect_header_kwargs(
@@ -628,70 +691,138 @@ def _truncate_body_for_chatgpt(
     body: dict[str, Any],
     max_bytes: int,
     request_id: str,
+    *,
+    over_budget: Callable[[dict[str, Any]], bool] | None = None,
 ) -> dict[str, Any]:
-    """Aggressively truncate a request body so it fits within max_bytes for
-    chatgpt.com. Strategy (in order):
-    1. Truncate tool-output text within each input message to 4 KB.
-    2. Drop oldest messages from the ``input`` array (keep last N).
-    3. Truncate ``instructions`` to 200 KB if still over limit.
+    """Aggressively reduce a chatgpt.com request to its transport budgets.
+
+    ``max_bytes`` protects the subscription endpoint's body-size ceiling.
+    ``over_budget`` optionally adds a model-token predicate, which matters for
+    Codex compaction requests that can fit the byte ceiling while remaining far
+    beyond the model context window.
+
+    Strategy (in order):
+    1. Truncate large nested payload strings and inline images.
+    2. Drop oldest messages from the ``input`` array (keep the newest item).
+    3. Remove fixed-cost tool schemas.
+    4. Progressively reduce instructions.
+    5. Prune nested lists and strings in the final retained input item.
     Returns a shallow copy with modified fields; never raises.
     """
     import copy as _copy
 
     _MAX_TOOL_OUTPUT_CHARS = 4 * 1024  # 4 KB per tool output text
     _MAX_INSTRUCTIONS_CHARS = 200 * 1024  # 200 KB for system instructions
+    _MAX_IMAGE_DATA_URI_CHARS = 2 * 1024  # 2 KB before an inline image is shrunk
+
+    # A real, minimal 1x1 transparent PNG. Used to shrink oversized inline
+    # image data URIs while keeping the field a schema-valid image — unlike a
+    # text placeholder, which chatgpt.com's Responses backend rejects with a
+    # 400 ("Bad Request") because ``image_url`` no longer decodes as image
+    # data. Swapping in a tiny real image keeps the retry request valid.
+    _PLACEHOLDER_IMAGE_DATA_URI = (
+        "data:image/png;base64,"
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+        "+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    )
 
     body = _copy.deepcopy(body)
 
-    def _body_bytes() -> int:
+    def _body_bytes(candidate: dict[str, Any] | None = None) -> int:
         try:
-            return len(json.dumps(body).encode("utf-8", errors="replace"))
+            return len(
+                json.dumps(candidate if candidate is not None else body).encode(
+                    "utf-8", errors="replace"
+                )
+            )
         except Exception:
             return max_bytes + 1
 
-    def _truncate_content(content: Any) -> Any:
-        """Truncate text within a content item or list."""
-        if isinstance(content, str):
-            return (
-                content[:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
-                if len(content) > _MAX_TOOL_OUTPUT_CHARS
-                else content
+    def _is_over_budget() -> bool:
+        if _body_bytes() > max_bytes:
+            return True
+        if over_budget is None:
+            return False
+        try:
+            return bool(over_budget(body))
+        except Exception as exc:
+            logger.warning(
+                "[%s] chatgpt emergency token-budget predicate failed: %s",
+                request_id,
+                exc,
             )
-        if isinstance(content, list):
-            return [_truncate_content(c) for c in content]
-        if isinstance(content, dict):
-            out = dict(content)
+            return False
+
+    def _shrink_image_url(value: str) -> str:
+        if value.startswith("data:image/") and len(value) > _MAX_IMAGE_DATA_URI_CHARS:
+            return _PLACEHOLDER_IMAGE_DATA_URI
+        return value
+
+    _PAYLOAD_STRING_KEYS = {
+        "arguments",
+        "content",
+        "data",
+        "encrypted_content",
+        "output",
+        "text",
+    }
+
+    def _truncate_nested(
+        value: Any,
+        *,
+        char_limit: int,
+        parent_key: str | None = None,
+        truncate_all_strings: bool = False,
+    ) -> Any:
+        """Recursively cap payload strings without corrupting image fields."""
+
+        if isinstance(value, str):
+            if parent_key == "image_url":
+                return _shrink_image_url(value)
             if (
-                "text" in out
-                and isinstance(out["text"], str)
-                and len(out["text"]) > _MAX_TOOL_OUTPUT_CHARS
+                (truncate_all_strings or parent_key in _PAYLOAD_STRING_KEYS)
+                and len(value) > char_limit
             ):
-                out["text"] = out["text"][:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
-            if (
-                "output" in out
-                and isinstance(out["output"], str)
-                and len(out["output"]) > _MAX_TOOL_OUTPUT_CHARS
-            ):
-                out["output"] = out["output"][:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
-            return out
-        return content
+                return value[:char_limit] + "…[truncated]"
+            return value
+        if isinstance(value, list):
+            return [
+                _truncate_nested(
+                    child,
+                    char_limit=char_limit,
+                    parent_key=parent_key,
+                    truncate_all_strings=truncate_all_strings,
+                )
+                for child in value
+            ]
+        if isinstance(value, dict):
+            return {
+                key: _truncate_nested(
+                    child,
+                    char_limit=char_limit,
+                    parent_key=key,
+                    truncate_all_strings=truncate_all_strings,
+                )
+                for key, child in value.items()
+            }
+        return value
+
+    def _prune_nested_lists(value: Any, max_items: int) -> Any:
+        if isinstance(value, list):
+            return [_prune_nested_lists(child, max_items) for child in value[-max_items:]]
+        if isinstance(value, dict):
+            return {key: _prune_nested_lists(child, max_items) for key, child in value.items()}
+        return value
 
     def _truncate_input_item(item: Any) -> Any:
         if not isinstance(item, dict):
             return item
-        out = dict(item)
-        if isinstance(out.get("content"), str | list | dict):
-            out["content"] = _truncate_content(out["content"])
-        if isinstance(out.get("output"), str) and len(out["output"]) > _MAX_TOOL_OUTPUT_CHARS:
-            out["output"] = out["output"][:_MAX_TOOL_OUTPUT_CHARS] + "…[truncated]"
-        if isinstance(out.get("input"), list):
-            out["input"] = [_truncate_input_item(child) for child in out["input"]]
-        return out
+        return _truncate_nested(item, char_limit=_MAX_TOOL_OUTPUT_CHARS)
 
     # Step 1: truncate large tool outputs within all messages
     if isinstance(body.get("input"), list):
         body["input"] = [_truncate_input_item(msg) for msg in body["input"]]
-    if _body_bytes() <= max_bytes:
+    if not _is_over_budget():
         return body
 
     # Step 2: drop oldest messages (keep at least 1 to preserve the user turn).
@@ -701,7 +832,7 @@ def _truncate_body_for_chatgpt(
     _TOOL_RESULT_TYPES = {"function_call_output", "tool_result"}
     if isinstance(body.get("input"), list) and len(body["input"]) > 1:
         msgs = body["input"]
-        while len(msgs) > 1 and _body_bytes() > max_bytes:
+        while len(msgs) > 1 and _is_over_budget():
             msgs.pop(0)
         # Drop any leading tool-result items that lost their paired tool-call.
         while (
@@ -711,17 +842,47 @@ def _truncate_body_for_chatgpt(
         ):
             msgs.pop(0)
         body["input"] = msgs
-    if _body_bytes() <= max_bytes:
+    if not _is_over_budget():
         return body
 
-    # Step 3: truncate instructions
-    if (
-        isinstance(body.get("instructions"), str)
-        and len(body["instructions"]) > _MAX_INSTRUCTIONS_CHARS
-    ):
-        body["instructions"] = (
-            body["instructions"][:_MAX_INSTRUCTIONS_CHARS] + "\n…[instructions truncated by cutctx]"
-        )
+    # Step 3: the live tool surface is fixed-cost context. Compression has
+    # already compacted it before this emergency path, so remove it if the
+    # request still cannot fit.
+    if body.get("tools") and _is_over_budget():
+        body.pop("tools", None)
+    if not _is_over_budget():
+        return body
+
+    # Step 4: progressively reduce instructions. A fixed 200 KB cap is still
+    # much too large for token-dense prompts, so keep halving until the actual
+    # request budget is satisfied or only a minimal marker remains.
+    instructions = body.get("instructions")
+    if isinstance(instructions, str):
+        instruction_limit = min(len(instructions), _MAX_INSTRUCTIONS_CHARS)
+        while instruction_limit > 1024 and _is_over_budget():
+            instruction_limit //= 2
+            body["instructions"] = (
+                instructions[:instruction_limit]
+                + "\n…[instructions truncated by cutctx]"
+            )
+        if _is_over_budget():
+            body["instructions"] = "[instructions truncated by cutctx]"
+    if not _is_over_budget():
+        return body
+
+    # Step 5: a single retained input item can itself contain thousands of
+    # nested blocks or token-dense opaque strings. Tighten both dimensions in
+    # bounded stages while preserving the newest tail of every list.
+    for max_items, char_limit in ((64, 2048), (16, 1024), (4, 512), (1, 256), (1, 64)):
+        if not _is_over_budget():
+            break
+        if isinstance(body.get("input"), list):
+            body["input"] = _prune_nested_lists(body["input"], max_items)
+            body["input"] = _truncate_nested(
+                body["input"],
+                char_limit=char_limit,
+                truncate_all_strings=True,
+            )
     return body
 
 
@@ -2158,6 +2319,7 @@ class OpenAIResponsesMixin:
             assignment_sticky=_canary_identity.sticky,
             transport_provider="openai",
             implicit_downgrade_allowed=not (is_chatgpt_subscription or codex_responses_lite),
+            allow_transport_safe_targets=not is_chatgpt_subscription,
         )
         _canary_assignments = getattr(self, "_savings_canary_assignments", None)
         if _canary_assignments is None:
@@ -2321,6 +2483,7 @@ class OpenAIResponsesMixin:
             memory_handler=self.memory_handler,
             memory_user_id=memory_user_id,
             mode_name=get_memory_injection_mode(),
+            messages=optimized_messages,
         )
         responses_memory_decision.apply_to_tags(tags)
         if responses_memory_decision.inject:
@@ -2726,13 +2889,36 @@ class OpenAIResponsesMixin:
             _guard_threshold,
             _guard_limit,
         ) = self._openai_responses_context_guard(body, model=_guard_model)
-        if _guard_refuse:
+        _opaque_subscription_continuation = (
+            is_chatgpt_auth and _contains_opaque_responses_continuation(body)
+        )
+        if _guard_refuse and _opaque_subscription_continuation:
+            logger.warning(
+                "[%s] /v1/responses treating approximate context guard as advisory "
+                "for opaque ChatGPT subscription continuation "
+                "(estimated_tokens=%d threshold=%d context_limit=%d model=%s)",
+                request_id,
+                _guard_estimated,
+                _guard_threshold,
+                _guard_limit,
+                _guard_model,
+            )
+        elif _guard_refuse:
             _CHATGPT_MAX_BODY_BYTES = 900 * 1024  # conservative chatgpt.com ceiling
             if is_chatgpt_auth:
+                def _chatgpt_context_over_budget(candidate: dict[str, Any]) -> bool:
+                    candidate_model = str(candidate.get("model") or _guard_model)
+                    candidate_refuse, _, _, _ = self._openai_responses_context_guard(
+                        candidate,
+                        model=candidate_model,
+                    )
+                    return candidate_refuse
+
                 truncated_body = _truncate_body_for_chatgpt(
                     body,
                     _CHATGPT_MAX_BODY_BYTES,
                     request_id,
+                    over_budget=_chatgpt_context_over_budget,
                 )
                 (
                     _retry_refuse,
@@ -3588,8 +3774,17 @@ class OpenAIResponsesMixin:
                         ssl=use_ssl,
                         open_timeout=max(30, self.config.connect_timeout_seconds * 3),
                         close_timeout=10,
-                        ping_interval=20,
-                        ping_timeout=20,
+                        # Matches the client-facing uvicorn ws_ping_interval/timeout
+                        # (see cutctx/proxy/server.py, run_proxy_server): a Codex turn
+                        # can go quiet on the socket for minutes during a long local
+                        # tool call (shell command, test suite) while this upstream
+                        # connection sits idle. The previous 20s ping timeout closed
+                        # this leg mid-turn from our side, and a fresh WS can't resume
+                        # the prior turn's pending tool-call state — surfacing to the
+                        # user as "stream disconnected before completion" followed by
+                        # a reconnect that fails with "Bad Request".
+                        ping_interval=600,
+                        ping_timeout=600,
                     )
                     ws_connected = True
                     if not _upstream_connect_recorded:
@@ -3895,6 +4090,7 @@ class OpenAIResponsesMixin:
                 implicit_downgrade_allowed=not (
                     is_chatgpt_auth or _has_codex_responses_lite_hint(ws_headers)
                 ),
+                allow_transport_safe_targets=not is_chatgpt_auth,
             )
             if isinstance(body, dict):
                 body["model"] = ws_model
@@ -4072,6 +4268,7 @@ class OpenAIResponsesMixin:
                 memory_handler=self.memory_handler if body else None,
                 memory_user_id=_ws_memory_user_id_candidate,
                 mode_name=get_memory_injection_mode(),
+                messages=ws_messages,
             )
             # ws_tags was extracted at handler entry (L3028); applying
             # the memory skip reason here so per-turn RequestOutcomes
@@ -4555,7 +4752,23 @@ class OpenAIResponsesMixin:
                         _guard_inner,
                         model=_guard_model,
                     )
-                    if _guard_refuse:
+                    _opaque_subscription_continuation = (
+                        is_chatgpt_auth
+                        and _contains_opaque_responses_continuation(_guard_inner)
+                    )
+                    if _guard_refuse and _opaque_subscription_continuation:
+                        logger.warning(
+                            "[%s] WS /v1/responses treating approximate first-frame "
+                            "context guard as advisory for opaque ChatGPT subscription "
+                            "continuation (estimated_tokens=%d threshold=%d "
+                            "context_limit=%d model=%s)",
+                            request_id,
+                            _guard_estimated,
+                            _guard_threshold,
+                            _guard_limit,
+                            _guard_model,
+                        )
+                    elif _guard_refuse:
                         logger.error(
                             "[%s] WS /v1/responses refusing oversized first frame "
                             "after compression (estimated_tokens=%d threshold=%d "
@@ -4702,6 +4915,7 @@ class OpenAIResponsesMixin:
                             implicit_downgrade_allowed=not (
                                 is_chatgpt_auth or _has_codex_responses_lite_hint(ws_headers)
                             ),
+                            allow_transport_safe_targets=not is_chatgpt_auth,
                         )
                         if routed_frame_model != original_frame_model:
                             inner_payload = {**inner_payload, "model": routed_frame_model}
@@ -4873,7 +5087,10 @@ class OpenAIResponsesMixin:
                                     raw_bytes=len(raw_msg.encode("utf-8", errors="replace")),
                                     client=refusal_client,
                                 )
-                                if guard_refuse:
+                                if guard_refuse and not (
+                                    is_chatgpt_auth
+                                    and _contains_opaque_responses_continuation(inner_payload)
+                                ):
                                     logger.error(
                                         "[%s] WS /v1/responses refusing frame after "
                                         "compression failure (reason=%s, estimated_tokens=%d "
@@ -4920,7 +5137,10 @@ class OpenAIResponsesMixin:
                                 inner_payload,
                                 model=str(inner_payload.get("model") or "unknown"),
                             )
-                            if guard_refuse:
+                            if guard_refuse and not (
+                                is_chatgpt_auth
+                                and _contains_opaque_responses_continuation(inner_payload)
+                            ):
                                 logger.error(
                                     "[%s] WS /v1/responses refusing oversized frame "
                                     "after no-op compression (estimated_tokens=%d "
@@ -5004,7 +5224,10 @@ class OpenAIResponsesMixin:
                             new_inner,
                             model=str(new_inner.get("model") or "unknown"),
                         )
-                        if guard_refuse:
+                        if guard_refuse and not (
+                            is_chatgpt_auth
+                            and _contains_opaque_responses_continuation(new_inner)
+                        ):
                             logger.error(
                                 "[%s] WS /v1/responses refusing oversized frame "
                                 "after compression (estimated_tokens=%d threshold=%d "
@@ -5425,6 +5648,17 @@ class OpenAIResponsesMixin:
 
                                 event_type = event.get("type", "")
                                 ws_last_upstream_frame_type = str(event_type or "unknown")
+                                if event_type == "error":
+                                    logger.warning(
+                                        "[%s] WS upstream error session_id=%s frame=%d error=%s",
+                                        request_id,
+                                        session_id,
+                                        upstream_frame_index,
+                                        json.dumps(
+                                            _summarize_upstream_ws_error(event),
+                                            sort_keys=True,
+                                        ),
+                                    )
                                 logger.debug(
                                     "[%s] WS upstream frame session_id=%s frame=%d type=%s",
                                     request_id,

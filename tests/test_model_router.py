@@ -604,6 +604,30 @@ def test_preset_allows_verified_mini_target_on_subscription_transport() -> None:
     assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
 
 
+def test_subscription_websocket_preserves_requested_model() -> None:
+    """Stateful ChatGPT WS turns must not rely on preset target allowlists."""
+    cfg = ModelRouterConfig.codex_gpt54mini_high_preset()
+
+    class DummyHandler:
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(cfg)
+
+    model, metadata = prepare_model_routing(
+        DummyHandler(),
+        "gpt-5.6-sol",
+        messages=[{"role": "user", "content": "hi"}],
+        request_savings_metadata={},
+        implicit_downgrade_allowed=False,
+        allow_transport_safe_targets=False,
+    )
+
+    assert model == "gpt-5.6-sol"
+    assert metadata["model_routing_trace"]["applied"] is False
+    assert metadata["model_routing_trace"]["reason"] == (
+        "downgrade_blocked_unproven_transport"
+    )
+
+
 def test_unverified_target_remains_blocked_on_subscription_transport() -> None:
     cfg = ModelRouterConfig(
         enabled=True,

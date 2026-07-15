@@ -460,6 +460,61 @@ async def test_ws_chatgpt_subscription_preserves_requested_model_before_forwardi
 
 
 @pytest.mark.asyncio
+async def test_ws_opaque_continuation_ignores_approximate_context_refusal():
+    """Encrypted subscription state must reach ChatGPT unchanged.
+
+    Session 019f6752-d143-7e70-b780-34396670b634 reported about 194K input
+    tokens upstream, while CutCtx's generic JSON tokenizer estimated the
+    reconstructed continuation at 294,402 tokens and closed the retry locally.
+    The encrypted state is opaque to CutCtx, so only ChatGPT can count it
+    authoritatively.
+    """
+    inner = {
+        "model": "gpt-5.6-sol",
+        "input": [
+            {
+                "type": "reasoning",
+                "encrypted_content": "opaque-model-bound-continuation",
+            },
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "continue"}],
+            },
+        ],
+    }
+    first_frame = json.dumps({"type": "response.create", "response": inner})
+    upstream_events = [
+        json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
+        json.dumps({"type": "response.completed", "response": {"id": "r_1"}}),
+    ]
+    upstream = _FakeUpstream(upstream_events)
+    fake_ws_mod = _make_fake_websockets_module(upstream)
+    client_ws = _FakeWebSocket(frames=[first_frame])
+    client_ws.headers["chatgpt-account-id"] = "acct-123"
+    handler = _DummyOpenAIHandler()
+    handler.config.optimize = True
+    handler._compress_openai_responses_payload = MagicMock(
+        return_value=(inner, False, 0, [], "router_no_compression", 10, 10)
+    )
+    handler._openai_responses_context_guard = MagicMock(
+        return_value=(True, 294_402, 242_400, 258_400)
+    )
+
+    with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
+        await handler.handle_openai_responses_ws(client_ws)
+
+    assert upstream.sent, "opaque continuation was refused before reaching ChatGPT"
+    forwarded = json.loads(upstream.sent[0])
+    assert forwarded["response"]["model"] == "gpt-5.6-sol"
+    assert (
+        forwarded["response"]["input"][0]["encrypted_content"]
+        == "opaque-model-bound-continuation"
+    )
+    assert client_ws.close_code != 1009
+
+
+@pytest.mark.asyncio
 async def test_ws_second_turn_preserves_requested_model_under_chatgpt_auth():
     """Turn 2+ of a persistent WS session goes through a separate
 

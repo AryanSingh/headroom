@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from typing import Any
 
@@ -8,6 +9,7 @@ from cutctx.proxy.handlers.openai import (
     _compact_openai_responses_tools,
     _openai_responses_context_budget,
 )
+from cutctx.proxy.handlers.openai import responses as responses_handler
 from cutctx.proxy.handlers.openai.responses import _truncate_body_for_chatgpt
 from cutctx.transforms.content_router import (
     CompressionStrategy,
@@ -54,6 +56,47 @@ def test_openai_responses_context_budget_breaks_out_static_and_live_buckets() ->
         b"line one\nline two\n"
     )
     assert budget["input_breakdown"]["message"]["items"] == 1
+
+
+def test_upstream_error_summary_extracts_nested_details() -> None:
+    event = {
+        "type": "error",
+        "error": {
+            "type": "invalid_request_error",
+            "code": "bad_request",
+            "message": {
+                "type": "model_error",
+                "message": "The requested turn could not be generated.",
+            },
+            "internal_payload": {"secret": "must not be logged"},
+        },
+    }
+
+    summary = responses_handler._summarize_upstream_ws_error(event)
+
+    assert summary == {
+        "event_type": "error",
+        "error_type": "invalid_request_error",
+        "error_code": "bad_request",
+        "message_type": "model_error",
+        "message": "The requested turn could not be generated.",
+    }
+
+
+def test_upstream_error_summary_bounds_message_and_omits_payload() -> None:
+    summary = responses_handler._summarize_upstream_ws_error(
+        {
+            "type": "error",
+            "error": {
+                "message": "x" * 2_000,
+                "request": "sensitive request body",
+            },
+        },
+        max_message_chars=80,
+    )
+
+    assert summary["message"] == ("x" * 80) + "…"
+    assert "request" not in summary
 
 
 def test_openai_tool_schema_compaction_preserves_invocation_shape() -> None:
@@ -462,6 +505,107 @@ def test_chatgpt_truncator_trims_function_call_output_payloads() -> None:
     assert truncated["input"][0]["output"].endswith("…[truncated]")
 
 
+def test_chatgpt_truncator_redacts_large_input_image_payloads() -> None:
+    """Emergency truncation must also shrink oversized image data URLs.
+
+    The wrapped frontend-design path can surface large audit screenshots
+    as Responses input_image items. Those payloads must shrink to a real
+    (if trivial) image rather than a text placeholder: chatgpt.com's
+    Responses backend rejects a non-image string in ``image_url`` with an
+    upstream 400 "Bad Request", which is worse than the oversized-body
+    error the truncation is meant to avoid.
+    """
+
+    body = {
+        "model": "gpt-4o",
+        "input": [
+            {
+                "type": "input_image",
+                "image_url": "data:image/png;base64," + ("x" * 9000),
+            }
+        ],
+    }
+
+    truncated = _truncate_body_for_chatgpt(body, 1024, "req_test")
+
+    assert truncated["input"][0]["image_url"].startswith("data:image/png;base64,")
+    assert len(truncated["input"][0]["image_url"]) < 200
+    assert len(json.dumps(truncated).encode("utf-8")) <= 1024
+
+
+def test_chatgpt_emergency_truncation_honors_token_budget() -> None:
+    """Emergency truncation must satisfy the model budget, not only bytes.
+
+    Remote Codex compaction requests can be dominated by fixed tool schemas,
+    instructions, opaque reasoning payloads, and function-call arguments. A
+    request may fit the chatgpt.com byte ceiling while still exceeding the
+    model's token threshold, which previously caused a repeated HTTP 413.
+    """
+
+    newest_user_text = "Please finish the approved implementation."
+    body = {
+        "model": "gpt-5.6-sol",
+        "instructions": "instruction " * 20_000,
+        "tools": [
+            {
+                "type": "function",
+                "name": f"tool_{index}",
+                "description": "schema description " * 1_000,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "payload": {
+                            "type": "string",
+                            "description": "parameter documentation " * 1_000,
+                        }
+                    },
+                },
+            }
+            for index in range(8)
+        ],
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "orphaned_call",
+                "output": "old output " * 10_000,
+            },
+            {
+                "type": "reasoning",
+                "encrypted_content": "encrypted " * 20_000,
+            },
+            {
+                "type": "function_call",
+                "call_id": "call_2",
+                "name": "large_tool",
+                "arguments": "argument " * 20_000,
+            },
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": newest_user_text}],
+            },
+        ],
+    }
+    original = json.loads(json.dumps(body))
+    token_budget_chars = 24_000
+
+    truncated = _truncate_body_for_chatgpt(
+        body,
+        900 * 1024,
+        "req_test",
+        over_budget=lambda candidate: len(json.dumps(candidate)) > token_budget_chars,
+    )
+
+    assert len(json.dumps(truncated)) <= token_budget_chars
+    assert len(json.dumps(truncated).encode("utf-8")) <= 900 * 1024
+    assert truncated["input"][-1]["content"][0]["text"] == newest_user_text
+    assert truncated["input"][0].get("type") not in {
+        "function_call_output",
+        "tool_result",
+    }
+    assert body == original
+
+
 class _StubTokenizer:
     def count_text(self, text: str) -> int:
         return len(text.split())
@@ -490,6 +634,65 @@ class _HandlerHarness(OpenAIHandlerMixin):
     def __init__(self, router: ContentRouter):
         self.openai_pipeline: Any = _StubPipeline(router)
         self.openai_provider: Any = _StubProvider()
+
+
+def test_chatgpt_emergency_truncation_clears_responses_context_guard() -> None:
+    """The observed 516K-token compact shape must clear the real guard."""
+
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+    model = "gpt-5.6-sol"
+    body = {
+        "model": model,
+        "instructions": "instruction " * 260_000,
+        "tools": [
+            {
+                "type": "function",
+                "name": f"tool_{index}",
+                "description": "schema " * 20_000,
+                "parameters": {"type": "object", "properties": {}},
+            }
+            for index in range(8)
+        ],
+        "input": [
+            {
+                "type": "function_call",
+                "name": "large_tool",
+                "arguments": "argument " * 80_000,
+            },
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "finish the task"}],
+            },
+        ],
+    }
+
+    refused_before, estimated_before, threshold, _ = (
+        handler._openai_responses_context_guard(body, model=model)
+    )
+    assert refused_before is True
+    assert estimated_before > 500_000
+
+    def _over_budget(candidate: dict[str, Any]) -> bool:
+        refused, _, _, _ = handler._openai_responses_context_guard(candidate, model=model)
+        return refused
+
+    truncated = _truncate_body_for_chatgpt(
+        body,
+        900 * 1024,
+        "req_observed_shape",
+        over_budget=_over_budget,
+    )
+    refused_after, estimated_after, _, _ = handler._openai_responses_context_guard(
+        truncated,
+        model=model,
+    )
+
+    assert refused_after is False
+    assert estimated_after < threshold
+    assert len(json.dumps(truncated).encode("utf-8")) <= 900 * 1024
+    assert truncated["input"][-1]["content"][0]["text"] == "finish the task"
 
 
 def test_codex_input_list_payload_reaches_router_without_skip() -> None:
