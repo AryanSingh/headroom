@@ -1,137 +1,116 @@
-# Product Manager Audit: Cutctx
+# Product Manager Audit: Cutctx Core Efficiency Product
 
-**Date:** 2026-07-14  
-**Scope:** Current repository state, user-facing documentation, CLI onboarding,
-billing-operational documentation, and deployment artifacts. This is a codebase
-audit, not evidence that hosted services or legal/compliance claims are live.
+**Date:** 2026-07-15
+**Scope:** Token savings, compression, model routing, onboarding to proof, retention, and competitive gaps.
 
-## Executive summary
+## Product assessment
 
-Cutctx has a differentiated, technically mature core: local-first reversible
-context compression, broad agent/proxy support, cross-agent memory, and strong
-operator controls. Since the previous product audit, several formerly reported
-documentation and platform gaps are now addressed: a unified `cutctx setup`
-command exists, a troubleshooting guide exists, direct Stripe Checkout/Portal
-helpers are documented, and Kubernetes backup assets are present.
+Cutctx is already differentiated at the feature level. Its strongest combination is local-first compression, provider-neutral proxying, reversible CCR retrieval, source-attributed savings, cache optimization, agent wrappers, and safety-conscious model routing. Few products combine all of these in one control plane.
 
-The main user-facing gap is now **truthful onboarding completion**. The setup
-command presents a success heading even when it cannot start a healthy proxy,
-and it does not give an actionable next step for all partial setup outcomes.
-This undermines time-to-value at the first moment that matters. It is the
-highest-confidence in-repository remediation.
+The next market challenge is not feature count. It is making safety and ROI independently believable. A user should be able to install Cutctx, run one real workload, and receive a trustworthy receipt showing what changed, what was saved, what quality checks passed, which model was selected, and how to reproduce the result.
 
-**Recommendation:** Address onboarding completion before expanding the setup
-surface. Keep commercial-readiness claims conditional until a real Stripe
-test-mode lifecycle and legal/compliance work are independently verified.
+## Existing features
 
-## Product today
+- Content-specific compression for JSON/tool output, code, logs, diffs, search, prose, schemas, and images.
+- Reversible CCR storage and retrieval.
+- Accuracy guards for identifiers and references.
+- Cache alignment and cache-aware savings attribution.
+- Model routing with Mini/Luna/strong tiers, confidence, abstention, trace metadata, and calibrated-scorer support.
+- OpenAI-, Anthropic-, and agent-compatible proxy/wrapper surfaces.
+- Savings dashboard, metrics, history, and source breakdown.
+- Unified setup flow and broad integration surface.
 
-| Area | Evidence | Assessment |
-|---|---|---|
-| Core value | `README.md`, compression pipeline, CCR, agent wrappers | Strong, differentiated value proposition. |
-| Onboarding | `cutctx/cli/setup.py`, `cutctx wrap`, installation and quickstart docs | Improved, but completion state is misleading on failure. |
-| Support | `docs/content/docs/troubleshooting.mdx` | Common setup failures have documented remedies. |
-| Billing architecture | `docs/BILLING_INTEGRATION.md` | Direct Stripe paths are implemented/documented; live readiness remains unverified. |
-| Operations | `k8s/backup-cronjob.yaml`, `k8s/README.md`, health endpoints | Good foundation; recovery guidance remains fragmented. |
-| Enterprise controls | RBAC, audit, SSO/SCIM, retention modules and docs | Strong product foundation, subject to distribution and deployment verification. |
+## Missing or incomplete product capabilities
 
-## User journey assessment
+### P0 — Decision-grade quality proof
 
-### 1. Discover and evaluate
+The comparison harness measures lexical retention, reduction, and latency with bootstrap intervals, but not whether compressed prompts produce the same correct answer, valid tool call, successful code change, or retrieved fact. Add downstream task execution and paired baseline-vs-compressed outcomes.
 
-**What works**
+### Resolved P0 — Provider-complete routing safety
 
-- The README quickly explains the proxy, wrapper, library, MCP, and memory
-  value paths.
-- Product positioning is specific: local-first processing and reversible
-  retrieval distinguish Cutctx from gateway-only alternatives.
+The router previously missed several OpenAI tool-call message shapes and could classify an active tool-loop continuation as low complexity. The recent-context detector now covers provider-native call and result shapes recursively, with TDD regressions and a 59-case benchmark gate. Increasing routing coverage should still remain evidence-gated.
 
-**Friction**
+### P1 — One portable evidence bundle
 
-- The primary README quickstart starts with a manual mode choice (`wrap`,
-  `proxy`, or global routing), while a unified setup command exists but is not
-  the primary call to action.
-- A new user can still be unsure which route is appropriate for an agent versus
-  an SDK integration.
+Generate a signed/versioned artifact that joins compression, routing, savings attribution, latency, quality checks, environment, and limitations. Use the same artifact in CLI, dashboard, docs, support, and procurement.
 
-### 2. First value / onboarding
+### P1 — Activation receipt and seven-day report
 
-**What works**
+After the first successful proxied request, show a concise receipt: before/after tokens, source attribution, route decision, cache effect, guard result, and CCR availability. Follow with a seven-day report that demonstrates cumulative ROI and highlights unsafe/abstained decisions.
 
-- `cutctx setup` checks installation, detects common agents, attempts supported
-  MCP registration, starts a local proxy, and performs a health check.
-- Troubleshooting documentation provides concrete proxy and wrapper remedies.
+### P2 — Privacy-reviewed activation analytics
 
-**Gap P0 — misleading completion state**
+Measure install → healthy proxy → first request → first verified savings receipt → seven-day retained use. Keep telemetry opt-in or local-first and document exactly what leaves the machine.
 
-`cutctx/cli/setup.py` prints **“Setup Complete!”** even when proxy startup or
-the final health check fails. The output does show `Not running`, but the
-headline contradicts the state and does not distinguish a complete setup from
-a partial configuration. A first-time user can reasonably stop there without
-ever reaching a working compressed request.
+## Competitive gaps
 
-**Remediation completed — 2026-07-14**
+| Dimension | Cutctx position | Gap to close |
+| --- | --- | --- |
+| Compression | Broader agent/runtime integration and reversibility than standalone compressors | Match research competitors with downstream-task, reproducible public evidence |
+| Model routing | Strong conservative policy, traces, abstention, and orchestration | Expand held-out evaluation and provider-shape coverage before increasing savings |
+| AI gateway | Strong context-specific optimization and local-first story | Simplify evaluation and make reliability/ROI proof portable |
+| Native provider compaction | Cross-provider and attributable | Prove incremental value over provider-native cache/compaction on the same workloads |
+| Hosted simplicity | Strong local/privacy advantage | Reduce first-value friction and offer a clear supported deployment path |
 
-- The final status is now explicit: only a healthy final proxy check produces
-  `Setup Complete!`; a failed requested startup produces `Setup needs attention`.
-- Unhealthy outcomes print an exact port-specific recovery command and the
-  troubleshooting documentation URL.
-- Requested startup now exits non-zero when the final health check fails;
-  deliberate `--no-start` usage remains successful and is labelled as skipped.
-- CLI regression tests cover healthy startup, an already-running proxy, failed
-  startup, deliberate no-start, and the README entry point.
+## User journey friction
 
-### 3. Operate and retain
+### Discover
 
-**What works**
+The feature surface is broad enough that a buyer may not know whether Cutctx is primarily a compressor, proxy, router, memory layer, or governance plane. Lead with the outcome: verified context efficiency for AI agents.
 
-- Health, metrics, dashboard, budget, firewall, and outbound webhook surfaces
-  offer a credible operations baseline.
-- Kubernetes backup automation exists and includes several persisted stores.
+### Evaluate
 
-**Gap P1 — recovery story is fragmented**
+Current proof is distributed across README tables, benchmark artifacts, CLI stats, and audit documents. A buyer must assemble the trust story manually.
 
-Backup assets, a draft disaster-recovery spec, and a Kubernetes readme exist,
-but there is no single customer-facing backup/restore runbook that defines the
-authoritative stores, verification procedure, RPO/RTO assumptions, and restore
-ownership. This creates avoidable renewal and security-review friction.
+### Activate
 
-**Recommended remediation**
+Setup is improved, but the first-value loop should end with a real compressed request and a quality/savings receipt, not only a healthy proxy.
 
-Publish one operator runbook after confirming the supported storage topology.
-This should not be claimed complete from static code inspection alone.
+### Operate
 
-## Competitive view
+Operators need clear visibility into abstentions, guard failures, CCR retrievals, provider-cache interaction, and model-routing quality—not only gross token reduction.
 
-| Dimension | Cutctx advantage | Remaining exposure |
-|---|---|---|
-| Context efficiency | Specialized compression with CCR retrieval | Competitors can offer simpler hosted onboarding. |
-| Privacy | Local-first and air-gap support | Buyers still need clear recovery and support documentation. |
-| Agent workflows | Broad wrapper and proxy support | First-run complexity weakens the “one command” message. |
-| Commercial conversion | Stripe helper paths and enterprise webhook support | Customer-facing Checkout, Portal, and webhook lifecycle are not verified in this audit. |
+### Renew
 
-## Prioritized gap register
+Retention depends on recurring, trustworthy ROI. A seven-day/monthly proof report should show net savings after overhead, quality incidents, routing outcomes, and top optimization opportunities.
 
-| Priority | Gap | User/business impact | Status |
-|---|---|---|---|
-| Resolved P0 | Setup reported completion despite failed proxy startup | Users could churn before first successful compression; automation could not reliably detect failure | Fixed and regression-tested on 2026-07-14 |
-| P1 | Unified setup is not the README’s primary entry point | Avoidable decision paralysis for new users | Documentation follow-up recommended with P0 |
-| P1 | Backup/restore guidance is fragmented | Enterprise security and renewal friction | Requires validated operational ownership |
-| P1 | Hosted billing is documented as transitional | Cannot claim self-serve conversion readiness without live Stripe verification | Requires authorized external verification |
-| P2 | Product analytics for onboarding completion | Hard to quantify activation/drop-off | Requires a privacy-reviewed telemetry decision |
-| P2 | Legal/compliance readiness | Enterprise procurement constraint | Requires counsel and external assurance, not code-only work |
+## Onboarding issues
 
-## Success measures
+- Too many equally prominent modes before the user has experienced value.
+- Capability discovery is stronger than guided workload selection.
+- First successful setup is not yet the same as first verified ROI.
+- Public proof does not yet guide users to reproduce the most relevant workload category.
 
-- `cutctx setup` exits `0` only when the requested end state is healthy.
-- Users with a failed setup receive an exact next command and support route.
-- README’s first-run path reflects the supported unified setup journey.
-- Track install-to-first-healthy-proxy and first-successful-compression rates
-  only after privacy and consent requirements are defined.
+## Retention issues
 
-## Scope boundaries
+- Savings alone can become background noise; users need confidence and actionability.
+- No single recurring report explains net value, risk avoided, and next optimization.
+- Weak downstream-task evidence may block team expansion after an individual developer trial.
+- Broad enterprise surfaces increase maintenance burden unless usage and buyer value are measured.
 
-This audit does not certify Stripe, legal terms, SOC 2, disaster recovery, or
-production deployment readiness. Those outcomes require live credentials,
-operational owners, and/or external review. The identified onboarding defect is
-fully observable and remediable within this repository.
+## Recommended product strategy
+
+Adopt a **trust-first efficiency loop**:
+
+1. Safely compress and route.
+2. Verify what must remain correct.
+3. Attribute every saving without double counting.
+4. Emit a portable evidence receipt.
+5. Learn from abstentions and retrievals.
+6. Increase savings only where shadow evidence proves quality.
+
+This positions Cutctx beyond a prompt compressor or generic gateway: an evidence-backed context efficiency control plane.
+
+## Success metrics
+
+- Zero unsafe Mini downgrades in provider-complete routing suites and shadow evidence.
+- Baseline-vs-compressed downstream task delta within an explicit quality budget per workload.
+- Install-to-first-verified-receipt time under five minutes for supported local agents.
+- Percentage of active users viewing or exporting a seven-day evidence report.
+- Net token and dollar savings after compression/routing overhead, separated by source.
+- CCR retrieval and guard-failure rates low enough to demonstrate trustworthy compression.
+- Expansion from single developer to team workspace after verified ROI.
+
+## Immediate priority
+
+Provider-native tool-context detection and the corresponding corpus expansion are complete. The next major investment should be downstream-task benchmark execution and a portable evidence bundle. Avoid more aggressive downgrades until those gates are in place.
