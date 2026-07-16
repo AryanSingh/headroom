@@ -178,6 +178,153 @@ def test_orchestration_contract_draft_simulation_and_lifecycle_api(
         assert conflict.status_code == 409
 
 
+def test_orchestration_contract_simulation_accepts_template_payload(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config_path = tmp_path / "orchestration.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "providers": [{"id": "openai-main", "provider": "openai"}],
+                "roles": [{"id": "worker", "name": "Worker"}],
+                "models": [
+                    {
+                        "provider": "openai",
+                        "model": "gpt-5.4-mini",
+                        "account_id": "openai-main",
+                        "capabilities": ["reasoning"],
+                    }
+                ],
+                "bindings": [
+                    {
+                        "id": "worker-mini",
+                        "role": "worker",
+                        "model": "openai:gpt-5.4-mini",
+                    }
+                ],
+                "settings": {"mode": "strict", "policy": "role_locked"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CUTCTX_ORCHESTRATION_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("CUTCTX_ORCHESTRATION_CONFIG", str(config_path))
+    app = create_app(
+        ProxyConfig(
+            backend="mock",
+            cache_enabled=False,
+            admin_api_key="admin_12345",
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
+        )
+    )
+
+    with TestClient(app) as client:
+        simulation = client.post(
+            "/v1/orchestration/contracts/implementation/simulate",
+            headers={"x-cutctx-admin-key": "admin_12345"},
+            json={
+                "contract": {
+                    **_contract_payload(version="template-preview"),
+                    "template": "implementation",
+                },
+                "scenario": {"role": "implementation", "request_id": "template-preview"},
+            },
+        )
+
+    assert simulation.status_code == 200, simulation.text
+    assert simulation.json()["executed"] is False
+    assert simulation.json()["draft_receipt"]["contract_version"] == "template-preview"
+
+
+def test_orchestration_contract_empty_config_starter_save_lifecycle(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config_path = tmp_path / "orchestration.json"
+    config_path.write_text(json.dumps({"version": 1}), encoding="utf-8")
+    monkeypatch.setenv("CUTCTX_ORCHESTRATION_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("CUTCTX_ORCHESTRATION_CONFIG", str(config_path))
+    app = create_app(
+        ProxyConfig(
+            backend="mock",
+            cache_enabled=False,
+            admin_api_key="admin_12345",
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
+        )
+    )
+    headers = {"x-cutctx-admin-key": "admin_12345"}
+
+    with TestClient(app) as client:
+        initial = client.get("/v1/orchestration/contracts", headers=headers)
+        assert initial.status_code == 200
+        assert initial.json()["revision"] == 0
+        assert len(initial.json()["contracts"]) == 1
+        starter = initial.json()["contracts"][0]
+        assert starter == {
+            "id": "implementation",
+            "name": "Implementation",
+            "version": "1",
+            "state": "draft",
+            "template": "implementation",
+            "description": "Production coding and implementation tasks",
+            "role_aliases": ["implementation", "worker"],
+            "selectors": {},
+            "task_types": ["implementation"],
+            "baseline_model": "openai:gpt-5.4-mini",
+            "fallback_models": [],
+            "requirements": {
+                "required_capabilities": ["reasoning", "tool_calling"],
+                "minimum_context_tokens": None,
+                "minimum_output_tokens": None,
+                "allowed_providers": [],
+                "allowed_accounts": [],
+                "allowed_regions": [],
+                "allowed_data_classifications": [],
+                "retention_policy": None,
+            },
+            "objective": {
+                "type": "highest_quality_within_budget",
+                "quality_floor": 0.9,
+                "maximum_cost_usd": 1,
+                "maximum_ttft_ms": None,
+                "maximum_total_latency_ms": 120000,
+                "weights": {},
+            },
+            "reliability": {
+                "connect_timeout_seconds": 10,
+                "first_token_timeout_seconds": 30,
+                "attempt_timeout_seconds": 30,
+                "stream_idle_timeout_seconds": 30,
+                "total_deadline_seconds": 120,
+                "attempts_per_deployment": 2,
+                "maximum_deployments": 1,
+                "fallback_triggers": ["provider_outage", "timeout"],
+                "maximum_fallback_cost_usd": None,
+            },
+            "evaluation": {
+                "accepted_outcome_signals": ["review_accepted", "verified"],
+                "minimum_samples": 20,
+                "unsafe_quality_floor": 0.8,
+                "maximum_unsafe_rate": 0.01,
+                "canary_percentage": 0.1,
+                "automatic_rollback_conditions": {},
+            },
+        }
+
+        saved = client.put(
+            "/v1/orchestration/contracts/implementation/draft",
+            headers=headers,
+            json={"contract": starter, "expected_revision": 0},
+        )
+        assert saved.status_code == 201
+        assert saved.json()["revision"] == 1
+
+        durable = client.get("/v1/orchestration/contracts", headers=headers)
+
+    assert durable.status_code == 200
+    assert durable.json() == {"revision": 1, "contracts": [starter]}
+
+
 def test_orchestration_routing_evidence_is_authenticated_private_and_read_only(
     tmp_path: Path, monkeypatch
 ) -> None:
