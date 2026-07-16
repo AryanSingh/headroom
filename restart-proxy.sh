@@ -49,17 +49,25 @@ nohup "$(which cutctx)" proxy \
 NEW_PID=$!
 echo "New proxy PID: $NEW_PID"
 
-# Wait for it to be ready
-echo -n "Waiting for proxy..."
-for i in $(seq 1 30); do
+# Wait for traffic readiness. A listening port or /health can precede the
+# ONNX/model warmup phase and is not safe for Codex Responses streams.
+echo -n "Waiting for proxy readiness..."
+READY=0
+for i in $(seq 1 180); do
   sleep 1
-  STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$HOST:$PORT/health 2>/dev/null || echo "000")
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://$HOST:$PORT/readyz" 2>/dev/null || echo "000")
   if [ "$STATUS" = "200" ]; then
+    READY=1
     echo " READY!"
     break
   fi
   echo -n "."
 done
+if [ "$READY" -ne 1 ]; then
+  echo ""
+  echo "ERROR: proxy never became ready; inspect /tmp/cutctx_restart.log" >&2
+  exit 1
+fi
 echo ""
 
 # Verify dashboard access
