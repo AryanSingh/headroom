@@ -2560,6 +2560,9 @@ class OpenAIResponsesMixin:
         headers = dict(request.headers.items())
         headers.pop("host", None)
         headers.pop("content-length", None)
+        # The inbound body may have been decoded before this handler forwards
+        # JSON upstream, so its original transport encoding is no longer valid.
+        headers.pop("content-encoding", None)
         # Strip accept-encoding so httpx negotiates its own encoding.
         # Cloudflare Workers forward "br, zstd" which OpenAI may honor;
         # if httpx lacks brotli support the response body is undecipherable → 502.

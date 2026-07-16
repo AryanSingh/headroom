@@ -246,8 +246,9 @@ def _build_request(
     headers: dict[str, str],
     *,
     path: str = "/v1/responses",
+    payload: bytes | None = None,
 ) -> Request:
-    payload = json.dumps(body).encode("utf-8")
+    payload = payload or json.dumps(body).encode("utf-8")
 
     async def receive():
         return {"type": "http.request", "body": payload, "more_body": False}
@@ -319,6 +320,38 @@ def test_handle_openai_responses_routes_api_key_auth_direct_to_openai(monkeypatc
     assert "X-OpenAI-Internal-Codex-Responses-Lite" not in headers
     assert body["input"] == "hello"
     assert response.status_code == 200
+
+
+def test_handle_openai_responses_removes_stale_content_encoding_after_decoding(monkeypatch):
+    import zstandard
+
+    body = {
+        "model": "gpt-5.4",
+        "input": [{"role": "user", "content": "header normalization regression"}],
+    }
+    request = _build_request(
+        body,
+        {
+            "Authorization": "Bearer sk-test",
+            "Content-Encoding": "zstd",
+            "Content-Length": "999",
+            "X-Codex-Window-ID": "window-regression",
+        },
+        payload=zstandard.ZstdCompressor().compress(json.dumps(body).encode("utf-8")),
+    )
+    handler = _DummyOpenAIHandler()
+
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+
+    response = anyio.run(handler.handle_openai_responses, request)
+
+    assert response.status_code == 200
+    assert handler.captured_request is not None
+    _, _, headers, captured_body = handler.captured_request
+    assert captured_body["input"][0]["content"] == "header normalization regression"
+    assert "content-encoding" not in {key.lower() for key in headers}
+    assert "content-length" not in {key.lower() for key in headers}
+    assert headers["x-codex-window-id"] == "window-regression"
 
 
 def test_handle_openai_responses_lite_uses_verified_preset_target(monkeypatch):
