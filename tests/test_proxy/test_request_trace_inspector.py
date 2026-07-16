@@ -107,6 +107,24 @@ async def test_request_trace_detail_endpoint_returns_structured_trace(app):
     assert trace["fallback"]["circuit_breaker_state"] == "open"
     assert trace["fallback"]["active_provider"] == "openai-primary"
     assert trace["messages"]["compressed_messages"] == [{"role": "user", "content": "after"}]
+    assert trace["decision_receipt"]["observation"]["completeness"] == "legacy"
+    assert trace["decision_receipt"]["cache"]["provider_prompt_cache"]["status"] == "hit"
+
+
+@pytest.mark.asyncio
+async def test_trace_returns_persisted_receipt_verbatim(app):
+    receipt = {
+        "schema_version": 99,
+        "observation": {"completeness": "complete", "payload_capture": "disabled"},
+        "future_field": {"preserved": True},
+    }
+    app.state.proxy.logger.log(_trace_entry(decision_receipt=receipt))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/transformations/traces/trace-1", headers=_ADMIN_HEADERS)
+
+    assert response.status_code == 200
+    assert response.json()["trace"]["decision_receipt"] == receipt
 
 
 @pytest.mark.asyncio

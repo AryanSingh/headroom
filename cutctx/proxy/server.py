@@ -1467,6 +1467,8 @@ class CutctxProxy(
         """Write a body-free request trace for a provider-side 429 decision."""
         if not self.logger:
             return
+        from cutctx.proxy.decision_receipt import build_minimal_decision_receipt
+
         self.logger.log(
             RequestLog(
                 request_id=request_id,
@@ -1488,6 +1490,11 @@ class CutctxProxy(
                 cache_hit=False,
                 transforms_applied=[],
                 decline_reason="rate_limit_exceeded",
+                decision_receipt=build_minimal_decision_receipt(
+                    request_id,
+                    payload_capture="disabled",
+                    failure="rate_limit_exceeded",
+                ),
             )
         )
 
@@ -3601,10 +3608,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         return proxy.metrics.savings_tracker.history_response(history_mode=history_mode)
 
     def _build_request_trace(log: dict[str, Any]) -> dict[str, Any]:
+        from cutctx.proxy.decision_receipt import build_legacy_decision_receipt
+
         routing = log.get("routing_metadata") or {}
         actual_model = log.get("model")
         requested_model = routing.get("requested_model") or actual_model
-        return {
+        trace = {
             "request_id": log.get("request_id"),
             "timestamp": log.get("timestamp"),
             "turn_id": log.get("turn_id"),
@@ -3672,6 +3681,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "response_content": log.get("response_content"),
             },
         }
+        receipt = log.get("decision_receipt")
+        trace["decision_receipt"] = (
+            receipt
+            if isinstance(receipt, dict)
+            else build_legacy_decision_receipt(
+                log,
+                payload_capture=("captured" if proxy.config.log_full_messages else "disabled"),
+            )
+        )
+        return trace
 
     @app.get("/transformations/traces", dependencies=[Depends(_require_local_admin_auth)])
     async def request_traces(limit: int = 20):

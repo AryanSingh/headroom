@@ -6348,6 +6348,7 @@ class OpenAIResponsesMixin:
                 if final_ttfb_ms > 0:
                     ws_recorded_ttfb_ms = True
             if getattr(self, "logger", None) is not None:
+                from cutctx.proxy.decision_receipt import build_minimal_decision_receipt
                 from cutctx.proxy.helpers import compute_turn_id
                 from cutctx.proxy.models import RequestLog
 
@@ -6387,6 +6388,15 @@ class OpenAIResponsesMixin:
                             model_name,
                             ws_instructions_for_log,
                             ws_messages_for_log,
+                        ),
+                        decision_receipt=build_minimal_decision_receipt(
+                            request_id,
+                            payload_capture=(
+                                "captured"
+                                if getattr(self.config, "log_full_messages", False)
+                                else "disabled"
+                            ),
+                            failure="websocket_session_summary",
                         ),
                     )
                 )
