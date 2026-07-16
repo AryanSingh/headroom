@@ -25,6 +25,7 @@ from .contracts import (
     ReliabilityBudget,
     WorkloadContract,
     legacy_contracts_from_config,
+    starter_implementation_contract,
 )
 from .credentials import CredentialStore, EncryptedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
@@ -339,7 +340,10 @@ class OrchestrationService:
         if stored or self.contract_store.revision:
             return stored
         legacy = legacy_contracts_from_config(self.config)
-        return [item for item in legacy if contract_id is None or item.id == contract_id]
+        if legacy:
+            return [item for item in legacy if contract_id is None or item.id == contract_id]
+        starter = starter_implementation_contract()
+        return [starter] if contract_id is None or contract_id == starter.id else []
 
     def get_contract(self, contract_id: str, version: str) -> WorkloadContract:
         return self.contract_store.get_version(contract_id, version)

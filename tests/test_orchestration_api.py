@@ -32,6 +32,7 @@ def _contract_payload(*, version: str = "1", baseline_model: str = "openai:gpt-5
         "name": "Implementation",
         "version": version,
         "state": "draft",
+        "template": "implementation",
         "role_aliases": ["worker"],
         "baseline_model": baseline_model,
         "requirements": {"required_capabilities": ["reasoning"]},
@@ -99,6 +100,14 @@ def test_orchestration_contract_draft_simulation_and_lifecycle_api(
         assert saved.status_code == 201
         assert saved.json()["contract"]["version"] == "1"
         assert saved.json()["revision"] == 1
+
+        durable = client.get("/v1/orchestration/contracts", headers=headers)
+        assert durable.status_code == 200
+        assert durable.json()["revision"] == 1
+        assert [contract["id"] for contract in durable.json()["contracts"]] == [
+            "implementation"
+        ]
+        assert durable.json()["contracts"][0]["template"] == "implementation"
 
         fetched = client.get(
             "/v1/orchestration/contracts/implementation/versions/1", headers=headers

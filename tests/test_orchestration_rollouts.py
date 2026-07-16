@@ -64,6 +64,32 @@ def test_empty_store_exposes_behavior_preserving_legacy_contracts(tmp_path: Path
     assert service.contract_store.revision == 0
 
 
+def test_contract_listing_prefers_durable_then_legacy_then_synthesized_starter(
+    tmp_path: Path,
+) -> None:
+    empty_store = LayeredConfigStore({"project": tmp_path / "empty.json"})
+    empty_store.save(OrchestrationConfig())
+    empty_service = OrchestrationService(
+        config_store=empty_store,
+        credential_store=EncryptedCredentialStore(tmp_path / "empty-credentials.enc"),
+        model_registry=DynamicModelRegistry(),
+        contract_store=ContractStore(tmp_path / "empty-contracts.json"),
+    )
+
+    assert [item.id for item in empty_service.list_contracts()] == ["implementation"]
+    assert [item.id for item in empty_service.list_contracts("implementation")] == [
+        "implementation"
+    ]
+    assert empty_service.list_contracts("other") == []
+    assert empty_service.contract_store.revision == 0
+
+    legacy_service = _service(tmp_path / "legacy")
+    assert [item.id for item in legacy_service.list_contracts()] == ["implementation"]
+    legacy_service.put_contract_draft(_contract("1"), expected_revision=0)
+    assert [item.version for item in legacy_service.list_contracts()] == ["1"]
+    assert legacy_service.list_contracts("other") == []
+
+
 def test_promotion_is_evidence_gated_and_reports_quality_safe_savings(
     tmp_path: Path,
 ) -> None:

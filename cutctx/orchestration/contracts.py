@@ -78,6 +78,7 @@ class WorkloadContract:
     name: str
     version: str
     state: str = ContractLifecycle.DRAFT.value
+    template: str = ""
     description: str = ""
     role_aliases: tuple[str, ...] = ()
     selectors: dict[str, str] = field(default_factory=dict)
@@ -136,6 +137,7 @@ def contract_from_dict(payload: dict[str, Any]) -> WorkloadContract:
             "name",
             "version",
             "state",
+            "template",
             "description",
             "role_aliases",
             "selectors",
@@ -322,6 +324,7 @@ def contract_from_dict(payload: dict[str, Any]) -> WorkloadContract:
         name=name,
         version=version,
         state=state,
+        template=str(payload.get("template", "")),
         description=str(payload.get("description", "")),
         role_aliases=tuple(str(value) for value in payload.get("role_aliases", [])),
         selectors={str(key): str(value) for key, value in payload.get("selectors", {}).items()},
@@ -336,6 +339,46 @@ def contract_from_dict(payload: dict[str, Any]) -> WorkloadContract:
         objective=objective,
         reliability=reliability,
         evaluation=evaluation,
+    )
+
+
+def starter_implementation_contract() -> WorkloadContract:
+    """Return the canonical non-persisted first-run implementation contract."""
+    return WorkloadContract(
+        id="implementation",
+        name="Implementation",
+        version="1",
+        template="implementation",
+        description="Production coding and implementation tasks",
+        role_aliases=("implementation", "worker"),
+        task_types={"implementation"},
+        baseline_model="openai:gpt-5.4-mini",
+        requirements=ContractRequirements(
+            required_capabilities={"reasoning", "tool_calling"},
+        ),
+        objective=ContractObjective(
+            type=ContractObjectiveType.HIGHEST_QUALITY_WITHIN_BUDGET.value,
+            quality_floor=0.9,
+            maximum_cost_usd=1,
+            maximum_total_latency_ms=120000,
+        ),
+        reliability=ReliabilityBudget(
+            connect_timeout_seconds=10,
+            first_token_timeout_seconds=30,
+            attempt_timeout_seconds=30,
+            stream_idle_timeout_seconds=30,
+            total_deadline_seconds=120,
+            attempts_per_deployment=2,
+            maximum_deployments=1,
+            fallback_triggers={"timeout", "provider_outage"},
+        ),
+        evaluation=ContractEvaluationPolicy(
+            accepted_outcome_signals={"verified", "review_accepted"},
+            minimum_samples=20,
+            unsafe_quality_floor=0.8,
+            maximum_unsafe_rate=0.01,
+            canary_percentage=0.1,
+        ),
     )
 
 
@@ -409,4 +452,5 @@ __all__ = [
     "contract_from_dict",
     "contract_to_dict",
     "legacy_contracts_from_config",
+    "starter_implementation_contract",
 ]
