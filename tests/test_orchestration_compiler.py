@@ -144,3 +144,37 @@ def test_compiler_preserves_registered_models_when_accounts_are_implicit() -> No
     assert [model.deployment_key for model in compiled.config.models] == [
         "openai:primary:gpt-5"
     ]
+
+
+def test_compiler_excludes_models_below_contract_capacity_floors() -> None:
+    infrastructure = _infrastructure_config()
+    infrastructure.models = [
+        ModelRecord(
+            provider="openai",
+            id="gpt-5",
+            account_id="primary",
+            context_length=200_000,
+            max_output_tokens=16_000,
+        ),
+        ModelRecord(
+            provider="openai",
+            id="gpt-5",
+            account_id="secondary",
+            context_length=32_000,
+            max_output_tokens=4_000,
+        ),
+    ]
+    contract = replace(
+        _implementation_contract(),
+        requirements=replace(
+            _implementation_contract().requirements,
+            minimum_context_tokens=100_000,
+            minimum_output_tokens=8_000,
+        ),
+    )
+
+    compiled = compile_contract(contract, infrastructure)
+
+    assert [model.deployment_key for model in compiled.config.models] == [
+        "openai:primary:gpt-5"
+    ]

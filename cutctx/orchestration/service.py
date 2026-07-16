@@ -19,8 +19,13 @@ import httpx
 from .audit import ReceiptAuditStore
 from .compiler import CompiledRoutingPolicy, compile_contract
 from .config import LayeredConfigStore, default_config_paths
-from .contract_store import ContractStore, StoredContract
-from .contracts import ReliabilityBudget, WorkloadContract
+from .contract_store import ContractStore, ContractTransitionError, StoredContract
+from .contracts import (
+    ContractLifecycle,
+    ReliabilityBudget,
+    WorkloadContract,
+    legacy_contracts_from_config,
+)
 from .credentials import CredentialStore, EncryptedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
 from .models import (
@@ -97,6 +102,7 @@ class OrchestrationService:
             Path.home() / ".cutctx" / "orchestration" / "contracts.json"
         )
         self._active_contract: CompiledRoutingPolicy | None = None
+        self._contract_evidence: dict[tuple[str, str], dict[str, Any]] = {}
         self._state_lock = threading.RLock()
         self.config = self.config_store.load()
         if self.config.models:
@@ -329,7 +335,11 @@ class OrchestrationService:
         return [self.simulate_contract(contract, request) for request in requests]
 
     def list_contracts(self, contract_id: str | None = None) -> list[WorkloadContract]:
-        return self.contract_store.list_contracts(contract_id)
+        stored = self.contract_store.list_contracts(contract_id)
+        if stored or self.contract_store.revision:
+            return stored
+        legacy = legacy_contracts_from_config(self.config)
+        return [item for item in legacy if contract_id is None or item.id == contract_id]
 
     def get_contract(self, contract_id: str, version: str) -> WorkloadContract:
         return self.contract_store.get_version(contract_id, version)
@@ -343,6 +353,185 @@ class OrchestrationService:
         self, contract_id: str, version: str, *, target: str
     ) -> WorkloadContract:
         return self.contract_store.transition(contract_id, version, target)
+
+    def record_contract_evidence(
+        self,
+        contract_id: str,
+        version: str,
+        evidence: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Normalize bounded rollout signals into a quality-safe gate summary."""
+        contract = self.get_contract(contract_id, version)
+        scores = [float(value) for value in evidence.get("quality_scores", [])]
+        savings = [float(value) for value in evidence.get("routed_savings_usd", [])]
+        samples = int(evidence.get("samples", len(scores)))
+        accepted = int(evidence.get("accepted", 0))
+        fallbacks = int(evidence.get("fallbacks", 0))
+        if samples < 0 or len(scores) > samples:
+            raise ValueError("Evidence samples must cover all quality scores")
+        if not 0 <= accepted <= samples or not 0 <= fallbacks <= samples:
+            raise ValueError("Evidence aggregate counts cannot exceed samples")
+        if any(not 0 <= score <= 1 for score in scores):
+            raise ValueError("Quality scores must be between 0 and 1")
+        if any(value < 0 for value in savings):
+            raise ValueError("Routed savings must not be negative")
+        mean_quality = sum(scores) / len(scores) if scores else None
+        unsafe = sum(
+            score < contract.evaluation.unsafe_quality_floor for score in scores
+        )
+        unsafe_rate = unsafe / len(scores) if scores else None
+        quality_blocked = bool(
+            scores
+            and (
+                mean_quality < contract.objective.quality_floor
+                or unsafe_rate > contract.evaluation.maximum_unsafe_rate
+            )
+        )
+        status = (
+            "collecting"
+            if samples < contract.evaluation.minimum_samples or not scores
+            else "quality_blocked"
+            if quality_blocked
+            else "ready"
+        )
+        quality_safe_savings = sum(
+            savings[index]
+            for index, score in enumerate(scores)
+            if index < len(savings) and score >= contract.objective.quality_floor
+        )
+        summary = {
+            "contract_id": contract_id,
+            "contract_version": version,
+            "status": status,
+            "samples": samples,
+            "minimum_samples": contract.evaluation.minimum_samples,
+            "coverage": min(1.0, samples / contract.evaluation.minimum_samples),
+            "mean_quality": mean_quality,
+            "quality_floor": contract.objective.quality_floor,
+            "unsafe_rate": unsafe_rate,
+            "maximum_unsafe_rate": contract.evaluation.maximum_unsafe_rate,
+            "acceptance_rate": accepted / samples if samples else 0.0,
+            "fallback_rate": fallbacks / samples if samples else 0.0,
+            "raw_routed_savings_usd": sum(savings),
+            "quality_safe_savings_usd": quality_safe_savings,
+            "abstention_reasons": dict(evidence.get("abstention_reasons", {})),
+        }
+        with self._state_lock:
+            self._contract_evidence[(contract_id, version)] = summary
+        return dict(summary)
+
+    def contract_evidence(self, contract_id: str, version: str) -> dict[str, Any]:
+        contract = self.get_contract(contract_id, version)
+        with self._state_lock:
+            evidence = self._contract_evidence.get(
+                (contract_id, version),
+                {
+                    "contract_id": contract_id,
+                    "contract_version": version,
+                    "status": "collecting",
+                    "samples": 0,
+                    "minimum_samples": contract.evaluation.minimum_samples,
+                    "coverage": 0.0,
+                    "mean_quality": None,
+                    "quality_floor": contract.objective.quality_floor,
+                    "unsafe_rate": None,
+                    "maximum_unsafe_rate": contract.evaluation.maximum_unsafe_rate,
+                    "acceptance_rate": 0.0,
+                    "fallback_rate": 0.0,
+                    "raw_routed_savings_usd": 0.0,
+                    "quality_safe_savings_usd": 0.0,
+                    "abstention_reasons": {},
+                },
+            )
+        return dict(evidence)
+
+    def promote_contract(
+        self,
+        contract_id: str,
+        version: str,
+        *,
+        target: str,
+    ) -> WorkloadContract:
+        if target not in {
+            ContractLifecycle.CANARY.value,
+            ContractLifecycle.ACTIVE.value,
+        }:
+            raise ContractTransitionError(f"Unsupported promotion target: {target}")
+        evidence = self.contract_evidence(contract_id, version)
+        if evidence["status"] == "collecting":
+            raise ContractTransitionError("insufficient_evidence")
+        if evidence["status"] == "quality_blocked":
+            raise ContractTransitionError("quality_floor_not_met")
+        contract = self.contract_store.transition(contract_id, version, target)
+        if target == ContractLifecycle.ACTIVE.value:
+            self.activate_contract(contract)
+        return contract
+
+    def rollback_contract(self, contract_id: str) -> WorkloadContract:
+        versions = self.contract_store.list_contracts(contract_id)
+        active = next(
+            (item for item in versions if item.state == ContractLifecycle.ACTIVE.value),
+            None,
+        )
+        candidates = [
+            item
+            for item in versions
+            if item.version != getattr(active, "version", None)
+            and item.state
+            in {ContractLifecycle.RETIRED.value, ContractLifecycle.PAUSED.value}
+        ]
+        if not candidates:
+            raise ContractTransitionError("no_rollback_target")
+        restored = self.contract_store.restore_active(
+            contract_id,
+            sorted(candidates, key=lambda item: item.version)[-1].version,
+        )
+        self.activate_contract(restored)
+        return restored
+
+    def receipt(self, request_id: str) -> dict[str, Any]:
+        """Return an execution using the same schema-v2 vocabulary as previews."""
+        execution = next(
+            (
+                item
+                for item in self.telemetry.list(limit=1000)
+                if item.get("request_id") == request_id
+            ),
+            None,
+        )
+        if execution is None:
+            raise KeyError(f"Unknown orchestration receipt: {request_id}")
+        provider = str(execution.get("provider", ""))
+        model = str(execution.get("actual_model", ""))
+        account = execution.get("account_id")
+        selected_model = str(execution.get("assigned_model") or f"{provider}:{model}")
+        selected_deployment = (
+            f"{provider}:{account}:{model}" if account else selected_model
+        )
+        return {
+            "receipt_version": 2,
+            "request_id": request_id,
+            "selected_model": selected_model,
+            "selected_deployment": selected_deployment,
+            "eligible_candidates": [],
+            "rejected_candidates": [],
+            "contract_id": None,
+            "contract_version": None,
+            "contract_state": None,
+            "policy_hash": None,
+            "evidence": {
+                "executed": True,
+                "routing_reason": execution.get("routing_reason"),
+                "fallback_used": bool(execution.get("fallback_used")),
+            },
+            "reliability_budget": {
+                "total_deadline_seconds": execution.get("total_deadline_seconds"),
+                "attempts": execution.get("attempts"),
+                "deployments_attempted": execution.get("deployments_attempted"),
+                "deadline_exceeded": execution.get("deadline_exceeded"),
+            },
+            "execution": execution,
+        }
 
     def _profile(self, profile_id: str | None) -> Any | None:
         if profile_id is None:

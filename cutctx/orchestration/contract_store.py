@@ -181,6 +181,32 @@ class ContractStore:
             self._save(payload)
             return updated
 
+    def restore_active(self, contract_id: str, version: str) -> WorkloadContract:
+        """Atomically restore a historical version during explicit rollback."""
+        with self._lock:
+            payload = self._load()
+            contracts = payload.get("contracts", {})
+            versions = contracts.get(contract_id, {}) if isinstance(contracts, dict) else {}
+            values = versions.get(version) if isinstance(versions, dict) else None
+            if not isinstance(values, dict):
+                raise KeyError(f"Unknown contract version: {contract_id}@{version}")
+            restored = replace(
+                contract_from_dict(values), state=ContractLifecycle.ACTIVE.value
+            )
+            for other_version, other_values in versions.items():
+                if other_version == version or not isinstance(other_values, dict):
+                    continue
+                other = contract_from_dict(other_values)
+                if other.state == ContractLifecycle.ACTIVE.value:
+                    versions[other_version] = contract_to_dict(
+                        replace(other, state=ContractLifecycle.PAUSED.value)
+                    )
+            versions[version] = contract_to_dict(restored)
+            payload["revision"] = int(payload.get("revision", 0)) + 1
+            payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._save(payload)
+            return restored
+
     def _load(self) -> dict[str, Any]:
         if not self.path.exists():
             return {"revision": 0, "contracts": {}}

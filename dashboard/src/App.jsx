@@ -172,7 +172,9 @@ function Topbar({
   );
 
   const searchEnabled = useMemo(() => {
-    return ['/', '/governance', '/firewall', '/memory', '/replay'].includes(location.pathname);
+    return ['/', '/orchestrator', '/governance', '/firewall', '/memory', '/replay'].includes(
+      location.pathname,
+    );
   }, [location.pathname]);
 
   useEffect(() => {
@@ -379,7 +381,7 @@ function AppFrame() {
             <Routes>
               <Route path="/" element={<Overview searchQuery={searchQuery} />} />
               <Route path="/savings" element={<Savings />} />
-              <Route path="/orchestrator" element={<Orchestrator />} />
+              <Route path="/orchestrator" element={<Orchestrator searchQuery={searchQuery} />} />
               <Route path="/capabilities" element={<Capabilities />} />
               <Route path="/governance" element={<Governance searchQuery={searchQuery.toLowerCase()} />} />
               <Route path="/firewall" element={<Firewall searchQuery={searchQuery.toLowerCase()} />} />

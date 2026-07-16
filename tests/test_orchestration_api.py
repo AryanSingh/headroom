@@ -85,9 +85,11 @@ def test_orchestration_contract_draft_simulation_and_lifecycle_api(
         unauthorized = client.get("/v1/orchestration/contracts")
         assert unauthorized.status_code in {401, 403}
 
-        empty = client.get("/v1/orchestration/contracts", headers=headers)
-        assert empty.status_code == 200
-        assert empty.json() == {"contracts": [], "revision": 0}
+        legacy = client.get("/v1/orchestration/contracts", headers=headers)
+        assert legacy.status_code == 200
+        assert legacy.json()["revision"] == 0
+        assert legacy.json()["contracts"][0]["id"] == "worker"
+        assert legacy.json()["contracts"][0]["state"] == "active"
 
         saved = client.put(
             "/v1/orchestration/contracts/implementation/draft",
@@ -129,6 +131,35 @@ def test_orchestration_contract_draft_simulation_and_lifecycle_api(
         )
         assert promotion.status_code == 409
         assert promotion.json()["detail"]["reason"] == "insufficient_evidence"
+
+        evidence = client.put(
+            "/v1/orchestration/contracts/implementation/versions/1/evidence",
+            headers=headers,
+            json={
+                "samples": 2,
+                "quality_scores": [1.0, 1.0],
+                "accepted": 2,
+                "fallbacks": 0,
+                "routed_savings_usd": [0.2, 0.3],
+            },
+        )
+        assert evidence.status_code == 200
+        assert evidence.json()["status"] == "ready"
+        assert evidence.json()["quality_safe_savings_usd"] == pytest.approx(0.5)
+
+        canary = client.post(
+            "/v1/orchestration/contracts/implementation/versions/1/promote",
+            headers=headers,
+        )
+        assert canary.status_code == 200
+        assert canary.json()["contract"]["state"] == "canary"
+
+        evidence_read = client.get(
+            "/v1/orchestration/contracts/implementation/versions/1/evidence",
+            headers=headers,
+        )
+        assert evidence_read.status_code == 200
+        assert evidence_read.json()["status"] == "ready"
 
         conflict = client.put(
             "/v1/orchestration/contracts/implementation/draft",

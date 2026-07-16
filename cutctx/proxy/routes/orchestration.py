@@ -151,6 +151,17 @@ class ContractSimulationPayload(BaseModel):
     scenario: RoutingPayload
 
 
+class ContractEvidencePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    samples: int = Field(ge=0)
+    quality_scores: list[float] = Field(default_factory=list)
+    accepted: int = Field(default=0, ge=0)
+    fallbacks: int = Field(default=0, ge=0)
+    routed_savings_usd: list[float] = Field(default_factory=list)
+    abstention_reasons: dict[str, int] = Field(default_factory=dict)
+
+
 def _workflow_spec(payload: WorkflowPayload) -> WorkflowSpec:
     def artifact_for(task: WorkflowTaskPayload) -> TaskArtifact:
         try:
@@ -314,7 +325,16 @@ def create_orchestration_router(
         "/contracts/{contract_id}/versions/{version}/canary", dependencies=write_deps
     )
     async def canary_contract(contract_id: str, version: str) -> dict[str, Any]:
-        return await transition_contract(contract_id, version, "canary")
+        try:
+            contract = service.promote_contract(contract_id, version, target="canary")
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ContractTransitionError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"reason": str(exc), "message": str(exc).replace("_", " ")},
+            ) from exc
+        return {"contract": contract_to_dict(contract), "revision": service.contract_store.revision}
 
     @router.post(
         "/contracts/{contract_id}/versions/{version}/pause", dependencies=write_deps
@@ -326,23 +346,59 @@ def create_orchestration_router(
         "/contracts/{contract_id}/versions/{version}/rollback", dependencies=write_deps
     )
     async def rollback_contract(contract_id: str, version: str) -> dict[str, Any]:
-        return await transition_contract(contract_id, version, "draft")
+        try:
+            contract = service.rollback_contract(contract_id)
+        except ContractTransitionError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"reason": str(exc), "message": str(exc).replace("_", " ")},
+            ) from exc
+        return {"contract": contract_to_dict(contract), "revision": service.contract_store.revision}
 
     @router.post(
         "/contracts/{contract_id}/versions/{version}/promote", dependencies=write_deps
     )
     async def promote_contract(contract_id: str, version: str) -> dict[str, Any]:
         try:
-            service.get_contract(contract_id, version)
+            current = service.get_contract(contract_id, version)
+            target = "canary" if current.state == "shadow" else "active"
+            contract = service.promote_contract(contract_id, version, target=target)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "reason": "insufficient_evidence",
-                "message": "Contract promotion requires verified rollout evidence",
-            },
-        )
+        except ContractTransitionError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"reason": str(exc), "message": str(exc).replace("_", " ")},
+            ) from exc
+        return {"contract": contract_to_dict(contract), "revision": service.contract_store.revision}
+
+    @router.get(
+        "/contracts/{contract_id}/versions/{version}/evidence",
+        dependencies=read_deps,
+    )
+    async def contract_evidence(contract_id: str, version: str) -> dict[str, Any]:
+        try:
+            return service.contract_evidence(contract_id, version)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.put(
+        "/contracts/{contract_id}/versions/{version}/evidence",
+        dependencies=write_deps,
+    )
+    async def put_contract_evidence(
+        contract_id: str,
+        version: str,
+        payload: ContractEvidencePayload,
+    ) -> dict[str, Any]:
+        try:
+            return service.record_contract_evidence(
+                contract_id, version, payload.model_dump()
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @router.get("/providers", dependencies=read_deps)
     async def providers() -> dict[str, Any]:
@@ -655,17 +711,10 @@ def create_orchestration_router(
 
     @router.get("/receipts/{request_id}", dependencies=read_deps)
     async def receipt(request_id: str) -> dict[str, Any]:
-        execution = next(
-            (
-                item
-                for item in service.telemetry.list(limit=1000)
-                if item.get("request_id") == request_id
-            ),
-            None,
-        )
-        if execution is None:
-            raise HTTPException(status_code=404, detail="unknown routing receipt")
-        return {"receipt": execution}
+        try:
+            return {"receipt": service.receipt(request_id)}
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @router.get("/outcomes", dependencies=read_deps)
     async def outcomes(limit: int = 100) -> dict[str, Any]:

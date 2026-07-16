@@ -140,6 +140,19 @@ def compile_contract(
             or not model.account_id
             or model.account_id in provider_ids
         )
+        and (
+            contract.requirements.minimum_context_tokens is None
+            or (model.max_input_tokens or model.context_length)
+            >= contract.requirements.minimum_context_tokens
+        )
+        and (
+            contract.requirements.minimum_output_tokens is None
+            or (
+                model.max_output_tokens is not None
+                and model.max_output_tokens
+                >= contract.requirements.minimum_output_tokens
+            )
+        )
     ]
     config = replace(
         infrastructure,

@@ -637,6 +637,34 @@ curl -X POST -H "X-Cutctx-Admin-Key: $CUTCTX_ADMIN_API_KEY" \
 
 `GET|PUT /config` reads or replaces layered configuration; `GET /providers` lists adapter specifications and configured accounts; credential `PUT|DELETE` routes store encrypted secret objects; provider `test` and model `refresh` perform authenticated discovery; `POST /route` previews a deterministic decision; and `GET /executions` returns redacted telemetry. Configuration responses mask custom-header values with `********`; sending that sentinel back preserves the stored value. Authentication headers and API keys must instead be supplied through the encrypted credential route, normally as `{"api_key":"...","headers":{"Authorization":"Bearer ..."}}`.
 
+### Workload contracts and rollout evidence
+
+Workload contracts are immutable, versioned routing intent. `GET /contracts`
+lists persisted versions or read-only legacy contracts generated from existing
+roles and bindings. `PUT /contracts/{id}/draft` materializes a new version and
+requires `expected_revision` for optimistic concurrency. A draft is never live
+merely because it was saved.
+
+`POST /contracts/{id}/simulate` evaluates the contract supplied in the request
+body against the same deterministic engine used by live routing. It performs no
+provider call and does not mutate the active policy. The response contains live
+and draft schema-v2 receipts, eligible and rejected candidates, the compiled
+policy hash, and reliability-budget evidence.
+
+Lifecycle actions are available under
+`/contracts/{id}/versions/{version}`: `shadow`, `promote`, `pause`, and
+`rollback`. Promotion from shadow to canary and canary to active returns `409`
+until the version's evidence report is ready. Read or record bounded aggregate
+signals at the `evidence` subresource. Raw routed savings and quality-safe
+savings are reported separately; quality-safe savings include only samples
+that met the contract quality floor.
+
+`GET /receipts/{request_id}` returns an executed request using the same
+schema-v2 decision vocabulary as simulation. Reliability budgets distinguish
+connect, first-token, attempt, stream-idle, and total deadlines. The total
+deadline bounds all retries and deployments, and streaming never switches
+deployment after the first visible response byte.
+
 Invalid payload shapes return `422`, invalid or unresolved policy returns `400`/`409`, and missing admin authorization returns `401`/`403`. `/v1/orchestration/execute` is absent unless `CUTCTX_ORCHESTRATION_DIRECT_EXECUTION=true`; it is a development diagnostic and not the production data plane. See [Orchestration platform](/docs/orchestration-platform) for schemas, layering, transport-account constraints, and deployment guidance.
 
 ---

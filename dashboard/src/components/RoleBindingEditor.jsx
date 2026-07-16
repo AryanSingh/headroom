@@ -138,7 +138,7 @@ export default function RoleBindingEditor({
                     <label>
                       <span>Model</span>
                       <select
-                        aria-label={"Binding model for " + role.name + " " + binding.id}
+                        aria-label={role.name + " binding model " + binding.id}
                         value={binding.model || ""}
                         onChange={(event) => onUpdateBinding(binding.id, { model: event.target.value })}
                       >
@@ -269,7 +269,7 @@ export default function RoleBindingEditor({
             <label>
               <span>Model</span>
               <select
-                aria-label={"New binding model for " + role.name}
+                aria-label={role.name + " new binding model"}
                 value={draft.model}
                 onChange={(event) => setDraft((current) => ({ ...current, model: event.target.value }))}
               >
