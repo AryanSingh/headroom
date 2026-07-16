@@ -421,6 +421,17 @@ class RequestOutcome:
         if system is None:
             system = body.get("systemInstruction")
 
+        from cutctx.ccr.markers import extract_marker_hashes_from_payload
+
+        ccr_references = tuple(
+            {
+                "hash": hash_key,
+                "availability": "unobserved",
+                "expires_at": None,
+            }
+            for hash_key in extract_marker_hashes_from_payload(body)
+        )
+
         # ``request_items`` is ``body["messages"]`` (or ``body["contents"]``
         # for Gemini, falling back to ``[]``) — the post-compression list the
         # caller already mutated in place before finalize. When a
@@ -478,6 +489,7 @@ class RequestOutcome:
             self_hosted_prefix_cache_hits=self_hosted_prefix_cache_hits,
             model_routing_tokens_saved=model_routing_tokens_saved,
             model_routing_usd_saved=model_routing_usd_saved,
+            ccr_references=ccr_references,
         )
 
 

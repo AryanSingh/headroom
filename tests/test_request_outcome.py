@@ -625,6 +625,28 @@ def test_from_stream_distinguishes_provider_cache_miss_from_unobserved() -> None
     assert unknown.provider_cache_observed is False
 
 
+def test_from_stream_preserves_ccr_marker_references_without_payload_logging() -> None:
+    outcome = RequestOutcome.from_stream(
+        **_stream_kwargs(
+            body={
+                "messages": [
+                    {"role": "tool", "content": "<<ccr:aaaabbbbccccdddd>>"},
+                ]
+            },
+            log_full_messages=False,
+        )
+    )
+
+    assert outcome.request_messages is None
+    assert outcome.ccr_references == (
+        {
+            "hash": "aaaabbbbccccdddd",
+            "availability": "unobserved",
+            "expires_at": None,
+        },
+    )
+
+
 @pytest.mark.asyncio
 async def test_funnel_persists_full_routing_decision_receipt() -> None:
     from cutctx.proxy.models import ProxyConfig

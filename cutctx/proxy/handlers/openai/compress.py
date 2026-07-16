@@ -344,6 +344,16 @@ class OpenAICompressMixin:
             from cutctx.proxy.auth_mode import classify_client
             from cutctx.proxy.outcome import RequestOutcome
 
+            ccr_references = tuple(
+                {
+                    "hash": hash_key,
+                    "availability": "available",
+                    "expires_at": None,
+                }
+                for hash_key in result.markers_inserted
+                if isinstance(hash_key, str) and not hash_key.startswith("stable_prefix_hash:")
+            )
+
             await self._record_request_outcome(
                 RequestOutcome(
                     request_id=request_id,
@@ -362,6 +372,8 @@ class OpenAICompressMixin:
                     compressed_messages=None,
                     client=classify_client(request.headers),
                     tags=self._extract_tags(request.headers),
+                    ccr_references=ccr_references,
+                    ccr_retrieval_outcome=("available" if ccr_references else None),
                 )
             )
 
