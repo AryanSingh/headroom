@@ -98,3 +98,15 @@ rtk proxy env CI=true PAGER=cat timeout 45 npx playwright test e2e/orchestrator.
 ```
 
 Result: 3 Playwright tests passed (23.7s); ESLint passed with zero warnings.
+
+## Final review test hardening
+
+The stale → exact → later-authority test no longer uses mutable mode state. After baseline loading it records distinct deferred stats generations and releases them in order: stale `off` (asserting optimistic `balanced` remains pending), exact `balanced` (asserting confirmation clears the warning), then authoritative `aggressive` (asserting backend owns the UI).
+
+Bounded command:
+
+```sh
+rtk proxy env CI=true PAGER=cat timeout 35 npx playwright test e2e/orchestrator.spec.js --project=chromium --workers=1 --timeout=16000 --grep 'newest committed stats replace'
+```
+
+Result: 1 passed (13.9s).

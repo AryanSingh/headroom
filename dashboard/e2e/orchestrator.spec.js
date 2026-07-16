@@ -434,11 +434,21 @@ test.describe("Orchestrator Modes", () => {
   });
 
   test("newest committed stats replace stale optimism after acknowledgement", async ({ page }) => {
-    let mode = "off";
-    let statsRequests = 0;
+    let gated = false;
+    let generation = 0;
+    const releases = new Map();
     await page.unroute("**/stats?*");
     await page.route("**/stats?*", async (route) => {
-      statsRequests += 1;
+      if (!gated) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ config: { orchestrator: false }, model_routing: { mode: "off", requested: false } }),
+        });
+        return;
+      }
+      generation += 1;
+      const mode = await new Promise((resolve) => releases.set(generation, resolve));
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -459,16 +469,21 @@ test.describe("Orchestrator Modes", () => {
 
     await page.goto("/orchestrator");
     await expect(page.getByText("Routing off", { exact: true })).toBeVisible();
+    gated = true;
     await page.getByRole("button", { name: "Balanced" }).click();
+    await expect.poll(() => releases.has(1)).toBe(true);
+    releases.get(1)("off");
     await expect(page.getByText("pending confirmation", { exact: false })).toBeVisible();
+    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible();
 
-    mode = "balanced";
-    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible({ timeout: 7_000 });
+    await expect.poll(() => releases.has(2), { timeout: 7_000 }).toBe(true);
+    releases.get(2)("balanced");
     await expect(page.getByText("pending confirmation", { exact: false })).toHaveCount(0);
+    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible();
 
-    mode = "aggressive";
-    await expect(page.getByText("Routing aggressive", { exact: true })).toBeVisible({ timeout: 7_000 });
-    expect(statsRequests).toBeGreaterThan(2);
+    await expect.poll(() => releases.has(3), { timeout: 7_000 }).toBe(true);
+    releases.get(3)("aggressive");
+    await expect(page.getByText("Routing aggressive", { exact: true })).toBeVisible();
   });
 
   test("only the newest initial, polling, and explicit generation can publish", async ({ page }) => {
