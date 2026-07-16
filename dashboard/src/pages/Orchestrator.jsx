@@ -65,11 +65,16 @@ function matchesSearch(query, ...values) {
     .some((value) => String(value || "").toLowerCase().includes(normalized));
 }
 
+function acknowledgedRoutingMode(response) {
+  return response?.applied_live?.orchestrator_mode?.mode;
+}
+
 export default function Orchestrator({ searchQuery = "" }) {
   const { stats, loading, error, configFlagsError, refresh } = useDashboardData();
   const [updating, setUpdating] = useState(false);
   const [optimisticMode, setOptimisticMode] = useState(null);
   const [toggleError, setToggleError] = useState(null);
+  const [modeConfirmationWarning, setModeConfirmationWarning] = useState(null);
   const [stalled, setStalled] = useState(false);
   const [policyStatus, setPolicyStatus] = useState(null);
   const [policyError, setPolicyError] = useState(null);
@@ -182,16 +187,38 @@ export default function Orchestrator({ searchQuery = "" }) {
   const handleModeChange = async (mode) => {
     setOptimisticMode(mode);
     setToggleError(null);
+    setModeConfirmationWarning(null);
     setUpdating(true);
+    let acknowledged = false;
     try {
-      await patchDashboardConfig({ orchestrator_mode: mode });
-      await refresh?.();
+      const response = await patchDashboardConfig({ orchestrator_mode: mode });
+      if (acknowledgedRoutingMode(response) !== mode) {
+        throw new Error(`Server did not acknowledge routing mode ${mode}`);
+      }
+      acknowledged = true;
+      const result = await refresh?.();
+      const confirmedMode = result?.stats?.model_routing?.mode;
+      if (!result?.ok || !result.committed) {
+        setModeConfirmationWarning(
+          `Routing mode update is pending confirmation${result?.error ? `: ${result.error}` : "."}`,
+        );
+      } else if (confirmedMode === mode) {
+        setOptimisticMode(null);
+      } else {
+        setModeConfirmationWarning("Routing mode update is pending confirmation from newer stats.");
+      }
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error("Failed update orchestrator mode", err);
       }
-      setToggleError(err?.message || "Failed to update routing mode");
-      setOptimisticMode(null);
+      if (acknowledged) {
+        setModeConfirmationWarning(
+          `Routing mode update is pending confirmation: ${err?.message || "refresh failed"}`,
+        );
+      } else {
+        setToggleError(err?.message || "Failed to update routing mode");
+        setOptimisticMode(null);
+      }
     } finally {
       setUpdating(false);
     }
@@ -217,7 +244,8 @@ export default function Orchestrator({ searchQuery = "" }) {
 
   const modelRouting = stats?.model_routing || {};
   const backendMode = modelRouting.mode || (modelRouting.requested ? "balanced" : "off");
-  const activeMode = optimisticMode ?? backendMode;
+  const pendingMode = optimisticMode === backendMode ? null : optimisticMode;
+  const activeMode = pendingMode ?? backendMode;
   const currentPreset =
     modelRouting.preset ||
     (activeMode === "aggressive"
@@ -344,6 +372,12 @@ export default function Orchestrator({ searchQuery = "" }) {
           >
             <X size={14} /> Dismiss
           </button>
+        </div>
+      ) : null}
+
+      {modeConfirmationWarning && pendingMode ? (
+        <div className="alert-card" role="status">
+          {modeConfirmationWarning}
         </div>
       ) : null}
 

@@ -297,6 +297,123 @@ test.describe("Orchestrator Modes", () => {
     });
   });
 
+  test("publishes a polling snapshot when it supersedes a delayed initial load", async ({ page }) => {
+    let requests = 0;
+    const initialResolvers = [];
+    await page.unroute("**/stats?*");
+    await page.route("**/stats?*", async (route) => {
+      requests += 1;
+      if (requests <= 2) {
+        await new Promise((resolve) => initialResolvers.push(resolve));
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          config: { orchestrator: false },
+          model_routing: { mode: "off", requested: false },
+        }),
+      });
+    });
+
+    await page.goto("/orchestrator");
+    await expect(page.getByRole("button", { name: "Off" })).toBeVisible({ timeout: 7_000 });
+    initialResolvers.forEach((resolve) => resolve());
+  });
+
+  test("keeps the established page mounted and confirms a mode without waiting for history", async ({ page }) => {
+    let delayRefresh = false;
+    let releaseRefresh;
+    const refreshGate = new Promise((resolve) => {
+      releaseRefresh = resolve;
+    });
+    let historyRequested;
+    const historyGate = new Promise((resolve) => {
+      historyRequested = resolve;
+    });
+
+    await page.route("**/stats?*", async (route) => {
+      if (delayRefresh) {
+        await refreshGate;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          config: { orchestrator: true },
+          model_routing: { mode: delayRefresh ? "balanced" : "off", requested: delayRefresh },
+        }),
+      });
+    });
+    await page.route("**/stats-history", async (route) => {
+      historyRequested();
+      await historyGate;
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+    });
+    await page.route("**/config/flags*", async (route) => {
+      if (route.request().method() === "POST") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ applied_live: { orchestrator_mode: { mode: "balanced" } } }),
+        });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+    });
+
+    await page.goto("/orchestrator");
+    await expect(page.getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
+    delayRefresh = true;
+    await page.getByRole("button", { name: "Balanced" }).click();
+    await expect(page.locator(".page-stack")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Balanced" })).toHaveAttribute("aria-pressed", "true");
+
+    await releaseRefresh();
+    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible();
+    await expect(page.getByText("pending confirmation", { exact: false })).toHaveCount(0);
+    await historyRequested;
+  });
+
+  test("requires an exact acknowledgement and keeps optimistic mode pending after stale or failed refresh", async ({ page }) => {
+    let postCount = 0;
+    let statsRequests = 0;
+    await page.route("**/stats?*", async (route) => {
+      statsRequests += 1;
+      if (statsRequests === 2) {
+        await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ detail: "unavailable" }) });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ config: { orchestrator: false }, model_routing: { mode: "off", requested: false } }),
+      });
+    });
+    await page.route("**/config/flags*", async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+        return;
+      }
+      postCount += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(postCount === 1 ? { applied_live: {} } : { applied_live: { orchestrator_mode: { mode: "balanced" } } }),
+      });
+    });
+
+    await page.goto("/orchestrator");
+    await page.getByRole("button", { name: "Balanced" }).click();
+    await expect(page.getByText("acknowledge", { exact: false })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("button", { name: "Balanced" }).click();
+    await expect(page.getByRole("button", { name: "Balanced" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("pending confirmation", { exact: false })).toBeVisible();
+    await expect(page.locator(".page-stack")).toBeVisible();
+  });
+
   test("shows the authenticated harness contract without implying model compatibility", async ({
     page,
   }) => {
