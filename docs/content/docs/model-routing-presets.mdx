@@ -117,6 +117,21 @@ zero tolerated unsafe Mini downgrades.
 
 ## Confidence and abstention
 
+### Capability-safe downgrades
+
+Before an optimization route changes a model, ingress adapters derive the request's
+provider-neutral capabilities (such as tool calling, structured output, vision,
+audio, and streaming). A feature-bearing request stays on its requested model
+unless the selected target route explicitly declares every required capability.
+The routing trace records `target_missing_capabilities` and the missing names.
+
+Provider validation errors are terminal `invalid_request` failures: they are never
+retried against another deployment and do not place a deployment into cooldown.
+
+Routing USD savings include both input and output token price deltas when complete
+usage and pricing are available. If either output value is unavailable, savings
+remain an input-only estimate.
+
 Every applied preset decision carries a scorer name, confidence value, and a
 small list of non-sensitive decision signals in routing metadata (for example,
 `explicit_low_complexity`, `context_dependent`, or `recent_tool_context`). The

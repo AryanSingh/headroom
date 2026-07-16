@@ -823,6 +823,8 @@ class OrchestrationService:
             except Exception as exc:  # noqa: BLE001 - translated to deterministic fallback trigger
                 error = exc
                 trigger = self._classify_failure(exc)
+                if trigger == FallbackTrigger.INVALID_REQUEST.value:
+                    break
                 if deadline - time.perf_counter() <= 0:
                     terminal_routing_error = RoutingUnavailableError(
                         "The contract total deadline was exhausted",
@@ -1013,6 +1015,8 @@ class OrchestrationService:
                 except Exception as exc:  # noqa: BLE001 - normalized into fallback policy
                     error = exc
                     trigger = self._classify_failure(exc)
+                    if trigger == FallbackTrigger.INVALID_REQUEST.value:
+                        break
                     if emitted:
                         # Switching providers after bytes are visible would
                         # corrupt the stream. Report the terminal error instead.
@@ -1165,6 +1169,8 @@ class OrchestrationService:
                 return FallbackTrigger.QUOTA_EXHAUSTED.value
             if status_code >= 500:
                 return FallbackTrigger.PROVIDER_OUTAGE.value
+            if 400 <= status_code < 500:
+                return FallbackTrigger.INVALID_REQUEST.value
         if isinstance(exc, httpx.HTTPStatusError):
             status = exc.response.status_code
             if status in {401, 403}:
@@ -1175,6 +1181,8 @@ class OrchestrationService:
                 return FallbackTrigger.QUOTA_EXHAUSTED.value
             if status >= 500:
                 return FallbackTrigger.PROVIDER_OUTAGE.value
+            if 400 <= status < 500:
+                return FallbackTrigger.INVALID_REQUEST.value
         if isinstance(exc, httpx.TransportError):
             return FallbackTrigger.PROVIDER_OUTAGE.value
         return FallbackTrigger.UNKNOWN.value

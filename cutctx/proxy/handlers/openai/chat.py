@@ -253,7 +253,7 @@ class OpenAIChatMixin:
         )
         schema_savings_metadata = None
         from cutctx.proxy.canary_identity import resolve_canary_identity
-        from cutctx.proxy.model_router import prepare_model_routing
+        from cutctx.proxy.model_router import infer_request_capabilities, prepare_model_routing
         from cutctx.proxy.savings_canary import get_savings_canary_coordinator
 
         _canary_coordinator = get_savings_canary_coordinator()
@@ -283,6 +283,7 @@ class OpenAIChatMixin:
             assignment_sticky=_canary_identity.sticky,
             transport_provider="openai",
             implicit_downgrade_allowed=not (is_chatgpt_subscription or codex_responses_lite),
+            required_capabilities=infer_request_capabilities(body),
         )
         body["model"] = model
         if codex_responses_lite:
