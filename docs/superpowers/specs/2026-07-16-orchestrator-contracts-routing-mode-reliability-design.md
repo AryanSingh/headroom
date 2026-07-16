@@ -6,6 +6,7 @@ Make the authenticated Orchestrator dashboard behave as a responsive control pla
 
 - an empty installation exposes one editable Implementation starter contract;
 - contract loading cannot remain indefinite and can be retried;
+- contracts created by the UI can be saved and simulated without schema rejection;
 - switching Off, Balanced, or Aggressive remains visible while backend data refreshes;
 - confirmed backend state replaces optimistic state without remounting the feature;
 - API, persistence, UI, error, cleanup, and concurrent refresh behavior are covered by repeatable tests.
@@ -55,6 +56,12 @@ When the durable contract store has revision `0`, contains no contracts, and leg
 
 The synthesized contract does not increment the store revision and is not written to disk. Saving it through the existing draft endpoint with expected revision `0` creates the first durable version and increments revision to `1`. Once any durable contract exists, only durable contracts are returned.
 
+### Contract template schema parity
+
+The Routing Studio editor exposes an Implementation, Code review, or Research template and includes the selected template value in save and simulation payloads. The backend currently rejects that field as unknown. WorkloadContract will gain a persisted template string, and contract parsing and serialization will accept and round-trip it.
+
+The field is descriptive contract metadata. It does not independently alter routing; selectors, task types, requirements, objective, reliability, and evaluation remain authoritative. Legacy contracts may leave it empty. The synthesized starter uses implementation.
+
 ### Contract loading and recovery
 
 `routingStudioApi()` will support a bounded `timeoutMs` option and caller cancellation. It will compose caller cancellation with an internal timeout, clean up listeners and timers, and normalize timeout errors into a user-facing message.
@@ -85,6 +92,7 @@ The normal empty-state component remains as a defensive fallback, although the f
 ### Backend
 
 - Service test: an empty store and empty legacy config returns exactly one synthesized draft without changing revision.
+- Contract schema test: template parses, serializes, saves, fetches, and simulates without being dropped.
 - Service test: legacy contracts still take precedence over the starter.
 - Service test: durable contracts replace the synthesized starter.
 - API test: first GET exposes the starter; first PUT with revision `0` persists it; later GET returns the durable contract at revision `1`.
@@ -106,6 +114,7 @@ The normal empty-state component remains as a defensive fallback, although the f
 - Run focused backend and frontend suites, then the broader orchestration suite.
 - Exercise the packaged authenticated dashboard in Chrome against port 8787:
   - starter contract visible;
+  - starter contract Save succeeds without an unknown-field response;
   - Balanced, Aggressive, and Off each persist;
   - no full-page loading reset after mode clicks;
   - refresh preserves the selected mode;
