@@ -1,13 +1,40 @@
 import { test, expect } from '@playwright/test';
 
+const statsEndpoint = /\/stats(?:\?.*)?$/;
+
+async function mockAuxiliaryDashboardRequests(page, { healthStatus = 200 } = {}) {
+  await page.route('**/health', async route => {
+    await route.fulfill({
+      status: healthStatus,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        healthStatus === 200
+          ? { status: 'ok', ready: true }
+          : { detail: 'Proxy unavailable' },
+      ),
+    });
+  });
+  await page.route('**/stats-history*', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([]),
+    });
+  });
+}
+
 test.describe('Authentication Flow', () => {
   test.beforeEach(async () => {
     // We will clear localStorage in each test before goto
   });
 
   test('displays Auth Overlay on 401 Unauthorized', async ({ page }) => {
-    // Mock the /stats endpoint to return 401 Unauthorized
-    await page.route('**/stats*', async route => {
+    await mockAuxiliaryDashboardRequests(page, { healthStatus: 502 });
+
+    // Delay the 401 so the unrelated health failure arrives first. The
+    // authentication surface must still win regardless of response timing.
+    await page.route(statsEndpoint, async route => {
+      await new Promise(resolve => setTimeout(resolve, 100));
       await route.fulfill({
         status: 401,
         contentType: 'application/json',
@@ -33,9 +60,10 @@ test.describe('Authentication Flow', () => {
 
   test('saves key to localStorage and reloads page on submit', async ({ page }) => {
     let mockStatus = 401;
+    await mockAuxiliaryDashboardRequests(page);
 
     // Route will return 401 first, then 200 after page reloads if it has the right header
-    await page.route('**/stats*', async route => {
+    await page.route(statsEndpoint, async route => {
       if (route.request().headers()['x-cutctx-admin-key'] === 'testkey') {
         mockStatus = 200;
         await route.fulfill({
@@ -78,8 +106,10 @@ test.describe('Authentication Flow', () => {
   });
 
   test('does not display Auth Overlay when authenticated (200 OK)', async ({ page }) => {
+    await mockAuxiliaryDashboardRequests(page);
+
     // Mock successful response
-    await page.route('**/stats*', async route => {
+    await page.route(statsEndpoint, async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

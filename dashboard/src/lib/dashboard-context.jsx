@@ -6,6 +6,7 @@ import {
 } from './use-dashboard-data';
 import { adoptAdminKeyFromUrl } from './admin-auth';
 import { DashboardContext } from './dashboard-context-value';
+import { resolveDashboardLoadResults } from './dashboard-load-results';
 
 export function DashboardDataProvider({ children }) {
   const [stats, setStats] = useState(null);
@@ -63,10 +64,14 @@ export function DashboardDataProvider({ children }) {
       setRefreshing(true);
     }
     try {
-      const [statsData, healthData] = await Promise.all([
+      const [statsResult, healthResult] = await Promise.allSettled([
         fetchDashboardJson('/stats?cached=1'),
         fetchDashboardJson('/health'),
       ]);
+      const { statsData, healthData } = resolveDashboardLoadResults(
+        statsResult,
+        healthResult,
+      );
 
       if (generation !== currentGeneration.current) {
         return { ok: false, stale: true, generation };
