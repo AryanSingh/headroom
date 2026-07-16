@@ -1,16 +1,29 @@
 import { getAdminAuthHeaders } from "../../lib/admin-auth";
 import { getProxyUrl } from "../../lib/api";
+import { fetchWithTimeout } from "../../lib/fetch-with-timeout";
 
 export async function routingStudioApi(path, options = {}) {
-  const response = await fetch(getProxyUrl(`/v1/orchestration${path}`), {
-    cache: "no-store",
-    ...options,
-    headers: {
-      ...getAdminAuthHeaders(),
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers || {}),
-    },
-  });
+  const { timeoutMs, ...fetchOptions } = options;
+  const response = await (timeoutMs
+      ? fetchWithTimeout(getProxyUrl(`/v1/orchestration${path}`), {
+        cache: "no-store",
+        ...fetchOptions,
+        timeoutMs,
+        headers: {
+          ...getAdminAuthHeaders(),
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...(options.headers || {}),
+        },
+      })
+    : fetch(getProxyUrl(`/v1/orchestration${path}`), {
+        cache: "no-store",
+        ...options,
+        headers: {
+          ...getAdminAuthHeaders(),
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...(options.headers || {}),
+        },
+      }));
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const detail =
@@ -22,7 +35,8 @@ export async function routingStudioApi(path, options = {}) {
   return payload;
 }
 
-export const listContracts = () => routingStudioApi("/contracts");
+export const listContracts = ({ signal } = {}) =>
+  routingStudioApi("/contracts", { signal, timeoutMs: 10_000 });
 
 export const saveDraft = (contract, expectedRevision) =>
   routingStudioApi(`/contracts/${contract.id}/draft`, {

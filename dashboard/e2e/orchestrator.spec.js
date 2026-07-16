@@ -153,6 +153,92 @@ test.describe("Orchestrator Modes", () => {
     });
   });
 
+  test("times out contract loading and retries without surfacing an abort error", async ({ page }) => {
+    await page.addInitScript(() => {
+      const nativeFetch = window.fetch.bind(window);
+      let contractRequests = 0;
+      window.fetch = (input, init = {}) => {
+        const url = typeof input === "string" ? input : input.url;
+        if (url.includes("/v1/orchestration/contracts") && ++contractRequests === 1) {
+          return new Promise((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+          });
+        }
+        return nativeFetch(input, init);
+      };
+    });
+    await mockRoutingStudio(page);
+    await page.goto("/orchestrator");
+    await expect(page.getByRole("alert")).toContainText("Request timed out after 10000ms", { timeout: 12_000 });
+    await page.getByRole("button", { name: "Retry" }).click();
+    await expect(page.getByText("No contracts yet")).toBeVisible();
+    await expect(page.getByText("AbortError", { exact: false })).toHaveCount(0);
+  });
+
+  test("keeps the newest contract-load result when a retry supersedes a stale response", async ({ page }) => {
+    let request = 0;
+    let resolveFirst;
+    await page.route("**/v1/orchestration/contracts", async (route) => {
+      request += 1;
+      if (request === 1) {
+        await new Promise((resolve) => { resolveFirst = resolve; });
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ contracts: [{ id: "old", name: "Old contract", version: "1", state: "draft" }], revision: 1 }) });
+        return;
+      }
+      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ detail: "latest failure" }) });
+    });
+    await page.goto("/orchestrator");
+    await page.reload();
+    resolveFirst();
+    await expect(page.getByRole("alert")).toContainText("latest failure");
+    await expect(page.getByText("Old contract")).toHaveCount(0);
+  });
+
+  test("upserts a saved starter contract durably and preserves local state on a revision conflict", async ({ page }) => {
+    let revision = 0;
+    let saved = null;
+    let saveCalls = 0;
+    const existing = {
+      id: "implementation",
+      name: "Implementation",
+      version: "2",
+      state: "draft",
+      baseline_model: "anthropic:old",
+      task_types: ["implementation"],
+      requirements: { required_capabilities: [], allowed_providers: [] },
+      objective: { type: "highest_quality_within_budget", quality_floor: 0.9 },
+      reliability: { attempt_timeout_seconds: 30, total_deadline_seconds: 120, attempts_per_deployment: 2, maximum_deployments: 2 },
+      evaluation: { minimum_samples: 20, unsafe_quality_floor: 0.8, maximum_unsafe_rate: 0.01, canary_percentage: 0.1 },
+    };
+    await page.route("**/v1/orchestration/contracts", async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ contracts: saved ? [saved] : [existing], revision }) });
+    });
+    await page.route("**/v1/orchestration/contracts/implementation/draft", async (route) => {
+      saveCalls += 1;
+      const body = route.request().postDataJSON();
+      if (saveCalls === 1) {
+        saved = body.contract;
+        revision = 1;
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ contract: saved, revision }) });
+        return;
+      }
+      expect(body.expected_revision).toBe(1);
+      await route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: "revision conflict" }) });
+    });
+    await page.goto("/orchestrator");
+    await page.getByRole("button", { name: "New contract" }).click();
+    await page.getByRole("button", { name: "Save immutable draft" }).click();
+    await expect(page.getByRole("button", { name: /Implementation/ })).toHaveCount(1);
+    await page.reload();
+    await expect(page.getByRole("button", { name: /Implementation/ })).toHaveCount(1);
+    await page.getByLabel("Baseline model").fill("openai:gpt-5.4-mini");
+    await page.getByRole("button", { name: "Save immutable draft" }).click();
+    await expect(page.getByRole("alert")).toContainText("revision conflict");
+    await expect(page.getByLabel("Baseline model")).toHaveValue("openai:gpt-5.4-mini");
+    await expect(page.getByRole("button", { name: /Implementation/ })).toHaveCount(1);
+  });
+
   test("creates a coding-agent contract and previews the visible draft", async ({
     page,
   }) => {

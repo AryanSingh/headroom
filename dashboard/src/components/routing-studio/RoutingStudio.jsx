@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BarChart3, FileCode2, FlaskConical, Rocket } from "lucide-react";
 import {
   getContractEvidence,
@@ -83,34 +83,53 @@ export default function RoutingStudio() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
-  const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const loadToken = useRef(0);
+  const loadAbortController = useRef(null);
 
-  useEffect(() => {
-    let active = true;
-    listContracts()
+  const loadContracts = useCallback(() => {
+    loadAbortController.current?.abort();
+    const controller = new AbortController();
+    const token = ++loadToken.current;
+    loadAbortController.current = controller;
+    setLoading(true);
+    setLoadError(null);
+    listContracts({ signal: controller.signal })
       .then((payload) => {
-        if (!active) {
+        if (token !== loadToken.current) {
           return;
         }
         setContracts(payload.contracts || []);
         setRevision(payload.revision || 0);
         setDraft((current) => current || payload.contracts?.[0] || null);
-        setError(null);
+        setLoadError(null);
       })
       .catch((err) => {
-        if (active) {
-          setError(err.message || "Routing Studio unavailable");
+        if (token === loadToken.current && !controller.signal.aborted) {
+          setLoadError(err.message || "Routing Studio unavailable");
         }
       })
       .finally(() => {
-        if (active) {
+        if (token === loadToken.current) {
           setLoading(false);
         }
       });
-    return () => {
-      active = false;
-    };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) {
+        loadContracts();
+      }
+    });
+    return () => {
+      cancelled = true;
+      loadToken.current += 1;
+      loadAbortController.current?.abort();
+    };
+  }, [loadContracts]);
   useEffect(() => {
     if (!draft || draft.state === "draft") {
       return undefined;
@@ -124,7 +143,7 @@ export default function RoutingStudio() {
       })
       .catch((err) => {
         if (active) {
-          setError(err.message);
+          setActionError(err.message);
         }
       });
     return () => {
@@ -162,12 +181,23 @@ export default function RoutingStudio() {
     setSaving(true);
     try {
       const result = await saveDraft(draft, revision);
-      setContracts((items) => [...items, result.contract]);
+      setContracts((items) => {
+        const index = items.findIndex(
+          (item) =>
+            item.id === result.contract.id &&
+            item.version === result.contract.version,
+        );
+        return index === -1
+          ? [...items, result.contract]
+          : items.map((item, itemIndex) =>
+              itemIndex === index ? result.contract : item,
+            );
+      });
       setRevision(result.revision);
       setDraft(result.contract);
-      setError(null);
+      setActionError(null);
     } catch (err) {
-      setError(err.message);
+      setActionError(err.message);
     } finally {
       setSaving(false);
     }
@@ -185,9 +215,9 @@ export default function RoutingStudio() {
           request_id: `studio-${Date.now()}`,
         }),
       );
-      setError(null);
+      setActionError(null);
     } catch (err) {
-      setError(err.message);
+      setActionError(err.message);
     } finally {
       setRunning(false);
     }
@@ -216,9 +246,9 @@ export default function RoutingStudio() {
             : item,
         ),
       );
-      setError(null);
+      setActionError(null);
     } catch (err) {
-      setError(err.message);
+      setActionError(err.message);
     } finally {
       setSaving(false);
     }
@@ -239,9 +269,9 @@ export default function RoutingStudio() {
           <strong>Evidence gated</strong>
         </div>
       </div>
-      {error ? (
+      {actionError ? (
         <div className="alert-card" role="alert">
-          {error}
+          {actionError}
         </div>
       ) : null}
       <div
@@ -275,6 +305,13 @@ export default function RoutingStudio() {
       >
         {loading ? (
           <div className="routing-empty-state">Loading contracts…</div>
+        ) : loadError ? (
+          <div className="routing-empty-state" role="alert">
+            <strong>{loadError}</strong>
+            <button className="primary-button" type="button" onClick={loadContracts}>
+              Retry
+            </button>
+          </div>
         ) : (
           <div className="routing-studio-grid">
             <ContractList
