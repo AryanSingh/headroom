@@ -28,7 +28,7 @@ The editor also sends a top-level `template` field, while backend contract parsi
 
 Every load receives a monotonically increasing generation. A completion may update `stats`, `health`, `error`, `refreshError`, or `lastUpdated` only if its generation is still current. Older polling, initial, or explicit loads are ignored when they finish out of order. `refreshing` is owned by the newest explicit refresh generation, so an older completion cannot clear it while newer work remains.
 
-`refresh()` returns a structured result describing whether the newest load committed and whether it succeeded. It must not hide failures inside an internally caught promise. History loading remains separate and must not block mode confirmation.
+`refresh()` returns a structured result describing whether the newest current-data load committed and whether it succeeded. It must not hide failures inside an internally caught promise. History refresh is launched and represented separately; a delayed, failed, or hung history request must not delay stats publication or routing-mode confirmation.
 
 Fatal errors block Orchestrator only when no stats snapshot exists. Later refresh failures keep the feature mounted and expose a non-destructive warning.
 
@@ -83,7 +83,7 @@ Tests are added and observed failing before production edits.
 - Dashboard: deterministic out-of-order refresh tests; missing/mismatched acknowledgement; failed refresh; stale stats followed by confirmation; no remount; timeout/retry/stale load; save upsert and conflict immutability.
 - Existing orchestration, keyboard, responsive, rollout, evidence, and auth suites remain green.
 - Lint and build pass.
-- Before generated asset synchronization, record dirty paths and hashes; synchronize only the intended packaged dashboard output and verify unrelated changes are preserved.
+- Before generated asset synchronization, record dirty paths, hashes, and the exact pre-existing dashboard source diff. Build in an isolated clean worktree at the feature HEAD, apply that preserved unrelated source diff there, and generate the combined package from that controlled snapshot. Verify the resulting output retains both the pre-existing source changes and this feature before synchronizing only generated dashboard files back.
 - Run a temporary authenticated proxy on an isolated non-8787 port with a temporary orchestration directory and admin key. Do not stop or mutate the active port-8787 proxy. Validate packaged desktop and 390px flows, exact revisions and modes, loaded asset hashes, network failures, and console errors, then terminate only the temporary proxy.
 
 ## Non-goals
