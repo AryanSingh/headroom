@@ -97,6 +97,10 @@ def _json_bytes(value: object) -> int:
 
 def test_t3_failed_size_responses_payload_parallelizes_uncached_tool_outputs(monkeypatch):
     monkeypatch.setenv("CUTCTX_TOOL_OUTPUT_COMPRESSION_PARALLELISM", "4")
+    # This test isolates executor fan-out. Explicitly opt into historical
+    # unbounded ML routing so the interactive latency guard does not bypass
+    # these deliberately huge synthetic plain-text units.
+    monkeypatch.setenv("CUTCTX_RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES", "0")
     case = T3_FAILED_CASES[0]
     router = ContentRouter()
     lock = threading.Lock()
@@ -150,7 +154,8 @@ def test_t3_failed_size_responses_payload_parallelizes_uncached_tool_outputs(mon
     assert outputs == [f"summary for tool={index}" for index in range(case.unit_count)]
 
 
-def test_t3_failed_size_exact_tool_output_cache_survives_history_changes():
+def test_t3_failed_size_exact_tool_output_cache_survives_history_changes(monkeypatch):
+    monkeypatch.setenv("CUTCTX_RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES", "0")
     case = T3_FAILED_CASES[1]
     router = ContentRouter()
     calls = {"count": 0}

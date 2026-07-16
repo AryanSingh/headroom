@@ -124,3 +124,148 @@ changed the model and ChatGPT returned `400 Bad Request`.
 Persist authoritative upstream usage by conversation and compare it with local
 estimates in telemetry. Large estimator drift should be observable, but must
 not become a destructive policy for opaque model-owned data.
+
+---
+
+# Orchestrator mode changes trigger a blocking page reset
+
+## Severity
+
+High. The write succeeds, but the UI looks broken for long enough that users
+reasonably conclude the mode cannot be changed.
+
+## Reproduction
+
+1. Open the authenticated Orchestrator dashboard in Aggressive mode.
+2. Click Balanced.
+3. Observe the page during the subsequent refresh.
+
+## Expected
+
+The selected control stays visible, shows pending or confirmed state, and the
+rest of the Orchestrator remains usable while fresh stats arrive.
+
+## Actual
+
+The mode POST succeeds, then global loading replaces the complete Orchestrator
+with a loading panel. In the live reproduction, stats and health took up to
+11.8 and 13.4 seconds respectively.
+
+## Evidence
+
+- Live browser reproduction confirmed the backend changed to `balanced` with
+  preset `codex-gpt54mini-high`.
+- `dashboard/src/lib/dashboard-context.jsx` sets `loading=true` on every
+  `refresh()`.
+- `dashboard/src/pages/Orchestrator.jsx` returns early while loading.
+
+## Suggested fix
+
+Separate initial blocking load from background refresh, preserve existing data
+during refresh, and keep the optimistic control mounted until confirmed state
+is available.
+
+---
+
+# Workload contracts are gated by unrelated stats and health requests
+
+## Severity
+
+High. A healthy feature endpoint appears unavailable because its component is
+not mounted until unrelated dashboard data finishes.
+
+## Reproduction
+
+1. Reload the authenticated Orchestrator while stats or health is slow.
+2. Observe when Routing Studio mounts and when its contracts request begins.
+
+## Expected
+
+Routing Studio starts its own request independently and reports its own loading,
+empty, or error state.
+
+## Actual
+
+The parent returns early until global stats and health finish. The contracts
+request does not start during that interval.
+
+## Evidence
+
+- Live `GET /v1/orchestration/contracts` returned 200 in about 649ms once
+  mounted.
+- Initial stats and health requests took about 11.8s and 13.4s.
+- `Orchestrator.jsx` renders neither studio while global loading is true.
+
+## Suggested fix
+
+Render the Orchestrator feature shell independently from global refresh state
+and let each studio own its loading lifecycle.
+
+---
+
+# Routing Studio has no timeout or recovery action for a hung contract request
+
+## Severity
+
+Medium. A network stall can leave a permanent loading state with no explanation
+or recovery.
+
+## Reproduction
+
+1. Leave `GET /v1/orchestration/contracts` pending indefinitely.
+2. Open the Contracts workspace.
+
+## Expected
+
+After a bounded timeout, show a clear error and Retry action.
+
+## Actual
+
+`loading` remains true until the promise settles. There is no abort timeout or
+retry control.
+
+## Evidence
+
+- `RoutingStudio.jsx` only clears loading in the request `finally`.
+- `routing-studio/api.js` supplies no timeout or abort signal.
+
+## Suggested fix
+
+Add a bounded request timeout and retryable loading state with stale-request
+cancellation.
+
+---
+
+# First-run contract list is empty when no legacy roles exist
+
+## Severity
+
+Medium product gap.
+
+## Reproduction
+
+1. Start with an empty durable contract store.
+2. Use orchestration config with zero roles.
+3. Request `GET /v1/orchestration/contracts`.
+
+## Expected
+
+Pending product decision: either expose a starter contract or make the
+intentional empty-state workflow unmistakable.
+
+## Actual
+
+The API returns an empty contract list, which users can interpret as contracts
+failing to load.
+
+## Evidence
+
+- Live API returned `{"contracts":[],"revision":0}`.
+- Live orchestration config has zero roles and bindings.
+- `OrchestrationService.list_contracts()` synthesizes contracts only from
+  configured legacy roles.
+
+## Suggested fix
+
+Choose and test one first-run policy: seed a built-in starter draft, expose
+templates separately, or strengthen empty-state onboarding.

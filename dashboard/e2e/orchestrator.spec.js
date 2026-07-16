@@ -92,6 +92,91 @@ async function mockRoutingStudio(page, options = {}) {
   });
 }
 
+async function deferContractFetches(page) {
+  await page.addInitScript(() => {
+    const nativeFetch = window.fetch.bind(window);
+    window.__deferredContractFetches = [];
+    window.fetch = (input, init = {}) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (!url.includes("/v1/orchestration/contracts")) {
+        return nativeFetch(input, init);
+      }
+      return new Promise((resolve, reject) => {
+        const request = { aborted: false, reject, resolve };
+        init.signal?.addEventListener("abort", () => {
+          request.aborted = true;
+        }, { once: true });
+        window.__deferredContractFetches.push(request);
+      });
+    };
+  });
+}
+
+async function settleDeferredContractFetch(page, index, payload, error) {
+  await page.evaluate(({ index: requestIndex, payload: responsePayload, error: responseError }) => {
+    const request = window.__deferredContractFetches[requestIndex];
+    if (responseError) {
+      request.reject(new Error(responseError));
+      return;
+    }
+    request.resolve(new Response(JSON.stringify(responsePayload), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+  }, { index, payload, error });
+}
+
+const DEFERRED_CONTRACT = {
+  id: "implementation",
+  name: "Implementation",
+  version: "1",
+  state: "draft",
+  template: "implementation",
+  description: "Production coding and implementation tasks",
+  role_aliases: ["implementation", "worker"],
+  selectors: {},
+  task_types: ["implementation"],
+  baseline_model: "openai:gpt-5.4-mini",
+  fallback_models: [],
+  requirements: {
+    required_capabilities: ["reasoning", "tool_calling"],
+    minimum_context_tokens: null,
+    minimum_output_tokens: null,
+    allowed_providers: [],
+    allowed_accounts: [],
+    allowed_regions: [],
+    allowed_data_classifications: [],
+    retention_policy: null,
+  },
+  objective: {
+    type: "highest_quality_within_budget",
+    quality_floor: 0.9,
+    maximum_cost_usd: 1,
+    maximum_ttft_ms: null,
+    maximum_total_latency_ms: 120000,
+    weights: {},
+  },
+  reliability: {
+    connect_timeout_seconds: 10,
+    first_token_timeout_seconds: 30,
+    attempt_timeout_seconds: 30,
+    stream_idle_timeout_seconds: 30,
+    total_deadline_seconds: 120,
+    attempts_per_deployment: 2,
+    maximum_deployments: 1,
+    fallback_triggers: ["timeout", "provider_outage"],
+    maximum_fallback_cost_usd: null,
+  },
+  evaluation: {
+    accepted_outcome_signals: ["verified", "review_accepted"],
+    minimum_samples: 20,
+    unsafe_quality_floor: 0.8,
+    maximum_unsafe_rate: 0.01,
+    canary_percentage: 0.1,
+    automatic_rollback_conditions: {},
+  },
+};
+
 test.describe("Orchestrator Modes", () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
@@ -170,28 +255,55 @@ test.describe("Orchestrator Modes", () => {
     await mockRoutingStudio(page);
     await page.goto("/orchestrator");
     await expect(page.getByRole("alert")).toContainText("Request timed out after 10000ms", { timeout: 12_000 });
-    await page.getByRole("button", { name: "Retry" }).click();
+    const retry = page.getByRole("button", { name: "Retry" });
+    await expect(retry).toBeVisible({ timeout: 500 });
+    await retry.click();
     await expect(page.getByText("No contracts yet")).toBeVisible();
     await expect(page.getByText("AbortError", { exact: false })).toHaveCount(0);
   });
 
-  test("keeps the newest contract-load result when a retry supersedes a stale response", async ({ page }) => {
-    let request = 0;
-    let resolveFirst;
-    await page.route("**/v1/orchestration/contracts", async (route) => {
-      request += 1;
-      if (request === 1) {
-        await new Promise((resolve) => { resolveFirst = resolve; });
-        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ contracts: [{ id: "old", name: "Old contract", version: "1", state: "draft" }], revision: 1 }) });
-        return;
-      }
-      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ detail: "latest failure" }) });
-    });
+  test("aborts a pending load on Retry and ignores its stale success and finally", async ({ page }) => {
+    await deferContractFetches(page);
     await page.goto("/orchestrator");
-    await page.reload();
-    resolveFirst();
-    await expect(page.getByRole("alert")).toContainText("latest failure");
+    await page.waitForFunction(() => window.__deferredContractFetches.length === 1);
+    const retry = page.getByRole("button", { name: "Retry" });
+    await expect(retry).toBeVisible({ timeout: 500 });
+    await retry.click();
+    await page.waitForFunction(() => window.__deferredContractFetches.length === 2);
+    await expect.poll(() => page.evaluate(() => window.__deferredContractFetches[0].aborted)).toBe(true);
+    await settleDeferredContractFetch(page, 0, { contracts: [{ id: "old", name: "Old contract", version: "1", state: "draft" }], revision: 1 });
+    await expect(page.getByText("Loading contracts…")).toBeVisible();
     await expect(page.getByText("Old contract")).toHaveCount(0);
+    await settleDeferredContractFetch(page, 1, { contracts: [{ ...DEFERRED_CONTRACT, id: "starter", name: "Starter contract" }], revision: 2 });
+    await expect(page.getByRole("heading", { name: "Starter contract" })).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+  });
+
+  test("aborts a pending load on Retry and ignores its stale error and finally", async ({ page }) => {
+    await deferContractFetches(page);
+    await page.goto("/orchestrator");
+    await page.waitForFunction(() => window.__deferredContractFetches.length === 1);
+    await page.getByRole("button", { name: "Retry" }).click();
+    await page.waitForFunction(() => window.__deferredContractFetches.length === 2);
+    await settleDeferredContractFetch(page, 0, null, "stale failure");
+    await expect(page.getByText("Loading contracts…")).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await settleDeferredContractFetch(page, 1, { contracts: [{ ...DEFERRED_CONTRACT, id: "starter", name: "Starter contract" }], revision: 2 });
+    await expect(page.getByRole("heading", { name: "Starter contract" })).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+  });
+
+  test("silently aborts a pending load on unmount", async ({ page }) => {
+    const pageErrors = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    await deferContractFetches(page);
+    await page.goto("/orchestrator");
+    await page.waitForFunction(() => window.__deferredContractFetches.length === 1);
+    await page.getByRole("link", { name: "Playground" }).click();
+    await expect.poll(() => page.evaluate(() => window.__deferredContractFetches[0].aborted)).toBe(true);
+    await settleDeferredContractFetch(page, 0, { contracts: [{ id: "late", name: "Late contract", version: "1", state: "draft" }], revision: 1 });
+    await expect(page.getByText("Late contract")).toHaveCount(0);
+    expect(pageErrors).toEqual([]);
   });
 
   test("upserts a saved starter contract durably and preserves local state on a revision conflict", async ({ page }) => {
@@ -224,7 +336,11 @@ test.describe("Orchestrator Modes", () => {
         return;
       }
       expect(body.expected_revision).toBe(1);
-      await route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: "revision conflict" }) });
+      if (saveCalls === 2) {
+        await route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: "revision conflict" }) });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ contract: saved, revision: 2 }) });
     });
     await page.goto("/orchestrator");
     await page.getByRole("button", { name: "New contract" }).click();
@@ -237,6 +353,8 @@ test.describe("Orchestrator Modes", () => {
     await expect(page.getByRole("alert")).toContainText("revision conflict");
     await expect(page.getByLabel("Baseline model")).toHaveValue("openai:gpt-5.4-mini");
     await expect(page.getByRole("button", { name: /Implementation/ })).toHaveCount(1);
+    await page.getByRole("button", { name: "Save immutable draft" }).click();
+    await expect.poll(() => saveCalls).toBe(3);
   });
 
   test("creates a coding-agent contract and previews the visible draft", async ({

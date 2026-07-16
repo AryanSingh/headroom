@@ -9,6 +9,7 @@ from cutctx.transforms.compression_units import UnitCompressionResult
 from cutctx.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
+    ContentRouterConfig,
     RouterCompressionResult,
 )
 
@@ -142,7 +143,9 @@ def test_openai_responses_adapter_compresses_live_text_slots_and_latest_user_tai
 
 
 def test_openai_responses_adapter_keeps_earlier_user_history_frozen():
-    router = ContentRouter()
+    # Latest user-input compression is an explicit opt-in. This contract
+    # verifies that opt-in still affects only the live tail, never history.
+    router = ContentRouter(ContentRouterConfig(skip_user_messages=False))
 
     def compress(self, content: str, **_kwargs):
         return RouterCompressionResult(
@@ -225,6 +228,56 @@ def test_openai_responses_adapter_compresses_custom_tool_call_output():
     assert "router:openai:responses:custom_tool_call_output:kompress" in transforms
     assert units_by_category == {"applied": 1}
     assert strategy_chain == []
+
+
+def test_openai_responses_large_plain_tool_output_avoids_ml_latency_and_preserves_envelope():
+    router = ContentRouter()
+    calls = {"count": 0}
+
+    def compress(self, content: str, **_kwargs):
+        calls["count"] += 1
+        raise AssertionError("large interactive plain text must not enter the ML compressor")
+
+    router.compress = MethodType(compress, router)
+    handler = _handler_with_router(router)
+    text = (
+        "The wrapped session must preserve this ordinary narrative tool output safely. " * 700
+    )[: 36 * 1024]
+    payload = {
+        "model": "gpt-5",
+        "input": [
+            {
+                "type": "function_call",
+                "call_id": "call-shell-36k",
+                "name": "shell",
+                "arguments": "{}",
+            },
+            {
+                "type": "function_call_output",
+                "call_id": "call-shell-36k",
+                "output": text,
+            },
+        ],
+    }
+
+    new_payload, modified, saved, transforms, units_by_category, strategy_chain, attempted = (
+        handler._compress_openai_responses_live_text_units_with_router(
+            payload,
+            model="gpt-5",
+            request_id="req_large_plain_latency_guard",
+        )
+    )
+
+    assert calls["count"] == 0
+    assert new_payload == payload
+    assert new_payload["input"][0]["call_id"] == new_payload["input"][1]["call_id"]
+    assert new_payload["input"][1]["output"] == text
+    assert modified is False
+    assert saved == 0
+    assert transforms == []
+    assert units_by_category == {}
+    assert strategy_chain == []
+    assert attempted == 0
 
 
 def test_openai_responses_adapter_reuses_exact_tool_output_cache():

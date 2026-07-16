@@ -18,6 +18,43 @@ from cutctx.transforms.content_router import (
 )
 
 
+def test_responses_default_policy_does_not_compress_latest_user_input(monkeypatch) -> None:
+    """Long user prompts must respect ContentRouter's default cache-safety gate.
+
+    Responses previously bypassed ``skip_user_messages`` by directly invoking
+    the router for its latest user input. Besides mutating the subject of the
+    request, that made an ordinary wrapped prompt pay the full compressor cost.
+    """
+
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+    calls = 0
+    original_compress = router.compress
+
+    def track_compress(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original_compress(*args, **kwargs)
+
+    monkeypatch.setattr(router, "compress", track_compress)
+
+    payload = {"model": "gpt-5.4-mini", "input": "retain exactly " * 200}
+    updated, modified, tokens_saved, transforms, attempted = (
+        handler._compress_openai_responses_latest_user_tail_with_router(
+            payload,
+            model="gpt-5.4-mini",
+            request_id="req_default_user_input",
+        )
+    )
+
+    assert calls == 0
+    assert updated is payload
+    assert modified is False
+    assert tokens_saved == 0
+    assert transforms == []
+    assert attempted == 0
+
+
 def test_openai_responses_context_budget_breaks_out_static_and_live_buckets() -> None:
     payload = {
         "instructions": "stable instructions",
@@ -480,6 +517,42 @@ def test_responses_compression_failure_refuses_when_context_guard_trips() -> Non
     assert reason == "context_too_large"
 
 
+def test_codex_http_responses_timeout_fail_open_allows_large_payloads() -> None:
+    """Codex HTTP Responses requests should fail open on compression timeout.
+
+    Large single-turn CLI prompts can exceed the old 256 KiB timeout
+    passthrough threshold while still being valid upstream. The wrapped Codex
+    CLI should preserve the unwrapped UX here and forward the original payload
+    instead of surfacing a local 413.
+    """
+
+    router = ContentRouter(ContentRouterConfig())
+    handler = _HandlerHarness(router)
+
+    payload: dict[str, Any] = {
+        "model": "gpt-5.4",
+        "input": "Context line with filler data. " * 12_000,
+    }
+    raw_bytes = len(json.dumps(payload).encode("utf-8"))
+
+    refuse, estimated, threshold, limit, reason = (
+        handler._openai_responses_compression_failure_refusal(
+            payload,
+            model="gpt-5.4",
+            exception=TimeoutError("compression timed out"),
+            raw_bytes=raw_bytes,
+            client="codex",
+        )
+    )
+
+    assert raw_bytes > 256 * 1024
+    assert refuse is False
+    assert reason == "client_override:codex"
+    assert estimated >= 0
+    assert threshold >= 0
+    assert limit >= 0
+
+
 def test_chatgpt_truncator_trims_function_call_output_payloads() -> None:
     """Emergency truncation must shrink the actual tool output field too.
 
@@ -531,6 +604,44 @@ def test_chatgpt_truncator_redacts_large_input_image_payloads() -> None:
     assert truncated["input"][0]["image_url"].startswith("data:image/png;base64,")
     assert len(truncated["input"][0]["image_url"]) < 200
     assert len(json.dumps(truncated).encode("utf-8")) <= 1024
+
+
+def test_responses_context_guard_does_not_count_inline_image_base64_as_text() -> None:
+    """A pasted screenshot must consume a bounded vision estimate, not its
+    base64 character count, when deciding whether to close a Codex websocket.
+    """
+
+    handler = _HandlerHarness(ContentRouter(ContentRouterConfig()))
+    handler.openai_provider = SimpleNamespace(
+        get_token_counter=lambda _model: SimpleNamespace(
+            count_text=lambda value: len(value) // 2
+        ),
+        get_context_limit=lambda _model: 258_400,
+    )
+    payload = {
+        "model": "gpt-5.6-terra",
+        "input": [
+            {
+                "type": "message",
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": "Please inspect this screenshot."},
+                    {
+                        "type": "input_image",
+                        "image_url": "data:image/png;base64," + ("a" * 526_000),
+                    },
+                ],
+            }
+        ],
+    }
+
+    refuse, estimated, threshold, _ = handler._openai_responses_context_guard(
+        payload,
+        model="gpt-5.6-terra",
+    )
+
+    assert refuse is False
+    assert estimated < threshold
 
 
 def test_chatgpt_emergency_truncation_honors_token_budget() -> None:

@@ -12,7 +12,8 @@ class TestAnthropicTokenCounting:
 
     def test_count_text_fallback(self, anthropic_provider):
         # Without API client, should use tiktoken fallback
-        counter = anthropic_provider.get_token_counter("claude-3-5-sonnet-20241022")
+        with pytest.warns(UserWarning, match="tiktoken approximation"):
+            counter = anthropic_provider.get_token_counter("claude-3-5-sonnet-20241022")
         count = counter.count_text("Hello world")
         assert count > 0
 

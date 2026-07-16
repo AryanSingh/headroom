@@ -710,10 +710,11 @@ class TestCostForecastingE2E:
         estimate_sonnet = estimator_sonnet.estimate(input_tokens=1_000_000)
         assert estimate_sonnet.input_usd == 3.0  # $3/M
 
-        # Unknown model → fallback
+        # Unknown models are not assigned an invented family price.
         estimator_unknown = CostEstimator(model="unknown-model-v99")
         estimate_unknown = estimator_unknown.estimate(input_tokens=1_000_000)
-        assert estimate_unknown.input_usd == 3.0  # Default fallback
+        assert estimate_unknown.input_usd is None
+        assert estimate_unknown.total_usd is None
 
 
 # ---------------------------------------------------------------------------

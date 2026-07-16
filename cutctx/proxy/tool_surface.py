@@ -101,27 +101,27 @@ def slim_tool_surface(
     ranked: list[tuple[int, int, dict[str, Any], str | None, bool]] = []
     for index, tool in enumerate(tools):
         tool_name = _tool_name(tool)
-        forced = (
+        is_forced = (
             not tool_name
             or tool_name in explicit_tool_names
             or tool_name in used_tool_names
             or any(tool_name.startswith(prefix) for prefix in _FORCED_PREFIXES)
         )
-        ranked.append((_tool_score(tool, query_terms), index, tool, tool_name, forced))
+        ranked.append((_tool_score(tool, query_terms), index, tool, tool_name, is_forced))
 
-    forced = [entry for entry in ranked if entry[4]]
-    forced_indexes = {entry[1] for entry in forced}
+    forced_entries = [entry for entry in ranked if entry[4]]
+    forced_indexes = {entry[1] for entry in forced_entries}
     remaining = [entry for entry in ranked if entry[1] not in forced_indexes]
-    target_remaining = max(0, max_tools - len(forced))
+    target_remaining = max(0, max_tools - len(forced_entries))
     if target_remaining <= 0:
-        kept = sorted(forced, key=lambda item: item[1])
+        kept = sorted(forced_entries, key=lambda item: item[1])
     else:
         chosen = sorted(
             remaining,
             key=lambda item: (item[0], _name_match_bonus(item[3], query_terms), -item[1]),
             reverse=True,
         )[:target_remaining]
-        kept = sorted([*forced, *chosen], key=lambda item: item[1])
+        kept = sorted([*forced_entries, *chosen], key=lambda item: item[1])
 
     if len(kept) >= len(tools):
         return ToolSurfaceResult(tools, False, 0, 0, len(tools))
@@ -323,7 +323,9 @@ def _estimate_token_delta(
         before_json = json.dumps(before_tools, ensure_ascii=False)
         after_json = json.dumps(after_tools, ensure_ascii=False)
         if tokenizer is not None:
-            return max(0, tokenizer.count_text(before_json) - tokenizer.count_text(after_json))
+            before_tokens = int(tokenizer.count_text(before_json))
+            after_tokens = int(tokenizer.count_text(after_json))
+            return max(0, before_tokens - after_tokens)
         return max(0, (len(before_json.encode("utf-8")) - len(after_json.encode("utf-8"))) // 4)
     except Exception:
         return 0

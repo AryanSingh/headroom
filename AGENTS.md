@@ -51,3 +51,14 @@ rtk pip list            rtk pnpm install        rtk npm run <script>
 - Compatibility aliases: `codex-opencode-slim`, `oh-my-opencode-slim`.
 - Low-complexity GPT tasks route to `gpt-5.4-mini` with `reasoning.effort = high`; heavier tasks stay on the requested model.
 - See `cutctx/proxy/model_router.py` and the OpenAI handler tests for implementation details.
+
+## Repository Map
+
+A full codemap is available at `codemap.md` in the project root.
+
+Before working on any task, read `codemap.md` to understand:
+- Project architecture and entry points
+- Directory responsibilities and design patterns
+- Data flow and integration points between modules
+
+For deep work on a specific folder, also read that folder's `codemap.md`.

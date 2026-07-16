@@ -165,12 +165,12 @@ class TestCostEstimator:
         est = e.estimate(input_tokens=100_000, output_tokens=5_000, compression_ratio=0.5)
         assert est.compression_savings_usd > 0
 
-    def test_unknown_model_uses_default(self):
+    def test_unknown_model_has_no_invented_price(self):
         from cutctx.cost_forecast import CostEstimator
 
         e = CostEstimator(model="unknown-model-xyz")
         est = e.estimate(input_tokens=10_000, output_tokens=1_000)
-        assert est.total_usd > 0
+        assert est.total_usd is None
 
 
 class TestPolicyEngine:

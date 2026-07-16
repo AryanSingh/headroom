@@ -274,7 +274,8 @@ class TestGoogleProvider:
 
     def test_get_token_counter(self, provider):
         """Test getting token counter."""
-        counter = provider.get_token_counter("gemini-2.0-flash")
+        with pytest.warns(UserWarning, match="using estimation"):
+            counter = provider.get_token_counter("gemini-2.0-flash")
         assert counter is not None
         count = counter.count_text("Hello, world!")
         assert count > 0

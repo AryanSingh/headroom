@@ -65,6 +65,12 @@ jobs:
           --output artifacts/fixture-evidence-pytest-skips.json
       - run: npx playwright install --with-deps chromium
         working-directory: dashboard
+      # Exercise every deterministic dashboard journey, not only the visual
+      # audit spec. This catches authentication, navigation, error recovery,
+      # replay, playground, governance, and orchestration regressions before a
+      # release can publish.
+      - run: npx playwright test --project=chromium
+        working-directory: dashboard
       - run: >-
           npx playwright test dashboard-audit.spec.js
           --project=dashboard-audit-375 --project=dashboard-audit-768

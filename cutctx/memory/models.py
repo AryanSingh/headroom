@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -72,8 +72,8 @@ class Memory:
     turn_id: str | None = None
 
     # Temporal
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    valid_from: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    valid_from: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     valid_until: datetime | None = None  # None = current/active
 
     # Classification
@@ -204,7 +204,7 @@ class DecisionTrace(Memory):
     action: str = ""
     outcome: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Ensure the content string also reflects the decision trace
         if not self.content:
             self.content = (

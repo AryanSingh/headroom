@@ -32,3 +32,16 @@ def test_embedded_dashboard_matches_vite_output_when_available() -> None:
         assert (ROOT / "cutctx" / "dashboard" / "assets" / asset).read_bytes() == (
             dist / "assets" / asset
         ).read_bytes()
+
+
+def test_dashboard_does_not_depend_on_remote_fonts() -> None:
+    """The operator console must render in offline and restricted networks."""
+    source_css = (ROOT / "dashboard" / "src" / "index.css").read_text(encoding="utf-8")
+    embedded_css = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (ROOT / "cutctx" / "dashboard" / "assets").glob("*.css")
+    )
+
+    for css in (source_css, embedded_css):
+        assert "fonts.googleapis.com" not in css
+        assert "fonts.gstatic.com" not in css

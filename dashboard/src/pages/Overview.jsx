@@ -1,7 +1,7 @@
 import {
   AlertTriangle,
-  ArrowUpRight,
   ArrowRight,
+  ArrowUpRight,
   BarChart3,
   Coins,
   Inbox,
@@ -2049,15 +2049,44 @@ function formatMaybePercent(value) {
   return value == null ? '—' : formatPercent(Math.min(100, Math.max(0, Number(value || 0))));
 }
 
-function formatRoutingDecision(request) {
+function getRequestModelSummary(request) {
+  const routing = request?.routing_metadata;
+  const requestedModel =
+    routing?.requested_model
+    || request?.requested_model
+    || routing?.source_model
+    || request?.model
+    || '—';
+  const actualModel = routing?.actual_model || request?.model || '—';
+  const changed = requestedModel !== '—' && actualModel !== '—' && requestedModel !== actualModel;
+
+  return {
+    title: changed ? requestedModel + ' → ' + actualModel : actualModel,
+    primary: actualModel,
+    secondary: changed ? 'Requested: ' + requestedModel : null,
+  };
+}
+
+function getRequestRoutingSummary(request) {
   const routing = request?.routing_metadata;
   if (!routing || typeof routing !== 'object') {
-    return 'Not evaluated';
+    return {
+      title: 'Not evaluated',
+      primary: 'Not evaluated',
+      secondary: null,
+    };
   }
-  if (routing.routed) {
-    return `${routing.source_model || request?.model || '—'} → ${routing.target_model || request?.model || '—'}`;
-  }
-  return routing.reason || 'Retained';
+
+  const primary = routing.reason || (routing.routed ? 'Routed' : 'Retained');
+  const secondary = routing.routed
+    ? (routing.source_model || request?.model || '—') + ' → ' + (routing.target_model || request?.model || '—')
+    : null;
+
+  return {
+    title: secondary ? primary + ' · ' + secondary : primary,
+    primary,
+    secondary,
+  };
 }
 
 const TRACE_SOURCE_LABELS = {
@@ -2514,13 +2543,17 @@ export default function Overview({ searchQuery = '' }) {
       ? stats.recent_requests
       : persistentHistory;
   const filteredRecentRequests = normalizedQuery
-    ? recentRequests.filter((request) =>
+      ? recentRequests.filter((request) =>
         matchesQuery(
           request?.request_id,
           request?.model,
           request?.client,
           request?.client_id,
           request?.provider,
+          request?.routing_metadata?.reason,
+          request?.routing_metadata?.requested_model,
+          request?.routing_metadata?.source_model,
+          request?.routing_metadata?.target_model,
           request?.status,
           request?.timestamp,
         )
@@ -2862,8 +2895,9 @@ export default function Overview({ searchQuery = '' }) {
           <AutopilotPanel autopilot={autopilot} searchQuery={normalizedQuery} />
           <PoliciesPanel policies={policies} searchQuery={normalizedQuery} />
         </div>
+      </div>
 
-        <section className="panel panel-data">
+        <section className="panel panel-data activity-panel">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Activity</div>
@@ -2889,19 +2923,21 @@ export default function Overview({ searchQuery = '' }) {
               <table className="request-table">
                   <thead>
                     <tr>
-                      <th>Routed model</th>
+                      <th>Model</th>
                       <th>Routing</th>
                       <th>Input</th>
                       <th>Saved</th>
                       <th>Proxy</th>
-                    <th>Cache</th>
-                    <th>When</th>
-                  </tr>
-                </thead>
+                      <th>Cache</th>
+                      <th>When</th>
+                    </tr>
+                  </thead>
                 <tbody>
-                  {filteredRecentRequests.map((request, index) => {
+                  {filteredRecentRequests.slice(0, 50).map((request, index) => {
                     const indirect = getRequestIndirectSaved(request);
                     const inputTokens = request.input_tokens_original;
+                    const modelSummary = getRequestModelSummary(request);
+                    const routingSummary = getRequestRoutingSummary(request);
                     // Cap displayed savings at input size — provider cache credits
                     // can accumulate across turns and exceed the per-request input count.
                     const rawSaved = getRequestTotalSaved(request);
@@ -2912,21 +2948,38 @@ export default function Overview({ searchQuery = '' }) {
                       <tr
                         key={`${request.request_id || 'request'}-${request.timestamp || 'unknown'}-${index}`}
                       >
-                        <td className="model-name" title={request.model || '—'}>
+                        <td title={modelSummary.title}>
                           {request.request_id && !request.synthetic ? (
                             <button
-                              className={`request-row-button ${activeRequestId === request.request_id ? 'active' : ''}`}
+                              className={`request-row-button request-summary request-summary-button ${activeRequestId === request.request_id ? 'active' : ''}`}
                               onClick={() => setSelectedRequestId(request.request_id)}
                               type="button"
                             >
-                              <span>{request.model || '—'}</span>
+                              <span>
+                                <span className="request-summary-primary">{modelSummary.primary}</span>
+                                {modelSummary.secondary ? (
+                                  <span className="request-summary-secondary">{modelSummary.secondary}</span>
+                                ) : null}
+                              </span>
                               <ArrowUpRight size={14} />
                             </button>
                           ) : (
-                            request.model || '—'
+                            <span className="request-summary">
+                              <span className="request-summary-primary">{modelSummary.primary}</span>
+                              {modelSummary.secondary ? (
+                                <span className="request-summary-secondary">{modelSummary.secondary}</span>
+                              ) : null}
+                            </span>
                           )}
                         </td>
-                        <td title={formatRoutingDecision(request)}>{formatRoutingDecision(request)}</td>
+                        <td title={routingSummary.title}>
+                          <span className="request-summary">
+                            <span className="request-summary-primary">{routingSummary.primary}</span>
+                            {routingSummary.secondary ? (
+                              <span className="request-summary-secondary">{routingSummary.secondary}</span>
+                            ) : null}
+                          </span>
+                        </td>
                         <td>{formatMaybeInteger(inputTokens)}</td>
                         <td className="savings-value">
                           <div className="request-savings-stack">
@@ -2954,10 +3007,11 @@ export default function Overview({ searchQuery = '' }) {
                 </tbody>
                 </table>
                 <div className="request-table-note">
-                  Saved = direct compression plus tracked created savings and observed provider-cache savings.
-                  Proxy = tokens Cutctx compressed. Cache = provider prompt-cache or Cutctx response-cache savings.
-                  Model = the effective model Cutctx observed on the request. Routing explains whether
-                  Cutctx changed the model or retained it and why.
+                  Model shows the effective model with the requested model underneath when they differ.
+                  Routing shows the decision reason and source-to-target pair for applied downgrades.
+                  Saved = direct compression plus tracked created savings and observed provider-cache
+                  savings. Proxy = tokens Cutctx compressed. Cache = provider prompt-cache or Cutctx
+                  response-cache savings.
                 </div>
               </div>
           )}
@@ -2991,7 +3045,6 @@ export default function Overview({ searchQuery = '' }) {
             />
           </div>
         </section>
-      </div>
     </section>
   );
 }

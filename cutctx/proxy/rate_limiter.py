@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from cutctx.proxy.models import RateLimitState
 
@@ -61,7 +61,7 @@ class TokenBucketRateLimiter:
             "scope": scope,
             "reason": reason,
             "wait_seconds": round(float(wait_seconds), 3),
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _cleanup_stale_buckets(self) -> None:

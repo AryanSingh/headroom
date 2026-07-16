@@ -2233,6 +2233,7 @@ def _proxy_config_from_env() -> ProxyConfig:
         max_keepalive_connections=_get_env_int("CUTCTX_MAX_KEEPALIVE", 100),
         http2=_get_env_bool("CUTCTX_HTTP2", True),
         mode=normalize_proxy_mode(_get_env_str("CUTCTX_MODE", PROXY_MODE_TOKEN)),
+        proxy_api_key=os.environ.get("CUTCTX_PROXY_API_KEY"),
     )
 
 
@@ -4147,13 +4148,23 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             config.episodic_memory_enabled = bool(payload["memory"])
             if config.episodic_memory_enabled and getattr(proxy, "episodic_tracker", None) is None:
                 try:
-                    from cutctx.intelligence_pipeline import IntelligencePipeline
                     from cutctx.memory.session_tracker import EpisodicSessionTracker
                     from cutctx.memory.store import EpisodicMemoryStore
 
-                    store = EpisodicMemoryStore()
-                    intel = IntelligencePipeline(config)
-                    proxy.episodic_tracker = EpisodicSessionTracker(store, intel, proxy.logger)
+                    tracker = EpisodicSessionTracker(
+                        EpisodicMemoryStore(),
+                        idle_timeout_seconds=getattr(
+                            config, "episodic_idle_timeout_seconds", 300
+                        ),
+                        enabled=True,
+                        extraction_model=getattr(
+                            config,
+                            "episodic_extraction_model",
+                            "claude-3-haiku-20240307",
+                        ),
+                    )
+                    tracker.start_sweeper()
+                    proxy.episodic_tracker = tracker
                 except ImportError as exc:
                     logger.warning("Could not load memory dependencies: %s", exc)
         if "firewall" in payload:
@@ -4734,6 +4745,14 @@ if __name__ == "__main__":
         "Also settable via CUTCTX_ADMIN_API_KEY env var.",
     )
     parser.add_argument(
+        "--proxy-api-key",
+        default=None,
+        help=(
+            "Dedicated client key for provider proxy routes. Clients pass it as "
+            "X-Cutctx-Proxy-Key. Also settable via CUTCTX_PROXY_API_KEY."
+        ),
+    )
+    parser.add_argument(
         "--cors-origins",
         default=None,
         help="Comma-separated CORS allowed origins. Empty = closed. '*' = open. "
@@ -5050,6 +5069,7 @@ if __name__ == "__main__":
         or _get_env_bool("CUTCTX_COMPRESS_USER_MESSAGES", False),
         # Security
         admin_api_key=args.admin_api_key or os.environ.get("CUTCTX_ADMIN_API_KEY"),
+        proxy_api_key=args.proxy_api_key or os.environ.get("CUTCTX_PROXY_API_KEY"),
         cors_origins=_cors_origins_list,
         max_body_mb=_get_env_int("CUTCTX_MAX_BODY_MB", args.max_body_mb),
         # Enterprise

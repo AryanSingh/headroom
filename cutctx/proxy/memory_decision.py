@@ -35,6 +35,41 @@ from typing import Any
 
 from cutctx.proxy.helpers import _cutctx_bypass_enabled
 
+_TRIVIAL_MEMORY_TURNS = frozenset(
+    {
+        "hi",
+        "hello",
+        "hey",
+        "thanks",
+        "thank you",
+        "ok",
+        "okay",
+    }
+)
+
+
+def _is_trivial_memory_turn(messages: list[dict[str, Any]] | None) -> bool:
+    """Return whether the latest user turn is only a standalone pleasantry.
+
+    Memory retrieval should skip greetings, but the model router's broader
+    ``LOW`` category also contains real questions such as "what is ...". That
+    category is suitable for model selection, not for deciding whether prior
+    context can help.
+    """
+
+    if not messages:
+        return False
+    latest_user = next(
+        (message for message in reversed(messages) if message.get("role") == "user"),
+        None,
+    )
+    if latest_user is None:
+        return False
+    content = latest_user.get("content")
+    if not isinstance(content, str):
+        return False
+    return content.strip().lower() in _TRIVIAL_MEMORY_TURNS
+
 
 @dataclass(frozen=True)
 class MemoryDecision:
@@ -75,6 +110,7 @@ class MemoryDecision:
         memory_handler: Any | None,
         memory_user_id: str | None,
         mode_name: str,
+        messages: list[dict[str, Any]] | None = None,
     ) -> MemoryDecision:
         """Compute the canonical memory-injection decision.
 
@@ -114,6 +150,9 @@ class MemoryDecision:
             inject = False
         elif mode_name == "tool":
             reason = "mode_tool"
+            inject = False
+        elif _is_trivial_memory_turn(messages):
+            reason = "trivial_turn"
             inject = False
         else:
             reason = None

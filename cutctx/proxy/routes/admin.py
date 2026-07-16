@@ -16,7 +16,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger("cutctx.proxy.routes.admin")
 
@@ -40,6 +40,14 @@ class WebhookSubscriptionInput(BaseModel):
         description="If set, only events for this org are delivered.",
     )
     enabled: bool = Field(default=True)
+
+    @field_validator("url")
+    @classmethod
+    def validate_destination(cls, value: str) -> str:
+        from cutctx.proxy.webhooks import validate_webhook_url
+
+        validate_webhook_url(value)
+        return value
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -2251,7 +2259,7 @@ def create_admin_router(
     )
     async def telemetry_stats():
         """Get telemetry statistics for the data flywheel."""
-        from cutctx.cache.compression_store import get_telemetry_collector
+        from cutctx.telemetry.collector import get_telemetry_collector
 
         telemetry = get_telemetry_collector()
         return telemetry.get_stats()
@@ -2262,7 +2270,7 @@ def create_admin_router(
     )
     async def telemetry_export():
         """Export full telemetry data for aggregation."""
-        from cutctx.cache.compression_store import get_telemetry_collector
+        from cutctx.telemetry.collector import get_telemetry_collector
 
         telemetry = get_telemetry_collector()
         return telemetry.export_stats()
@@ -2273,7 +2281,7 @@ def create_admin_router(
     )
     async def telemetry_import(request: Request):
         """Import telemetry data from another source."""
-        from cutctx.cache.compression_store import get_telemetry_collector
+        from cutctx.telemetry.collector import get_telemetry_collector
 
         telemetry = get_telemetry_collector()
         data = await request.json()
@@ -2290,7 +2298,7 @@ def create_admin_router(
     )
     async def telemetry_tools():
         """Get telemetry statistics for all tracked tool signatures."""
-        from cutctx.cache.compression_store import get_telemetry_collector
+        from cutctx.telemetry.collector import get_telemetry_collector
 
         telemetry = get_telemetry_collector()
         all_stats = telemetry.get_all_tool_stats()
@@ -2305,7 +2313,7 @@ def create_admin_router(
     )
     async def telemetry_tool_detail(signature_hash: str):
         """Get detailed telemetry for a specific tool signature."""
-        from cutctx.cache.compression_store import get_telemetry_collector
+        from cutctx.telemetry.collector import get_telemetry_collector
 
         telemetry = get_telemetry_collector()
         stats = telemetry.get_tool_stats(signature_hash)
@@ -2330,7 +2338,7 @@ def create_admin_router(
     )
     async def toin_stats():
         """Get overall TOIN statistics."""
-        from cutctx.cache.compression_store import get_toin
+        from cutctx.telemetry.toin import get_toin
 
         toin = get_toin()
         return toin.get_stats()
@@ -2341,7 +2349,7 @@ def create_admin_router(
     )
     async def toin_patterns(limit: int = 20):
         """List TOIN patterns with most samples."""
-        from cutctx.cache.compression_store import get_toin
+        from cutctx.telemetry.toin import get_toin
 
         toin = get_toin()
         exported = toin.export_patterns()
@@ -2382,7 +2390,7 @@ def create_admin_router(
     )
     async def toin_pattern_detail(hash_prefix: str):
         """Get detailed TOIN pattern info by hash prefix."""
-        from cutctx.cache.compression_store import get_toin
+        from cutctx.telemetry.toin import get_toin
 
         toin = get_toin()
         exported = toin.export_patterns()
@@ -2452,11 +2460,10 @@ def create_admin_router(
     async def ccr_handle_tool_call(request: Request):
         """Handle a CCR tool call from an LLM response."""
         from cutctx.cache.compression_store import (
-            CCR_TOOL_NAME,
             format_retrieval_miss_detail,
             get_compression_store,
-            parse_tool_call,
         )
+        from cutctx.ccr.tool_injection import CCR_TOOL_NAME, parse_tool_call
 
         data = await request.json()
         tool_call = data.get("tool_call", {})

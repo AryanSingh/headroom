@@ -426,11 +426,15 @@ class GeminiHandlerMixin:
         from cutctx.proxy.memory_decision import MemoryDecision
         from cutctx.proxy.memory_query import MemoryQuery
 
+        system_instruction = body.get("systemInstruction") or body.get("system_instruction")
+        messages, preserved_indices = self._gemini_contents_to_messages(contents, system_instruction)
+
         memory_decision = MemoryDecision.decide(
             headers=request.headers,
             memory_handler=self.memory_handler,
             memory_user_id=memory_user_id,
             mode_name=get_memory_injection_mode(),
+            messages=messages,
         )
         memory_decision.apply_to_tags(tags)
 

@@ -14,14 +14,33 @@ echo "Port: $PORT"
 echo "Admin key: ${ADMIN_KEY:0:8}..."
 
 # Kill existing proxy on the port
-PID=$(lsof -ti tcp:$PORT 2>/dev/null || true)
-if [ -n "$PID" ]; then
-  echo "Killing existing proxy (PID: $PID)..."
-  kill "$PID" 2>/dev/null || true
-  sleep 2
-  # Force kill if still alive
-  if kill -0 "$PID" 2>/dev/null; then
-    kill -9 "$PID" 2>/dev/null || true
+PIDS=$(lsof -ti tcp:$PORT 2>/dev/null || true)
+if [ -n "$PIDS" ]; then
+  echo "Killing existing proxy (PID(s): $(echo "$PIDS" | tr '\n' ' ' | xargs))..."
+  while IFS= read -r PID; do
+    [ -n "$PID" ] || continue
+    kill "$PID" 2>/dev/null || true
+  done <<EOF
+$PIDS
+EOF
+
+  # Give the processes a moment to exit cleanly before escalating.
+  for _ in $(seq 1 10); do
+    sleep 1
+    if ! lsof -ti tcp:$PORT >/dev/null 2>&1; then
+      break
+    fi
+  done
+
+  REMAINING_PIDS=$(lsof -ti tcp:$PORT 2>/dev/null || true)
+  if [ -n "$REMAINING_PIDS" ]; then
+    echo "Force killing remaining PID(s): $(echo "$REMAINING_PIDS" | tr '\n' ' ' | xargs)..."
+    while IFS= read -r PID; do
+      [ -n "$PID" ] || continue
+      kill -9 "$PID" 2>/dev/null || true
+    done <<EOF
+$REMAINING_PIDS
+EOF
     sleep 1
   fi
   echo "Old proxy stopped."

@@ -10,6 +10,7 @@ import importlib.util
 import json
 import logging
 import os
+import re
 import warnings
 from datetime import date
 from functools import lru_cache
@@ -22,7 +23,7 @@ from .base import Provider, TokenCounter
 logger = logging.getLogger(__name__)
 
 # Pricing metadata for transparency
-_PRICING_LAST_UPDATED = date(2025, 1, 14)
+_PRICING_LAST_UPDATED = date(2026, 7, 16)
 _PRICING_STALE_DAYS = 60  # Warn if pricing data is older than this
 
 # Warning tracking
@@ -54,6 +55,9 @@ def _get_litellm_module() -> Any | None:
 
 # OpenAI model to tiktoken encoding mappings
 _MODEL_ENCODINGS: dict[str, str] = {
+    "gpt-5.4": "o200k_base",
+    "gpt-5.4-mini": "o200k_base",
+    "gpt-5.4-nano": "o200k_base",
     # GPT-4o and newer use o200k_base
     "gpt-4o": "o200k_base",
     "gpt-4o-mini": "o200k_base",
@@ -71,6 +75,9 @@ _MODEL_ENCODINGS: dict[str, str] = {
 
 # OpenAI context window limits
 _CONTEXT_LIMITS: dict[str, int] = {
+    "gpt-5.4": 1_050_000,
+    "gpt-5.4-mini": 400_000,
+    "gpt-5.4-nano": 400_000,
     # GPT-4o series
     "gpt-4o": 128000,
     "gpt-4o-mini": 128000,
@@ -107,8 +114,11 @@ _CONTEXT_LIMITS: dict[str, int] = {
 # Fallback pricing - LiteLLM is preferred source
 # OpenAI pricing per 1M tokens (input, output)
 # NOTE: These are ESTIMATES. Always verify against actual OpenAI billing.
-# Last updated: 2025-01-14
+# Last verified: 2026-07-16
 _PRICING: dict[str, tuple[float, float]] = {
+    "gpt-5.4": (2.50, 15.00),
+    "gpt-5.4-mini": (0.75, 4.50),
+    "gpt-5.4-nano": (0.20, 1.25),
     "gpt-4o": (2.50, 10.00),
     "gpt-4o-mini": (0.15, 0.60),
     "gpt-4-turbo": (10.00, 30.00),
@@ -116,26 +126,25 @@ _PRICING: dict[str, tuple[float, float]] = {
     "gpt-3.5-turbo": (0.50, 1.50),
     "o1": (15.00, 60.00),
     "o1-preview": (15.00, 60.00),
-    "o1-mini": (3.00, 12.00),
-    "o3": (10.00, 40.00),
+    "o1-mini": (1.10, 4.40),
+    "o3": (2.00, 8.00),
     "o3-mini": (1.10, 4.40),
 }
 
 # Pattern-based defaults for unknown models
 _PATTERN_DEFAULTS = {
-    "gpt-4o": {"context": 128000, "encoding": "o200k_base", "pricing": (2.50, 10.00)},
-    "gpt-4-turbo": {"context": 128000, "encoding": "cl100k_base", "pricing": (10.00, 30.00)},
-    "gpt-4": {"context": 8192, "encoding": "cl100k_base", "pricing": (30.00, 60.00)},
-    "gpt-3.5": {"context": 16385, "encoding": "cl100k_base", "pricing": (0.50, 1.50)},
-    "o1": {"context": 200000, "encoding": "o200k_base", "pricing": (15.00, 60.00)},
-    "o3": {"context": 200000, "encoding": "o200k_base", "pricing": (10.00, 40.00)},
+    "gpt-4o": {"context": 128000, "encoding": "o200k_base"},
+    "gpt-4-turbo": {"context": 128000, "encoding": "cl100k_base"},
+    "gpt-4": {"context": 8192, "encoding": "cl100k_base"},
+    "gpt-3.5": {"context": 16385, "encoding": "cl100k_base"},
+    "o1": {"context": 200000, "encoding": "o200k_base"},
+    "o3": {"context": 200000, "encoding": "o200k_base"},
 }
 
 # Default for completely unknown OpenAI models
 _UNKNOWN_OPENAI_DEFAULT = {
     "context": 128000,
     "encoding": "o200k_base",
-    "pricing": (2.50, 10.00),  # GPT-4o tier as reasonable default
 }
 
 
@@ -545,6 +554,13 @@ class OpenAIProvider(Provider):
 
         input_price, output_price = pricing
 
+        if input_tokens > 272_000 and (
+            model == "gpt-5.4"
+            or re.fullmatch(r"gpt-5\.4-(?:\d{8}|\d{4}-\d{2}-\d{2})", model)
+        ):
+            input_price *= 2
+            output_price *= 1.5
+
         # Calculate cost (cached tokens get estimated 50% discount)
         # NOTE: Actual OpenAI cache discount may vary
         regular_input = input_tokens - cached_tokens
@@ -560,18 +576,14 @@ class OpenAIProvider(Provider):
         if model in self._pricing:
             return self._pricing[model]
 
-        # Prefix match
+        # Snapshot match. Do not treat arbitrary family-like model names as
+        # equivalent: undocumented/internal variants may have different rates.
         for model_prefix, pricing in self._pricing.items():
-            if model.startswith(model_prefix):
+            suffix = model.removeprefix(model_prefix)
+            if re.fullmatch(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})", suffix):
                 return pricing
 
-        # Pattern-based inference
-        family = _infer_model_family(model)
-        if family and family in _PATTERN_DEFAULTS:
-            return cast(tuple[float, float], _PATTERN_DEFAULTS[family]["pricing"])
-
-        # Default for unknown models
-        return cast(tuple[float, float], _UNKNOWN_OPENAI_DEFAULT["pricing"])
+        return None
 
     def get_output_buffer(self, model: str, default: int = 4000) -> int:
         """Get recommended output buffer."""

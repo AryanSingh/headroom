@@ -1,0 +1,34 @@
+{
+  "git_revision": "99d9d820aeafdb26ec85276e68da30316ef5f41e",
+  "platform": "Darwin arm64 25.2.0",
+  "benchmark_command": "rtk uv run python output/performance/verify_wrapped_sessions_2026_07_16.py",
+  "benchmark_config": {
+    "fake_upstream_port": 8794,
+    "proxy_port": 8795,
+    "port_8787_touched": false,
+    "warmups_per_route_and_size": 2,
+    "measured_samples_per_route_and_size": 12,
+    "request_order": "direct then wrapped, alternating by sample",
+    "proxy": {
+      "optimize": true,
+      "cache_enabled": false,
+      "rate_limit_enabled": false,
+      "retry_enabled": false,
+      "skip_user_messages": "default true"
+    }
+  },
+  "replay_load_commands": [
+    "rtk uv run python scripts/replay_codex_ws_load.py --log output/performance/synthetic_ws_slow_units.log --concurrency 4 --frames-per-session 1 --out-json output/performance/ws_replay_load_36kb_2026_07_16.json",
+    "rtk uv run python scripts/replay_codex_ws_load.py --log output/performance/synthetic_ws_slow_units.log --concurrency 1 --frames-per-session 1 --out-json output/performance/ws_replay_load_36kb_serial_2026_07_16.json"
+  ],
+  "bounded_250kb_replay_attempt": {
+    "command": "rtk uv run python scripts/replay_codex_ws_load.py --log output/performance/synthetic_ws_slow_units.log --concurrency 4 --frames-per-session 3 --out-json output/performance/ws_replay_load_2026_07_16.json",
+    "result": "manually terminated after more than 120 seconds without completing the 12-frame replay",
+    "exit_code": 130,
+    "output_json_created": false
+  },
+  "cleanup_verified": {
+    "port_8794_listeners_after_run": 0,
+    "port_8795_listeners_after_run": 0
+  }
+}

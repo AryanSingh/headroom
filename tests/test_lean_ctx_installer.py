@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import tarfile
 import zipfile
@@ -64,6 +65,7 @@ def test_download_lean_ctx_skips_verify_for_non_native_target(monkeypatch, tmp_p
         info.size = len(payload)
         tf.addfile(info, io.BytesIO(payload))
     archive_bytes = archive.getvalue()
+    monkeypatch.setenv("CUTCTX_LEAN_CTX_SHA256", hashlib.sha256(archive_bytes).hexdigest())
 
     class _Response:
         def __enter__(self):
@@ -91,6 +93,7 @@ def test_download_lean_ctx_extracts_zip_binary(monkeypatch, tmp_path: Path) -> N
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, mode="w") as zf:
         zf.writestr("lean-ctx.exe", b"fake-windows-binary")
+    monkeypatch.setenv("CUTCTX_LEAN_CTX_SHA256", hashlib.sha256(archive.getvalue()).hexdigest())
 
     class _Response:
         def __enter__(self):
@@ -122,6 +125,7 @@ def test_download_lean_ctx_verifies_native_target(monkeypatch, tmp_path: Path) -
         payload = b"fake-native-binary"
         info.size = len(payload)
         tf.addfile(info, io.BytesIO(payload))
+    monkeypatch.setenv("CUTCTX_LEAN_CTX_SHA256", hashlib.sha256(archive.getvalue()).hexdigest())
 
     class _Response:
         def __enter__(self):

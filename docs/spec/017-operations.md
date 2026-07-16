@@ -103,25 +103,42 @@ scrape_configs:
 
 ## Upgrade Procedure
 
+Never upgrade from a floating image without first recording the running
+version and taking a restorable copy of the Cutctx state directory or mounted
+volume. Set explicit versions from the release page:
+
+```bash
+export PREVIOUS_VERSION="0.31.0"
+export TARGET_VERSION="0.32.0"
+cp -a ~/.cutctx "${HOME}/.cutctx.pre-${TARGET_VERSION}"
+```
+
+Keep the backup until the upgraded service has passed the readiness and a
+representative provider request. Database formats are not guaranteed to be
+backward-compatible after a newer process has written them.
+
 ### Docker
 
 ```bash
-docker pull cutctx-ai/cutctx:latest
+docker pull "ghcr.io/cutctx/cutctx:${TARGET_VERSION}"
+# Change the deployment image to the exact TARGET_VERSION tag.
 docker-compose down
 docker-compose up -d
+curl --fail --show-error http://localhost:8787/readyz
 ```
 
 ### Native
 
 ```bash
-pip install --upgrade cutctx-ai
+pip install --upgrade "cutctx-ai[proxy]==${TARGET_VERSION}"
 # Restart cutctx service
+curl --fail --show-error http://localhost:8787/readyz
 ```
 
 ### Embedded
 
 ```bash
-pip install --upgrade cutctx-ai
+pip install --upgrade "cutctx-ai[proxy]==${TARGET_VERSION}"
 # Restart application
 ```
 
@@ -129,13 +146,34 @@ pip install --upgrade cutctx-ai
 
 ## Rollback
 
+Stop writes before rollback. If the upgraded process wrote persistent state,
+stop it and restore the pre-upgrade state copy before starting the older
+version. Do not delete the pre-upgrade backup until the rollback and a
+representative provider request have both succeeded.
+
 ### Docker
 
 ```bash
 docker-compose down
-docker tag cutctx-ai/cutctx:latest cutctx-ai/cutctx:rollback
-# Edit docker-compose.yml to use rollback tag
+# Restore the pre-upgrade state volume/directory when required.
+docker pull "ghcr.io/cutctx/cutctx:${PREVIOUS_VERSION}"
+# Change the deployment image to the exact PREVIOUS_VERSION tag.
 docker-compose up -d
+curl --fail --show-error http://localhost:8787/readyz
+```
+
+Never create a rollback tag from `latest`: after a pull, that tag points to the
+new image rather than the known-good image. Pin the previous release tag (or,
+for stricter immutability, the recorded `sha256:` digest) in the deployment.
+
+### Native / Embedded
+
+```bash
+# Stop the service/application first and restore ~/.cutctx from the backup
+# when the newer version may have changed persistent state.
+pip install --force-reinstall "cutctx-ai[proxy]==${PREVIOUS_VERSION}"
+# Restart the service/application, then verify it.
+curl --fail --show-error http://localhost:8787/readyz
 ```
 
 ---

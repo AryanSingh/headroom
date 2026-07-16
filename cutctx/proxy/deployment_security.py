@@ -50,6 +50,12 @@ def effective_admin_key(config: Any) -> str | None:
     return getattr(config, "admin_api_key", None) or os.environ.get("CUTCTX_ADMIN_API_KEY")
 
 
+def effective_proxy_key(config: Any) -> str | None:
+    """Resolve the dedicated provider-route client key."""
+
+    return getattr(config, "proxy_api_key", None) or os.environ.get("CUTCTX_PROXY_API_KEY")
+
+
 def _is_private_literal_upstream(url: str | None) -> bool:
     """Return whether an upstream URL uses a non-public literal IP address."""
     if not url:
@@ -78,6 +84,18 @@ def deployment_security_issues(config: Any) -> list[DeploymentSecurityIssue]:
                 remediation=(
                     "Set CUTCTX_ADMIN_API_KEY or configure CUTCTX_SSO_ENABLED=1 with "
                     "CUTCTX_SSO_JWKS_URI, CUTCTX_SSO_ISSUER, and CUTCTX_SSO_AUDIENCE."
+                ),
+            )
+        )
+
+    if not effective_proxy_key(config):
+        issues.append(
+            DeploymentSecurityIssue(
+                code="proxy_client_auth_required",
+                message="A non-loopback proxy requires proxy client authentication.",
+                remediation=(
+                    "Set CUTCTX_PROXY_API_KEY and pass X-Cutctx-Proxy-Key on provider "
+                    "HTTP and WebSocket requests. Do not reuse the admin or upstream key."
                 ),
             )
         )

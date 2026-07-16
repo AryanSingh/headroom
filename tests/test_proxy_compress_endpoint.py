@@ -76,7 +76,7 @@ class TestCompressEndpointValidation:
     def test_invalid_json_returns_400(self, client):
         response = client.post(
             "/v1/compress",
-            data="{not-json",
+            content=b"{not-json",
             headers={"content-type": "application/json"},
         )
         assert response.status_code == 400

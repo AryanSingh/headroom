@@ -470,7 +470,7 @@ def test_unbounded_mode_no_semaphore_instance():
 def test_unbounded_mode_requests_run_concurrently():
     """With concurrency=0 (sem disabled), two slow requests overlap."""
 
-    async def _run() -> float:
+    async def _run() -> _DummyAnthropicHandler:
         handler = _DummyAnthropicHandler(anthropic_pre_upstream_sem=None, upstream_delay_s=0.10)
         reqs = [
             _build_request(
@@ -482,15 +482,17 @@ def test_unbounded_mode_requests_run_concurrently():
             )
             for i in range(2)
         ]
-        start = time.perf_counter()
         await asyncio.gather(*(handler.handle_anthropic_messages(r) for r in reqs))
-        return time.perf_counter() - start
+        return handler
 
     with _tokenizer_patch():
-        elapsed = anyio.run(_run)
-    # Unbounded -> both sleeps run in parallel. Total should be ~0.10 s,
-    # nowhere near 0.20 s.
-    assert elapsed < 0.18, elapsed
+        handler = anyio.run(_run)
+    # Prove overlap from the controlled critical-section timestamps instead of
+    # using a wall-clock threshold that flakes when the full suite contends for
+    # CPU. Both requests must enter before either one exits.
+    assert len(handler.upstream_enter_times) == 2
+    assert len(handler.upstream_exit_times) == 2
+    assert max(handler.upstream_enter_times) < min(handler.upstream_exit_times)
 
 
 # --------------------------------------------------------------------------- #

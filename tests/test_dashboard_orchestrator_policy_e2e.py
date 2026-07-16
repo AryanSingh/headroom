@@ -434,6 +434,11 @@ def test_orchestrator_search_expands_and_filters_tabs() -> None:
             expect(search_input).to_be_enabled()
             before_width = search_shell.bounding_box()["width"]
             search_input.focus()
+            expect(search_input).to_be_focused()
+            page.wait_for_function(
+                "([element, width]) => element.getBoundingClientRect().width > width",
+                arg=[search_shell.element_handle(), before_width],
+            )
             after_focus_width = search_shell.bounding_box()["width"]
             assert after_focus_width > before_width
 
@@ -491,7 +496,9 @@ def test_orchestrator_roles_expose_advanced_binding_editor() -> None:
             page.wait_for_load_state("networkidle")
             page.get_by_role("tab", name="Roles").click()
 
-            expect(page.get_by_label("Model for Worker")).to_have_value("anthropic:claude-sonnet-4")
+            expect(page.get_by_label("Model for Worker", exact=True)).to_have_value(
+                "anthropic:claude-sonnet-4"
+            )
             page.locator(".orchestration-binding-editor summary").first.click()
             expect(page.get_by_text("Advanced bindings", exact=True).first).to_be_visible()
             expect(page.get_by_label("Binding id for Worker worker-default")).to_be_visible()

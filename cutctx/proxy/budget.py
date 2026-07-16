@@ -95,11 +95,11 @@ class BudgetTracker:
             try:
                 import asyncio
 
-                from cutctx.proxy.webhooks import dispatcher
+                from cutctx.proxy.webhooks import fire_webhook
 
                 title = "Budget Exceeded"
                 message = f"Budget exceeded! {self._tokens_used}/{self.budget_tokens} tokens used."
-                asyncio.create_task(dispatcher.fire_webhook(title, message))
+                asyncio.get_running_loop().create_task(fire_webhook(title, message))
             except Exception as e:
                 import logging
 

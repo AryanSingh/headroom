@@ -113,7 +113,6 @@ def _install_metrics_recorder(client: TestClient) -> _RecordingMetricsRecorder:
     return recorder
 
 
-@pytest.mark.asyncio
 def test_openai_chat_captures_memoization_hits_and_tokens_saved():
     """The OpenAI chat handler captures memoization hits/tokens from record_tool_results_from_messages()."""
     from cutctx.proxy.memoizer import MemoizeConfig
@@ -235,7 +234,6 @@ def test_openai_chat_captures_memoization_hits_and_tokens_saved():
     )
 
 
-@pytest.mark.asyncio
 def test_openai_chat_output_optimizer_uses_correct_api():
     """The OpenAI chat handler uses the correct output_optimizer.optimize() API."""
     config = ProxyConfig(
@@ -294,7 +292,6 @@ def test_openai_chat_output_optimizer_uses_correct_api():
     )
 
 
-@pytest.mark.asyncio
 def test_openai_chat_handles_output_optimizer_correctly_with_no_actions():
     """When output optimizer finds no actions to apply, tokens_saved should be 0."""
     config = ProxyConfig(

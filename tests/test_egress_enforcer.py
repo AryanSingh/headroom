@@ -28,7 +28,7 @@ class TestEgressEnforcer:
         assert d.allowed is True
         assert d.reason == "allow_all_policy"
 
-    def test_substring_match(self):
+    def test_exact_host_match(self):
         from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
         enforcer = EgressEnforcer(
@@ -41,18 +41,56 @@ class TestEgressEnforcer:
         assert d.allowed is True
         assert d.matched_pattern == "api.anthropic.com"
 
-    def test_regex_match(self):
+    def test_path_cannot_impersonate_allowlisted_host(self):
         from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
         enforcer = EgressEnforcer(
             EgressPolicy(
-                policy_id="regex",
-                allowed_patterns=(r".*\.anthropic\.com$",),
+                policy_id="path-bypass",
+                allowed_patterns=("api.anthropic.com",),
             )
         )
-        d = enforcer.check("https://api.anthropic.com/v1/messages")
-        assert d.allowed is True
-        assert d.matched_pattern == r".*\.anthropic\.com$"
+        d = enforcer.check("https://attacker.example/api.anthropic.com/v1/messages")
+        assert d.allowed is False
+        assert d.reason == "no_pattern_match"
+
+    def test_exact_host_does_not_match_subdomain(self):
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
+
+        enforcer = EgressEnforcer(
+            EgressPolicy(
+                policy_id="exact",
+                allowed_patterns=("api.anthropic.com",),
+            )
+        )
+        d = enforcer.check("https://evil.api.anthropic.com/v1/messages")
+        assert d.allowed is False
+
+    def test_explicit_leading_wildcard_matches_subdomains_only(self):
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
+
+        enforcer = EgressEnforcer(
+            EgressPolicy(
+                policy_id="wildcard",
+                allowed_patterns=("*.anthropic.com",),
+            )
+        )
+        assert enforcer.check("https://api.anthropic.com/v1/messages").allowed is True
+        assert enforcer.check("https://edge.api.anthropic.com/v1/messages").allowed is True
+        assert enforcer.check("https://anthropic.com/v1/messages").allowed is False
+        assert enforcer.check("https://notanthropic.com/v1/messages").allowed is False
+
+    def test_legacy_origin_pattern_matches_its_host_only(self):
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
+
+        enforcer = EgressEnforcer(
+            EgressPolicy(
+                policy_id="legacy-origin",
+                allowed_patterns=("https://api.anthropic.com",),
+            )
+        )
+        assert enforcer.check("https://api.anthropic.com/v1/messages").allowed is True
+        assert enforcer.check("https://attacker.example/https://api.anthropic.com").allowed is False
 
     def test_no_match_denies(self):
         from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
@@ -77,9 +115,7 @@ class TestEgressEnforcer:
             )
         )
         d = enforcer.check("not a url at all")
-        # "not a url at all" has no parseable host, so denied.
-        # Note: urlparse may extract "not" as the host, which is
-        # then matched against the substring "anthropic" -> denied.
+        # The input has no URL hostname, so it cannot match an exact host rule.
         assert d.allowed is False
 
     def test_case_insensitive_match(self):
@@ -94,21 +130,30 @@ class TestEgressEnforcer:
         d = enforcer.check("https://API.ANTHROPIC.COM/v1/messages")
         assert d.allowed is True
 
-    def test_invalid_regex_pattern_is_skipped(self):
+    def test_regex_pattern_is_not_interpreted(self):
         from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
 
-        # [unclosed bracket is invalid regex
         enforcer = EgressEnforcer(
             EgressPolicy(
-                policy_id="bad",
-                allowed_patterns=("[unclosed", "api.openai.com"),
+                policy_id="no-regex",
+                allowed_patterns=(r".*\.anthropic\.com$", "api.openai.com"),
             )
         )
+        assert enforcer.check("https://api.anthropic.com/v1/messages").allowed is False
         d = enforcer.check("https://api.openai.com/v1/chat")
-        # The first pattern is dropped at construction, but the
-        # second still matches.
         assert d.allowed is True
         assert d.matched_pattern == "api.openai.com"
+
+    def test_host_normalization_is_case_insensitive_and_ignores_trailing_dot(self):
+        from cutctx.proxy.egress import EgressEnforcer, EgressPolicy
+
+        enforcer = EgressEnforcer(
+            EgressPolicy(
+                policy_id="normalized",
+                allowed_patterns=("API.ANTHROPIC.COM.",),
+            )
+        )
+        assert enforcer.check("https://api.anthropic.com./v1/messages").allowed is True
 
 
 class TestLoadPolicyFromEnv:

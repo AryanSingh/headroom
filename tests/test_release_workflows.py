@@ -105,7 +105,7 @@ def test_release_workflow_publishes_python_distributions_to_github_release() -> 
     assert 'gh release upload "$TAG" release-assets/*.tgz --clobber' in content
 
 
-def test_create_release_requires_successful_build_and_pypi_publish() -> None:
+def test_create_release_requires_every_unskipped_publish_target_to_succeed() -> None:
     content = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
 
     # Single-wheel maturin refactor (PR #360) added `build-wheels` (the
@@ -129,6 +129,37 @@ def test_create_release_requires_successful_build_and_pypi_publish() -> None:
     assert "needs.collect-dist.result == 'success'" in content
     assert "needs.smoke-import-wheels.result == 'success'" in content
     assert "(vars.PYPI_SKIP == 'true' || needs.publish-pypi.result == 'success')" in content
+    assert "(vars.NPM_SKIP == 'true' || needs.publish-npm.result == 'success')" in content
+    assert (
+        "(vars.GH_PACKAGES_SKIP == 'true' || needs.publish-github-packages.result == 'success')"
+        in content
+    )
+    assert "(vars.DOCKER_SKIP == 'true' || needs.publish-docker.result == 'success')" in content
+
+
+def test_node_and_docker_publish_failures_are_not_downgraded() -> None:
+    """Required publish targets fail closed unless their repository skip variable is true."""
+    content = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+
+    job_boundaries = (
+        ("publish-npm", "publish-github-packages"),
+        ("publish-github-packages", "publish-docker"),
+        ("publish-docker", "create-release"),
+    )
+    for job_name, next_job_name in job_boundaries:
+        start = content.index(f"\n  {job_name}:")
+        end = content.index(f"\n  {next_job_name}:", start)
+        job = content[start:end]
+        assert "continue-on-error: true" not in job, (
+            f"{job_name} must propagate publish failures to the release run"
+        )
+
+    docker_start = content.index("\n  publish-docker:")
+    docker_end = content.index("\n  create-release:", docker_start)
+    docker_job = content[docker_start:docker_end]
+    assert "vars.DOCKER_SKIP != 'true'" in docker_job, (
+        "Docker publishing may be bypassed only via the explicit DOCKER_SKIP repository variable"
+    )
 
 
 def test_macos_native_wrapper_dependency_install_retries_pypi_downloads() -> None:
@@ -1036,18 +1067,16 @@ def test_release_workflow_runs_dry_run_on_pull_request() -> None:
     )
 
 
-def test_release_yml_triggers_on_release_published_not_every_push_to_main() -> None:
-    """release.yml fires when release-please publishes a release, not per main push.
+def test_release_yml_is_called_for_release_please_output_not_every_push_to_main() -> None:
+    """release.yml is reusable and never publishes for every ordinary main push.
 
-    The prior trigger (`push: branches: [main]`) caused a fresh wheel
+    The prior release workflow trigger (`push: branches: [main]`) caused a fresh wheel
     matrix to be uploaded to PyPI for every merged `fix:`/`feat:` PR.
     PyPI enforces a 10 GiB per-project storage quota and the project
     breached it in May 2026 (publish-pypi failing on every main merge
-    from PR #482 forward). The fix routes releases through
-    release-please's release-PR pattern: bot opens/maintains a
-    `chore: release vX.Y.Z` PR aggregating conventional-commit traffic;
-    merging that PR creates the tag + GitHub Release; THAT release
-    event is what triggers this workflow.
+    from PR #482 forward). release-please still watches main to maintain
+    its aggregate release PR, but invokes this reusable workflow only
+    when its root `release_created` output is true.
 
     Reverting to a per-push trigger would re-create the quota
     blowup. This test fails any refactor that does so silently.
@@ -1056,10 +1085,9 @@ def test_release_yml_triggers_on_release_published_not_every_push_to_main() -> N
     on_block_end = content.index("\nconcurrency:")
     on_block = content[:on_block_end]
 
-    assert "\n  release:\n    types: [published]" in on_block, (
-        "release.yml must trigger on the `release: published` event so "
-        "release-please's release-PR merge is the only way to publish — "
-        "see .github/workflows/release-please.yml."
+    assert "\n  workflow_call:" in on_block, (
+        "release.yml must expose workflow_call so release-please can invoke "
+        "publishing only after it reports release_created=true."
     )
     assert "\n  push:\n    branches: [main]" not in on_block, (
         "release.yml MUST NOT trigger on every push to main. That pattern "
@@ -1068,29 +1096,59 @@ def test_release_yml_triggers_on_release_published_not_every_push_to_main() -> N
     )
 
 
-def test_release_yml_resolves_manual_ver_from_release_tag() -> None:
-    """When fired by release event, MANUAL_VER must come from the release tag.
+def test_github_release_stays_draft_until_all_assets_are_published() -> None:
+    """A failed validation, registry publish, or asset upload must leave only a draft release."""
+    import json
+
+    config = json.loads((ROOT / ".release-please-config.json").read_text(encoding="utf-8"))
+    release_yml = (ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    release_please_yml = (ROOT / ".github" / "workflows" / "release-please.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert config["draft"] is True, (
+        "release-please must create a draft so validation/publishing occurs before public release"
+    )
+    assert config["force-tag-creation"] is True, (
+        "draft releases need an immediate tag so failed validation cannot corrupt the next "
+        "aggregate release baseline"
+    )
+    assert "id: release" in release_please_yml
+    assert "release_created: ${{ steps.release.outputs.release_created }}" in release_please_yml
+    assert "version: ${{ steps.release.outputs.version }}" in release_please_yml
+    assert "if: needs.release-please.outputs.release_created == 'true'" in release_please_yml
+    assert "uses: ./.github/workflows/release.yml" in release_please_yml
+
+    create_idx = release_yml.index("gh release create")
+    upload_python_idx = release_yml.index('gh release upload "$TAG" release-assets/*.whl')
+    upload_node_idx = release_yml.index('gh release upload "$TAG" release-assets/*.tgz')
+    publish_idx = release_yml.index('gh release edit "$TAG" --draft=false')
+
+    assert "--draft" in release_yml[create_idx : release_yml.index("\n", create_idx)]
+    assert create_idx < upload_python_idx < upload_node_idx < publish_idx, (
+        "the GitHub Release may become public only after every release asset upload succeeds"
+    )
+
+
+def test_release_yml_resolves_version_from_reusable_or_manual_input() -> None:
+    """Release calls must build the exact version emitted by release-please.
 
     release_version.py defaults to deriving the next version from git
-    log + canonical pyproject.toml version. On a release-published
-    run, that derivation would re-bump past the version the bot just
-    tagged, producing wheels for the wrong version. The detect-version
-    job must read `github.event.release.tag_name` and strip the leading
-    `v` so the SemVer parser accepts it.
+    log + canonical pyproject.toml version. A reusable release call must
+    instead consume the root `version` output passed by release-please;
+    otherwise it can re-bump past the tag that the bot just created.
     """
     content = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
 
     assert "Resolve MANUAL_VER from trigger" in content, (
         "detect-version must include a step that resolves MANUAL_VER from "
-        "the trigger context (release.tag_name on release events; "
-        "inputs.version on workflow_dispatch)."
+        "inputs.version for reusable and manual workflow calls."
     )
-    assert "RELEASE_TAG: ${{ github.event.release.tag_name }}" in content, (
-        "Resolver must read the tag from github.event.release.tag_name."
-    )
-    assert "${RELEASE_TAG#v}" in content, (
-        "Resolver must strip the leading 'v' from the release tag — "
-        "release_version.py's SemVer regex rejects 'v0.9.2'."
+    assert "MANUAL_INPUT: ${{ inputs.version }}" in content, (
+        "Resolver must use the unified inputs context supported by workflow_call "
+        "and workflow_dispatch."
     )
     assert "MANUAL_VER: ${{ steps.manualver.outputs.value }}" in content, (
         "Compute-version step must consume the resolver's output."
@@ -1145,6 +1203,13 @@ def test_release_please_workflow_exists_and_targets_main() -> None:
     assert "contents: write" in content, (
         "Bot needs contents write to tag the release commit on merge."
     )
+    assert "id: release" in content, "Release outputs must be captured for the publish gate"
+    assert "release_created: ${{ steps.release.outputs.release_created }}" in content
+    assert "version: ${{ steps.release.outputs.version }}" in content
+    assert "if: needs.release-please.outputs.release_created == 'true'" in content, (
+        "Ordinary main pushes may update the aggregate release PR but must not publish packages"
+    )
+    assert "uses: ./.github/workflows/release.yml" in content
 
 
 def test_release_please_config_and_manifest_are_present_and_consistent() -> None:

@@ -42,20 +42,22 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 from dataclasses import dataclass
+from ipaddress import ip_address
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class EgressPolicy:
-    """Allowlist of egress destinations.
+    """Allowlist of egress destination hosts.
 
-    A request is allowed if its host or full URL matches any
-    pattern in ``allowed_patterns`` (case-insensitive substring
-    or full-string host match). Empty ``allowed_patterns`` means
-    deny-all: nothing is allowed to leave the proxy.
+    Entries in ``allowed_patterns`` are exact hosts or explicit leading
+    wildcards such as ``*.example.com``. For backward compatibility, an
+    HTTP(S) origin such as ``https://api.example.com`` is normalized to its
+    host. Empty ``allowed_patterns`` means deny-all: nothing is allowed to
+    leave the proxy.
     """
 
     policy_id: str
@@ -84,21 +86,14 @@ class EgressEnforcer:
 
     def __init__(self, policy: EgressPolicy):
         self.policy = policy
-        # Pre-compile regex patterns for the allowed_patterns
-        # list. Patterns are interpreted as case-insensitive
-        # regex if they contain a metacharacter (., *, +), or
-        # as case-insensitive substring otherwise.
-        self._patterns: list[re.Pattern[str]] = []
-        for p in policy.allowed_patterns:
-            try:
-                if any(c in p for c in r".*+?[]{}()|^$"):
-                    self._patterns.append(re.compile(p, re.IGNORECASE))
-                else:
-                    # Substring match: escape any regex specials
-                    escaped = re.escape(p)
-                    self._patterns.append(re.compile(escaped, re.IGNORECASE))
-            except re.error as exc:
-                logger.warning("EgressEnforcer: skipping invalid pattern %r: %s", p, exc)
+        self._host_rules: list[tuple[str, str, bool]] = []
+        for pattern in policy.allowed_patterns:
+            normalized = _normalize_allowed_host(pattern)
+            if normalized is None:
+                logger.warning("EgressEnforcer: skipping invalid host rule %r", pattern)
+                continue
+            host, wildcard = normalized
+            self._host_rules.append((pattern, host, wildcard))
 
     def check(self, url: str) -> EgressDecision:
         """Check whether ``url`` is allowed by the policy.
@@ -116,7 +111,7 @@ class EgressEnforcer:
                 policy_id=self.policy.policy_id,
             )
 
-        if not self._patterns:
+        if not self._host_rules:
             # Empty allowlist + not allow_all = deny-all.
             return EgressDecision(
                 allowed=False,
@@ -127,9 +122,7 @@ class EgressEnforcer:
         # Extract the host safely.
         host = ""
         try:
-            from urllib.parse import urlparse
-
-            host = (urlparse(url).hostname or "").lower()
+            host = _normalize_host(urlparse(url).hostname or "")
         except Exception:
             host = ""
         if not host:
@@ -139,21 +132,83 @@ class EgressEnforcer:
                 policy_id=self.policy.policy_id,
             )
 
-        haystacks = (host, url.lower())
-        for pat in self._patterns:
-            for hay in haystacks:
-                if pat.search(hay):
-                    return EgressDecision(
-                        allowed=True,
-                        reason="matched_pattern",
-                        matched_pattern=pat.pattern,
-                        policy_id=self.policy.policy_id,
-                    )
+        for original, allowed_host, wildcard in self._host_rules:
+            matches = (
+                host.endswith(f".{allowed_host}") if wildcard else host == allowed_host
+            )
+            if matches:
+                return EgressDecision(
+                    allowed=True,
+                    reason="matched_pattern",
+                    matched_pattern=original,
+                    policy_id=self.policy.policy_id,
+                )
         return EgressDecision(
             allowed=False,
             reason="no_pattern_match",
             policy_id=self.policy.policy_id,
         )
+
+
+def _normalize_host(host: str) -> str:
+    """Return a canonical ASCII host for exact security comparisons."""
+    normalized = host.strip().strip("[]").rstrip(".").lower()
+    if not normalized:
+        return ""
+    try:
+        return str(ip_address(normalized))
+    except ValueError:
+        try:
+            return normalized.encode("idna").decode("ascii")
+        except UnicodeError:
+            return ""
+
+
+def _normalize_allowed_host(pattern: str) -> tuple[str, bool] | None:
+    """Parse an exact host or explicit ``*.host`` allowlist entry."""
+    raw = str(pattern).strip()
+    if not raw:
+        return None
+
+    if "://" in raw:
+        parsed = urlparse(raw)
+        if (
+            parsed.scheme.lower() not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            return None
+        candidate = parsed.hostname
+    else:
+        candidate = raw
+
+    wildcard = candidate.startswith("*.")
+    if wildcard:
+        candidate = candidate[2:]
+    if not candidate or "*" in candidate:
+        return None
+
+    host = _normalize_host(candidate)
+    if not host or any(char in host for char in "\\/@?#"):
+        return None
+    try:
+        ip_address(host)
+    except ValueError:
+        labels = host.split(".")
+        if any(
+            not label
+            or len(label) > 63
+            or label.startswith("-")
+            or label.endswith("-")
+            or not all(char.isalnum() or char in "-_" for char in label)
+            for label in labels
+        ):
+            return None
+    return host, wildcard
 
 
 def load_policy_from_env() -> EgressPolicy:

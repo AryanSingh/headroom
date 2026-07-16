@@ -127,7 +127,10 @@ def _compute_summary(storage, days: int = 30, model: str = "claude-sonnet-4-5") 
     )
 
     # Get pricing
-    input_price, _ = _resolve_model_pricing(model)
+    pricing = _resolve_model_pricing(model)
+    if pricing is None:
+        raise ValueError(f"No verified pricing is available for model '{model}'")
+    input_price, _ = pricing
 
     # Calculate costs (using input tokens only per spec)
     tokens_before_filtered = filtered_stats.get("total_tokens_before", 0)

@@ -18,6 +18,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -27,64 +28,74 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Model pricing (input/output per 1M tokens, USD)
-# Updated 2025-06. Source: provider pricing pages.
+# Last verified 2026-07-16 against official provider pricing pages.
+# OpenAI: https://developers.openai.com/api/docs/pricing
+# Anthropic: https://platform.claude.com/docs/en/about-claude/pricing
+# Google: https://ai.google.dev/gemini-api/docs/pricing
 # ---------------------------------------------------------------------------
 
 MODEL_PRICING: dict[str, dict[str, float]] = {
     # Anthropic Claude
+    "claude-opus-4-8": {"input": 5.0, "output": 25.0},
+    "claude-opus-4-7": {"input": 5.0, "output": 25.0},
+    "claude-opus-4-6": {"input": 5.0, "output": 25.0},
+    "claude-opus-4-5-20251101": {"input": 5.0, "output": 25.0},
+    "claude-opus-4-5": {"input": 5.0, "output": 25.0},
     "claude-opus-4-20250514": {"input": 15.0, "output": 75.0},
     "claude-opus-4": {"input": 15.0, "output": 75.0},
+    "claude-sonnet-4-6": {"input": 3.0, "output": 15.0},
     "claude-sonnet-4-5-20250929": {"input": 3.0, "output": 15.0},
     "claude-sonnet-4-5": {"input": 3.0, "output": 15.0},
     "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
     "claude-sonnet-4": {"input": 3.0, "output": 15.0},
+    "claude-haiku-4-5-20251001": {"input": 1.0, "output": 5.0},
+    "claude-haiku-4-5": {"input": 1.0, "output": 5.0},
     "claude-haiku-3-5-20241022": {"input": 0.80, "output": 4.0},
     "claude-haiku-3-5": {"input": 0.80, "output": 4.0},
+    "claude-3-5-sonnet-20241022": {"input": 3.0, "output": 15.0},
+    "claude-3-5-sonnet-latest": {"input": 3.0, "output": 15.0},
     "claude-3-haiku-20240307": {"input": 0.25, "output": 1.25},
     # OpenAI GPT
+    "gpt-5.4": {"input": 2.50, "output": 15.0},
+    "gpt-5.4-mini": {"input": 0.75, "output": 4.50},
+    "gpt-5.4-nano": {"input": 0.20, "output": 1.25},
     "gpt-4o": {"input": 2.50, "output": 10.0},
     "gpt-4o-mini": {"input": 0.15, "output": 0.60},
     "gpt-4-turbo": {"input": 10.0, "output": 30.0},
     "gpt-4.1": {"input": 2.0, "output": 8.0},
     "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
     "gpt-4.1-nano": {"input": 0.10, "output": 0.40},
-    "o3": {"input": 10.0, "output": 40.0},
+    "o3": {"input": 2.0, "output": 8.0},
     "o3-mini": {"input": 1.10, "output": 4.40},
     "o4-mini": {"input": 1.10, "output": 4.40},
     # Google Gemini
     "gemini-2.5-pro": {"input": 1.25, "output": 10.0},
-    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
+    "gemini-2.5-flash": {"input": 0.30, "output": 2.50},
     "gemini-1.5-pro": {"input": 2.50, "output": 10.0},
     "gemini-1.5-flash": {"input": 0.075, "output": 0.30},
 }
 
-# Fallback for unknown models (conservative: Sonnet-class pricing)
-_DEFAULT_INPUT_PER_M = 3.0
-_DEFAULT_OUTPUT_PER_M = 15.0
-
-
-def _resolve_model_pricing(model: str) -> tuple[float, float]:
+def _resolve_model_pricing(model: str) -> tuple[float, float] | None:
     """Resolve input/output pricing per 1M tokens for a model.
 
-    Tries exact match, then prefix match (e.g., "claude-sonnet-4-5-20250929"
-    falls back to "claude-sonnet-4-5"), then default.
+    Tries an exact match, then a dated provider snapshot match. Arbitrary
+    family-like identifiers are deliberately left unknown.
 
     Returns:
-        (input_per_m, output_per_m) in USD per 1M tokens.
+        (input_per_m, output_per_m) in USD per 1M tokens, or None.
     """
     # Exact match
     if model in MODEL_PRICING:
         p = MODEL_PRICING[model]
         return p["input"], p["output"]
 
-    # Prefix match: try progressively shorter prefixes
-    for length in range(len(model), 0, -1):
-        prefix = model[:length]
-        if prefix in MODEL_PRICING:
-            p = MODEL_PRICING[prefix]
+    # Official snapshots append a date to a stable model ID.
+    for base, p in MODEL_PRICING.items():
+        suffix = model.removeprefix(base)
+        if re.fullmatch(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})", suffix):
             return p["input"], p["output"]
 
-    return _DEFAULT_INPUT_PER_M, _DEFAULT_OUTPUT_PER_M
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -99,15 +110,15 @@ class CostEstimate:
     model: str
     input_tokens: int
     output_tokens: int
-    input_usd: float
-    output_usd: float
-    total_usd: float
-    compression_savings_usd: float = 0.0
+    input_usd: float | None
+    output_usd: float | None
+    total_usd: float | None
+    compression_savings_usd: float | None = 0.0
     compressed_input_tokens: int = 0
 
     @property
     def savings_percent(self) -> float:
-        if self.input_usd == 0:
+        if not self.input_usd or self.compression_savings_usd is None:
             return 0.0
         return (self.compression_savings_usd / self.input_usd) * 100
 
@@ -125,7 +136,31 @@ class CostEstimator:
 
     def __init__(self, model: str = "claude-sonnet-4-5-20250929") -> None:
         self.model = model
-        self._input_per_m, self._output_per_m = _resolve_model_pricing(model)
+        pricing = _resolve_model_pricing(model)
+        self._input_per_m = pricing[0] if pricing else None
+        self._output_per_m = pricing[1] if pricing else None
+
+    def _effective_rates(self, input_tokens: int) -> tuple[float, float] | None:
+        """Return documented rates for this request's input tier."""
+        if self._input_per_m is None or self._output_per_m is None:
+            return None
+
+        input_rate, output_rate = self._input_per_m, self._output_per_m
+        if input_tokens > 272_000 and (
+            self.model == "gpt-5.4"
+            or re.fullmatch(
+                r"gpt-5\.4-(?:\d{8}|\d{4}-\d{2}-\d{2})", self.model
+            )
+        ):
+            return input_rate * 2, output_rate * 1.5
+        if input_tokens > 200_000 and (
+            self.model == "gemini-2.5-pro"
+            or re.fullmatch(
+                r"gemini-2\.5-pro-(?:\d{8}|\d{4}-\d{2}-\d{2})", self.model
+            )
+        ):
+            return 2.50, 15.00
+        return input_rate, output_rate
 
     def estimate(
         self,
@@ -148,6 +183,20 @@ class CostEstimator:
         compressed_input = int(input_tokens * compression_ratio)
         tokens_saved = input_tokens - compressed_input
 
+        rates = self._effective_rates(input_tokens)
+        if rates is None:
+            return CostEstimate(
+                model=self.model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                input_usd=None,
+                output_usd=None,
+                total_usd=None,
+                compression_savings_usd=None,
+                compressed_input_tokens=compressed_input,
+            )
+        input_rate, output_rate = rates
+
         try:
             # For dynamic EE pricing, use a local registry mock or load actual
             # Currently just passing empty registry to let compute_costs run if extended
@@ -168,9 +217,9 @@ class CostEstimator:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     input_usd=round(
-                        total_usd - (output_tokens / 1_000_000 * self._output_per_m), 6
+                        total_usd - (output_tokens / 1_000_000 * output_rate), 6
                     ),
-                    output_usd=round((output_tokens / 1_000_000 * self._output_per_m), 6),
+                    output_usd=round((output_tokens / 1_000_000 * output_rate), 6),
                     total_usd=round(total_usd, 6),
                     compression_savings_usd=round(savings, 6),
                     compressed_input_tokens=compressed_input,
@@ -179,11 +228,11 @@ class CostEstimator:
             pass
 
         # OSS fallback
-        input_usd = (input_tokens / 1_000_000) * self._input_per_m
-        output_usd = (output_tokens / 1_000_000) * self._output_per_m
+        input_usd = (input_tokens / 1_000_000) * input_rate
+        output_usd = (output_tokens / 1_000_000) * output_rate
         total_usd = input_usd + output_usd
 
-        compressed_input_usd = (compressed_input / 1_000_000) * self._input_per_m
+        compressed_input_usd = (compressed_input / 1_000_000) * input_rate
         savings = input_usd - compressed_input_usd
 
         return CostEstimate(
@@ -254,7 +303,7 @@ class PolicyDecision:
     compression_ratio: float  # Expected ratio (0.0 = full compress, 1.0 = none)
     rationale: str
     budget_remaining_usd: float
-    estimated_savings_usd: float
+    estimated_savings_usd: float | None
     priority: int = 0  # Higher = more urgent
 
 
@@ -383,7 +432,11 @@ class PolicyEngine:
                     compression_ratio=rule.compression_ratio,
                     rationale=f"{rule.name}: {rule.condition}",
                     budget_remaining_usd=round(budget_remaining_usd, 4),
-                    estimated_savings_usd=round(cost_estimate.compression_savings_usd, 6),
+                    estimated_savings_usd=(
+                        round(cost_estimate.compression_savings_usd, 6)
+                        if cost_estimate.compression_savings_usd is not None
+                        else None
+                    ),
                     priority=rule.priority,
                 )
 
@@ -492,11 +545,17 @@ class SessionCostTracker:
 
         self._total_input_tokens += input_tokens
         self._total_output_tokens += output_tokens
-        self._total_input_usd += estimate.input_usd
-        self._total_output_usd += estimate.output_usd
+        if estimate.input_usd is not None:
+            self._total_input_usd += estimate.input_usd
+        if estimate.output_usd is not None:
+            self._total_output_usd += estimate.output_usd
         self._request_count += 1
 
-        if compressed_input_tokens is not None and compressed_input_tokens < input_tokens:
+        if (
+            compressed_input_tokens is not None
+            and compressed_input_tokens < input_tokens
+            and self._estimator._input_per_m is not None
+        ):
             saved_tokens = input_tokens - compressed_input_tokens
             saved_usd = (saved_tokens / 1_000_000) * self._estimator._input_per_m
             self._tokens_saved += saved_tokens

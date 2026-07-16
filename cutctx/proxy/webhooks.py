@@ -51,18 +51,95 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import ipaddress
 import json
 import logging
 import os
 import random
+import socket
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
 logger = logging.getLogger("cutctx.proxy.webhooks")
+
+
+class WebhookDestinationError(ValueError):
+    """Raised when a webhook destination violates the outbound URL policy."""
+
+
+def _is_development_http_allowed() -> bool:
+    return os.environ.get("CUTCTX_DEV_ALLOW_INSECURE_WEBHOOK_HTTP", "").strip() == "1"
+
+
+def validate_webhook_url(url: str) -> None:
+    """Reject webhook URLs that are unsafe before they enter the delivery queue."""
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError as exc:
+        raise WebhookDestinationError(f"invalid webhook URL: {exc}") from exc
+
+    scheme = parsed.scheme.lower()
+    if scheme not in {"http", "https"}:
+        raise WebhookDestinationError("webhook URL scheme must be HTTP or HTTPS")
+    if scheme != "https" and not _is_development_http_allowed():
+        raise WebhookDestinationError(
+            "webhook URL must use HTTPS; development HTTP requires "
+            "CUTCTX_DEV_ALLOW_INSECURE_WEBHOOK_HTTP=1"
+        )
+    if parsed.username is not None or parsed.password is not None:
+        raise WebhookDestinationError("webhook URL must not contain credentials")
+    if not parsed.hostname:
+        raise WebhookDestinationError("webhook URL must include a hostname")
+
+    # Accessing ``parsed.port`` above validates its syntax and range. Keep the
+    # local binding so static analysis sees that this validation is intentional.
+    del port
+    try:
+        literal = ipaddress.ip_address(parsed.hostname)
+    except ValueError:
+        return
+    if not literal.is_global:
+        raise WebhookDestinationError("webhook URL contains a non-global IP address")
+
+
+async def resolve_webhook_destination(url: str) -> set[str]:
+    """Resolve a webhook hostname off-loop and require every address to be global."""
+    validate_webhook_url(url)
+    parsed = urlsplit(url)
+    assert parsed.hostname is not None  # guaranteed by validate_webhook_url
+    port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+    try:
+        records = await asyncio.to_thread(
+            socket.getaddrinfo,
+            parsed.hostname,
+            port,
+            socket.AF_UNSPEC,
+            socket.SOCK_STREAM,
+        )
+    except (OSError, socket.gaierror) as exc:
+        raise WebhookDestinationError(f"webhook hostname resolution failed: {exc}") from exc
+
+    addresses = {str(record[4][0]) for record in records}
+    if not addresses:
+        raise WebhookDestinationError("webhook hostname resolved to no addresses")
+    for address in addresses:
+        try:
+            resolved_ip = ipaddress.ip_address(address)
+        except ValueError as exc:
+            raise WebhookDestinationError(
+                "webhook hostname resolution returned an invalid address"
+            ) from exc
+        if not resolved_ip.is_global:
+            raise WebhookDestinationError(
+                f"webhook hostname resolved to a non-global address: {address}"
+            )
+    return addresses
 
 
 class WebhookEventType(str, Enum):
@@ -111,6 +188,9 @@ class WebhookSubscription:
     event_types: set[str] | None = None
     org_id: str | None = None
     enabled: bool = True
+
+    def __post_init__(self) -> None:
+        validate_webhook_url(self.url)
 
 
 @dataclass
@@ -309,7 +389,7 @@ class WebhookDispatcher:
         """Launch the background delivery task."""
         if self._task is not None:
             return
-        self._http = httpx.AsyncClient(timeout=self.timeout_s)
+        self._http = httpx.AsyncClient(timeout=self.timeout_s, follow_redirects=False)
         self._stopped = False
         self._task = asyncio.create_task(self._drain_loop(), name="cutctx-webhook-dispatcher")
         logger.info(
@@ -456,6 +536,10 @@ class WebhookDispatcher:
         for attempt in range(self.max_attempts):
             delivery.attempt = attempt + 1
             try:
+                # Resolve again immediately before every attempt. This blocks
+                # persisted unsafe destinations and DNS answers that change
+                # between retries without blocking the asyncio event loop.
+                await resolve_webhook_destination(delivery.subscription.url)
                 response = await self._http.post(
                     delivery.subscription.url,
                     content=body,
@@ -499,7 +583,7 @@ class WebhookDispatcher:
                             )
                     return
                 delivery.last_error = f"HTTP {response.status_code}"
-            except (httpx.HTTPError, asyncio.TimeoutError) as exc:
+            except (httpx.HTTPError, asyncio.TimeoutError, WebhookDestinationError) as exc:
                 delivery.last_error = type(exc).__name__ + ": " + str(exc)
             # Backoff before retry (unless this was the last attempt).
             if attempt + 1 < self.max_attempts:
@@ -624,4 +708,7 @@ __all__ = [
     "get_webhook_dispatcher",
     "reset_webhook_dispatcher",
     "fire_webhook",
+    "resolve_webhook_destination",
+    "validate_webhook_url",
+    "WebhookDestinationError",
 ]

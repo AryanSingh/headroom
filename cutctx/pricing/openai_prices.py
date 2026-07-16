@@ -5,13 +5,40 @@ from datetime import date
 from .registry import ModelPricing, PricingRegistry
 
 # Last verified date for pricing information
-LAST_UPDATED = date(2025, 1, 6)
+LAST_UPDATED = date(2026, 7, 16)
 
 # Official pricing page
-SOURCE_URL = "https://openai.com/api/pricing/"
+SOURCE_URL = "https://developers.openai.com/api/docs/pricing"
 
 # All prices are in USD per 1 million tokens
 OPENAI_PRICES: dict[str, ModelPricing] = {
+    "gpt-5.4": ModelPricing(
+        model="gpt-5.4",
+        provider="openai",
+        input_per_1m=2.50,
+        output_per_1m=15.00,
+        cached_input_per_1m=0.25,
+        context_window=1_050_000,
+        notes="Current general-purpose frontier model",
+    ),
+    "gpt-5.4-mini": ModelPricing(
+        model="gpt-5.4-mini",
+        provider="openai",
+        input_per_1m=0.75,
+        output_per_1m=4.50,
+        cached_input_per_1m=0.075,
+        context_window=400_000,
+        notes="Smaller GPT-5.4 model for lower-cost workloads",
+    ),
+    "gpt-5.4-nano": ModelPricing(
+        model="gpt-5.4-nano",
+        provider="openai",
+        input_per_1m=0.20,
+        output_per_1m=1.25,
+        cached_input_per_1m=0.02,
+        context_window=400_000,
+        notes="Smallest GPT-5.4 model",
+    ),
     "gpt-4o": ModelPricing(
         model="gpt-4o",
         provider="openai",
@@ -47,6 +74,15 @@ OPENAI_PRICES: dict[str, ModelPricing] = {
         cached_input_per_1m=0.55,
         context_window=128_000,
         notes="Smaller reasoning model, cost-effective for coding tasks",
+    ),
+    "o3": ModelPricing(
+        model="o3",
+        provider="openai",
+        input_per_1m=2.00,
+        output_per_1m=8.00,
+        cached_input_per_1m=0.50,
+        context_window=200_000,
+        notes="Reasoning model for complex tasks",
     ),
     "o3-mini": ModelPricing(
         model="o3-mini",

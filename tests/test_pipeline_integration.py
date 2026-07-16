@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -217,9 +217,11 @@ class TestEnsemblePipeline:
         coordinator = EnsembleCoordinator(cfg)
         with pytest.raises(Exception):
             # execute should raise EnsembleError when no models configured
+            client = MagicMock()
+            client.post = AsyncMock(side_effect=RuntimeError("offline"))
             await coordinator.execute(
                 messages=[{"role": "user", "content": "hello"}],
-                client=AsyncMock(),
+                client=client,
             )
 
     @pytest.mark.asyncio

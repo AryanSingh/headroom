@@ -2,22 +2,40 @@
 
 from __future__ import annotations
 
-import io
 import logging
 import os
 import platform
-import stat
 import subprocess
-import tarfile
-import zipfile
 from pathlib import Path
+from typing import Literal
 from urllib.request import urlopen
+
+from cutctx.install.binary_archive import install_verified_archive
 
 from . import RTK_BIN_DIR, RTK_BIN_PATH, RTK_VERSION
 
 logger = logging.getLogger(__name__)
 
 GITHUB_RELEASE_URL = "https://github.com/rtk-ai/rtk/releases/download"
+
+_PINNED_ARCHIVE_SHA256 = {
+    ("v0.28.2", "aarch64-apple-darwin"): "5dede8ac36648960a3ad52611856b9047a7817b755750d2bdbda8d4e9931db4d",
+    ("v0.28.2", "aarch64-unknown-linux-gnu"): "9dbf6dd22cfdf8b85b916505a5e96e1721d7af4cbe2f3dc90b87c9d677d01636",
+    ("v0.28.2", "x86_64-apple-darwin"): "5ce5dab3b744a6ecce7ff9deea9fd4606f72c6490c9ee447d74883d9393dcbc7",
+    ("v0.28.2", "x86_64-pc-windows-msvc"): "8bd4ae58b8657f9afd82c76f28e06232b0e8f994e949176206425dcc6005936a",
+    ("v0.28.2", "x86_64-unknown-linux-musl"): "c7b61e87b8430e42b04ab84fbe1b3b41b563454b0181247fd04844b8e9194371",
+}
+
+
+def _expected_archive_sha256(version: str, target: str) -> str:
+    override = os.environ.get("CUTCTX_RTK_SHA256", "").strip().lower()
+    expected = override or _PINNED_ARCHIVE_SHA256.get((version, target), "")
+    if not expected:
+        raise RuntimeError(
+            "No pinned SHA-256 is available for this rtk version/target; "
+            "set CUTCTX_RTK_SHA256 to the trusted release digest"
+        )
+    return expected
 
 
 def _detect_runtime_target_triple() -> str:
@@ -53,7 +71,7 @@ def _should_verify_target(target: str) -> bool:
     return target == _detect_runtime_target_triple()
 
 
-def _get_download_url(version: str) -> tuple[str, str]:
+def _get_download_url(version: str) -> tuple[str, Literal["tar.gz", "zip"]]:
     """Get download URL and extension for this platform.
 
     Returns (url, extension) where extension is 'tar.gz' or 'zip'.
@@ -61,7 +79,7 @@ def _get_download_url(version: str) -> tuple[str, str]:
     target = _get_target_triple()
 
     if "windows" in target:
-        ext = "zip"
+        ext: Literal["tar.gz", "zip"] = "zip"
     else:
         ext = "tar.gz"
 
@@ -108,33 +126,12 @@ def download_rtk(version: str | None = None) -> Path:
     except Exception as e:
         raise RuntimeError(f"Failed to download rtk from {url}: {e}") from e
 
-    # Extract binary
-    try:
-        if ext == "tar.gz":
-            with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
-                # Find the rtk binary inside the archive
-                for member in tar.getmembers():
-                    if member.name.endswith("/rtk") or member.name == "rtk":
-                        member.name = target_path.name  # Flatten path
-                        tar.extract(member, RTK_BIN_DIR)
-                        break
-                else:
-                    raise RuntimeError("rtk binary not found in archive")
-        elif ext == "zip":
-            with zipfile.ZipFile(io.BytesIO(data)) as zf:
-                for name in zf.namelist():
-                    if name.endswith("rtk.exe") or name.endswith("/rtk"):
-                        with zf.open(name) as src, open(target_path, "wb") as dst:
-                            dst.write(src.read())
-                        break
-                else:
-                    raise RuntimeError("rtk binary not found in archive")
-    except (tarfile.TarError, zipfile.BadZipFile) as e:
-        raise RuntimeError(f"Failed to extract rtk archive: {e}") from e
-
-    # Make executable (skip on Windows — no Unix permissions)
-    if "windows" not in target:
-        target_path.chmod(target_path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    install_verified_archive(
+        data,
+        expected_sha256=_expected_archive_sha256(version, target),
+        target_path=target_path,
+        archive_type=ext,
+    )
 
     if _should_verify_target(target):
         try:

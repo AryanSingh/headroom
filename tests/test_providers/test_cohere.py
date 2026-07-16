@@ -34,7 +34,8 @@ class TestCohereProvider:
 
     def test_get_token_counter(self, provider):
         """Test getting token counter."""
-        counter = provider.get_token_counter("command-r-plus")
+        with pytest.warns(UserWarning, match="using estimation"):
+            counter = provider.get_token_counter("command-r-plus")
         assert counter is not None
         count = counter.count_text("Hello, world!")
         assert count > 0

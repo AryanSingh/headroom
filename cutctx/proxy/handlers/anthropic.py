@@ -1288,6 +1288,7 @@ class AnthropicHandlerMixin:
                 memory_handler=self.memory_handler,
                 memory_user_id=memory_user_id,
                 mode_name=get_memory_injection_mode(),
+                messages=messages,
             )
             memory_decision.apply_to_tags(tags)
 
@@ -2278,27 +2279,27 @@ class AnthropicHandlerMixin:
                             )
                             logger.info(f"[{request_id}] Memory: Added beta header: {key}={merged}")
 
-            if memory_context_injected or memory_tools_injected:
-                remembered_event = self.pipeline_extensions.emit(
-                    PipelineStage.INPUT_REMEMBERED,
-                    operation="proxy.request",
-                    request_id=request_id,
-                    provider=pipeline_provider,
-                    model=model,
-                    messages=optimized_messages,
-                    tools=tools,
-                    headers=headers,
-                    metadata={
-                        "memory_context_injected": memory_context_injected,
-                        "memory_tools_injected": memory_tools_injected,
-                    },
-                )
-                if remembered_event.messages is not None:
-                    optimized_messages = remembered_event.messages
-                if remembered_event.tools is not None:
-                    tools = remembered_event.tools
-                if remembered_event.headers is not None:
-                    headers = remembered_event.headers
+            remembered_event = self.pipeline_extensions.emit(
+                PipelineStage.INPUT_REMEMBERED,
+                operation="proxy.request",
+                request_id=request_id,
+                provider=pipeline_provider,
+                model=model,
+                messages=optimized_messages,
+                tools=tools,
+                headers=headers,
+                metadata={
+                    "memory_context_injected": memory_context_injected,
+                    "memory_tools_injected": memory_tools_injected,
+                    "memory_skip_reason": memory_decision.skip_reason,
+                },
+            )
+            if remembered_event.messages is not None:
+                optimized_messages = remembered_event.messages
+            if remembered_event.tools is not None:
+                tools = remembered_event.tools
+            if remembered_event.headers is not None:
+                headers = remembered_event.headers
 
             # Episodic Memory: inject cross-session memories for new conversations.
             # Gated on episodic_tracker availability and new-session detection

@@ -1111,6 +1111,7 @@ def proxy(
     config = ProxyConfig(
         host=host,
         port=port,
+        proxy_api_key=os.environ.get("CUTCTX_PROXY_API_KEY"),
         tls_cert=tls_cert,
         tls_key=tls_key,
         anthropic_api_url=provider_api_overrides.anthropic,

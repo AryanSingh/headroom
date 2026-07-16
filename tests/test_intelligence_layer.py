@@ -609,13 +609,13 @@ class TestCostEstimator:
         assert estimate.compression_savings_usd > 0
         assert estimate.compressed_input_tokens == 50_000
 
-    def test_unknown_model_uses_default(self):
-        from cutctx.cost_forecast import _DEFAULT_INPUT_PER_M, CostEstimator
+    def test_unknown_model_has_no_invented_price(self):
+        from cutctx.cost_forecast import CostEstimator
 
         est = CostEstimator(model="unknown-model-xyz")
         estimate = est.estimate(input_tokens=1_000_000)
-        expected = _DEFAULT_INPUT_PER_M
-        assert estimate.input_usd == pytest.approx(expected, abs=0.01)
+        assert estimate.input_usd is None
+        assert estimate.total_usd is None
 
     def test_estimate_messages(self):
         from cutctx.cost_forecast import CostEstimator
@@ -755,12 +755,10 @@ class TestModelPricing:
             assert inp > 0
             assert out > 0
 
-    def test_fuzzy_match(self):
+    def test_unknown_suffix_is_not_fuzzy_matched(self):
         from cutctx.cost_forecast import _resolve_model_pricing
 
-        # "claude-sonnet-4-5-20250929-extra" should match "claude-sonnet-4-5"
-        inp, out = _resolve_model_pricing("claude-sonnet-4-5-20250929-extra")
-        assert inp == 3.0  # claude-sonnet-4-5 pricing
+        assert _resolve_model_pricing("claude-sonnet-4-5-20250929-extra") is None
 
     def test_cost_estimate_savings_percent(self):
         from cutctx.cost_forecast import CostEstimator

@@ -21,6 +21,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import re
 import warnings
 from datetime import date
 from typing import Any
@@ -46,10 +47,12 @@ logger = logging.getLogger(__name__)
 _FALLBACK_WARNING_SHOWN = False
 
 # Pricing metadata
-_PRICING_LAST_UPDATED = date(2025, 1, 6)
+_PRICING_LAST_UPDATED = date(2026, 7, 16)
 
 # Google model context limits
 _CONTEXT_LIMITS: dict[str, int] = {
+    "gemini-2.5-pro": 1_048_576,
+    "gemini-2.5-flash": 1_048_576,
     # Gemini 2.0
     "gemini-2.0-flash": 1000000,
     "gemini-2.0-flash-exp": 1000000,
@@ -68,7 +71,11 @@ _CONTEXT_LIMITS: dict[str, int] = {
 # Fallback pricing - LiteLLM is preferred source
 # Pricing per 1M tokens (input, output)
 # Note: Google has different pricing tiers based on context length
+# Source: https://ai.google.dev/gemini-api/docs/pricing
 _PRICING: dict[str, tuple[float, float]] = {
+    # Standard paid tier for prompts up to 200K tokens.
+    "gemini-2.5-pro": (1.25, 10.00),
+    "gemini-2.5-flash": (0.30, 2.50),
     "gemini-2.0-flash": (0.10, 0.40),
     "gemini-2.0-flash-exp": (0.10, 0.40),  # Experimental, may change
     "gemini-1.5-pro": (1.25, 5.00),  # Up to 128K context
@@ -352,8 +359,8 @@ class GoogleProvider(Provider):
         Tries LiteLLM first for up-to-date pricing, falls back to hardcoded values.
 
         Note: Google has tiered pricing based on context length.
-        This uses the standard pricing (up to 128K context).
-        For >128K context, actual costs may be higher.
+        This fallback only covers the standard tier up to 200K input tokens.
+        For larger requests, LiteLLM or provider billing is required.
 
         Args:
             input_tokens: Number of input tokens.
@@ -390,12 +397,23 @@ class GoogleProvider(Provider):
         # Fallback to hardcoded pricing
         input_price, output_price = None, None
         for model_prefix, (inp, outp) in _PRICING.items():
-            if model_lower.startswith(model_prefix):
+            suffix = model_lower.removeprefix(model_prefix)
+            if model_lower == model_prefix or re.fullmatch(
+                r"-(?:\d{8}|\d{4}-\d{2}-\d{2})", suffix
+            ):
                 input_price, output_price = inp, outp
                 break
 
         if input_price is None:
             return None
+
+        if input_tokens > 200_000 and (
+            model_lower == "gemini-2.5-pro"
+            or re.fullmatch(
+                r"gemini-2\.5-pro-(?:\d{8}|\d{4}-\d{2}-\d{2})", model_lower
+            )
+        ):
+            input_price, output_price = 2.50, 15.00
 
         input_cost = (input_tokens / 1_000_000) * input_price
         output_cost = (output_tokens / 1_000_000) * (output_price or 0)

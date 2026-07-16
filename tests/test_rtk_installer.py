@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import tarfile
 from pathlib import Path
@@ -35,6 +36,7 @@ def test_download_rtk_skips_verify_for_non_native_target(monkeypatch, tmp_path: 
         info.size = len(payload)
         tf.addfile(info, io.BytesIO(payload))
     archive_bytes = archive.getvalue()
+    monkeypatch.setenv("CUTCTX_RTK_SHA256", hashlib.sha256(archive_bytes).hexdigest())
 
     class _Response:
         def __enter__(self):

@@ -5,8 +5,9 @@ name: Release Please
 # release-please watches `main` for conventional-commit traffic and
 # maintains a single "Release vX.Y.Z" PR that aggregates everything
 # released since the last tag. Merging that PR is what triggers an
-# actual PyPI / npm / GitHub-Release publish (via release.yml, which
-# fires on the published-release event the bot emits at merge time).
+# a draft GitHub Release. The action's `release_created` output then
+# gates a direct call to release.yml, which validates and publishes all
+# registries before promoting that draft to public.
 #
 # This replaces the prior "every push to main is a release" pattern
 # that burned PyPI's per-project storage quota by uploading a fresh
@@ -17,8 +18,8 @@ name: Release Please
 #   - Merge a `feat:` PR into main     -> bot bumps minor in release PR
 #   - Merge `ci:` / `docs:` / `chore:` -> no PR change (hidden)
 #   - Ready to ship                    -> merge the release PR
-#                                       (bot tags + emits release event;
-#                                        release.yml does the actual builds + publishes)
+#                                       (bot tags + creates draft;
+#                                        release.yml publishes + promotes it)
 #
 # Config lives in `.release-please-config.json`; current versions
 # tracked in `.release-please-manifest.json`.
@@ -41,9 +42,25 @@ concurrency:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - uses: googleapis/release-please-action@v5
+        id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  publish-release:
+    needs: [release-please]
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.release-please.outputs.version }}
+    secrets: inherit

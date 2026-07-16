@@ -457,6 +457,7 @@ class OpenAIChatMixin:
             memory_handler=self.memory_handler,
             memory_user_id=memory_user_id,
             mode_name=get_memory_injection_mode(),
+            messages=messages,
         )
         memory_decision.apply_to_tags(tags)
 
@@ -1014,24 +1015,24 @@ class OpenAIChatMixin:
             except Exception as e:
                 logger.warning(f"[{request_id}] Memory injection failed: {e}")
 
-        if memory_context_injected or memory_tools_injected:
-            remembered_event = self.pipeline_extensions.emit(
-                PipelineStage.INPUT_REMEMBERED,
-                operation="proxy.request",
-                request_id=request_id,
-                provider="openai",
-                model=model,
-                messages=optimized_messages,
-                tools=tools,
-                metadata={
-                    "memory_context_injected": memory_context_injected,
-                    "memory_tools_injected": memory_tools_injected,
-                },
-            )
-            if remembered_event.messages is not None:
-                optimized_messages = remembered_event.messages
-            if remembered_event.tools is not None:
-                tools = remembered_event.tools
+        remembered_event = self.pipeline_extensions.emit(
+            PipelineStage.INPUT_REMEMBERED,
+            operation="proxy.request",
+            request_id=request_id,
+            provider="openai",
+            model=model,
+            messages=optimized_messages,
+            tools=tools,
+            metadata={
+                "memory_context_injected": memory_context_injected,
+                "memory_tools_injected": memory_tools_injected,
+                "memory_skip_reason": memory_decision.skip_reason,
+            },
+        )
+        if remembered_event.messages is not None:
+            optimized_messages = remembered_event.messages
+        if remembered_event.tools is not None:
+            tools = remembered_event.tools
 
         # Intelligence pipeline: post-compression (dedup, context budget, profiles, cost)
         if _intel_ctx is not None:

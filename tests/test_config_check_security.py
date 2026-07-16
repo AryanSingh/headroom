@@ -23,8 +23,9 @@ def test_network_host_without_auth_is_a_launch_blocker(monkeypatch) -> None:
     assert "admin_auth_required" in result.output
 
 
-def test_network_host_with_admin_key_passes(monkeypatch) -> None:
+def test_network_host_with_admin_and_proxy_keys_passes(monkeypatch) -> None:
     monkeypatch.setenv("CUTCTX_ADMIN_API_KEY", "test-admin-key")
+    monkeypatch.setenv("CUTCTX_PROXY_API_KEY", "test-proxy-key")
     monkeypatch.setenv("CUTCTX_FIREWALL_ENABLED", "1")
 
     result = CliRunner().invoke(config_check, ["--host", "0.0.0.0", "--port", "0", "--production"])

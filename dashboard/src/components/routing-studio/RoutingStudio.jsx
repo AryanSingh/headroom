@@ -304,7 +304,12 @@ export default function RoutingStudio() {
         hidden={workspace !== "contracts"}
       >
         {loading ? (
-          <div className="routing-empty-state">Loading contracts…</div>
+          <div className="routing-empty-state">
+            <span>Loading contracts…</span>
+            <button className="primary-button" type="button" onClick={loadContracts}>
+              Retry
+            </button>
+          </div>
         ) : loadError ? (
           <div className="routing-empty-state" role="alert">
             <strong>{loadError}</strong>

@@ -23,17 +23,26 @@ env:
   PYPI_SKIP: "false"
   NPM_SKIP: "false"
   GH_PACKAGES_SKIP: "false"
+  DOCKER_SKIP: "false"
 
 on:
-  # Triggered when release-please's release PR is merged: the bot
-  # tags the merge commit `vX.Y.Z` and creates a GitHub Release on
-  # that tag, which fires the `release: published` event. Ordinary
-  # pushes to main no longer trigger publishes — that was the old
-  # behavior that burned PyPI's per-project storage quota by
-  # uploading a fresh wheel matrix (~200 MB) per merged fix/feat PR.
-  # See .github/workflows/release-please.yml for the PR-aggregator.
-  release:
-    types: [published]
+  # release-please calls this workflow only when its root
+  # `release_created` output is true. The bot creates a draft GitHub
+  # Release first; this workflow validates and publishes every target,
+  # uploads the assets, and promotes that draft as its final operation.
+  # Calling the workflow directly is intentional: events created by the
+  # repository GITHUB_TOKEN do not start another Actions workflow.
+  workflow_call:
+    inputs:
+      version:
+        description: "Version created by release-please"
+        required: true
+        type: string
+      dry_run:
+        description: "Skip publish"
+        required: false
+        type: boolean
+        default: false
   # X2: PR-time release dry-run. Trigger on PRs that touch release-
   # critical paths so the wheel matrix + smoke-import gate run BEFORE
   # merge — not after the tag is pushed and main is broken. Path
@@ -88,24 +97,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      # When fired by release-please's release event, the tag the
-      # bot just published IS the canonical version for this run —
-      # release_version.py's git-log derivation would re-bump it.
-      # workflow_dispatch still honors `inputs.version`; PR dry-runs
-      # leave MANUAL_VER empty and the script computes normally.
+      # A release-please reusable call and workflow_dispatch both provide
+      # `inputs.version`; PR dry-runs leave it empty and compute normally.
       - name: Resolve MANUAL_VER from trigger
         id: manualver
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          MANUAL_INPUT: ${{ github.event.inputs.version }}
+          MANUAL_INPUT: ${{ inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            # github.event.release.tag_name is "vX.Y.Z" — strip the
-            # leading "v" so release_version.py's SemVer parser
-            # accepts it.
-            echo "value=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
-          elif [ -n "$MANUAL_INPUT" ]; then
+          if [ -n "$MANUAL_INPUT" ]; then
             echo "value=$MANUAL_INPUT" >> "$GITHUB_OUTPUT"
           else
             echo "value=" >> "$GITHUB_OUTPUT"
@@ -124,7 +124,7 @@ jobs:
     with:
       # PR dry-runs keep the deterministic fixture matrix mandatory. A real
       # release additionally requires the staging environment and its secrets.
-      require_staging: ${{ github.event_name == 'release' && github.event.inputs.dry_run != 'true' }}
+      require_staging: ${{ github.event_name != 'pull_request' && inputs.dry_run != true }}
     secrets: inherit
 
   # Single source of truth for changelog + npm packaging. Wheels are
@@ -488,7 +488,7 @@ jobs:
   # dlopen RPATH issues, missing transitive native deps).
   smoke-import-wheels:
     needs: [build-wheels]
-    if: github.event.inputs.dry_run != 'true'
+    if: inputs.dry_run != true
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -708,7 +708,7 @@ jobs:
     # X2: skip on pull_request — dry-run only verifies build+smoke,
     # never publishes. The other two predicates remain (workflow_dispatch
     # dry_run, vars-level skip).
-    if: github.event_name != 'pull_request' && github.event.inputs.dry_run != 'true' && vars.PYPI_SKIP != 'true'
+    if: github.event_name != 'pull_request' && inputs.dry_run != true && vars.PYPI_SKIP != 'true'
     environment: pypi  # NOTE: environment name must be a literal; update here if the GitHub environment name changes
     runs-on: ubuntu-latest
     permissions:
@@ -735,7 +735,7 @@ jobs:
 
   publish-npm:
     needs: [detect-version, build]
-    if: github.event_name != 'pull_request' && github.event.inputs.dry_run != 'true' && vars.NPM_SKIP != 'true'
+    if: github.event_name != 'pull_request' && inputs.dry_run != true && vars.NPM_SKIP != 'true'
     runs-on: ubuntu-latest
     # Publishes to npmjs.org via NPM_TOKEN secret; no GITHUB_TOKEN
     # write permissions needed.
@@ -771,7 +771,6 @@ jobs:
           npm run build
           npm version ${{ needs.detect-version.outputs.npm_version }} --no-git-tag-version --allow-same-version
           npm publish --access public
-        continue-on-error: true
 
       - name: Publish ${{ env.NPM_OPENCLAW_PACKAGE }} to npmjs.org
         id: npm-openclaw-publish
@@ -783,16 +782,10 @@ jobs:
           npm run build
           npm version ${{ needs.detect-version.outputs.npm_version }} --no-git-tag-version --allow-same-version
           npm publish --access public
-        continue-on-error: true
-
-      - name: npm publish notice
-        if: steps.npm-sdk-publish.outcome == 'failure' || steps.npm-openclaw-publish.outcome == 'failure'
-        run: |
-          echo "::notice::One or more npm publishes failed. Set NPM_SKIP=true in repo Variables to skip both npm publishes if tokens are not configured."
 
   publish-github-packages:
     needs: [detect-version, build]
-    if: github.event_name != 'pull_request' && github.event.inputs.dry_run != 'true' && vars.GH_PACKAGES_SKIP != 'true'
+    if: github.event_name != 'pull_request' && inputs.dry_run != true && vars.GH_PACKAGES_SKIP != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -850,7 +843,6 @@ jobs:
           printf 'unscoped_sdk_tarball=%s\n' "$assets_dir/$unscoped_sdk_tarball" >> "$GITHUB_OUTPUT"
           printf 'sdk_tarball=%s\n' "$assets_dir/$sdk_tarball" >> "$GITHUB_OUTPUT"
           npm publish --access public --registry ${{ env.GITHUB_PACKAGES_REGISTRY_URL }}
-        continue-on-error: true
 
       - name: Publish ${{ env.NPM_OPENCLAW_PACKAGE }} to GitHub Package Registry
         id: gpr-openclaw-publish
@@ -888,12 +880,6 @@ jobs:
           fs.writeFileSync("package.json", `${JSON.stringify(pkg, null, 2)}\n`);
           EOF
           npm publish --access public --registry ${{ env.GITHUB_PACKAGES_REGISTRY_URL }}
-        continue-on-error: true
-
-      - name: GPR publish notice
-        if: steps.gpr-sdk-publish.outcome == 'failure' || steps.gpr-openclaw-publish.outcome == 'failure'
-        run: |
-          echo "::notice::One or more GitHub Package Registry publishes failed. Check GITHUB_TOKEN permissions and package scope/repository settings. Set GH_PACKAGES_SKIP=true to skip."
 
   publish-docker:
     # Wait for the smoke-import gate. The docker images bundle the
@@ -902,7 +888,7 @@ jobs:
     # image's `pip install` step. Failing here ~3 minutes earlier
     # than docker-build saves the matrix's wall-clock budget.
     needs: [detect-version, smoke-import-wheels]
-    if: github.event_name != 'pull_request' && github.event.inputs.dry_run != 'true'
+    if: github.event_name != 'pull_request' && inputs.dry_run != true && vars.DOCKER_SKIP != 'true'
     permissions:
       contents: read
       packages: write
@@ -918,14 +904,17 @@ jobs:
       ${{
         always() &&
         github.event_name != 'pull_request' &&
-        github.event.inputs.dry_run != 'true' &&
+        inputs.dry_run != true &&
         needs.detect-version.result == 'success' &&
         needs.product-release-evidence.result == 'success' &&
         needs.build.result == 'success' &&
         needs.build-wheels.result == 'success' &&
         needs.collect-dist.result == 'success' &&
         needs.smoke-import-wheels.result == 'success' &&
-        (vars.PYPI_SKIP == 'true' || needs.publish-pypi.result == 'success')
+        (vars.PYPI_SKIP == 'true' || needs.publish-pypi.result == 'success') &&
+        (vars.NPM_SKIP == 'true' || needs.publish-npm.result == 'success') &&
+        (vars.GH_PACKAGES_SKIP == 'true' || needs.publish-github-packages.result == 'success') &&
+        (vars.DOCKER_SKIP == 'true' || needs.publish-docker.result == 'success')
       }}
     runs-on: ubuntu-latest
     permissions:
@@ -964,15 +953,13 @@ jobs:
           TAG="v${{ needs.detect-version.outputs.version }}"
           TITLE="Release v${{ needs.detect-version.outputs.version }}"
           if gh release view "$TAG" > /dev/null 2>&1; then
-            # Release already exists — typically created by
-            # release-please on release-PR merge with an auto-
-            # generated changelog body. Don't overwrite its notes
-            # (--notes-file would clobber them); only sync the
-            # title in case detect-version's canonical form differs
-            # from what the bot set.
+            # release-please normally created this draft and its notes.
+            # Preserve both while validation and asset uploads continue.
             gh release edit "$TAG" --title "$TITLE"
           else
-            gh release create "$TAG" --title "$TITLE" --notes-file .changelog.md
+            # Manual runs also stage a draft first. Nothing public is
+            # created until every registry publish and asset upload passes.
+            gh release create "$TAG" --draft --title "$TITLE" --notes-file .changelog.md
           fi
 
       - name: Publish ${{ env.PYPI_PACKAGE }} Python distributions to GitHub Release
@@ -988,3 +975,10 @@ jobs:
         run: |
           TAG="v${{ needs.detect-version.outputs.version }}"
           gh release upload "$TAG" release-assets/*.tgz --clobber
+
+      - name: Publish validated GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ needs.detect-version.outputs.version }}"
+          gh release edit "$TAG" --draft=false

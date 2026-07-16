@@ -1,0 +1,37 @@
+{
+  "workload": "scripts/replay_codex_ws_load.py, 36 KiB plain-text function_call_output",
+  "root_cause_profile": {
+    "profile": "output/performance/ws_tool_output_36kb_before.prof",
+    "onnx_get_scores_calls": 19,
+    "onnx_get_scores_cumulative_seconds": 7.306,
+    "cause": "one synchronous ONNX inference per 350-word chunk"
+  },
+  "serial": {
+    "samples": 1,
+    "before": {"p50_ms": 8668.8, "p95_ms": 8668.8, "max_ms": 8668.8},
+    "after": {"p50_ms": 9.4, "p95_ms": 9.4, "max_ms": 9.4},
+    "speedup": 922.21
+  },
+  "concurrent_4": {
+    "samples": 4,
+    "before": {"p50_ms": 32756.4, "p95_ms": 32943.6, "max_ms": 32943.6},
+    "after": {"p50_ms": 22.0, "p95_ms": 25.3, "max_ms": 25.3},
+    "p50_speedup": 1488.93
+  },
+  "mixed_12_frame_after": {
+    "input_bytes_total": 1318912,
+    "includes_user_text_bytes": [36864, 256000],
+    "p50_ms": 55.0,
+    "p95_ms": 66.2,
+    "max_ms": 66.2,
+    "wall_time_seconds": 0.15,
+    "errors": 0
+  },
+  "semantic_contract": {
+    "large_ml_routed_output": "byte-faithful passthrough",
+    "tool_call_id": "unchanged",
+    "structured_deterministic_routes": "unchanged",
+    "operator_unbounded_ml_opt_in": "CUTCTX_RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES=0",
+    "default_ml_tool_output_budget_bytes": 4096
+  }
+}

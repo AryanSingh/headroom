@@ -372,12 +372,12 @@ class FirewallScanner:
             try:
                 import asyncio
 
-                from cutctx.proxy.webhooks import dispatcher
+                from cutctx.proxy.webhooks import fire_webhook
 
                 for v in trigger_violations:
                     title = f"Firewall Alert: {v.kind.value.upper()}"
                     message = f"Detected {v.kind.value}: {v.description}"
-                    asyncio.create_task(dispatcher.fire_webhook(title, message))
+                    asyncio.get_running_loop().create_task(fire_webhook(title, message))
             except Exception as e:
                 logger.error(f"Error triggering firewall webhooks: {e}")
 

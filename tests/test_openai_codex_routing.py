@@ -428,6 +428,112 @@ def test_handle_openai_responses_opaque_continuation_preserves_model_and_payload
     assert body["input"] == opaque_input
 
 
+def test_remote_compaction_subscription_body_is_forwarded_unchanged(monkeypatch):
+    """Provider-owned remote compact tasks must not be sanitized or truncated."""
+    remote_compaction = {
+        "model": "gpt-5.6-luna",
+        "input": [{"type": "compaction", "payload": "x" * (2 * 1024 * 1024)}],
+        "tool_choice": "auto",
+        "client_metadata": {"remote_compaction": True},
+        "include": ["reasoning.encrypted_content"],
+        "parallel_tool_calls": False,
+        "prompt_cache_key": "remote-compact",
+        "reasoning": {"effort": "medium"},
+        "store": False,
+        "stream": True,
+        "stream_options": {"include_usage": True},
+        "text": {"verbosity": "low"},
+    }
+    request = _build_request(
+        remote_compaction,
+        {
+            "Authorization": "Bearer sk-test",
+            "ChatGPT-Account-ID": "acct-from-jwt",
+            "User-Agent": "Codex Desktop/1.0",
+        },
+    )
+    handler = _DummyOpenAIHandler()
+    handler.config.optimize = True
+    handler._compress_openai_responses_payload_in_executor = MagicMock(
+        side_effect=AssertionError("remote compaction must bypass compression")
+    )
+
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+
+    response = anyio.run(handler.handle_openai_responses, request)
+
+    assert response.status_code == 200
+    assert handler.captured_stream_request is not None
+    url, _, body = handler.captured_stream_request
+    assert url == "https://chatgpt.com/backend-api/codex/responses"
+    assert body == remote_compaction
+
+
+def test_handle_openai_responses_opaque_continuation_still_shrinks_oversized_images(
+    monkeypatch,
+):
+    """Advisory treatment of the token guard for opaque continuations must not
+
+    also waive the oversized-inline-image cap. A reconstructed HTTP
+    continuation can independently carry large pasted screenshots, and
+    forwarding those uncapped reproduces the exact "Bad Request" this guard
+    exists to prevent — even though the encrypted state itself is untouchable.
+    """
+    huge_image = "data:image/png;base64," + ("x" * 9000)
+    opaque_input = [
+        {
+            "type": "reasoning",
+            "encrypted_content": "opaque-model-bound-continuation",
+        },
+        {
+            "type": "message",
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": "continue"},
+                {"type": "input_image", "image_url": huge_image},
+            ],
+        },
+    ]
+    request = _build_request(
+        {"model": "gpt-5.6-sol", "input": opaque_input, "tool_choice": "auto"},
+        {
+            "Authorization": "Bearer sk-test",
+            "ChatGPT-Account-ID": "acct-from-jwt",
+            "User-Agent": "Codex Desktop/1.0",
+        },
+    )
+    handler = _DummyOpenAIHandler()
+    handler._model_router = ModelRouter(ModelRouterConfig.codex_gpt54mini_high_preset())
+    handler._openai_responses_context_guard = MagicMock(
+        return_value=(True, 294_402, 242_400, 258_400)
+    )
+
+    def _unexpected_truncation(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise AssertionError("opaque subscription continuation was destructively truncated")
+
+    monkeypatch.setattr(
+        "cutctx.proxy.handlers.openai.responses._truncate_body_for_chatgpt",
+        _unexpected_truncation,
+    )
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+
+    response = anyio.run(handler.handle_openai_responses, request)
+
+    assert response.status_code == 200
+    assert handler.captured_request is not None
+    _, url, _, body = handler.captured_request
+    assert url == "https://chatgpt.com/backend-api/codex/responses"
+    assert body["model"] == "gpt-5.6-sol"
+    # Encrypted continuation state must survive byte-for-byte.
+    assert body["input"][0]["encrypted_content"] == "opaque-model-bound-continuation"
+    # The oversized inline image must still be shrunk to a valid placeholder.
+    shrunk_image_url = body["input"][1]["content"][1]["image_url"]
+    assert shrunk_image_url.startswith("data:image/png;base64,")
+    assert len(shrunk_image_url) < 200
+    # The unrelated text content is untouched.
+    assert body["input"][1]["content"][0]["text"] == "continue"
+
+
 def test_handle_openai_responses_non_chatgpt_oversize_returns_413(monkeypatch):
     request = _build_request(
         {"model": "gpt-5.6-terra", "input": "keep this conversation alive"},

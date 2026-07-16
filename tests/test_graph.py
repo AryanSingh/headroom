@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import subprocess
@@ -78,9 +79,9 @@ def test_get_cbm_path_prefers_path_then_install_dir(monkeypatch, tmp_path: Path)
 def test_download_cbm_success_and_verification_paths(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(installer, "CBM_BIN_DIR", tmp_path)
     monkeypatch.setattr(installer, "_detect_platform", lambda: "linux-amd64")
-    monkeypatch.setattr(
-        installer, "urlopen", lambda url, timeout=60: FakeResponse(_build_archive())
-    )
+    archive = _build_archive()
+    monkeypatch.setenv("CUTCTX_CBM_SHA256", hashlib.sha256(archive).hexdigest())
+    monkeypatch.setattr(installer, "urlopen", lambda url, timeout=60: FakeResponse(archive))
 
     run_calls: list[list[str]] = []
 
@@ -125,16 +126,22 @@ def test_download_cbm_invalid_url_download_failure_and_extract_errors(
     with pytest.raises(RuntimeError, match="Failed to download codebase-memory-mcp"):
         installer.download_cbm()
 
-    monkeypatch.setattr(
-        installer,
-        "urlopen",
-        lambda url, timeout=60: FakeResponse(_build_archive("some/other-binary")),
+    wrong_binary_archive = _build_archive("some/other-binary")
+    monkeypatch.setenv(
+        "CUTCTX_CBM_SHA256", hashlib.sha256(wrong_binary_archive).hexdigest()
     )
-    with pytest.raises(RuntimeError, match="binary not found in archive"):
+    monkeypatch.setattr(
+        installer, "urlopen", lambda url, timeout=60: FakeResponse(wrong_binary_archive)
+    )
+    with pytest.raises(RuntimeError, match="Expected exactly one"):
         installer.download_cbm()
 
-    monkeypatch.setattr(installer, "urlopen", lambda url, timeout=60: FakeResponse(b"not a tar"))
-    with pytest.raises(RuntimeError, match="Failed to extract archive"):
+    invalid_archive = b"not a tar"
+    monkeypatch.setenv("CUTCTX_CBM_SHA256", hashlib.sha256(invalid_archive).hexdigest())
+    monkeypatch.setattr(
+        installer, "urlopen", lambda url, timeout=60: FakeResponse(invalid_archive)
+    )
+    with pytest.raises(RuntimeError, match="Failed to extract verified binary archive"):
         installer.download_cbm()
 
 

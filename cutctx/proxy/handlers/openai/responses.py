@@ -56,6 +56,57 @@ from cutctx.proxy.tool_surface import (
 
 logger = logging.getLogger("cutctx.proxy")
 _MISSING_ROUTING_FIELD = object()
+_RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES_ENV = "CUTCTX_RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES"
+_RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES_DEFAULT = 4 * 1024
+
+
+def _responses_ml_tool_output_max_bytes() -> int:
+    """Return the interactive byte budget for ML-routed tool outputs.
+
+    ``0`` is an explicit operator opt-in to the historical unbounded behavior.
+    Invalid values retain the safe interactive default.
+    """
+
+    raw = os.environ.get(_RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES_ENV)
+    if raw is None:
+        return _RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES_DEFAULT
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return _RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES_DEFAULT
+
+
+def _should_passthrough_large_ml_tool_output(router: Any, text: str) -> bool:
+    """Keep large ML-only Responses tool outputs byte-faithful and responsive.
+
+    Structured routes (JSON, logs, search, diffs) retain their deterministic
+    compressors.  Plain, mixed, and generic-Kompress routes above the budget
+    pass through exactly instead of making one synchronous ONNX call per
+    350-word chunk.  The whole Responses compression pass already runs in a
+    bounded executor; this guard also bounds the work occupying that executor.
+    """
+
+    limit = _responses_ml_tool_output_max_bytes()
+    if limit == 0 or len(text.encode("utf-8", errors="replace")) <= limit:
+        return False
+    if not bool(getattr(getattr(router, "config", None), "enable_kompress", False)):
+        return False
+    determine_strategy = getattr(router, "_determine_strategy", None)
+    if not callable(determine_strategy):
+        return False
+    try:
+        from cutctx.transforms.content_router import CompressionStrategy
+
+        strategy = determine_strategy(text)
+    except Exception:
+        # Custom routers keep their previous behavior. The outer compression
+        # timeout/failure policy remains the final fail-open boundary.
+        return False
+    return strategy in {
+        CompressionStrategy.TEXT,
+        CompressionStrategy.KOMPRESS,
+        CompressionStrategy.MIXED,
+    }
 
 
 def _summarize_upstream_ws_error(
@@ -116,6 +167,40 @@ _CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS = frozenset(
     }
 )
 
+_REMOTE_COMPACTION_REQUIRED_FIELDS = frozenset(
+    {
+        "client_metadata",
+        "include",
+        "parallel_tool_calls",
+        "prompt_cache_key",
+        "reasoning",
+        "store",
+        "stream",
+        "stream_options",
+        "text",
+    }
+)
+_REMOTE_COMPACTION_MIN_BODY_BYTES = 1024 * 1024
+
+
+def _is_remote_compaction_subscription_request(body: dict[str, Any]) -> bool:
+    """Identify Codex's provider-owned, large remote-compaction envelope.
+
+    The envelope is accepted by ChatGPT's Codex backend but cannot survive the
+    ordinary Responses sanitizer or structural context trimmer. Keep the
+    predicate intentionally narrow so normal subscription requests retain
+    their safety policy.
+    """
+
+    if not _REMOTE_COMPACTION_REQUIRED_FIELDS.issubset(body):
+        return False
+    try:
+        return len(json.dumps(body).encode("utf-8", errors="replace")) >= (
+            _REMOTE_COMPACTION_MIN_BODY_BYTES
+        )
+    except (TypeError, ValueError):
+        return False
+
 # Codex Responses Lite is a client hint, not proof that the model itself
 # must be rewritten. The proxy strips the internal Lite header before
 # forwarding api.openai.com requests, and chatgpt.com model availability is
@@ -174,6 +259,95 @@ def _codex_responses_context_limit(provider: Any, model: str) -> int:
         except Exception:
             pass
     return 0
+
+
+_MAX_IMAGE_DATA_URI_CHARS = 2 * 1024  # 2 KB before an inline image is shrunk
+
+# A real, minimal 1x1 transparent PNG. Used to shrink oversized inline image
+# data URIs while keeping the field a schema-valid image — unlike a text
+# placeholder, which chatgpt.com's Responses backend rejects with a 400
+# ("Bad Request") because ``image_url`` no longer decodes as image data.
+_PLACEHOLDER_IMAGE_DATA_URI = (
+    "data:image/png;base64,"
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+    "+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
+
+
+def _responses_context_estimate_payload(payload: Any) -> tuple[Any, int]:
+    """Return a text-countable payload plus bounded inline-image token cost.
+
+    Responses frames embed pasted screenshots as base64 data URIs. Those bytes
+    are transport encoding, not prompt text; counting them with the text
+    tokenizer can turn a normal screenshot into a fictitious hundreds of
+    thousands of tokens and make the websocket context guard reject it.
+    """
+
+    def _inline_image_tokens(value: str) -> int:
+        encoded_bytes = max(0, len(value.partition(",")[2]) * 3 // 4)
+        if encoded_bytes < 50 * 1024:
+            return 400
+        if encoded_bytes < 500 * 1024:
+            return 1_200
+        return 1_600
+
+    def _visit(value: Any, *, key: str | None = None) -> tuple[Any, int]:
+        if (
+            key == "image_url"
+            and isinstance(value, str)
+            and value.startswith("data:image/")
+        ):
+            return "<inline image data>", _inline_image_tokens(value)
+        if isinstance(value, dict):
+            copied: dict[str, Any] = {}
+            image_tokens = 0
+            for child_key, child_value in value.items():
+                copied[child_key], child_tokens = _visit(child_value, key=child_key)
+                image_tokens += child_tokens
+            return copied, image_tokens
+        if isinstance(value, list):
+            copied_items: list[Any] = []
+            image_tokens = 0
+            for item in value:
+                copied_item, child_tokens = _visit(item)
+                copied_items.append(copied_item)
+                image_tokens += child_tokens
+            return copied_items, image_tokens
+        return value, 0
+
+    estimated_payload, image_tokens = _visit(payload)
+    return estimated_payload, image_tokens
+
+
+def _shrink_oversized_images(payload: Any) -> Any:
+    """Recursively replace oversized inline ``image_url`` data URIs.
+
+    Unlike ``_truncate_body_for_chatgpt``, this touches nothing except
+    ``image_url`` fields — it never inspects, truncates, or drops
+    ``encrypted_content`` or any other field. Safe to run even on payloads
+    carrying opaque model-bound continuation state (see
+    ``_contains_opaque_responses_continuation``): a reconstructed HTTP
+    continuation can legitimately be dominated by inline screenshots (a
+    single pasted image easily exceeds a megabyte of base64), and treating
+    the context guard as advisory for those payloads must not mean forwarding
+    raw image bytes uncapped — only the encrypted state is untouchable.
+    """
+    if isinstance(payload, dict):
+        out = {}
+        for key, value in payload.items():
+            if (
+                key == "image_url"
+                and isinstance(value, str)
+                and value.startswith("data:image/")
+                and len(value) > _MAX_IMAGE_DATA_URI_CHARS
+            ):
+                out[key] = _PLACEHOLDER_IMAGE_DATA_URI
+            else:
+                out[key] = _shrink_oversized_images(value)
+        return out
+    if isinstance(payload, list):
+        return [_shrink_oversized_images(item) for item in payload]
+    return payload
 
 
 def _contains_opaque_responses_continuation(payload: Any, *, max_nodes: int = 4096) -> bool:
@@ -1138,7 +1312,9 @@ class OpenAIResponsesMixin:
 
         try:
             tokenizer = self.openai_provider.get_token_counter(model)
-            estimated_tokens = int(tokenizer.count_text(_json_debug_dumps(payload)))
+            text_payload, inline_image_tokens = _responses_context_estimate_payload(payload)
+            estimated_tokens = int(tokenizer.count_text(_json_debug_dumps(text_payload)))
+            estimated_tokens += inline_image_tokens
         except Exception:
             estimated_tokens = max(
                 0,
@@ -1178,6 +1354,20 @@ class OpenAIResponsesMixin:
         )
         if guard_refuse:
             return True, guard_estimated, guard_threshold, guard_limit, "context_too_large"
+
+        # HTTP Codex requests intentionally fail open on a compressor timeout
+        # after the context guard clears. Keep this shared decision helper in
+        # sync with ``handle_openai_responses`` so the WebSocket path and its
+        # direct unit contract do not turn a transient local timeout into a
+        # spurious client-visible refusal.
+        if client == "codex" and isinstance(exception, TimeoutError):
+            return (
+                False,
+                guard_estimated,
+                guard_threshold,
+                guard_limit,
+                "client_override:codex",
+            )
 
         from cutctx.proxy.helpers import decide_compression_failure_action
 
@@ -1338,6 +1528,23 @@ class OpenAIResponsesMixin:
                 slot = _slot_text(item)
                 if slot is not None:
                     text, slot_ref = slot
+                    if _should_passthrough_large_ml_tool_output(router, text):
+                        if debug_enabled:
+                            extraction_debug.append(
+                                {
+                                    "index": idx,
+                                    "eligible": False,
+                                    "reason": "interactive_ml_latency_guard",
+                                    "item_type": item_type,
+                                    "call_id": call_id,
+                                    "text_chars": len(text),
+                                    "text_bytes": len(
+                                        text.encode("utf-8", errors="replace")
+                                    ),
+                                    "item": item,
+                                }
+                            )
+                        continue
                     candidates.append((idx, slot_ref, text))
                     if debug_enabled:
                         extraction_debug.append(
@@ -2110,6 +2317,14 @@ class OpenAIResponsesMixin:
             logger.debug("[%s] OpenAI Responses live user-tail router unavailable", request_id)
             return payload, False, 0, [], 0
 
+        # Keep Responses aligned with the shared router's default safety
+        # policy. User input is the subject of the request and part of the
+        # provider's cacheable prefix, so it must not pay compressor latency
+        # (or be mutated) unless the operator explicitly enabled
+        # ``--compress-user-messages``.
+        if router.config.skip_user_messages:
+            return payload, False, 0, [], 0
+
         user_question = question or original_text
         started = time.perf_counter()
         try:
@@ -2302,25 +2517,32 @@ class OpenAIResponsesMixin:
         )
         raw_request_headers = dict(request.headers.items())
         _, is_chatgpt_subscription = _resolve_codex_routing_headers(raw_request_headers)
+        is_remote_compaction = (
+            is_chatgpt_subscription
+            and _is_remote_compaction_subscription_request(body)
+        )
         from cutctx.proxy.handlers.openai.utils import _has_codex_responses_lite_hint
 
         codex_responses_lite = _has_codex_responses_lite_hint(raw_request_headers)
 
-        model, request_savings_metadata = prepare_model_routing(
-            self,
-            model,
-            request_savings_metadata=request_savings_metadata,
-            tool_calls=len(body.get("tools") or []),
-            num_messages=len(routing_messages),
-            messages=routing_messages,
-            request_id=_canary_identity.value,
-            client=classify_client(dict(request.headers.items())),
-            assignment_identity_source=_canary_identity.source,
-            assignment_sticky=_canary_identity.sticky,
-            transport_provider="openai",
-            implicit_downgrade_allowed=not (is_chatgpt_subscription or codex_responses_lite),
-            allow_transport_safe_targets=not is_chatgpt_subscription,
-        )
+        if not is_remote_compaction:
+            model, request_savings_metadata = prepare_model_routing(
+                self,
+                model,
+                request_savings_metadata=request_savings_metadata,
+                tool_calls=len(body.get("tools") or []),
+                num_messages=len(routing_messages),
+                messages=routing_messages,
+                request_id=_canary_identity.value,
+                client=classify_client(dict(request.headers.items())),
+                assignment_identity_source=_canary_identity.source,
+                assignment_sticky=_canary_identity.sticky,
+                transport_provider="openai",
+                implicit_downgrade_allowed=not (
+                    is_chatgpt_subscription or codex_responses_lite
+                ),
+                allow_transport_safe_targets=not is_chatgpt_subscription,
+            )
         _canary_assignments = getattr(self, "_savings_canary_assignments", None)
         if _canary_assignments is None:
             _canary_assignments = {}
@@ -2330,8 +2552,9 @@ class OpenAIResponsesMixin:
         )
         while len(_canary_assignments) > 2048:
             _canary_assignments.pop(next(iter(_canary_assignments)))
-        body["model"] = model
-        _apply_model_routing_request_overrides(body, request_savings_metadata)
+        if not is_remote_compaction:
+            body["model"] = model
+            _apply_model_routing_request_overrides(body, request_savings_metadata)
 
         headers = dict(request.headers.items())
         headers.pop("host", None)
@@ -2641,7 +2864,9 @@ class OpenAIResponsesMixin:
         # ChatGPT session auth (codex login) uses chatgpt.com, not api.openai.com.
         if is_chatgpt_auth:
             url = "https://chatgpt.com/backend-api/codex/responses"
-            body, stripped_fields = _sanitize_chatgpt_subscription_responses_body(body)
+            stripped_fields = []
+            if not is_remote_compaction:
+                body, stripped_fields = _sanitize_chatgpt_subscription_responses_body(body)
             if stripped_fields:
                 logger.info(
                     "[%s] /v1/responses stripped unsupported subscription fields: %s",
@@ -2665,7 +2890,7 @@ class OpenAIResponsesMixin:
         # CompressionUnits and routing them through ContentRouter. Policy
         # gating already happened upstream (auth_mode classify,
         # CompressionPolicy resolve at request entry).
-        if self.config.optimize and not _bypass:
+        if self.config.optimize and not (_bypass or is_remote_compaction):
             try:
                 tool_scaffolding_tokens = estimate_tool_scaffolding_tokens(
                     body.get("tools"),
@@ -2809,17 +3034,15 @@ class OpenAIResponsesMixin:
                         _truncated_bytes,
                     )
                 elif _http_action.refuse:
-                    _CODEx_SMALL_TIMEOUT_FAIL_OPEN_BYTES = 256 * 1024
                     if (
                         not is_chatgpt_auth
                         and client == "codex"
                         and _http_action.reason == "timeout"
-                        and _http_body_bytes <= _CODEx_SMALL_TIMEOUT_FAIL_OPEN_BYTES
                     ):
                         logger.warning(
-                            "[%s] /v1/responses compression timed out on a small Codex "
+                            "[%s] /v1/responses compression timed out on a Codex "
                             "request (%d bytes); failing open to preserve the "
-                            "standalone proxy UX.",
+                            "standalone CLI UX.",
                             request_id,
                             _http_body_bytes,
                         )
@@ -2854,7 +3077,7 @@ class OpenAIResponsesMixin:
         # sanitizer runs. Keep the ChatGPT subscription boundary strict so a
         # reconnect after a proxy restart cannot forward a stale streaming
         # field and receive an opaque upstream 400.
-        if is_chatgpt_auth:
+        if is_chatgpt_auth and not is_remote_compaction:
             body, final_stripped_fields = _sanitize_chatgpt_subscription_responses_body(body)
             if final_stripped_fields:
                 logger.info(
@@ -2883,16 +3106,24 @@ class OpenAIResponsesMixin:
         # structural truncator; all other transports fail with a clear 413 so
         # the client can compact context instead of starting a fresh thread.
         _guard_model = str(body.get("model") or model or "unknown")
-        (
-            _guard_refuse,
-            _guard_estimated,
-            _guard_threshold,
-            _guard_limit,
-        ) = self._openai_responses_context_guard(body, model=_guard_model)
+        _guard_refuse = False
+        _guard_estimated = _guard_threshold = _guard_limit = 0
+        if not is_remote_compaction:
+            (
+                _guard_refuse,
+                _guard_estimated,
+                _guard_threshold,
+                _guard_limit,
+            ) = self._openai_responses_context_guard(body, model=_guard_model)
         _opaque_subscription_continuation = (
             is_chatgpt_auth and _contains_opaque_responses_continuation(body)
         )
         if _guard_refuse and _opaque_subscription_continuation:
+            # Advisory only for the encrypted continuation state itself — a
+            # reconstructed continuation can independently carry oversized
+            # inline screenshots, which are safe to shrink (untouched by the
+            # opaque-content check) and must still be capped before forwarding.
+            body = _shrink_oversized_images(body)
             logger.warning(
                 "[%s] /v1/responses treating approximate context guard as advisory "
                 "for opaque ChatGPT subscription continuation "

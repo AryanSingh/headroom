@@ -250,7 +250,12 @@ class TestWorkerConfiguration:
         from cutctx.proxy.server import _MULTI_WORKER_CONFIG_ENV, run_server
 
         captured = {}
-        config = ProxyConfig(host="0.0.0.0", port=8787, max_connections=200)
+        config = ProxyConfig(
+            host="0.0.0.0",
+            port=8787,
+            max_connections=200,
+            proxy_api_key="test-proxy-key",
+        )
 
         def fake_run(app, **kwargs):
             captured["app"] = app

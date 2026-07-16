@@ -451,6 +451,11 @@ class ProxyConfig:
     # Env: CUTCTX_ADMIN_API_KEY.
     admin_api_key: str | None = None
 
+    # Dedicated client credential for provider-facing proxy routes. This is
+    # intentionally separate from the root admin key and from upstream
+    # provider Authorization headers. Env: CUTCTX_PROXY_API_KEY.
+    proxy_api_key: str | None = None
+
     # Hosted compression surface — feature-flagged simple API for buyers who
     # want "send text/messages, get compressed output" without proxying an LLM
     # request. Disabled by default so local-first proxy behavior is unchanged.

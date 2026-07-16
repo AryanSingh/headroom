@@ -93,7 +93,7 @@ def test_litellm_model_pricing_falls_back_from_versioned_and_prefixed_names(monk
     assert pricing.input_cost_per_1m == 0.75
 
 
-def test_litellm_model_pricing_uses_aliases_and_zero_cost_defaults(monkeypatch) -> None:
+def test_litellm_model_pricing_rejects_alias_metadata_without_rates(monkeypatch) -> None:
     fake_litellm = SimpleNamespace(
         model_cost={
             "claude-sonnet-4-20250514": {
@@ -105,12 +105,8 @@ def test_litellm_model_pricing_uses_aliases_and_zero_cost_defaults(monkeypatch) 
     monkeypatch.setattr(litellm_pricing, "LITELLM_AVAILABLE", True)
     monkeypatch.setattr(litellm_pricing, "litellm", fake_litellm)
 
-    pricing = litellm_pricing.get_model_pricing("claude-3-5-sonnet-20241022")
-    assert pricing is not None
-    assert pricing.model == "claude-3-5-sonnet-20241022"
-    assert pricing.input_cost_per_1m == 0
-    assert pricing.output_cost_per_1m == 0
-    assert litellm_pricing.estimate_cost("claude-3-5-sonnet-20241022", input_tokens=1) == 0
+    assert litellm_pricing.get_model_pricing("claude-3-5-sonnet-20241022") is None
+    assert litellm_pricing.estimate_cost("claude-3-5-sonnet-20241022", input_tokens=1) is None
 
 
 def test_litellm_model_pricing_returns_none_for_unknown_models(monkeypatch) -> None:

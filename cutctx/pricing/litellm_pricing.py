@@ -185,8 +185,10 @@ def get_model_pricing(model: str) -> LiteLLMModelPricing | None:
         return None
 
     # LiteLLM stores cost per token, convert to per 1M
-    input_per_token = info.get("input_cost_per_token", 0) or 0
-    output_per_token = info.get("output_cost_per_token", 0) or 0
+    input_per_token = info.get("input_cost_per_token")
+    output_per_token = info.get("output_cost_per_token")
+    if input_per_token is None or output_per_token is None:
+        return None
 
     return LiteLLMModelPricing(
         model=model,

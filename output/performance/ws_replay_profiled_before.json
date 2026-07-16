@@ -1,0 +1,22 @@
+{
+  "concurrency": 1,
+  "warmup_ms": 8236.1,
+  "frames_total": 1,
+  "sessions": 1,
+  "wall_time_s": 6.67,
+  "errors": 0,
+  "error_classes": [],
+  "input_bytes_total": 36864,
+  "per_frame_elapsed_ms": {
+    "p50": 6666.0,
+    "p90": 6666.0,
+    "p99": 6666.0,
+    "max": 6666.0,
+    "mean": 6666.0
+  },
+  "per_session_total_ms": {
+    "p50": 6666.0,
+    "p90": 6666.0,
+    "max": 6666.0
+  }
+}

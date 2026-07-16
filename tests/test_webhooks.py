@@ -16,9 +16,11 @@ file tests the new production-grade behaviour:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import os
 from unittest.mock import AsyncMock, patch
 
@@ -32,6 +34,15 @@ from cutctx.proxy.webhooks import (
     get_webhook_dispatcher,
     reset_webhook_dispatcher,
 )
+
+
+@pytest.fixture(autouse=True)
+def _resolve_test_webhooks_to_public_address(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep dispatcher tests deterministic without performing external DNS."""
+    monkeypatch.setattr(
+        "cutctx.proxy.webhooks.resolve_webhook_destination",
+        AsyncMock(return_value={"93.184.216.34"}),
+    )
 
 # ── Subscription management ─────────────────────────────────────────
 
@@ -421,3 +432,58 @@ async def test_fire_webhook_helper_singleton_lifecycle() -> None:
     assert delivery.event_type == WebhookEventType.ABUSE_ACTIVATION_STORM.value
     assert delivery.payload["title"] == "Alert"
     assert delivery.payload["message"] == "Something happened"
+
+
+@pytest.mark.asyncio
+async def test_firewall_alert_reaches_registered_webhook_subscriber(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Firewall alerts use the live singleton rather than the stale dispatcher alias."""
+    monkeypatch.setenv("CUTCTX_WEBHOOKS_IN_MEMORY", "1")
+    monkeypatch.delenv("CUTCTX_WEBHOOK_URL", raising=False)
+    await reset_webhook_dispatcher()
+    dispatcher = get_webhook_dispatcher()
+    dispatcher.subscribe(WebhookSubscription(url="https://firewall.example.com", secret="s"))
+
+    from cutctx.security.firewall import FirewallConfig, FirewallScanner
+
+    with caplog.at_level(logging.ERROR, logger="cutctx.security.firewall"):
+        FirewallScanner(FirewallConfig(enabled=True)).scan_text("My SSN is 123-45-6789")
+        await asyncio.sleep(0)
+
+    assert dispatcher._queue.qsize() == 1
+    delivery = dispatcher._queue.get_nowait()
+    assert delivery is not None
+    assert delivery.subscription.url == "https://firewall.example.com"
+    assert delivery.payload["title"] == "Firewall Alert: PII"
+    assert "NoneType" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_budget_alert_reaches_registered_webhook_subscriber(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Budget alerts use the live singleton rather than the stale dispatcher alias."""
+    monkeypatch.setenv("CUTCTX_WEBHOOKS_IN_MEMORY", "1")
+    monkeypatch.delenv("CUTCTX_WEBHOOK_URL", raising=False)
+    await reset_webhook_dispatcher()
+    dispatcher = get_webhook_dispatcher()
+    dispatcher.subscribe(WebhookSubscription(url="https://budget.example.com", secret="s"))
+
+    from cutctx.proxy.budget import BudgetConfig, BudgetTracker
+
+    tracker = BudgetTracker(
+        BudgetConfig(enabled=True, hard_limit=True),
+        user_budget_tokens=10,
+    )
+    tracker.add_tokens(10)
+    with caplog.at_level(logging.ERROR, logger="cutctx.proxy.budget"):
+        assert tracker.is_exceeded() is True
+        await asyncio.sleep(0)
+
+    assert dispatcher._queue.qsize() == 1
+    delivery = dispatcher._queue.get_nowait()
+    assert delivery is not None
+    assert delivery.subscription.url == "https://budget.example.com"
+    assert delivery.payload["title"] == "Budget Exceeded"
+    assert "NoneType" not in caplog.text

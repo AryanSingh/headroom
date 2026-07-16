@@ -451,15 +451,36 @@ test.describe('Overview Metrics & Panels', () => {
     await expect(autopilotPanel.getByText('Summaries', { exact: true })).toBeVisible();
     await expect(autopilotPanel.getByText('Latest adjustment: Code moved from L5 to L4 after a retrieval signal.')).toBeVisible();
   });
-  test('renders all recent requests without capping and uses scrollable container', async ({ page }) => {
-    // Generate 12 mock requests to exceed the previous 8-item limit
+  test('keeps the activity table compact without request or client columns', async ({ page }) => {
+    // Generate 12 mock requests to verify the table stays scrollable while the
+    // Activity panel spans the full content width.
     const mockRequests = Array.from({ length: 12 }, (_, i) => ({
       request_id: `req-${i}`,
+      turn_id: `turn-${i}`,
       timestamp: `2026-07-02T04:${30 + i}:00Z`,
-      model: `gpt-4o-mini-${i}`,
-      input_tokens_original: 1000,
-      total_saved_tokens: 500,
-      tokens_saved: 100,
+      model: `gpt-5.6-sol-${i}`,
+      provider: i % 2 === 0 ? 'openai' : 'anthropic',
+      client: i % 2 === 0 ? 'codex' : 'claude-code',
+      routing_metadata: i % 3 === 0
+        ? {
+            requested_model: `gpt-5.6-terra-${i}`,
+            actual_model: `gpt-5.6-sol-${i}`,
+            routed: true,
+            source_model: `gpt-5.6-terra-${i}`,
+            target_model: `gpt-5.6-sol-${i}`,
+            reason: 'downgrade_applied',
+          }
+        : {
+            requested_model: `gpt-5.6-sol-${i}`,
+            actual_model: `gpt-5.6-sol-${i}`,
+            routed: false,
+            source_model: `gpt-5.6-sol-${i}`,
+            target_model: `gpt-5.6-sol-${i}`,
+            reason: 'workload_not_downgradeable',
+          },
+      input_tokens_original: 1000 + i,
+      total_saved_tokens: 500 + i,
+      tokens_saved: 100 + i,
       cache_saved_tokens: 400,
     }));
 
@@ -478,13 +499,34 @@ test.describe('Overview Metrics & Panels', () => {
 
     await page.goto('/dashboard');
 
-    // Wait for the panel
-    const recentRequestsSection = page.locator('section.panel').filter({ hasText: 'Recent requests' });
+    // Wait for the panel and verify it no longer sits inside the two-column bottom grid.
+    const recentRequestsSection = page.locator('section.panel.activity-panel');
     await expect(recentRequestsSection).toBeVisible();
+    await expect(page.locator('.overview-bottom-grid .activity-panel')).toHaveCount(0);
 
     // Verify the scrollable container class is applied
     const tableShell = recentRequestsSection.locator('.request-table-shell');
     await expect(tableShell).toBeVisible();
+    const horizontalMetrics = await tableShell.evaluate((shell) => ({
+      clientWidth: shell.clientWidth,
+      scrollWidth: shell.scrollWidth,
+    }));
+    expect(horizontalMetrics.scrollWidth).toBeLessThanOrEqual(horizontalMetrics.clientWidth);
+
+    // Keep the table within its panel by omitting the widest, least actionable columns.
+    await expect(recentRequestsSection.getByRole('columnheader', { name: 'Request', exact: true })).toHaveCount(0);
+    await expect(recentRequestsSection.getByRole('columnheader', { name: 'Model', exact: true })).toBeVisible();
+    await expect(recentRequestsSection.getByRole('columnheader', { name: 'Routing', exact: true })).toBeVisible();
+    await expect(recentRequestsSection.getByRole('columnheader', { name: 'Client / provider', exact: true })).toHaveCount(0);
+    await expect(recentRequestsSection.getByRole('columnheader', { name: 'When', exact: true })).toBeVisible();
+
+    const firstRow = tableShell.locator('tbody tr').first();
+    await expect(firstRow).toContainText('Requested: gpt-5.6-terra-0');
+    await expect(firstRow).toContainText('downgrade_applied');
+    await expect(firstRow).not.toContainText('req-0');
+    await expect(firstRow).not.toContainText('turn-0');
+    await expect(firstRow).not.toContainText('codex');
+    await expect(firstRow).not.toContainText('openai');
 
     // Verify all 12 items are rendered (previously it was capped at 8)
     const rows = tableShell.locator('tbody tr');

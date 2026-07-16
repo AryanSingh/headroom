@@ -153,6 +153,23 @@ def test_mode_tool_is_skip() -> None:
     assert d.skip_reason == "mode_tool"
 
 
+def test_trivial_turn_is_skip_when_memory_would_otherwise_inject() -> None:
+    """Very short greetings should fail open and skip memory injection.
+
+    The memory system is optional enrichment; a plain "hi" does not need
+    retrieval work on the critical path.
+    """
+    d = MemoryDecision.decide(
+        headers={},
+        memory_handler=_memory_handler(),
+        memory_user_id="u1",
+        mode_name="auto_tail",
+        messages=[{"role": "user", "content": "hi"}],
+    )
+    assert d.inject is False
+    assert d.skip_reason == "trivial_turn"
+
+
 # ── Precedence ordering when multiple gates close ────────────────────
 
 
@@ -183,6 +200,18 @@ def test_no_user_id_beats_mode() -> None:
         headers={}, memory_handler=_memory_handler(), memory_user_id=None, mode_name="disabled"
     )
     assert d.skip_reason == "no_user_id"
+
+
+def test_mode_disabled_beats_trivial_turn() -> None:
+    """Operator intent still wins over the short-turn optimization."""
+    d = MemoryDecision.decide(
+        headers={},
+        memory_handler=_memory_handler(),
+        memory_user_id="u1",
+        mode_name="disabled",
+        messages=[{"role": "user", "content": "hi"}],
+    )
+    assert d.skip_reason == "mode_disabled"
 
 
 def test_mode_disabled_beats_mode_tool() -> None:
@@ -305,6 +334,13 @@ def test_apply_to_tags_for_every_skip_reason() -> None:
             "memory_handler": _memory_handler(),
             "memory_user_id": "u1",
             "mode_name": "tool",
+        },
+        "trivial_turn": {
+            "headers": {},
+            "memory_handler": _memory_handler(),
+            "memory_user_id": "u1",
+            "mode_name": "auto_tail",
+            "messages": [{"role": "user", "content": "hi"}],
         },
     }
     for expected, kwargs in cases.items():

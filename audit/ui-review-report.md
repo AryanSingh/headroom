@@ -1,48 +1,67 @@
-# UI/UX & Accessibility Review Report: Dashboard
-**Date:** 2026-07-04
-**Auditor:** Senior UI/UX Designer
+# UI/UX Review: Orchestration and Model Routing
 
-## 1. Executive Summary
-This audit reviews the React codebase (dashboard application) against modern UI/UX principles and WCAG 2.1 accessibility standards. The application features a dark/light theme, responsive sidebar layout, and uses standard web technologies.
+Date: 2026-07-15
+Evidence: `audit/screenshots/orchestrator-routing-desktop.png`, `audit/screenshots/orchestrator-routing-mobile.png`
 
-## 2. Visual Design Consistency
-- **Design System:** The application uses CSS variables in `index.css` to manage design tokens (spacing, typography, colors, border-radii). This ensures consistency across the application.
-- **Theming:** A comprehensive Light/Dark mode is supported via `--surface` and `--text` variables. 
-- **Typography:** Uses 'Space Grotesk' for display fonts and 'Inter' for body, providing a clean, technical aesthetic suitable for a dashboard. The typography hierarchy (eyebrows, headings, body text) is well established.
+## Executive assessment
 
-## 3. Responsive Layouts & Mobile Experience
-- **Sidebar & Topbar:** The layout uses CSS Grid and Flexbox. `App.jsx` handles breakpoints via `window.matchMedia('(max-width: 1024px)')`. Below 1024px, the sidebar collapses automatically, adapting well to tablet and mobile screens.
-- **Drawer Behavior:** On mobile, the sidebar acts as an overlay that can be dismissed by clicking the overlay or pressing `Escape`. This is a strong pattern for mobile UX.
+The visual system is coherent and polished at a glance, but the Orchestrator surface is too dense, too infrastructure-led, and not sufficiently explanatory for a high-risk control plane. The mobile layout is not usable at 390×844 because the fixed desktop navigation consumes the viewport and the main content is effectively off-canvas.
 
-## 4. Accessibility (WCAG 2.1)
-### Keyboard Navigation (WCAG 2.1.1)
-- **Focus Rings:** Excellent global focus-visible styling (`outline: 2px solid var(--border-focus); outline-offset: 2px;`).
-- **Shortcuts:** The `/` shortcut to focus the search input is a great power-user feature. However, ensure that the shortcut does not interfere with screen reader shortcuts.
+## Findings
 
-### ARIA Attributes (WCAG 4.1.2)
-- **Strengths:** Interactive elements like the Sidebar Toggle and Theme Toggle have appropriate `aria-label` attributes. Overlay elements properly use `aria-hidden="true"`.
-- **Opportunities:** 
-  - The `<nav className="nav-stack">` should include an `aria-label="Main Navigation"` to distinguish it from other potential navigations.
-  - The search input label and input have redundant labels (`aria-label="Search dashboard"` on the label and `aria-label="Search"` on the input). This can be streamlined.
+### P0 — Mobile reflow failure
 
-### Color Contrast (WCAG 1.4.3)
-- The dark mode text (`#f0f0f4`) on background (`#0c0d12`) provides a contrast ratio of > 15:1 (WCAG AAA compliant).
-- The light mode text (`#111318`) on background (`#ffffff`) is also WCAG AAA compliant.
-- The accent color in dark mode (`#2dd4bf`) has good contrast against the dark background.
-- **Observation:** Ensure the `--text-tertiary` (`#7d8498` on `#0c0d12`) meets the 4.5:1 minimum ratio for standard text (it is ~4.6:1, which passes, but barely).
+At 390×844, the fixed sidebar remains desktop-width and the main routing content is not meaningfully visible. This fails the practical intent of WCAG 2.1 SC 1.4.10 (Reflow) and makes the control plane unusable on small screens.
 
-## 5. Loading & Error States
-- **Error Boundaries:** A robust `ErrorBoundary` component catches React rendering errors and displays a user-friendly fallback UI with a "Reload Page" button. The styling of the error state matches the application's aesthetic.
-- **Loading:** Network or data loading states should be verified in individual page components (e.g., Overview, Firewall) to ensure skeletons or spinners are announced to screen readers via `aria-live`.
+Evidence: `audit/screenshots/orchestrator-routing-mobile.png`.
 
-## 6. Animations & Transitions
-- Micro-interactions (hover states, active states) use `transition: all 0.15s ease`, providing a snappy and responsive feel without triggering motion sensitivity issues. 
-- Ensure `prefers-reduced-motion` CSS media queries are added for users who disable animations.
+### P1 — Desktop content clipping and density
 
-## 7. Recommended Actions
-1. **Add ARIA Landmarks:** Add `aria-label="Main"` to the sidebar navigation.
-2. **Reduce Motion:** Add `@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }` to `index.css`.
-3. **Contrast Tweaks:** Re-evaluate tertiary text colors to ensure they are comfortably above the 4.5:1 ratio.
+The six-tab orchestration strip and long explanatory copy clip or overflow at the captured desktop viewport. The page also stacks global routing mode, routing evidence, provider policy, and orchestration policy in one long surface without a clear hierarchy.
 
----
-*Audit based on WCAG 2.1 AA Standards.*
+Evidence: `audit/screenshots/orchestrator-routing-desktop.png`.
+
+### P1 — Two routing vocabularies collide
+
+“Routing policy,” “Routing mode,” “Balanced,” “Role locked,” and “Fallback” appear in adjacent regions but describe different layers. The UI needs a visible decision pipeline and plain-language scope labels.
+
+### P1 — Preview lacks trust signals
+
+The preview has no draft/live indicator, no request scenario inputs, no candidate rejection table, no estimated cost/latency, and no explicit statement that it does not invoke a provider.
+
+### P1 — Form controls lack contextual help
+
+Timeout, retries, cooldown, strict/relaxed mode, and policy choices have labels but no inline explanation of operational consequences. WCAG 2.1 SC 3.3.2 (Labels or Instructions) is only partially satisfied in spirit because the controls are labeled but not sufficiently instructed for safe use.
+
+### P2 — Tabs are semantically incomplete
+
+The tablist and tab roles are present, but the implementation does not expose explicit `aria-controls`/tabpanel relationships or the expected single-tab-stop arrow-key behavior. This weakens keyboard predictability under WCAG 2.1 SC 2.1.1 (Keyboard), SC 2.4.3 (Focus Order), and the WAI-ARIA tabs pattern.
+
+### P2 — Status is too color-dependent
+
+Healthy/available/selected states rely heavily on pills and color. Text labels exist, but contrast and state hierarchy should be verified against WCAG 2.1 SC 1.4.3 (Contrast Minimum) and SC 1.4.11 (Non-text Contrast) in both themes.
+
+### P2 — Loading and error states are inconsistent
+
+The page can show “healthy” in the global shell while orchestration data is still loading or an endpoint is unavailable. The product needs one explicit control-plane state and stale-data labeling.
+
+## Positive aspects
+
+- Strong dark-theme visual identity.
+- Clear top-level page title and system health indicator.
+- Visible labels on native form controls.
+- Keyboard-focusable buttons and tabs exist.
+- Status copy generally does not rely on color alone.
+- Empty and unavailable states are present in several tabs.
+
+## Recommended redesign direction
+
+Use a progressive-disclosure “Routing Studio” with:
+
+1. Objective-first policy builder.
+2. Role contracts as the primary object.
+3. A visible deterministic decision pipeline.
+4. Draft/live policy state.
+5. Scenario-based preview with candidate evidence.
+6. Evidence and canary promotion as the default next step.
+7. Responsive navigation that collapses to a drawer or bottom bar.

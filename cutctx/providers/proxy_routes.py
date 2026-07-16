@@ -9,8 +9,17 @@ import os
 from typing import Any, cast
 from urllib.parse import quote
 
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import (
+    APIRouter,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketException,
+)
 from fastapi.responses import JSONResponse, Response
+from starlette.requests import HTTPConnection
 
 from cutctx.proxy.handlers.openai import _resolve_codex_routing_headers
 
@@ -512,6 +521,33 @@ async def _handle_chatgpt_model_metadata(
 
 def register_provider_routes(app: FastAPI, proxy: Any) -> None:
     """Register provider-specific proxy endpoints."""
+
+    from cutctx.proxy.client_auth import (
+        ProxyClientAuthError,
+        require_http_proxy_client,
+        require_websocket_proxy_client,
+    )
+
+    async def _require_proxy_client(connection: HTTPConnection) -> None:
+        try:
+            if connection.scope.get("type") == "websocket":
+                require_websocket_proxy_client(connection, proxy.config)
+            else:
+                require_http_proxy_client(connection, proxy.config)
+        except ProxyClientAuthError as exc:
+            if connection.scope.get("type") == "websocket":
+                raise WebSocketException(code=1008, reason=str(exc)) from exc
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    "message": str(exc),
+                    "remediation": "Pass X-Cutctx-Proxy-Key with the configured proxy client key.",
+                },
+            ) from exc
+
+    parent_app = app
+    provider_router = APIRouter(dependencies=[Depends(_require_proxy_client)])
+    app = cast(Any, provider_router)
 
     async def vertex_publisher_passthrough(request: Request, publisher: str, action: str):
         return await proxy.handle_passthrough(
@@ -1073,3 +1109,5 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
             request,
             _select_passthrough_base_url(proxy, dict(request.headers)),
         )
+
+    parent_app.include_router(provider_router)

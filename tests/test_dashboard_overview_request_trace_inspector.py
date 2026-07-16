@@ -172,6 +172,33 @@ def _trace_payload() -> dict:
     }
 
 
+def _many_recent_requests(count: int) -> list[dict]:
+    requests: list[dict] = []
+    for index in range(count):
+        requests.append(
+            {
+                "request_id": f"trace-{index + 1}",
+                "timestamp": f"2026-07-09T00:{index:02d}:00Z",
+                "model": f"gpt-5.6-terra-{index + 1}",
+                "input_tokens_original": 1500 + index,
+                "tokens_saved": 300 + index,
+                "cache_saved_tokens": 200,
+                "total_saved_tokens": 500 + index,
+                "total_savings_percent": 33.3,
+                "savings_percent": 20.0,
+                "routing_metadata": {
+                    "requested_model": f"gpt-5.6-terra-{index + 1}",
+                    "actual_model": f"gpt-5.6-terra-{index + 1}",
+                    "routed": False,
+                    "source_model": f"gpt-5.6-terra-{index + 1}",
+                    "target_model": f"gpt-5.6-terra-{index + 1}",
+                    "reason": "workload_not_downgradeable",
+                },
+            }
+        )
+    return requests
+
+
 def _install_dashboard_routes(
     page: Page,
     *,
@@ -314,5 +341,35 @@ def test_overview_request_trace_inspector_handles_trace_errors() -> None:
             expect(page.locator(".request-trace-panel")).not_to_be_visible()
             page.get_by_role("button", name="gpt-5.6-terra", exact=True).click()
             expect(page.get_by_text("Failed to load trace:")).to_be_visible()
+        finally:
+            browser.close()
+
+
+def test_overview_recent_requests_table_trims_columns_and_limits_to_fifty_rows() -> None:
+    stats = _base_stats()
+    stats["recent_requests"] = _many_recent_requests(60)
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            page.add_init_script(
+                """
+                window.localStorage.setItem('cutctxAdminKey', 'testkey');
+                """
+            )
+            _install_dashboard_routes(page, stats_payload=stats)
+
+            page.goto("http://cutctx.local/dashboard")
+            page.wait_for_load_state("networkidle")
+
+            headers = page.locator(".request-table thead th")
+            rows = page.locator(".request-table tbody tr")
+
+            expect(page.get_by_text("Recent requests", exact=True)).to_be_visible()
+            expect(headers).to_have_count(7)
+            expect(rows).to_have_count(50)
+            expect(page.get_by_text("Request", exact=True)).to_have_count(0)
+            expect(page.get_by_text("Client / provider", exact=True)).to_have_count(0)
         finally:
             browser.close()

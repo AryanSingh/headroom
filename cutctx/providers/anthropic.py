@@ -19,6 +19,7 @@ import importlib.util
 import json
 import logging
 import os
+import re
 import warnings
 from typing import Any, cast
 
@@ -56,6 +57,7 @@ _FALLBACK_WARNING_SHOWN = False
 # Anthropic model context limits
 # All Claude 3+ models have 200K context
 ANTHROPIC_CONTEXT_LIMITS: dict[str, int] = {
+    "claude-opus-4-8": 1000000,
     # Claude 4.7 (Opus 4.7) - 1M context. Claude Code sends the model
     # name with a `[1m]` suffix to select the 1M tier; both forms are
     # registered explicitly because the lookup chain does not strip the
@@ -87,19 +89,25 @@ ANTHROPIC_CONTEXT_LIMITS: dict[str, int] = {
 
 # Fallback pricing - LiteLLM is preferred source
 # NOTE: These are ESTIMATES. Always verify against actual Anthropic billing.
-# Last updated: 2025-01-14
+# Last verified: 2026-07-16
 ANTHROPIC_PRICING: dict[str, dict[str, float]] = {
+    "claude-opus-4-8": {"input": 5.00, "output": 25.00, "cached_input": 0.50},
     # Claude 4.7 (Opus tier pricing) — registered for both the bare
     # name and the `[1m]` tier-suffixed form Claude Code sends.
-    "claude-opus-4-7": {"input": 15.00, "output": 75.00, "cached_input": 1.50},
-    "claude-opus-4-7[1m]": {"input": 15.00, "output": 75.00, "cached_input": 1.50},
+    "claude-opus-4-7": {"input": 5.00, "output": 25.00, "cached_input": 0.50},
+    "claude-opus-4-7[1m]": {"input": 5.00, "output": 25.00, "cached_input": 0.50},
     # Claude 4.6 (Opus tier pricing)
-    "claude-opus-4-6": {"input": 15.00, "output": 75.00, "cached_input": 1.50},
+    "claude-opus-4-6": {"input": 5.00, "output": 25.00, "cached_input": 0.50},
     # Claude 4.5 (Opus tier pricing)
-    "claude-opus-4-5-20251101": {"input": 15.00, "output": 75.00, "cached_input": 1.50},
+    "claude-opus-4-5": {"input": 5.00, "output": 25.00, "cached_input": 0.50},
+    "claude-opus-4-5-20251101": {"input": 5.00, "output": 25.00, "cached_input": 0.50},
     # Claude 4 (Sonnet/Haiku tier pricing)
     "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00, "cached_input": 0.30},
-    "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00, "cached_input": 0.08},
+    "claude-sonnet-4-5": {"input": 3.00, "output": 15.00, "cached_input": 0.30},
+    "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00, "cached_input": 0.30},
+    "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "cached_input": 0.30},
+    "claude-haiku-4-5": {"input": 1.00, "output": 5.00, "cached_input": 0.10},
+    "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00, "cached_input": 0.10},
     # Claude 3.5
     "claude-3-5-sonnet-20241022": {"input": 3.00, "output": 15.00, "cached_input": 0.30},
     "claude-3-5-sonnet-latest": {"input": 3.00, "output": 15.00, "cached_input": 0.30},
@@ -115,18 +123,14 @@ ANTHROPIC_PRICING: dict[str, dict[str, float]] = {
 # Default limits for pattern-based inference
 # Used when a model isn't in the explicit list but matches a known pattern
 _PATTERN_DEFAULTS = {
-    "opus": {"context": 200000, "pricing": {"input": 15.00, "output": 75.00, "cached_input": 1.50}},
-    "sonnet": {
-        "context": 200000,
-        "pricing": {"input": 3.00, "output": 15.00, "cached_input": 0.30},
-    },
-    "haiku": {"context": 200000, "pricing": {"input": 0.80, "output": 4.00, "cached_input": 0.08}},
+    "opus": {"context": 200000},
+    "sonnet": {"context": 200000},
+    "haiku": {"context": 200000},
 }
 
 # Fallback for completely unknown Claude models
 _UNKNOWN_CLAUDE_DEFAULT = {
     "context": 200000,  # Safe assumption for Claude 3+
-    "pricing": {"input": 3.00, "output": 15.00, "cached_input": 0.30},  # Sonnet-tier pricing
 }
 
 
@@ -639,18 +643,11 @@ class AnthropicProvider(Provider):
         if model in self._pricing:
             return self._pricing[model]
 
-        # Partial match
+        # Match only official date/version suffixes. Broad tier inference can
+        # silently assign a public model's price to an internal or future ID.
         for known_model, prices in self._pricing.items():
-            if model in known_model or known_model in model:
+            suffix = model.removeprefix(known_model)
+            if re.fullmatch(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})", suffix):
                 return prices
-
-        # Pattern-based inference
-        tier = _infer_model_tier(model)
-        if tier and tier in _PATTERN_DEFAULTS:
-            return cast(dict[str, float], _PATTERN_DEFAULTS[tier]["pricing"])
-
-        # Default for unknown Claude models
-        if model.startswith("claude"):
-            return cast(dict[str, float], _UNKNOWN_CLAUDE_DEFAULT["pricing"])
 
         return None
