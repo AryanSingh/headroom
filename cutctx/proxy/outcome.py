@@ -30,6 +30,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from cutctx.proxy.decision_receipt import (
+    build_decision_receipt,
+    build_minimal_decision_receipt,
+)
+
 if TYPE_CHECKING:
     from cutctx.savings import RequestSavingsBreakdown
 
@@ -155,6 +160,7 @@ class RequestOutcome:
     cache_write_1h_tokens: int = 0
     uncached_input_tokens: int = 0
     cache_inferred: bool = False
+    provider_cache_observed: bool = False
     # Response-cache hit (Cutctx's own semantic cache served the
     # response from a prior call — completely distinct from
     # upstream-prompt-cache `cache_read_tokens`). True means the proxy
@@ -180,10 +186,12 @@ class RequestOutcome:
     #   so dashboards can render "hit" vs "saved tokens" separately.
     semantic_cache_avoided_tokens: int = 0
     semantic_cache_hit: bool = False
+    semantic_cache_evaluated: bool = False
     # self_hosted_prefix_cache_hits: tokens served from a self-hosted
     #   prefix cache such as vLLM APC. Independent of
     #   ``cache_read_tokens`` (which is provider-prompt-cache only).
     self_hosted_prefix_cache_hits: int = 0
+    self_hosted_prefix_cache_evaluated: bool = False
     # model_routing_tokens_saved: input tokens that were served by a
     #   cheaper model than the user requested. model_routing_usd_saved:
     #   the dollar delta computed at routing time. Independent of
@@ -219,6 +227,7 @@ class RequestOutcome:
     pricing_basis: str = "model_input_list_price"
     eligible_input_tokens: int = 0
     cache_protected_tokens: int = 0
+    cache_protection_evaluated: bool = False
     compressed_tokens: int = 0
     decline_reason: str | None = None
     canary_arm: str = "control"
@@ -276,6 +285,8 @@ class RequestOutcome:
     tags: dict[str, str] = field(default_factory=dict)
     client: str | None = None
     project: str | None = None
+    ccr_references: tuple[dict[str, Any], ...] = ()
+    ccr_retrieval_outcome: str | None = None
 
     # ── Derived (computed once, no caching needed — properties are cheap) ─
 
@@ -344,6 +355,7 @@ class RequestOutcome:
         cache_write_1h_tokens: int = 0,
         uncached_input_tokens: int = 0,
         cache_inferred: bool = False,
+        provider_cache_observed: bool | None = None,
         ttfb_ms: float = 0.0,
         pipeline_timing: dict[str, float] | None = None,
         waste_signals: dict[str, int] | None = None,
@@ -443,6 +455,11 @@ class RequestOutcome:
             cache_write_1h_tokens=cache_write_1h_tokens,
             uncached_input_tokens=uncached_input_tokens,
             cache_inferred=cache_inferred,
+            provider_cache_observed=(
+                bool(provider_cache_observed)
+                if provider_cache_observed is not None
+                else bool(cache_read_tokens or cache_write_tokens or uncached_input_tokens)
+            ),
             total_latency_ms=total_latency_ms,
             overhead_ms=overhead_ms,
             ttfb_ms=ttfb_ms,
@@ -1162,6 +1179,76 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
         if fallback_meta_candidate:
             fallback_meta = fallback_meta_candidate
 
+        cache_protection_evaluated = bool(
+            outcome.cache_protection_evaluated or eligible_input_tokens > 0
+        )
+        payload_capture = (
+            "captured" if getattr(request_logger, "log_full_messages", False) else "disabled"
+        )
+        try:
+            extra_metadata = outcome.savings_metadata or {}
+            routing_trace = extra_metadata.get("model_routing_trace")
+            decision_receipt = build_decision_receipt(
+                {
+                    "request_id": outcome.request_id,
+                    "requested_model": (routing_meta or {}).get("requested_model")
+                    or outcome.model,
+                    "effective_model": outcome.model,
+                    "routing_trace": routing_trace
+                    if isinstance(routing_trace, dict)
+                    else None,
+                    "routing_summary": routing_meta,
+                    "input_tokens_original": outcome.original_tokens,
+                    "input_tokens_forwarded": outcome.optimized_tokens,
+                    "direct_tokens_saved": _savings_by_source_tokens.get(
+                        "cutctx_compression", 0
+                    ),
+                    "transforms": list(outcome.transforms_applied),
+                    "decline_reason": decline_reason,
+                    "cache_protected_tokens": cache_protected_tokens,
+                    "cache_protection_evaluated": cache_protection_evaluated,
+                    "provider_cache_observed": outcome.provider_cache_observed,
+                    "provider_cache_read_tokens": outcome.cache_read_tokens,
+                    "provider_cache_write_tokens": outcome.cache_write_tokens,
+                    "provider_cache_inferred": outcome.cache_inferred,
+                    "semantic_cache_evaluated": bool(
+                        outcome.semantic_cache_evaluated
+                        or outcome.semantic_cache_hit
+                        or outcome.from_response_cache
+                    ),
+                    "semantic_cache_hit": outcome.semantic_cache_hit
+                    or outcome.from_response_cache,
+                    "semantic_cache_saved_tokens": semantic_cache_saved_tokens,
+                    "prefix_cache_evaluated": bool(
+                        outcome.self_hosted_prefix_cache_evaluated
+                        or self_hosted_prefix_cache_saved_tokens > 0
+                    ),
+                    "prefix_cache_saved_tokens": self_hosted_prefix_cache_saved_tokens,
+                    "ccr_references": list(outcome.ccr_references),
+                    "ccr_retrieval_outcome": outcome.ccr_retrieval_outcome,
+                    "total_saved_tokens": total_saved_tokens,
+                    "created_savings_tokens": created_savings_tokens,
+                    "observed_provider_savings_tokens": observed_provider_savings_tokens,
+                    "by_source_tokens": dict(_savings_by_source_tokens),
+                    "by_source_usd": dict(_savings_by_source_usd),
+                    "savings_basis": outcome.savings_basis,
+                    "pricing_basis": outcome.pricing_basis,
+                },
+                config=getattr(handler, "config", None),
+                payload_capture=payload_capture,
+            )
+        except Exception as exc:
+            logger.warning(
+                "[%s] decision receipt construction failed type=%s",
+                outcome.request_id,
+                type(exc).__name__,
+            )
+            decision_receipt = build_minimal_decision_receipt(
+                outcome.request_id,
+                payload_capture=payload_capture,
+                failure="receipt_builder_failed",
+            )
+
         request_logger.log(
             RequestLog(
                 request_id=outcome.request_id,
@@ -1179,8 +1266,21 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                 cache_hit=outcome.cache_hit,
                 transforms_applied=list(outcome.transforms_applied),
                 cache_saved_tokens=cache_saved_tokens,
+                provider_cache_observed=outcome.provider_cache_observed,
+                provider_cache_write_tokens=max(0, int(outcome.cache_write_tokens)),
+                provider_cache_inferred=outcome.cache_inferred,
                 semantic_cache_saved_tokens=semantic_cache_saved_tokens,
+                semantic_cache_evaluated=bool(
+                    outcome.semantic_cache_evaluated
+                    or outcome.semantic_cache_hit
+                    or outcome.from_response_cache
+                ),
                 self_hosted_prefix_cache_saved_tokens=self_hosted_prefix_cache_saved_tokens,
+                self_hosted_prefix_cache_evaluated=bool(
+                    outcome.self_hosted_prefix_cache_evaluated
+                    or self_hosted_prefix_cache_saved_tokens > 0
+                ),
+                cache_protection_evaluated=cache_protection_evaluated,
                 model_routing_saved_tokens=model_routing_saved_tokens,
                 tool_schema_saved_tokens=tool_schema_saved_tokens,
                 scaffolding_tokens=scaffolding_tokens,
@@ -1195,6 +1295,9 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                 decline_reason=decline_reason,
                 routing_metadata=routing_meta,
                 fallback=fallback_meta,
+                ccr_references=list(outcome.ccr_references),
+                ccr_retrieval_outcome=outcome.ccr_retrieval_outcome,
+                decision_receipt=decision_receipt,
                 created_savings_tokens=created_savings_tokens,
                 observed_provider_savings_tokens=observed_provider_savings_tokens,
                 created_savings_usd=created_savings_usd,

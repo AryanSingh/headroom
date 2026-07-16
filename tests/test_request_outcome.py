@@ -607,6 +607,103 @@ def test_from_stream_threads_provider_specific_cache_fields() -> None:
     assert o.cache_inferred is False  # default — only set True by OpenAI sites
 
 
+def test_from_stream_distinguishes_provider_cache_miss_from_unobserved() -> None:
+    miss = RequestOutcome.from_stream(
+        **_stream_kwargs(),
+        cache_read_tokens=0,
+        cache_write_tokens=0,
+        uncached_input_tokens=800,
+    )
+    unknown = RequestOutcome.from_stream(
+        **_stream_kwargs(),
+        cache_read_tokens=0,
+        cache_write_tokens=0,
+        uncached_input_tokens=0,
+    )
+
+    assert miss.provider_cache_observed is True
+    assert unknown.provider_cache_observed is False
+
+
+@pytest.mark.asyncio
+async def test_funnel_persists_full_routing_decision_receipt() -> None:
+    from cutctx.proxy.models import ProxyConfig
+    from cutctx.proxy.request_logger import RequestLogger
+
+    h = _FunnelHarness()
+    h.config = ProxyConfig()
+    h.logger = RequestLogger(log_file=None, log_full_messages=False)
+    outcome = _outcome(
+        provider="openai",
+        model="gpt-5.4",
+        original_tokens=1000,
+        optimized_tokens=800,
+        output_tokens=100,
+        tokens_saved=200,
+        attempted_input_tokens=1000,
+        provider_cache_observed=True,
+        cache_read_tokens=100,
+        cache_protected_tokens=100,
+        savings_metadata={
+            "model_routing": {
+                "source_model": "gpt-5.4",
+                "target_model": "gpt-5.4",
+                "reason": "workload_not_downgradeable",
+            },
+            "model_routing_trace": {
+                "schema_version": 1,
+                "mechanism": "optimization_preset",
+                "requested_model": "gpt-5.4",
+                "effective_model": "gpt-5.4",
+                "reason": "workload_not_downgradeable",
+                "applied": False,
+                "candidates": ["gpt-5.4-mini"],
+                "rejected_candidates": [
+                    {
+                        "candidate": "gpt-5.4-mini",
+                        "reason": "workload_not_downgradeable",
+                    }
+                ],
+                "required_capabilities": ["tool_calling"],
+                "selection_evidence": {"signals": ["recent_tool_context"]},
+            },
+        },
+    )
+
+    await h._record_request_outcome(outcome)
+
+    row = h.logger.get_recent_with_messages(1)[0]
+    receipt = row["decision_receipt"]
+    assert receipt["routing"]["reason"] == "workload_not_downgradeable"
+    assert receipt["routing"]["rejected_candidates"][0]["candidate"] == "gpt-5.4-mini"
+    assert receipt["cache"]["provider_prompt_cache"]["status"] == "hit"
+    assert receipt["attribution"]["observed_provider_savings_tokens"] == 100
+    assert receipt["observation"]["payload_capture"] == "disabled"
+
+
+@pytest.mark.asyncio
+async def test_funnel_logs_minimal_receipt_when_builder_fails(monkeypatch) -> None:
+    from cutctx.proxy.models import ProxyConfig
+    from cutctx.proxy.request_logger import RequestLogger
+
+    h = _FunnelHarness()
+    h.config = ProxyConfig()
+    h.logger = RequestLogger(log_file=None, log_full_messages=False)
+
+    def fail_builder(*args, **kwargs):
+        raise ValueError("private payload")
+
+    monkeypatch.setattr("cutctx.proxy.outcome.build_decision_receipt", fail_builder)
+
+    await h._record_request_outcome(_outcome(request_id="receipt-failed"))
+
+    row = h.logger.get_recent_with_messages(1)[0]
+    receipt = row["decision_receipt"]
+    assert receipt["observation"]["completeness"] == "partial"
+    assert receipt["observation"]["missing"] == ["receipt_builder_failed"]
+    assert "private payload" not in str(row)
+
+
 def test_from_stream_threads_waste_signals_for_openai_via_backend_site() -> None:
     """Only the OpenAI-via-backend finalizer populates ``waste_signals``;
     the helper threads it through as an optional kwarg."""
