@@ -70,7 +70,17 @@ function acknowledgedRoutingMode(response) {
 }
 
 export default function Orchestrator({ searchQuery = "" }) {
-  const { stats, loading, error, configFlagsError, refresh } = useDashboardData();
+  const {
+    stats,
+    loading,
+    error,
+    configFlagsError,
+    committedGeneration,
+    lastUpdated,
+    refreshError,
+    refreshing,
+    refresh,
+  } = useDashboardData();
   const [updating, setUpdating] = useState(false);
   const [optimisticMode, setOptimisticMode] = useState(null);
   const [toggleError, setToggleError] = useState(null);
@@ -185,7 +195,7 @@ export default function Orchestrator({ searchQuery = "" }) {
   };
 
   const handleModeChange = async (mode) => {
-    setOptimisticMode(mode);
+    setOptimisticMode({ mode, generation: committedGeneration });
     setToggleError(null);
     setModeConfirmationWarning(null);
     setUpdating(true);
@@ -205,6 +215,7 @@ export default function Orchestrator({ searchQuery = "" }) {
       } else if (confirmedMode === mode) {
         setOptimisticMode(null);
       } else {
+        setOptimisticMode({ mode, generation: result.generation });
         setModeConfirmationWarning("Routing mode update is pending confirmation from newer stats.");
       }
     } catch (err) {
@@ -244,7 +255,10 @@ export default function Orchestrator({ searchQuery = "" }) {
 
   const modelRouting = stats?.model_routing || {};
   const backendMode = modelRouting.mode || (modelRouting.requested ? "balanced" : "off");
-  const pendingMode = optimisticMode === backendMode ? null : optimisticMode;
+  const pendingMode =
+    optimisticMode && committedGeneration <= optimisticMode.generation
+      ? optimisticMode.mode
+      : null;
   const activeMode = pendingMode ?? backendMode;
   const currentPreset =
     modelRouting.preset ||
@@ -360,7 +374,13 @@ export default function Orchestrator({ searchQuery = "" }) {
   }
 
   return (
-    <div className="page-stack">
+    <div
+      className="page-stack"
+      data-committed-generation={committedGeneration}
+      data-last-updated={lastUpdated || ""}
+      data-refresh-error={refreshError || ""}
+      data-refreshing={refreshing ? "true" : "false"}
+    >
       {toggleError ? (
         <div className="alert-card" role="alert">
           <span>Failed to update routing mode: {toggleError}</span>

@@ -17,6 +17,7 @@ export function DashboardDataProvider({ children }) {
   const [error, setError] = useState(null);
   const [refreshError, setRefreshError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [committedGeneration, setCommittedGeneration] = useState(0);
   const [historyData, setHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState(null);
@@ -76,6 +77,7 @@ export function DashboardDataProvider({ children }) {
       setError(null);
       setRefreshError(null);
       setLastUpdated(new Date().toISOString());
+      setCommittedGeneration(generation);
       // A newer polling snapshot can supersede the initial request. Any
       // committed snapshot is sufficient to leave the initial loading shell.
       setLoading(false);
@@ -181,6 +183,7 @@ export function DashboardDataProvider({ children }) {
       error,
       refreshError,
       lastUpdated,
+      committedGeneration,
       refresh,
     }),
     [
@@ -196,6 +199,7 @@ export function DashboardDataProvider({ children }) {
       error,
       refreshError,
       lastUpdated,
+      committedGeneration,
       refresh,
     ],
   );
