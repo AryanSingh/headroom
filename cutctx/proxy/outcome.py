@@ -813,7 +813,9 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                         )
                         if input_tokens > 0:
                             finalized = handler._model_router.finalize_savings(
-                                decision, input_tokens=input_tokens
+                                decision,
+                                input_tokens=input_tokens,
+                                output_tokens=int(outcome.output_tokens or 0),
                             )
                             tokens_saved = int(getattr(finalized, "tokens_saved", 0) or 0)
                             usd_saved = float(getattr(finalized, "usd_saved", 0.0) or 0.0)
