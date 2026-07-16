@@ -72,6 +72,7 @@ function acknowledgedRoutingMode(response) {
 export default function Orchestrator({ searchQuery = "" }) {
   const {
     stats,
+    health,
     loading,
     error,
     configFlagsError,
@@ -255,10 +256,7 @@ export default function Orchestrator({ searchQuery = "" }) {
 
   const modelRouting = stats?.model_routing || {};
   const backendMode = modelRouting.mode || (modelRouting.requested ? "balanced" : "off");
-  const pendingMode =
-    optimisticMode && committedGeneration <= optimisticMode.generation
-      ? optimisticMode.mode
-      : null;
+  const pendingMode = optimisticMode?.mode ?? null;
   const activeMode = pendingMode ?? backendMode;
   const currentPreset =
     modelRouting.preset ||
@@ -327,6 +325,22 @@ export default function Orchestrator({ searchQuery = "" }) {
         ? "Balanced keeps the canonical codex-gpt54mini-high preset after role bindings are applied."
         : "Off disables routing while preserving locked role assignments.";
 
+  useEffect(() => {
+    if (
+      !optimisticMode ||
+      committedGeneration <= optimisticMode.generation ||
+      backendMode !== optimisticMode.mode
+    ) {
+      return undefined;
+    }
+
+    const confirmation = window.setTimeout(() => {
+      setOptimisticMode(null);
+      setModeConfirmationWarning(null);
+    }, 0);
+    return () => window.clearTimeout(confirmation);
+  }, [backendMode, committedGeneration, optimisticMode]);
+
   if (loading) {
     return (
       <div className="page-shell">
@@ -377,6 +391,8 @@ export default function Orchestrator({ searchQuery = "" }) {
     <div
       className="page-stack"
       data-committed-generation={committedGeneration}
+      data-backend-mode={backendMode}
+      data-health-status={health?.status || ""}
       data-last-updated={lastUpdated || ""}
       data-refresh-error={refreshError || ""}
       data-refreshing={refreshing ? "true" : "false"}

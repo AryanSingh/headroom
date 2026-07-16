@@ -516,16 +516,25 @@ test.describe("Orchestrator Modes", () => {
     await page.goto("/orchestrator");
     await expect(page.getByText("Routing off", { exact: true })).toBeVisible({ timeout: 7_000 });
     await page.getByRole("button", { name: "Balanced" }).click();
-    await expect(page.getByText("Routing aggressive", { exact: true })).toBeVisible({ timeout: 7_000 });
     const shell = page.locator(".page-stack");
-    await expect(shell).toHaveAttribute("data-refreshing", "false");
-    const publishedAt = await shell.getAttribute("data-last-updated");
-
-    [1, 2, 4].forEach((generation) => {
+    await expect(shell).toHaveAttribute("data-refreshing", "true");
+    [1, 2].forEach((generation) => {
       delayedStats.get(generation)?.();
       delayedHealth.get(generation)?.();
     });
-    await expect(page.getByText("Routing aggressive", { exact: true })).toBeVisible();
+    await expect(shell).toHaveAttribute("data-refreshing", "true");
+    await expect(shell).toHaveAttribute("data-backend-mode", "aggressive", { timeout: 7_000 });
+    await expect(shell).toHaveAttribute("data-health-status", "healthy");
+    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible();
+    await expect(shell).toHaveAttribute("data-refreshing", "false");
+    const publishedAt = await shell.getAttribute("data-last-updated");
+
+    [4].forEach((generation) => {
+      delayedStats.get(generation)?.();
+      delayedHealth.get(generation)?.();
+    });
+    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible();
+    await expect(shell).toHaveAttribute("data-backend-mode", "aggressive");
     await expect(shell).toHaveAttribute("data-last-updated", publishedAt || "");
     await expect(shell).toHaveAttribute("data-refreshing", "false");
     await expect(shell).toHaveAttribute("data-refresh-error", "");

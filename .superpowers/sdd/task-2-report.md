@@ -84,3 +84,17 @@ rtk proxy env CI=true PAGER=cat timeout 30 npx playwright test e2e/orchestrator.
 ```
 
 Result: 1 passed (13.1s); the outer process bound completed without leaving a test server or browser process.
+
+## Second review follow-up
+
+- Optimistic routing mode now persists across mismatched committed stats and is cleared only by an exact committed mode confirmation. The confirmation effect is keyed to the committed generation; after it clears, later backend stats are authoritative.
+- The mode transition coverage verifies baseline Off, valid Balanced acknowledgement, gated stale Off, exact Balanced confirmation, and later authoritative Aggressive stats.
+- The three-generation test now gates initial and explicit stats/health responses separately, proves old initial failures do not clear a current explicit `refreshing` state, and verifies the later polling snapshot publishes the backend mode and healthy health payload while old failures cannot change timestamp or refresh error.
+
+Bounded verification command:
+
+```sh
+rtk proxy env CI=true PAGER=cat timeout 45 npx playwright test e2e/orchestrator.spec.js --project=chromium --workers=1 --timeout=16000 --grep 'newest committed stats replace|only the newest initial|rejects a mismatched' && rtk proxy env CI=true PAGER=cat npm run lint
+```
+
+Result: 3 Playwright tests passed (23.7s); ESLint passed with zero warnings.
