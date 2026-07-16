@@ -2505,7 +2505,7 @@ class OpenAIResponsesMixin:
             messages.append({"role": "user", "content": input_data})
         routing_messages = _responses_payload_to_routing_messages(body)
         from cutctx.proxy.canary_identity import resolve_canary_identity
-        from cutctx.proxy.model_router import prepare_model_routing
+        from cutctx.proxy.model_router import infer_request_capabilities, prepare_model_routing
         from cutctx.proxy.savings_canary import get_savings_canary_coordinator
 
         _canary_coordinator = get_savings_canary_coordinator()
@@ -2542,6 +2542,7 @@ class OpenAIResponsesMixin:
                     is_chatgpt_subscription or codex_responses_lite
                 ),
                 allow_transport_safe_targets=not is_chatgpt_subscription,
+                required_capabilities=infer_request_capabilities(body),
             )
         _canary_assignments = getattr(self, "_savings_canary_assignments", None)
         if _canary_assignments is None:

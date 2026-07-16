@@ -1090,3 +1090,30 @@ def test_lookup_costs_returns_none_when_litellm_missing() -> None:
         src, tgt = r._lookup_costs("gpt-4o", "gpt-4o-mini")
     assert src is None
     assert tgt is None
+
+
+def test_router_rejects_downgrade_when_target_capability_is_unproven() -> None:
+    router = ModelRouter(ModelRouterConfig(enabled=True, downgrade_when="always", routes=[
+        ModelRoute(source="strong", target="cheap", source_cost_per_mtok=10, target_cost_per_mtok=1)
+    ]))
+    decision = router.maybe_route("strong", required_capabilities={"tool_calling"})
+    assert not decision.routing_applied
+    assert decision.reason == "target_missing_capabilities"
+    assert decision.signals == ("tool_calling",)
+
+
+def test_router_routes_when_target_explicitly_proves_request_capability() -> None:
+    router = ModelRouter(ModelRouterConfig(enabled=True, downgrade_when="always", routes=[
+        ModelRoute(source="strong", target="cheap", source_cost_per_mtok=10, target_cost_per_mtok=1,
+                   target_capabilities={"tool_calling"})
+    ]))
+    assert router.maybe_route("strong", required_capabilities={"tool_calling"}).target_model == "cheap"
+
+
+def test_finalize_savings_includes_output_delta_when_known() -> None:
+    router = ModelRouter(ModelRouterConfig(enabled=True, downgrade_when="always", routes=[
+        ModelRoute(source="strong", target="cheap", source_cost_per_mtok=10, target_cost_per_mtok=1,
+                   source_output_cost_per_mtok=20, target_output_cost_per_mtok=2)
+    ]))
+    decision = router.maybe_route("strong")
+    assert router.finalize_savings(decision, input_tokens=100_000, output_tokens=50_000).usd_saved == pytest.approx(1.8)

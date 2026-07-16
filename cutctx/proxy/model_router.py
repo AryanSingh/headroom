@@ -61,6 +61,25 @@ _AGGRESSIVE_PRESET_NAMES = {"economy"}
 _OFF_MODE_NAMES = {"", "off", "disabled", "false", "0", "none"}
 
 
+def infer_request_capabilities(payload: dict[str, Any]) -> set[str]:
+    """Return conservative provider-neutral requirements without mutating payload."""
+    required: set[str] = set()
+    if payload.get("tools") or payload.get("tool_choice") not in {None, "none"}:
+        required.add("tool_calling")
+    response_format = payload.get("response_format") or payload.get("text")
+    if isinstance(response_format, dict):
+        if response_format.get("type") in {"json_object", "json_schema"} or response_format.get("format"):
+            required.add("structured_outputs")
+    if payload.get("stream"):
+        required.add("streaming")
+    serialized = repr(payload.get("messages") or payload.get("input") or "").lower()
+    if "image" in serialized or "document" in serialized:
+        required.add("vision")
+    if "audio" in serialized:
+        required.add("audio")
+    return required
+
+
 def normalize_model_routing_mode(mode: str | None) -> str:
     """Normalize a routing mode or preset string to a dashboard mode."""
     normalized = (mode or "").strip().lower()
@@ -415,6 +434,11 @@ class ModelRoute:
     target_cost_per_mtok: float | None = None
     medium_target: str | None = None
     medium_target_cost_per_mtok: float | None = None
+    target_capabilities: set[str] = field(default_factory=set)
+    medium_target_capabilities: set[str] = field(default_factory=set)
+    source_output_cost_per_mtok: float | None = None
+    target_output_cost_per_mtok: float | None = None
+    medium_target_output_cost_per_mtok: float | None = None
 
 
 @dataclass
@@ -488,6 +512,11 @@ class ModelRouterConfig:
                 target_cost_per_mtok=r.get("target_cost_per_mtok"),
                 medium_target=r.get("medium_target"),
                 medium_target_cost_per_mtok=r.get("medium_target_cost_per_mtok"),
+                target_capabilities=set(r.get("target_capabilities", [])),
+                medium_target_capabilities=set(r.get("medium_target_capabilities", [])),
+                source_output_cost_per_mtok=r.get("source_output_cost_per_mtok"),
+                target_output_cost_per_mtok=r.get("target_output_cost_per_mtok"),
+                medium_target_output_cost_per_mtok=r.get("medium_target_output_cost_per_mtok"),
             )
             for r in payload.get("routes", [])
             if "source" in r and "target" in r
@@ -941,6 +970,7 @@ class ModelRouter:
         task_complexity: TaskComplexity | None = None,
         task_assessment: TaskComplexityAssessment | None = None,
         client: str | None = None,
+        required_capabilities: set[str] | None = None,
     ) -> RoutingDecision:
         """Decide whether to downgrade this request to a cheaper
         model.
@@ -1008,6 +1038,20 @@ class ModelRouter:
                 )
             target_model = route.medium_target
             target_cost_override = route.medium_target_cost_per_mtok
+        target_capabilities = (
+            route.medium_target_capabilities
+            if target_model == route.medium_target
+            else route.target_capabilities
+        )
+        missing_capabilities = sorted(set(required_capabilities or set()) - target_capabilities)
+        if missing_capabilities:
+            return RoutingDecision(
+                source_model=requested_model,
+                reason="target_missing_capabilities",
+                confidence=assessment.confidence if assessment else None,
+                scorer=assessment.source if assessment else None,
+                signals=tuple(missing_capabilities),
+            )
         minimum_confidence = self._minimum_confidence_for(
             client=client,
             source_model=requested_model,
@@ -1082,6 +1126,7 @@ class ModelRouter:
         decision: RoutingDecision,
         *,
         input_tokens: int,
+        output_tokens: int | None = None,
     ) -> RoutingDecision:
         """After the request completes, compute the actual
         token + USD savings from the decision's per-mtok delta.
@@ -1104,6 +1149,14 @@ class ModelRouter:
             return decision
         per_mtok_delta = src_cost - tgt_cost
         usd_saved = input_tokens * per_mtok_delta / 1_000_000.0
+        source_output = route.source_output_cost_per_mtok
+        target_output = (
+            route.medium_target_output_cost_per_mtok
+            if decision.target_model == route.medium_target
+            else route.target_output_cost_per_mtok
+        )
+        if output_tokens is not None and source_output is not None and target_output is not None:
+            usd_saved += output_tokens * (source_output - target_output) / 1_000_000.0
         return RoutingDecision(
             target_model=decision.target_model,
             source_model=decision.source_model,
@@ -1197,6 +1250,7 @@ def prepare_model_routing(
     transport_provider: str | None = None,
     implicit_downgrade_allowed: bool = True,
     allow_transport_safe_targets: bool = True,
+    required_capabilities: set[str] | None = None,
 ) -> tuple[str, dict[str, dict[str, Any]] | None]:
     """Apply an enabled router and attach placeholder routing metadata."""
 
@@ -1442,6 +1496,7 @@ def prepare_model_routing(
             task_complexity=task_complexity,
             task_assessment=task_assessment,
             client=client,
+            required_capabilities=required_capabilities,
         )
     except Exception as exc:  # noqa: BLE001
         attach_model_routing_trace(
@@ -1485,6 +1540,8 @@ def prepare_model_routing(
             routing_metadata["scorer"] = decision.scorer
         if decision.signals:
             routing_metadata["signals"] = list(decision.signals)
+            if decision.reason == "target_missing_capabilities":
+                routing_metadata["missing_capabilities"] = list(decision.signals)
         attach_model_routing_trace(
             updated_metadata,
             ModelRoutingDecisionTrace(

@@ -347,13 +347,14 @@ class GeminiHandlerMixin:
             request_headers=request.headers,
             body=body,
         )
-        from cutctx.proxy.model_router import prepare_model_routing
+        from cutctx.proxy.model_router import infer_request_capabilities, prepare_model_routing
 
         model, request_savings_metadata = prepare_model_routing(
             self,
             model,
             request_savings_metadata=request_savings_metadata,
             num_messages=len(contents),
+            required_capabilities=infer_request_capabilities(body),
             transport_provider="google",
         )
 
@@ -1033,13 +1034,14 @@ class GeminiHandlerMixin:
             request_headers=headers,
             body=body,
         )
-        from cutctx.proxy.model_router import prepare_model_routing
+        from cutctx.proxy.model_router import infer_request_capabilities, prepare_model_routing
 
         model, request_savings_metadata = prepare_model_routing(
             self,
             model,
             request_savings_metadata=request_savings_metadata,
             num_messages=len(contents),
+            required_capabilities=infer_request_capabilities(body),
         )
         # Note: streaming handlers delegate to _stream_response, which
         # does its own classify_client. No need to compute here.
@@ -1187,13 +1189,14 @@ class GeminiHandlerMixin:
             request_headers=headers,
             body=body,
         )
-        from cutctx.proxy.model_router import prepare_model_routing
+        from cutctx.proxy.model_router import infer_request_capabilities, prepare_model_routing
 
         model, request_savings_metadata = prepare_model_routing(
             self,
             model,
             request_savings_metadata=request_savings_metadata,
             num_messages=len(contents),
+            required_capabilities=infer_request_capabilities(body),
         )
         # Streaming variant — delegates to _stream_response which
         # classifies the client itself from headers.
@@ -1290,13 +1293,14 @@ class GeminiHandlerMixin:
             request_headers=headers,
             body=body,
         )
-        from cutctx.proxy.model_router import prepare_model_routing
+        from cutctx.proxy.model_router import infer_request_capabilities, prepare_model_routing
 
         model, request_savings_metadata = prepare_model_routing(
             self,
             model,
             request_savings_metadata=request_savings_metadata,
             num_messages=len(contents),
+            required_capabilities=infer_request_capabilities(body),
         )
         # PR-A5 (P5-49): strip internal x-cutctx-* before forwarding upstream.
         from cutctx.proxy.helpers import _strip_internal_headers, log_outbound_headers

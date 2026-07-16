@@ -48,6 +48,7 @@ class RoutingPolicy(str, Enum):
 
 
 class FallbackTrigger(str, Enum):
+    INVALID_REQUEST = "invalid_request"
     TIMEOUT = "timeout"
     RATE_LIMIT = "rate_limit"
     AUTH_FAILURE = "auth_failure"

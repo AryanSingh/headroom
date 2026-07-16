@@ -1580,6 +1580,13 @@ def test_litellm_status_codes_map_to_configured_fallback_triggers() -> None:
     assert OrchestrationService._classify_failure(LiteLLMRateLimitError()) == "rate_limit"
 
 
+def test_invalid_client_errors_are_terminal_not_fallback_failures() -> None:
+    class InvalidRequest(Exception):
+        status_code = 422
+
+    assert OrchestrationService._classify_failure(InvalidRequest()) == "invalid_request"
+
+
 def test_direct_execution_route_is_explicitly_opt_in(tmp_path: Path) -> None:
     service = _service(tmp_path, {"openai": {}, "anthropic": {}})
 

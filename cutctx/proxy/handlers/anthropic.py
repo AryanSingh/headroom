@@ -1066,7 +1066,10 @@ class AnthropicHandlerMixin:
                     from dataclasses import replace as _dc_replace
 
                     from cutctx.orchestration import RoutingUnavailableError
-                    from cutctx.proxy.model_router import prepare_model_routing
+                    from cutctx.proxy.model_router import (
+                        infer_request_capabilities,
+                        prepare_model_routing,
+                    )
 
                     routed_model, request_savings_metadata = prepare_model_routing(
                         self,
@@ -1082,6 +1085,7 @@ class AnthropicHandlerMixin:
                         ),
                         num_messages=len(messages),
                         messages=self._anthropic_messages_to_routing_messages(messages),
+                        required_capabilities=infer_request_capabilities({"tools": getattr(body, "tools", None), "stream": getattr(body, "stream", False), "messages": messages}),
                         transport_provider=provider_name,
                     )
                     if routed_model != model:
