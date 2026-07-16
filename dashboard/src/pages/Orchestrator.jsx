@@ -11,6 +11,7 @@ import {
   useDashboardData,
 } from "../lib/use-dashboard-data";
 import OrchestrationStudio from "../components/OrchestrationStudio";
+import RoutingStudio from "../components/routing-studio/RoutingStudio";
 
 const ROUTING_MODES = [
   { value: "off", label: "Off", description: "Disable model routing" },
@@ -365,6 +366,7 @@ export default function Orchestrator({ searchQuery = "" }) {
         </div>
       ) : null}
 
+      <RoutingStudio />
       <OrchestrationStudio searchQuery={normalizedQuery} />
 
       <section className="panel">

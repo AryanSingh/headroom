@@ -264,6 +264,28 @@ cross-provider routing by itself: the **Models** tab must show an enabled,
 eligible deployment and the proxy must have verified adapter compatibility for
 the request protocol before a route can execute.
 
+## Workload contracts and legacy routing
+
+Routing Studio presents workload contracts as the operator-facing source of
+intent. A contract names the workload, hard eligibility requirements, an
+optimization objective, a reliability budget, and the evidence required for
+rollout. The compiler turns that contract into the existing deterministic role
+and binding configuration, so capability, provider, account, residency, data
+classification, budget, and transport checks still run before optimization.
+
+Existing roles and bindings remain compatible. When no contract versions have
+been stored, the service exposes read-only `active` legacy contracts that map
+each role to its current baseline and fallback chain without writing migration
+state. Saving the first draft materializes the new versioned control plane.
+
+The route simulator evaluates the visible draft rather than the active server
+configuration. Preview and live decisions share schema-v2 receipts, including
+contract identity, compiled policy hash, candidate rejection reasons, selected
+model and deployment, evidence source, and the applicable reliability budget.
+Provider availability and fallback success are reliability evidence, not answer
+quality. Quality comes only from accepted outcome signals and configured
+evaluation gates.
+
 ## Deployment cooldowns
 
 After the configured retry budget for a deployment is exhausted by a timeout,

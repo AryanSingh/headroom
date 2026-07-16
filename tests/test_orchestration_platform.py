@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from cutctx.orchestration.audit import ReceiptAuditStore
 from cutctx.orchestration.config import LayeredConfigStore
+from cutctx.orchestration.contracts import ReliabilityBudget, WorkloadContract
 from cutctx.orchestration.credentials import EncryptedCredentialStore, ResolverBackedCredentialStore
 from cutctx.orchestration.engine import DeterministicRoutingEngine, RoutingUnavailableError
 from cutctx.orchestration.evaluation import RoutingEvaluationCase, evaluate_routing_cases
@@ -188,7 +189,7 @@ def test_routing_receipt_enforces_provider_residency_data_and_cost_constraints()
 
     assert decision.provider == "anthropic"
     assert decision.fallback_used is True
-    assert decision.receipt_version == 1
+    assert decision.receipt_version == 2
     assert decision.policy_constraints == {
         "allowed_providers": ["anthropic"],
         "allowed_regions": ["eu"],
@@ -1739,6 +1740,42 @@ async def test_execution_retries_provider_failure_through_configured_fallback(
 
 
 @pytest.mark.asyncio
+async def test_contract_total_deadline_stops_retry_and_fallback_expansion(
+    tmp_path: Path,
+) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+
+    class SlowAdapter:
+        async def invoke(self, _request):
+            await asyncio.sleep(1)
+            return {}
+
+    service.adapter = lambda _account_id: SlowAdapter()  # type: ignore[method-assign]
+    service.activate_contract(
+        WorkloadContract(
+            id="worker",
+            name="Worker",
+            version="2",
+            baseline_model="openai:gpt-5.4-mini",
+            fallback_models=("anthropic:claude-worker",),
+            reliability=ReliabilityBudget(
+                attempt_timeout_seconds=0.05,
+                total_deadline_seconds=0.2,
+                attempts_per_deployment=2,
+                maximum_deployments=2,
+                fallback_triggers={"timeout"},
+            ),
+        )
+    )
+
+    with pytest.raises(RoutingUnavailableError) as exc:
+        await service.execute(RoutingRequest(role="worker"), messages=[])
+
+    assert exc.value.reason == "total_deadline_exceeded"
+    assert service.telemetry.list()[0]["deadline_exceeded"] is True
+
+
+@pytest.mark.asyncio
 async def test_retry_exhausted_failure_cools_only_failed_deployment_and_next_route_avoids_it(
     tmp_path: Path,
 ) -> None:
@@ -1953,6 +1990,47 @@ async def test_streaming_post_first_byte_failure_cools_deployment_without_switch
 
 
 @pytest.mark.asyncio
+async def test_contract_stream_idle_timeout_does_not_switch_after_first_chunk(
+    tmp_path: Path,
+) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    service.activate_contract(
+        WorkloadContract(
+            id="worker",
+            name="Worker",
+            version="2",
+            baseline_model="openai:gpt-5.4-mini",
+            fallback_models=("anthropic:claude-worker",),
+            reliability=ReliabilityBudget(
+                first_token_timeout_seconds=0.1,
+                stream_idle_timeout_seconds=0.01,
+                attempt_timeout_seconds=0.1,
+                total_deadline_seconds=0.2,
+                attempts_per_deployment=1,
+                maximum_deployments=2,
+            ),
+        )
+    )
+
+    class IdleAdapter:
+        async def stream(self, _request):
+            yield b"first"
+            await asyncio.sleep(1)
+            yield b"late"
+
+    service.adapter = lambda _account_id: IdleAdapter()  # type: ignore[method-assign]
+    chunks: list[bytes] = []
+    with pytest.raises(TimeoutError, match="idle timeout"):
+        async for _decision, chunk in service.stream(RoutingRequest(role="worker"), messages=[]):
+            chunks.append(chunk)
+
+    assert chunks == [b"first"]
+    execution = service.telemetry.list()[0]
+    assert execution["provider"] == "openai", execution
+    assert execution["fallback_used"] is False, execution
+
+
+@pytest.mark.asyncio
 async def test_streaming_falls_back_when_account_setup_fails_before_first_byte(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1993,7 +2071,7 @@ async def test_streaming_uses_a_total_attempt_deadline_not_per_chunk_timeout(
 
     service.adapter = lambda _account_id: SlowAdapter()  # type: ignore[method-assign]
     received = []
-    with pytest.raises(RuntimeError, match="deadline exceeded"):
+    with pytest.raises(TimeoutError, match="deadline exceeded"):
         async for _, chunk in service.stream(
             RoutingRequest(role="worker"), messages=[{"role": "user", "content": "hello"}]
         ):

@@ -17,7 +17,15 @@ from typing import Any
 import httpx
 
 from .audit import ReceiptAuditStore
+from .compiler import CompiledRoutingPolicy, compile_contract
 from .config import LayeredConfigStore, default_config_paths
+from .contract_store import ContractStore, ContractTransitionError, StoredContract
+from .contracts import (
+    ContractLifecycle,
+    ReliabilityBudget,
+    WorkloadContract,
+    legacy_contracts_from_config,
+)
 from .credentials import CredentialStore, EncryptedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
 from .models import (
@@ -37,6 +45,12 @@ from .models import (
 from .policy_bundle import compile_policy_bundle
 from .providers import ProviderAdapter, ProviderAdapterRegistry, builtin_provider_registry
 from .registry import DynamicModelRegistry
+from .simulation import (
+    SimulationResult,
+    compare_decisions,
+    receipt_from_decision,
+    receipt_from_unavailable,
+)
 from .telemetry import ExecutionTelemetryStore, OutcomeTelemetryStore
 from .workflow import TaskSpec, WorkflowRunner, WorkflowSpec, WorkflowState, WorkflowStateStore
 
@@ -72,6 +86,7 @@ class OrchestrationService:
         outcome_telemetry: OutcomeTelemetryStore | None = None,
         receipt_audit: ReceiptAuditStore | None = None,
         workflow_store: WorkflowStateStore | None = None,
+        contract_store: ContractStore | None = None,
     ) -> None:
         self.config_store = config_store
         self.credential_store = credential_store
@@ -83,6 +98,11 @@ class OrchestrationService:
         self.workflow_store = workflow_store or WorkflowStateStore(
             Path.home() / ".cutctx" / "orchestration" / "workflows.json"
         )
+        self.contract_store = contract_store or ContractStore(
+            Path.home() / ".cutctx" / "orchestration" / "contracts.json"
+        )
+        self._active_contract: CompiledRoutingPolicy | None = None
+        self._contract_evidence: dict[tuple[str, str], dict[str, Any]] = {}
         self._state_lock = threading.RLock()
         self.config = self.config_store.load()
         if self.config.models:
@@ -143,9 +163,46 @@ class OrchestrationService:
         allow_overrides: bool = False,
     ) -> RoutingDecision:
         with self._state_lock:
-            return self.engine.route(
+            decision = self.engine.route(
                 self._apply_policy_defaults(request), allow_overrides=allow_overrides
             )
+            if self._active_contract is None:
+                return decision
+            compiled = self._active_contract
+            return replace(
+                decision,
+                contract_id=compiled.contract_id,
+                contract_version=compiled.contract_version,
+                contract_state=compiled.lifecycle_state,
+                policy_hash=compiled.policy_hash,
+                reliability_budget=to_dict(compiled.reliability),
+            )
+
+    def activate_contract(self, contract: WorkloadContract) -> CompiledRoutingPolicy:
+        """Compile and activate a contract as the service's effective routing policy."""
+        compiled = compile_contract(contract, self.config)
+        with self._state_lock:
+            self._activate_config(compiled.config)
+            self._active_contract = compiled
+        return compiled
+
+    def _execution_budget(self, decision: RoutingDecision) -> ReliabilityBudget:
+        if decision.reliability_budget:
+            values = dict(decision.reliability_budget)
+            values["fallback_triggers"] = set(values.get("fallback_triggers", []))
+            return ReliabilityBudget(**values)
+        attempts = max(1, self.config.settings.retries + 1)
+        deployments = max(1, 1 + len(decision.candidates))
+        timeout = float(self.config.settings.timeout_seconds)
+        return ReliabilityBudget(
+            first_token_timeout_seconds=timeout,
+            attempt_timeout_seconds=timeout,
+            stream_idle_timeout_seconds=timeout,
+            total_deadline_seconds=timeout * attempts * deployments,
+            attempts_per_deployment=attempts,
+            maximum_deployments=deployments,
+            fallback_triggers=set(self.config.settings.fallback_triggers),
+        )
 
     def _apply_policy_defaults(self, request: RoutingRequest) -> RoutingRequest:
         """Intersect caller constraints with effective layered policy limits.
@@ -154,12 +211,31 @@ class OrchestrationService:
         execution, proxy routing, and workflow execution—uses identical,
         non-bypassable organization/project limits.
         """
+        return self._apply_policy_defaults_for_config(request, self.config)
+
+    @staticmethod
+    def _apply_policy_defaults_for_config(
+        request: RoutingRequest,
+        config: OrchestrationConfig,
+    ) -> RoutingRequest:
         if request.task_type is not None and request.task_type not in {
             value.value for value in TaskType
         }:
             raise ValueError(f"Unknown task type: {request.task_type!r}")
-        settings = self.config.settings
-        profile = self._profile(request.profile)
+        settings = config.settings
+        profile = None
+        if request.profile is not None:
+            normalized_profile = request.profile.casefold()
+            profile = next(
+                (
+                    item
+                    for item in config.profiles
+                    if item.id.casefold() == normalized_profile
+                ),
+                None,
+            )
+            if profile is None:
+                raise ValueError(f"Unknown routing profile: {request.profile!r}")
 
         def narrow(caller: set[str], policy: set[str]) -> set[str]:
             normalized_policy = {value.casefold() for value in policy}
@@ -198,6 +274,264 @@ class OrchestrationService:
             ),
             policy_version=settings.policy_version,
         )
+
+    def simulate_contract(
+        self,
+        contract: WorkloadContract,
+        request: RoutingRequest,
+    ) -> SimulationResult:
+        """Compare a draft contract with live routing without executing either route."""
+        compiled = compile_contract(contract, self.config)
+        draft_engine = DeterministicRoutingEngine(
+            compiled.config,
+            self.model_registry,
+            require_configured_accounts=True,
+        )
+        live_request = self._apply_policy_defaults(request)
+        draft_request = self._apply_policy_defaults_for_config(request, compiled.config)
+        live_receipt = None
+        with self._state_lock:
+            try:
+                live_decision = self.engine.route(live_request, allow_overrides=True)
+            except RoutingUnavailableError as exc:
+                live_decision = None
+                live_receipt = receipt_from_unavailable(
+                    request_id=live_request.request_id or "simulation-live",
+                    assigned_model=exc.assigned_model,
+                    reason=exc.reason,
+                    message=str(exc),
+                )
+        draft_decision = draft_engine.route(draft_request, allow_overrides=True)
+        if live_decision is not None:
+            live_eligible, live_rejected = self.engine.candidate_evidence(
+                live_request,
+                live_decision,
+            )
+            live_receipt = receipt_from_decision(
+                live_decision,
+                eligible_candidates=live_eligible,
+                rejected_candidates=live_rejected,
+            )
+        draft_eligible, draft_rejected = draft_engine.candidate_evidence(
+            draft_request,
+            draft_decision,
+        )
+        return compare_decisions(
+            live=live_receipt,
+            draft=receipt_from_decision(
+                draft_decision,
+                eligible_candidates=draft_eligible,
+                rejected_candidates=draft_rejected,
+                compiled=compiled,
+            ),
+        )
+
+    def replay_contract(
+        self,
+        contract: WorkloadContract,
+        requests: list[RoutingRequest],
+    ) -> list[SimulationResult]:
+        """Replay historical request features through a draft without provider calls."""
+        return [self.simulate_contract(contract, request) for request in requests]
+
+    def list_contracts(self, contract_id: str | None = None) -> list[WorkloadContract]:
+        stored = self.contract_store.list_contracts(contract_id)
+        if stored or self.contract_store.revision:
+            return stored
+        legacy = legacy_contracts_from_config(self.config)
+        return [item for item in legacy if contract_id is None or item.id == contract_id]
+
+    def get_contract(self, contract_id: str, version: str) -> WorkloadContract:
+        return self.contract_store.get_version(contract_id, version)
+
+    def put_contract_draft(
+        self, contract: WorkloadContract, *, expected_revision: int
+    ) -> StoredContract:
+        return self.contract_store.put_draft(contract, expected_revision=expected_revision)
+
+    def transition_contract(
+        self, contract_id: str, version: str, *, target: str
+    ) -> WorkloadContract:
+        return self.contract_store.transition(contract_id, version, target)
+
+    def record_contract_evidence(
+        self,
+        contract_id: str,
+        version: str,
+        evidence: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Normalize bounded rollout signals into a quality-safe gate summary."""
+        contract = self.get_contract(contract_id, version)
+        scores = [float(value) for value in evidence.get("quality_scores", [])]
+        savings = [float(value) for value in evidence.get("routed_savings_usd", [])]
+        samples = int(evidence.get("samples", len(scores)))
+        accepted = int(evidence.get("accepted", 0))
+        fallbacks = int(evidence.get("fallbacks", 0))
+        if samples < 0 or len(scores) > samples:
+            raise ValueError("Evidence samples must cover all quality scores")
+        if not 0 <= accepted <= samples or not 0 <= fallbacks <= samples:
+            raise ValueError("Evidence aggregate counts cannot exceed samples")
+        if any(not 0 <= score <= 1 for score in scores):
+            raise ValueError("Quality scores must be between 0 and 1")
+        if any(value < 0 for value in savings):
+            raise ValueError("Routed savings must not be negative")
+        mean_quality = sum(scores) / len(scores) if scores else None
+        unsafe = sum(
+            score < contract.evaluation.unsafe_quality_floor for score in scores
+        )
+        unsafe_rate = unsafe / len(scores) if scores else None
+        quality_blocked = bool(
+            scores
+            and (
+                mean_quality < contract.objective.quality_floor
+                or unsafe_rate > contract.evaluation.maximum_unsafe_rate
+            )
+        )
+        status = (
+            "collecting"
+            if samples < contract.evaluation.minimum_samples or not scores
+            else "quality_blocked"
+            if quality_blocked
+            else "ready"
+        )
+        quality_safe_savings = sum(
+            savings[index]
+            for index, score in enumerate(scores)
+            if index < len(savings) and score >= contract.objective.quality_floor
+        )
+        summary = {
+            "contract_id": contract_id,
+            "contract_version": version,
+            "status": status,
+            "samples": samples,
+            "minimum_samples": contract.evaluation.minimum_samples,
+            "coverage": min(1.0, samples / contract.evaluation.minimum_samples),
+            "mean_quality": mean_quality,
+            "quality_floor": contract.objective.quality_floor,
+            "unsafe_rate": unsafe_rate,
+            "maximum_unsafe_rate": contract.evaluation.maximum_unsafe_rate,
+            "acceptance_rate": accepted / samples if samples else 0.0,
+            "fallback_rate": fallbacks / samples if samples else 0.0,
+            "raw_routed_savings_usd": sum(savings),
+            "quality_safe_savings_usd": quality_safe_savings,
+            "abstention_reasons": dict(evidence.get("abstention_reasons", {})),
+        }
+        with self._state_lock:
+            self._contract_evidence[(contract_id, version)] = summary
+        return dict(summary)
+
+    def contract_evidence(self, contract_id: str, version: str) -> dict[str, Any]:
+        contract = self.get_contract(contract_id, version)
+        with self._state_lock:
+            evidence = self._contract_evidence.get(
+                (contract_id, version),
+                {
+                    "contract_id": contract_id,
+                    "contract_version": version,
+                    "status": "collecting",
+                    "samples": 0,
+                    "minimum_samples": contract.evaluation.minimum_samples,
+                    "coverage": 0.0,
+                    "mean_quality": None,
+                    "quality_floor": contract.objective.quality_floor,
+                    "unsafe_rate": None,
+                    "maximum_unsafe_rate": contract.evaluation.maximum_unsafe_rate,
+                    "acceptance_rate": 0.0,
+                    "fallback_rate": 0.0,
+                    "raw_routed_savings_usd": 0.0,
+                    "quality_safe_savings_usd": 0.0,
+                    "abstention_reasons": {},
+                },
+            )
+        return dict(evidence)
+
+    def promote_contract(
+        self,
+        contract_id: str,
+        version: str,
+        *,
+        target: str,
+    ) -> WorkloadContract:
+        if target not in {
+            ContractLifecycle.CANARY.value,
+            ContractLifecycle.ACTIVE.value,
+        }:
+            raise ContractTransitionError(f"Unsupported promotion target: {target}")
+        evidence = self.contract_evidence(contract_id, version)
+        if evidence["status"] == "collecting":
+            raise ContractTransitionError("insufficient_evidence")
+        if evidence["status"] == "quality_blocked":
+            raise ContractTransitionError("quality_floor_not_met")
+        contract = self.contract_store.transition(contract_id, version, target)
+        if target == ContractLifecycle.ACTIVE.value:
+            self.activate_contract(contract)
+        return contract
+
+    def rollback_contract(self, contract_id: str) -> WorkloadContract:
+        versions = self.contract_store.list_contracts(contract_id)
+        active = next(
+            (item for item in versions if item.state == ContractLifecycle.ACTIVE.value),
+            None,
+        )
+        candidates = [
+            item
+            for item in versions
+            if item.version != getattr(active, "version", None)
+            and item.state
+            in {ContractLifecycle.RETIRED.value, ContractLifecycle.PAUSED.value}
+        ]
+        if not candidates:
+            raise ContractTransitionError("no_rollback_target")
+        restored = self.contract_store.restore_active(
+            contract_id,
+            sorted(candidates, key=lambda item: item.version)[-1].version,
+        )
+        self.activate_contract(restored)
+        return restored
+
+    def receipt(self, request_id: str) -> dict[str, Any]:
+        """Return an execution using the same schema-v2 vocabulary as previews."""
+        execution = next(
+            (
+                item
+                for item in self.telemetry.list(limit=1000)
+                if item.get("request_id") == request_id
+            ),
+            None,
+        )
+        if execution is None:
+            raise KeyError(f"Unknown orchestration receipt: {request_id}")
+        provider = str(execution.get("provider", ""))
+        model = str(execution.get("actual_model", ""))
+        account = execution.get("account_id")
+        selected_model = str(execution.get("assigned_model") or f"{provider}:{model}")
+        selected_deployment = (
+            f"{provider}:{account}:{model}" if account else selected_model
+        )
+        return {
+            "receipt_version": 2,
+            "request_id": request_id,
+            "selected_model": selected_model,
+            "selected_deployment": selected_deployment,
+            "eligible_candidates": [],
+            "rejected_candidates": [],
+            "contract_id": None,
+            "contract_version": None,
+            "contract_state": None,
+            "policy_hash": None,
+            "evidence": {
+                "executed": True,
+                "routing_reason": execution.get("routing_reason"),
+                "fallback_used": bool(execution.get("fallback_used")),
+            },
+            "reliability_budget": {
+                "total_deadline_seconds": execution.get("total_deadline_seconds"),
+                "attempts": execution.get("attempts"),
+                "deployments_attempted": execution.get("deployments_attempted"),
+                "deadline_exceeded": execution.get("deadline_exceeded"),
+            },
+            "execution": execution,
+        }
 
     def _profile(self, profile_id: str | None) -> Any | None:
         if profile_id is None:
@@ -442,16 +776,30 @@ class OrchestrationService:
     ) -> tuple[RoutingDecision, dict[str, Any]]:
         execution_parameters = self._execution_parameters(parameters)
         decision = self.route(request)
+        budget = self._execution_budget(decision)
         attempts = 0
         started = time.perf_counter()
+        deadline = started + budget.total_deadline_seconds
         started_at = datetime.now(timezone.utc).isoformat()
         error: Exception | None = None
+        terminal_routing_error: RoutingUnavailableError | None = None
         response: dict[str, Any] | None = None
         execution_adapter: ProviderAdapter | None = None
-        max_attempts = max(1, self.config.settings.retries + 1)
+        deployment_attempts = 0
+        deployments = {decision.selected_deployment or f"{decision.provider}:{decision.actual_model}"}
 
-        while attempts < max_attempts:
+        while True:
+            remaining = deadline - time.perf_counter()
+            if remaining <= 0:
+                terminal_routing_error = RoutingUnavailableError(
+                    "The contract total deadline was exhausted",
+                    assigned_model=decision.assigned_model,
+                    reason="total_deadline_exceeded",
+                )
+                error = terminal_routing_error
+                break
             attempts += 1
+            deployment_attempts += 1
             try:
                 account = self._execution_account(decision)
                 adapter = self.adapter(account.id)
@@ -464,21 +812,35 @@ class OrchestrationService:
                             **execution_parameters,
                         }
                     ),
-                    timeout=self.config.settings.timeout_seconds,
+                    timeout=min(budget.attempt_timeout_seconds, remaining),
                 )
                 error = None
                 break
             except Exception as exc:  # noqa: BLE001 - translated to deterministic fallback trigger
                 error = exc
                 trigger = self._classify_failure(exc)
-                if attempts < max_attempts:
+                if deadline - time.perf_counter() <= 0:
+                    terminal_routing_error = RoutingUnavailableError(
+                        "The contract total deadline was exhausted",
+                        assigned_model=decision.assigned_model,
+                        reason="total_deadline_exceeded",
+                    )
+                    error = terminal_routing_error
+                    break
+                if deployment_attempts < budget.attempts_per_deployment:
                     continue
                 self._cool_down_after_failure(decision, trigger)
+                if len(deployments) >= budget.maximum_deployments:
+                    break
                 try:
                     decision = self.engine.fallback(decision, trigger)
                 except RoutingUnavailableError:
                     break
-                max_attempts += max(1, self.config.settings.retries + 1)
+                deployment_attempts = 0
+                deployments.add(
+                    decision.selected_deployment
+                    or f"{decision.provider}:{decision.actual_model}"
+                )
 
         latency_ms = (time.perf_counter() - started) * 1000
         usage = response.get("usage", {}) if isinstance(response, dict) else {}
@@ -520,10 +882,16 @@ class OrchestrationService:
             policy_version=str(decision.policy_constraints.get("policy_version", "1")),
             policy_constraints=dict(decision.policy_constraints),
             task_type=request.task_type,
+            attempts=attempts,
+            deployments_attempted=len(deployments),
+            total_deadline_seconds=budget.total_deadline_seconds,
+            deadline_exceeded=terminal_routing_error is not None,
         )
         self.telemetry.record(record)
         if self.receipt_audit is not None:
             self.receipt_audit.append(decision, execution_id=f"{decision.request_id}:{started_at}")
+        if terminal_routing_error is not None:
+            raise terminal_routing_error
         if error is not None or response is None:
             raise RuntimeError(
                 f"Assigned model {decision.actual_model} failed after {attempts} attempt(s): {error}"
@@ -563,17 +931,33 @@ class OrchestrationService:
     ) -> AsyncIterator[tuple[RoutingDecision, bytes]]:
         execution_parameters = self._execution_parameters(parameters)
         decision = self.route(request)
+        budget = self._execution_budget(decision)
         started = time.perf_counter()
+        total_deadline = started + budget.total_deadline_seconds
         started_at = datetime.now(timezone.utc).isoformat()
         attempts = 0
-        max_attempts = max(1, self.config.settings.retries + 1)
+        deployment_attempts = 0
+        deployments = {decision.selected_deployment or f"{decision.provider}:{decision.actual_model}"}
         error: Exception | None = None
+        emitted_any = False
+        first_token_latency_ms: float | None = None
+        terminal_timeout: TimeoutError | None = None
         iterator: AsyncIterator[bytes] | None = None
 
         try:
-            while attempts < max_attempts:
+            while True:
+                total_remaining = total_deadline - time.perf_counter()
+                if total_remaining <= 0:
+                    terminal_timeout = TimeoutError("contract total deadline exceeded")
+                    error = terminal_timeout
+                    break
                 attempts += 1
+                deployment_attempts += 1
                 emitted = False
+                attempt_deadline = min(
+                    total_deadline,
+                    time.perf_counter() + budget.attempt_timeout_seconds,
+                )
                 try:
                     # Provider/account setup is part of a streaming attempt.
                     # It must receive the same pre-first-byte retry/fallback
@@ -588,16 +972,33 @@ class OrchestrationService:
                             **execution_parameters,
                         }
                     )
-                    deadline = time.perf_counter() + self.config.settings.timeout_seconds
                     while True:
-                        remaining = deadline - time.perf_counter()
+                        now = time.perf_counter()
+                        stage_timeout = (
+                            budget.stream_idle_timeout_seconds
+                            if emitted
+                            else budget.first_token_timeout_seconds
+                        )
+                        remaining = min(attempt_deadline, total_deadline) - now
                         if remaining <= 0:
                             raise TimeoutError("streaming execution deadline exceeded")
                         try:
-                            chunk = await asyncio.wait_for(anext(iterator), timeout=remaining)
+                            chunk = await asyncio.wait_for(
+                                anext(iterator), timeout=min(stage_timeout, remaining)
+                            )
                         except TimeoutError as exc:
-                            raise TimeoutError("streaming execution deadline exceeded") from exc
+                            label = (
+                                "streaming execution deadline exceeded"
+                                if remaining <= stage_timeout
+                                else "stream idle timeout"
+                                if emitted
+                                else "first token timeout"
+                            )
+                            raise TimeoutError(label) from exc
                         emitted = True
+                        emitted_any = True
+                        if first_token_latency_ms is None:
+                            first_token_latency_ms = (time.perf_counter() - started) * 1000
                         yield decision, chunk
                 except StopAsyncIteration:
                     error = None
@@ -612,15 +1013,27 @@ class OrchestrationService:
                         # Switching providers after bytes are visible would
                         # corrupt the stream. Report the terminal error instead.
                         self._cool_down_after_failure(decision, trigger)
+                        if isinstance(exc, TimeoutError):
+                            terminal_timeout = exc
                         break
-                    if attempts < max_attempts:
+                    if total_deadline - time.perf_counter() <= 0:
+                        terminal_timeout = TimeoutError("contract total deadline exceeded")
+                        error = terminal_timeout
+                        break
+                    if deployment_attempts < budget.attempts_per_deployment:
                         continue
                     self._cool_down_after_failure(decision, trigger)
+                    if len(deployments) >= budget.maximum_deployments:
+                        break
                     try:
                         decision = self.engine.fallback(decision, trigger)
                     except RoutingUnavailableError:
                         break
-                    max_attempts += max(1, self.config.settings.retries + 1)
+                    deployment_attempts = 0
+                    deployments.add(
+                        decision.selected_deployment
+                        or f"{decision.provider}:{decision.actual_model}"
+                    )
                 finally:
                     if iterator is not None and hasattr(iterator, "aclose"):
                         await iterator.aclose()
@@ -648,12 +1061,22 @@ class OrchestrationService:
                     policy_version=str(decision.policy_constraints.get("policy_version", "1")),
                     policy_constraints=dict(decision.policy_constraints),
                     task_type=request.task_type,
+                    attempts=attempts,
+                    deployments_attempted=len(deployments),
+                    total_deadline_seconds=budget.total_deadline_seconds,
+                    deadline_exceeded=(
+                        terminal_timeout is not None
+                        and "total deadline" in str(terminal_timeout)
+                    ),
+                    first_token_latency_ms=first_token_latency_ms,
                 )
             )
             if self.receipt_audit is not None:
                 self.receipt_audit.append(
                     decision, execution_id=f"{decision.request_id}:{started_at}"
                 )
+        if terminal_timeout is not None and emitted_any:
+            raise terminal_timeout
         if error is not None:
             raise RuntimeError(
                 f"Assigned model {decision.actual_model} failed during streaming: {error}"
@@ -920,4 +1343,5 @@ def build_orchestration_service(
             ReceiptAuditStore(root / "receipt-audit.jsonl", key=audit_key) if audit_key else None
         ),
         workflow_store=WorkflowStateStore(root / "workflows.json"),
+        contract_store=ContractStore(root / "contracts.json"),
     )

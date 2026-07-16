@@ -26,6 +26,149 @@ def _routing_eval_record(request_id: str, confidence: float, quality: float, sav
     )
 
 
+def _contract_payload(*, version: str = "1", baseline_model: str = "openai:gpt-5.4-mini"):
+    return {
+        "id": "implementation",
+        "name": "Implementation",
+        "version": version,
+        "state": "draft",
+        "role_aliases": ["worker"],
+        "baseline_model": baseline_model,
+        "requirements": {"required_capabilities": ["reasoning"]},
+        "evaluation": {"minimum_samples": 2, "maximum_unsafe_rate": 0},
+    }
+
+
+def test_orchestration_contract_draft_simulation_and_lifecycle_api(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config_path = tmp_path / "orchestration.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "providers": [{"id": "openai-main", "provider": "openai"}],
+                "roles": [{"id": "worker", "name": "Worker"}],
+                "models": [
+                    {
+                        "provider": "openai",
+                        "model": "gpt-5.4-mini",
+                        "account_id": "openai-main",
+                        "capabilities": ["reasoning"],
+                    }
+                ],
+                "bindings": [
+                    {
+                        "id": "worker-mini",
+                        "role": "worker",
+                        "model": "openai:gpt-5.4-mini",
+                    }
+                ],
+                "settings": {"mode": "strict", "policy": "role_locked"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("CUTCTX_ORCHESTRATION_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("CUTCTX_ORCHESTRATION_CONFIG", str(config_path))
+    app = create_app(
+        ProxyConfig(
+            backend="mock",
+            cache_enabled=False,
+            admin_api_key="admin_12345",
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
+        )
+    )
+    headers = {"x-cutctx-admin-key": "admin_12345"}
+
+    with TestClient(app) as client:
+        unauthorized = client.get("/v1/orchestration/contracts")
+        assert unauthorized.status_code in {401, 403}
+
+        legacy = client.get("/v1/orchestration/contracts", headers=headers)
+        assert legacy.status_code == 200
+        assert legacy.json()["revision"] == 0
+        assert legacy.json()["contracts"][0]["id"] == "worker"
+        assert legacy.json()["contracts"][0]["state"] == "active"
+
+        saved = client.put(
+            "/v1/orchestration/contracts/implementation/draft",
+            headers=headers,
+            json={"contract": _contract_payload(), "expected_revision": 0},
+        )
+        assert saved.status_code == 201
+        assert saved.json()["contract"]["version"] == "1"
+        assert saved.json()["revision"] == 1
+
+        fetched = client.get(
+            "/v1/orchestration/contracts/implementation/versions/1", headers=headers
+        )
+        assert fetched.status_code == 200
+        assert fetched.json()["contract"]["id"] == "implementation"
+
+        simulation = client.post(
+            "/v1/orchestration/contracts/implementation/simulate",
+            headers=headers,
+            json={
+                "contract": _contract_payload(version="2"),
+                "scenario": {"role": "implementation", "request_id": "preview-1"},
+            },
+        )
+        assert simulation.status_code == 200, simulation.text
+        assert simulation.json()["executed"] is False
+        assert simulation.json()["draft_receipt"]["contract_version"] == "2"
+
+        shadow = client.post(
+            "/v1/orchestration/contracts/implementation/versions/1/shadow",
+            headers=headers,
+        )
+        assert shadow.status_code == 200
+        assert shadow.json()["contract"]["state"] == "shadow"
+
+        promotion = client.post(
+            "/v1/orchestration/contracts/implementation/versions/1/promote",
+            headers=headers,
+        )
+        assert promotion.status_code == 409
+        assert promotion.json()["detail"]["reason"] == "insufficient_evidence"
+
+        evidence = client.put(
+            "/v1/orchestration/contracts/implementation/versions/1/evidence",
+            headers=headers,
+            json={
+                "samples": 2,
+                "quality_scores": [1.0, 1.0],
+                "accepted": 2,
+                "fallbacks": 0,
+                "routed_savings_usd": [0.2, 0.3],
+            },
+        )
+        assert evidence.status_code == 200
+        assert evidence.json()["status"] == "ready"
+        assert evidence.json()["quality_safe_savings_usd"] == pytest.approx(0.5)
+
+        canary = client.post(
+            "/v1/orchestration/contracts/implementation/versions/1/promote",
+            headers=headers,
+        )
+        assert canary.status_code == 200
+        assert canary.json()["contract"]["state"] == "canary"
+
+        evidence_read = client.get(
+            "/v1/orchestration/contracts/implementation/versions/1/evidence",
+            headers=headers,
+        )
+        assert evidence_read.status_code == 200
+        assert evidence_read.json()["status"] == "ready"
+
+        conflict = client.put(
+            "/v1/orchestration/contracts/implementation/draft",
+            headers=headers,
+            json={"contract": _contract_payload(version="2"), "expected_revision": 0},
+        )
+        assert conflict.status_code == 409
+
+
 def test_orchestration_routing_evidence_is_authenticated_private_and_read_only(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -173,7 +316,7 @@ def test_orchestration_admin_api_config_models_and_strict_preview(
         assert preview.status_code == 200
         assert preview.json()["actual_model"] == "gpt-5.4-mini"
         assert preview.json()["provider"] == "openai"
-        assert preview.json()["receipt_version"] == 1
+        assert preview.json()["receipt_version"] == 2
 
         constrained_preview = client.post(
             "/v1/orchestration/route",

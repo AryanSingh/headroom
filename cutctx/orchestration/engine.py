@@ -149,11 +149,13 @@ class DeterministicRoutingEngine:
             for key in equivalent_candidates
             if (model := self.registry.get(key)) is not None
         }
+        primary_model = self.registry.get(primary)
+        primary_deployment = primary_model.deployment_key if primary_model is not None else primary
         fallback_used = (
-            selected.deployment_key != primary
+            selected.deployment_key != primary_deployment
             and selected.deployment_key not in equivalent_deployment_keys
         )
-        return RoutingDecision(
+        decision = RoutingDecision(
             request_id=request_id,
             role=role.id if role else request.role,
             assigned_model=primary,
@@ -165,7 +167,7 @@ class DeterministicRoutingEngine:
             policy=policy,
             reason=(
                 "equivalent_deployment_selected"
-                if selected.deployment_key != primary and not fallback_used
+                if selected.deployment_key != primary_deployment and not fallback_used
                 else reason
                 if not fallback_used
                 else f"fallback:{rejected_reason or 'unavailable'}"
@@ -180,7 +182,36 @@ class DeterministicRoutingEngine:
             required_capabilities=required,
             policy_constraints=self._policy_constraints(request),
             selection_evidence=selection_evidence,
+            selected_model=f"{selected.provider}:{selected.id}",
+            selected_deployment=selected.deployment_key,
+            evidence=selection_evidence,
         )
+        eligible, rejected = self.candidate_evidence(request, decision)
+        return replace(
+            decision,
+            eligible_candidates=eligible,
+            rejected_candidates=rejected,
+        )
+
+    def candidate_evidence(
+        self,
+        request: RoutingRequest,
+        decision: RoutingDecision,
+    ) -> tuple[list[str], list[dict[str, str]]]:
+        """Explain every configured candidate using stable rejection reasons."""
+        eligible: list[str] = []
+        rejected: list[dict[str, str]] = []
+        for key in decision.candidates:
+            model, reason = self._first_eligible(
+                [key],
+                decision.required_capabilities,
+                request=request,
+            )
+            if model is None:
+                rejected.append({"model": key, "reason": reason or "unavailable"})
+            else:
+                eligible.append(model.deployment_key)
+        return eligible, rejected
 
     def fallback(self, decision: RoutingDecision, trigger: str) -> RoutingDecision:
         if decision.mode == RoutingMode.STRICT.value:

@@ -435,7 +435,7 @@ def test_orchestrator_search_expands_and_filters_tabs() -> None:
             before_width = search_shell.bounding_box()["width"]
             search_input.focus()
             after_focus_width = search_shell.bounding_box()["width"]
-            expect(after_focus_width).to_be_greater_than(before_width)
+            assert after_focus_width > before_width
 
             search_input.fill("anthropic")
             page.get_by_role("tab", name="Providers").click()

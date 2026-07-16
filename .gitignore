@@ -301,5 +301,6 @@ fix_summary.md
 patch_*.py
 .playwright-mcp/
 .slim/deepwork/
+.superpowers/sdd/
 *.db-shm
 *.db-wal

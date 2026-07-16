@@ -6,6 +6,25 @@ pulling provider-specific transport details into routing policy.
 """
 
 from .audit import ReceiptAuditStore
+from .compiler import CompiledRoutingPolicy, ContractCompilationError, compile_contract
+from .contract_store import (
+    ContractConflictError,
+    ContractStore,
+    ContractTransitionError,
+    StoredContract,
+)
+from .contracts import (
+    ContractEvaluationPolicy,
+    ContractLifecycle,
+    ContractObjective,
+    ContractObjectiveType,
+    ContractRequirements,
+    ReliabilityBudget,
+    WorkloadContract,
+    contract_from_dict,
+    contract_to_dict,
+    legacy_contracts_from_config,
+)
 from .credentials import CredentialStore, ExternalSecretResolver, ResolverBackedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
 from .evaluation import RoutingEvaluationCase, evaluate_routing_cases
@@ -27,6 +46,7 @@ from .models import (
 )
 from .policy_bundle import compile_policy_bundle, sign_policy_bundle, verify_policy_bundle
 from .service import OrchestrationService, build_orchestration_service
+from .simulation import ContractDecisionReceipt, RejectedCandidate, SimulationResult
 from .workflow import (
     TaskSpec,
     TaskState,
@@ -40,9 +60,21 @@ from .workflow import (
 
 __all__ = [
     "Capability",
+    "ContractEvaluationPolicy",
+    "ContractLifecycle",
+    "ContractObjective",
+    "ContractObjectiveType",
+    "ContractRequirements",
+    "ContractConflictError",
+    "ContractStore",
+    "ContractTransitionError",
+    "ContractDecisionReceipt",
+    "CompiledRoutingPolicy",
+    "ContractCompilationError",
     "CredentialStore",
     "ReceiptAuditStore",
     "compile_policy_bundle",
+    "compile_contract",
     "DeterministicRoutingEngine",
     "FallbackTrigger",
     "ExternalSecretResolver",
@@ -53,6 +85,7 @@ __all__ = [
     "OrchestrationConfig",
     "OrchestrationService",
     "ProviderAccount",
+    "ReliabilityBudget",
     "Role",
     "RouteBinding",
     "RoutingDecision",
@@ -60,9 +93,12 @@ __all__ = [
     "RoutingPolicy",
     "RoutingProfile",
     "ResolverBackedCredentialStore",
+    "RejectedCandidate",
     "RoutingRequest",
     "TaskType",
     "RoutingUnavailableError",
+    "SimulationResult",
+    "StoredContract",
     "sign_policy_bundle",
     "verify_policy_bundle",
     "build_orchestration_service",
@@ -74,4 +110,8 @@ __all__ = [
     "WorkflowState",
     "WorkflowStateStore",
     "WorkflowValidationError",
+    "WorkloadContract",
+    "contract_from_dict",
+    "contract_to_dict",
+    "legacy_contracts_from_config",
 ]
