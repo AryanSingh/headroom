@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from cutctx.ccr.markers import extract_marker_hashes, format_dedup_ref
+from cutctx.ccr.markers import (
+    extract_marker_hashes,
+    extract_marker_hashes_from_payload,
+    format_dedup_ref,
+)
 from cutctx.ccr.tool_injection import CCRToolInjector
 
 
@@ -38,6 +42,25 @@ def test_extract_marker_hashes_dedupes_in_text_encounter_order() -> None:
         "1111222233334444",
         "aaaabbbbccccdddd",
         "deadbeefdeadbeef",
+    ]
+
+
+def test_extract_marker_hashes_from_payload_handles_nested_content() -> None:
+    payload = {
+        "messages": [
+            {"content": "<<ccr:1111222233334444,base64,4.5KB>>"},
+            {
+                "content": [
+                    {"type": "text", "text": "[Content compressed. hash=aaaabbbbccccdddd]"},
+                    {"type": "tool_result", "content": "<<ccr:1111222233334444>>"},
+                ]
+            },
+        ]
+    }
+
+    assert extract_marker_hashes_from_payload(payload) == [
+        "1111222233334444",
+        "aaaabbbbccccdddd",
     ]
 
 

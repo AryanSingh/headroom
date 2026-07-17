@@ -107,6 +107,24 @@ async def test_request_trace_detail_endpoint_returns_structured_trace(app):
     assert trace["fallback"]["circuit_breaker_state"] == "open"
     assert trace["fallback"]["active_provider"] == "openai-primary"
     assert trace["messages"]["compressed_messages"] == [{"role": "user", "content": "after"}]
+    assert trace["decision_receipt"]["observation"]["completeness"] == "legacy"
+    assert trace["decision_receipt"]["cache"]["provider_prompt_cache"]["status"] == "hit"
+
+
+@pytest.mark.asyncio
+async def test_trace_returns_persisted_receipt_verbatim(app):
+    receipt = {
+        "schema_version": 99,
+        "observation": {"completeness": "complete", "payload_capture": "disabled"},
+        "future_field": {"preserved": True},
+    }
+    app.state.proxy.logger.log(_trace_entry(decision_receipt=receipt))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/transformations/traces/trace-1", headers=_ADMIN_HEADERS)
+
+    assert response.status_code == 200
+    assert response.json()["trace"]["decision_receipt"] == receipt
 
 
 @pytest.mark.asyncio
@@ -210,12 +228,13 @@ async def test_request_trace_endpoints_fall_back_to_memory_when_shared_log_unava
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_denial_is_available_in_the_trace_inspector():
+async def test_rate_limit_denial_is_available_in_the_trace_inspector(tmp_path):
     app = create_app(
         ProxyConfig(
             cache_enabled=False,
             rate_limit_enabled=True,
             rate_limit_requests_per_minute=1,
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
         )
     )
     app.state.proxy.logger.log_file = None
@@ -247,3 +266,7 @@ async def test_rate_limit_denial_is_available_in_the_trace_inspector():
     assert matching
     assert matching[0]["compression"]["decline_reason"] == "rate_limit_exceeded"
     assert matching[0]["tags"]["rate_limit_denied"] == "true"
+    assert matching[0]["decision_receipt"]["observation"]["completeness"] == "partial"
+    assert matching[0]["decision_receipt"]["observation"]["missing"] == [
+        "rate_limit_exceeded"
+    ]

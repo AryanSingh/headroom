@@ -178,6 +178,57 @@ curl http://localhost:8787/stats-history
 curl "http://localhost:8787/stats-history?format=csv&series=weekly"
 ```
 
+### `GET /transformations/traces/{request_id}`
+
+Returns the operator trace for a request, including an additive versioned
+`decision_receipt`. This local-admin endpoint is the source of the dashboard’s
+request inspector: it explains routing retention or changes, compression,
+cache observations, CCR references, savings attribution, and what evidence was
+not available.
+
+```bash
+curl -H "x-cutctx-admin-key: $CUTCTX_ADMIN_API_KEY" \
+  http://localhost:8787/transformations/traces/req_123
+```
+
+```json
+{
+  "trace": {
+    "request_id": "req_123",
+    "decision_receipt": {
+      "schema_version": 1,
+      "observation": {
+        "completeness": "complete",
+        "missing": [],
+        "payload_capture": "disabled"
+      },
+      "routing": {
+        "status": "retained",
+        "reason": "workload_not_downgradeable",
+        "requested_model": "gpt-5.4",
+        "effective_model": "gpt-5.4"
+      },
+      "cache": {
+        "provider_prompt_cache": {"status": "unobserved", "read_tokens": 0}
+      },
+      "ccr": {"status": "not_used", "references": []}
+    }
+  }
+}
+```
+
+Decision receipts remain useful with `--log-messages` disabled (the default):
+they contain metadata and never copy prompts, responses, tool results,
+retrieved CCR content, credentials, or raw configuration values. A cache state
+of `unobserved` means Cutctx did not receive enough provider telemetry; it is
+not a cache miss. Provider prompt-cache savings are reported as observed
+provider savings, not as savings created by Cutctx. CCR references contain
+only opaque hashes and availability metadata, never retrieved content.
+
+Older request-log rows are returned with
+`observation.completeness="legacy"`; their receipt is inferred only from the
+historical fields that were stored. Treat missing legacy evidence as unknown.
+
 ### `GET /metrics`
 
 Prometheus-format metrics for monitoring.

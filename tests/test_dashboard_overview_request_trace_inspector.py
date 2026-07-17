@@ -172,6 +172,24 @@ def _trace_payload() -> dict:
     }
 
 
+def _retained_trace_payload() -> dict:
+    payload = _trace_payload()
+    trace = payload["trace"]
+    trace["provider"] = {"name": "openai", "requested_model": "gpt-5.4", "actual_model": "gpt-5.4"}
+    trace["routing"].update({"routed": False, "reason": "workload_not_downgradeable"})
+    trace["decision_receipt"] = {
+        "schema_version": 1,
+        "observation": {"completeness": "complete", "missing": [], "payload_capture": "disabled"},
+        "routing": {"status": "retained", "reason": "workload_not_downgradeable", "explanation": "Recent tool context was classified as high-risk, so Cutctx retained the requested model.", "requested_model": "gpt-5.4", "effective_model": "gpt-5.4", "mechanism": "optimization_preset", "required_capabilities": ["tool_calling"], "candidates": ["gpt-5.4-mini"], "rejected_candidates": [{"candidate": "gpt-5.4-mini", "reason": "workload_not_downgradeable"}]},
+        "compression": {"status": "applied", "transforms": ["smart_crusher"], "protected_content": {"cache_protected_tokens": 200}},
+        "cache": {"provider_prompt_cache": {"status": "hit"}, "semantic_response_cache": {"status": "unobserved"}, "self_hosted_prefix_cache": {"status": "unobserved"}},
+        "ccr": {"status": "not_used", "retrieval_outcome": "not_requested"},
+        "attribution": {"created_savings_tokens": 300, "observed_provider_savings_tokens": 200},
+        "policy": {"config_fingerprint": "sha256:abc"},
+    }
+    return payload
+
+
 def _many_recent_requests(count: int) -> list[dict]:
     requests: list[dict] = []
     for index in range(count):
@@ -341,6 +359,30 @@ def test_overview_request_trace_inspector_handles_trace_errors() -> None:
             expect(page.locator(".request-trace-panel")).not_to_be_visible()
             page.get_by_role("button", name="gpt-5.6-terra", exact=True).click()
             expect(page.get_by_text("Failed to load trace:")).to_be_visible()
+        finally:
+            browser.close()
+
+
+def test_overview_request_trace_inspector_renders_decision_receipt() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            page.add_init_script("window.localStorage.setItem('cutctxAdminKey', 'testkey');")
+            _install_dashboard_routes(page, trace_payload=_retained_trace_payload())
+            page.goto("http://cutctx.local/dashboard")
+            page.wait_for_load_state("networkidle")
+            page.get_by_role("button", name="gpt-5.6-terra", exact=True).click()
+            panel = page.locator(".request-trace-panel")
+            expect(panel.get_by_text("Requested model retained", exact=True)).to_be_visible()
+            expect(panel).to_contain_text("Recent tool context was classified as high-risk")
+            expect(panel).to_contain_text("gpt-5.4-mini")
+            expect(panel).to_contain_text("tool_calling")
+            expect(panel.get_by_text("Provider prompt cache", exact=True).first).to_be_visible()
+            expect(panel).to_contain_text("CCR · Not Used")
+            expect(panel).to_contain_text("sha256:abc")
+            expect(panel.get_by_text("Payload capture", exact=True).first).to_be_visible()
+            expect(panel).to_contain_text("disabled")
         finally:
             browser.close()
 

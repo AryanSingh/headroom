@@ -68,6 +68,32 @@ def test_get_recent_with_messages_returns_compressed_messages():
     assert recent[0]["compressed_messages"] == [{"role": "user", "content": "post"}]
 
 
+def test_request_logger_marks_only_current_receipt_as_redacted():
+    logger = RequestLogger(log_file=None, log_full_messages=True)
+    first = _entry(
+        request_id="image",
+        request_messages=[
+            {
+                "role": "user",
+                "image_url": "data:image/png;base64," + "A" * 9000,
+            }
+        ],
+        decision_receipt={"observation": {"payload_capture": "captured"}},
+    )
+    second = _entry(
+        request_id="text",
+        request_messages=[{"role": "user", "content": "hello"}],
+        decision_receipt={"observation": {"payload_capture": "captured"}},
+    )
+
+    logger.log(first)
+    logger.log(second)
+
+    rows = logger.get_recent_with_messages(2)
+    assert rows[0]["decision_receipt"]["observation"]["payload_capture"] == "redacted"
+    assert rows[1]["decision_receipt"]["observation"]["payload_capture"] == "captured"
+
+
 def test_jsonl_file_strips_both_sides_when_log_full_messages_disabled(tmp_path):
     log_file = tmp_path / "requests.jsonl"
     logger = RequestLogger(log_file=str(log_file), log_full_messages=False)

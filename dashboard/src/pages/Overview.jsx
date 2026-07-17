@@ -2125,6 +2125,103 @@ function formatTracePayload(payload) {
   }
 }
 
+function titleCaseReceiptStatus(value) {
+  return String(value || 'unobserved')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function ReceiptEvidenceRow({ label, value }) {
+  return (
+    <div className="diagnostic-row diagnostic-row-wrap">
+      <span>{label}</span>
+      <strong>{value == null || value === '' ? 'Unobserved' : String(value)}</strong>
+    </div>
+  );
+}
+
+function DecisionReceiptSummary({ receipt }) {
+  if (!receipt || typeof receipt !== 'object') {
+    return null;
+  }
+  const observation = receipt.observation || {};
+  const routing = receipt.routing || {};
+  const attribution = receipt.attribution || {};
+  const partial = observation.completeness !== 'complete';
+  const statusLabel = routing.status === 'retained'
+    ? 'Requested model retained'
+    : routing.status === 'applied'
+      ? 'Model route applied'
+      : 'Routing evidence unavailable';
+
+  return (
+    <section className={`decision-receipt-summary${partial ? ' is-partial' : ''}`}>
+      <div className="decision-receipt-summary-copy">
+        <div className="eyebrow">Decision receipt · schema {receipt.schema_version || 'unknown'}</div>
+        <h3>{statusLabel}</h3>
+        <p>{routing.explanation || 'No decision explanation was recorded.'}</p>
+        <div className="decision-receipt-chip-row">
+          <span className="transform-chip">{routing.reason || 'reason unobserved'}</span>
+          <span className="transform-chip">{partial ? 'Partial evidence' : 'Complete evidence'}</span>
+        </div>
+      </div>
+      <div className="decision-receipt-summary-metrics">
+        <ReceiptEvidenceRow label="Model" value={`${routing.requested_model || '—'} → ${routing.effective_model || '—'}`} />
+        <ReceiptEvidenceRow label="Created savings" value={formatInteger(attribution.created_savings_tokens || 0)} />
+        <ReceiptEvidenceRow label="Observed provider savings" value={formatInteger(attribution.observed_provider_savings_tokens || 0)} />
+        <ReceiptEvidenceRow label="Payload capture" value={observation.payload_capture || 'unobserved'} />
+      </div>
+    </section>
+  );
+}
+
+function DecisionReceiptEvidence({ receipt }) {
+  if (!receipt || typeof receipt !== 'object') {
+    return null;
+  }
+  const routing = receipt.routing || {};
+  const compression = receipt.compression || {};
+  const cache = receipt.cache || {};
+  const ccr = receipt.ccr || {};
+  const policy = receipt.policy || {};
+  const missing = receipt.observation?.missing || [];
+  const json = (value) => JSON.stringify(value || {}, null, 2);
+
+  return (
+    <section className="decision-receipt-evidence" aria-label="Decision evidence">
+      <details open>
+        <summary>Routing evidence</summary>
+        <ReceiptEvidenceRow label="Mechanism" value={routing.mechanism} />
+        <ReceiptEvidenceRow label="Required capabilities" value={(routing.required_capabilities || []).join(', ')} />
+        <ReceiptEvidenceRow label="Candidates" value={(routing.candidates || []).join(', ')} />
+        <pre className="decision-receipt-json">{json(routing.rejected_candidates)}</pre>
+      </details>
+      <details>
+        <summary>Context and compression</summary>
+        <ReceiptEvidenceRow label="Status" value={titleCaseReceiptStatus(compression.status)} />
+        <ReceiptEvidenceRow label="Transforms" value={(compression.transforms || []).join(', ')} />
+        <ReceiptEvidenceRow label="Protected tokens" value={compression.protected_content?.cache_protected_tokens} />
+      </details>
+      <details open>
+        <summary>Cache and attribution</summary>
+        <ReceiptEvidenceRow label="Provider prompt cache" value={titleCaseReceiptStatus(cache.provider_prompt_cache?.status)} />
+        <ReceiptEvidenceRow label="Semantic response cache" value={titleCaseReceiptStatus(cache.semantic_response_cache?.status)} />
+        <ReceiptEvidenceRow label="Self-hosted prefix cache" value={titleCaseReceiptStatus(cache.self_hosted_prefix_cache?.status)} />
+      </details>
+      <details>
+        <summary>CCR · {titleCaseReceiptStatus(ccr.status)}</summary>
+        <ReceiptEvidenceRow label="Retrieval outcome" value={titleCaseReceiptStatus(ccr.retrieval_outcome)} />
+      </details>
+      <details>
+        <summary>Policy and privacy</summary>
+        <ReceiptEvidenceRow label="Config fingerprint" value={policy.config_fingerprint} />
+        <ReceiptEvidenceRow label="Payload capture" value={receipt.observation?.payload_capture} />
+        <ReceiptEvidenceRow label="Missing evidence" value={missing.join(', ')} />
+      </details>
+    </section>
+  );
+}
+
 function RequestTraceInspector({ request, trace, loading, error, onClose }) {
   if (!request && !trace && !loading && !error) {
     return null;
@@ -2165,6 +2262,7 @@ function RequestTraceInspector({ request, trace, loading, error, onClose }) {
         </div>
       ) : detail ? (
         <>
+          <DecisionReceiptSummary receipt={detail.decision_receipt} />
           <div className="metric-grid metric-grid-four request-trace-metrics">
             <MetricCard
               icon={Layers}
@@ -2201,6 +2299,8 @@ function RequestTraceInspector({ request, trace, loading, error, onClose }) {
               footnote={`Compression ${Number(detail.latency?.optimization_ms || 0).toFixed(1)} ms`}
             />
           </div>
+
+          <DecisionReceiptEvidence receipt={detail.decision_receipt} />
 
           <div className="overview-bottom-grid request-trace-grid">
             <div className="overview-side-stack">

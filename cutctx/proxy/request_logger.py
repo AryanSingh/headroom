@@ -130,7 +130,12 @@ def _is_base64_image_payload(value: str) -> bool:
     return value.startswith(_DATA_IMAGE_URL_PREFIX)
 
 
-def _redact_value(value: Any, *, in_image_path: bool = False) -> Any:
+def _redact_value(
+    value: Any,
+    *,
+    in_image_path: bool = False,
+    local_counter: list[int] | None = None,
+) -> Any:
     """Recursively redact base64-image payloads in a JSON-ish value.
 
     Returns a new structure with any over-threshold base64 string
@@ -155,6 +160,8 @@ def _redact_value(value: Any, *, in_image_path: bool = False) -> Any:
         if should_redact:
             with _redactions_lock:
                 _redactions_total += 1
+            if local_counter is not None:
+                local_counter[0] += 1
             byte_len = len(value.encode("utf-8"))
             return IMAGE_BASE64_REPLACEMENT_TEMPLATE.format(n=byte_len)
         return value
@@ -163,11 +170,19 @@ def _redact_value(value: Any, *, in_image_path: bool = False) -> Any:
             k: _redact_value(
                 v,
                 in_image_path=(k in IMAGE_BEARING_FIELD_NAMES),
+                local_counter=local_counter,
             )
             for k, v in value.items()
         }
     if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
-        return [_redact_value(item, in_image_path=in_image_path) for item in value]
+        return [
+            _redact_value(
+                item,
+                in_image_path=in_image_path,
+                local_counter=local_counter,
+            )
+            for item in value
+        ]
     return value
 
 
@@ -178,7 +193,20 @@ def redact_image_base64(payload: Any) -> Any:
     over-threshold base64 string with a size-only placeholder.
     Idempotent — applying twice yields the same structure.
     """
-    return _redact_value(payload, in_image_path=False)
+    redacted, _count = redact_image_base64_with_count(payload)
+    return redacted
+
+
+def redact_image_base64_with_count(payload: Any) -> tuple[Any, int]:
+    """Redact one payload and return its per-entry redaction count."""
+
+    counter = [0]
+    redacted = _redact_value(
+        payload,
+        in_image_path=False,
+        local_counter=counter,
+    )
+    return redacted, counter[0]
 
 
 def _tail_lines(path: Path, n: int, chunk_size: int = 65_536) -> list[bytes]:
@@ -291,12 +319,28 @@ class RequestLogger:
         # use stays bounded. We mutate the dataclass fields rather
         # than wrapping the entry to keep ``get_recent`` /
         # ``get_recent_with_messages`` unchanged.
+        entry_redactions = 0
         if entry.request_messages is not None:
-            entry.request_messages = redact_image_base64(entry.request_messages)
+            entry.request_messages, count = redact_image_base64_with_count(
+                entry.request_messages
+            )
+            entry_redactions += count
         if entry.compressed_messages is not None:
-            entry.compressed_messages = redact_image_base64(entry.compressed_messages)
+            entry.compressed_messages, count = redact_image_base64_with_count(
+                entry.compressed_messages
+            )
+            entry_redactions += count
         if entry.response_content is not None:
-            entry.response_content = redact_image_base64(entry.response_content)
+            entry.response_content, count = redact_image_base64_with_count(
+                entry.response_content
+            )
+            entry_redactions += count
+        if entry_redactions > 0 and isinstance(entry.decision_receipt, dict):
+            receipt = dict(entry.decision_receipt)
+            observation = dict(receipt.get("observation") or {})
+            observation["payload_capture"] = "redacted"
+            receipt["observation"] = observation
+            entry.decision_receipt = receipt
 
         self._logs.append(entry)
 
