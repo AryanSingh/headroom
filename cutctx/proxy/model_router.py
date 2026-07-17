@@ -47,6 +47,9 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, Literal, Protocol
 
+from cutctx.orchestration.models import ModelRecord
+from cutctx.orchestration.registry import DynamicModelRegistry
+
 logger = logging.getLogger("cutctx.proxy.model_router")
 
 ModelRoutingMode = Literal["off", "balanced", "aggressive", "custom"]
@@ -295,9 +298,11 @@ def classify_task_complexity(messages: list[dict[str, Any]]) -> TaskComplexity:
         r"\b(?:multiple|all)\s+(?:files?|modules?|services?|packages?)\b",
         r"\b(?:race|deadlock|concurren(?:cy|t)|distributed|multi[- ]tenant|consistency)\b",
         r"\b(?:database|schema|sql|transaction|rollback|data loss|destructive)\b",
-        r"\b(?:credential|secret|permission|privacy|pii|compliance|legal|medical)\b",
+        r"\b(?:credentials?|secrets?|permissions?|iam|access\s+polic(?:y|ies)|privacy|pii|compliance|legal|medical)\b",
+        r"\b(?:grant|assign|elevate)\b.*\b(?:admin|administrator|owner|privileged)\b",
+        r"\b(?:truncate|purge|wipe)\b",
         r"\b(?:performance|latency|throughput|memory leak|profil(?:e|ing)|benchmark)\b",
-        r"\b(?:delete|drop|remove|rotate|revoke)\b.*\b(?:production|database|table|bucket|account|key|secret)\b",
+        r"\b(?:delete|drop|remove|rotate|revoke|truncate|purge|wipe)\b.*\b(?:production|database|table|bucket|account|keys?|secrets?|credential(?:s)?)\b",
     ]
     reference_dependent_patterns = [
         r"\b(?:this|that|these|those|it)\b\s*[.?!]*$",
@@ -485,6 +490,9 @@ class ModelRouterConfig:
     # Targets explicitly verified for account-scoped subscription transports.
     # Generic routes leave this empty and retain the requested model.
     transport_safe_targets: set[str] = field(default_factory=set)
+    # Enable capability-first candidate selection from the dynamic model
+    # registry. Legacy route pairs remain a compatibility fallback.
+    catalog_routing: bool = False
 
     @classmethod
     def from_env(cls) -> ModelRouterConfig:
@@ -530,6 +538,7 @@ class ModelRouterConfig:
             minimum_confidence=float(payload.get("minimum_confidence", 0.0)),
             require_calibrated_scorer=bool(payload.get("require_calibrated_scorer", False)),
             transport_safe_targets=set(payload.get("transport_safe_targets", [])),
+            catalog_routing=bool(payload.get("catalog_routing", False)),
         )
 
     @classmethod
@@ -544,6 +553,8 @@ class ModelRouterConfig:
         return cls(
             enabled=True,
             downgrade_when="always",
+            catalog_routing=True,
+            transport_safe_targets={"gpt-5.4-mini", "gpt-5.6-luna"},
             routes=[
                 ModelRoute(
                     source="claude-opus-4-5",
@@ -654,7 +665,6 @@ class ModelRouterConfig:
             ],
             cache_read_threshold=0.8,  # route even when cache-read share is high
             tool_complexity_threshold=5.0,  # route even moderately complex requests
-            transport_safe_targets={"gpt-5.4-mini"},
         )
 
     @classmethod
@@ -672,6 +682,7 @@ class ModelRouterConfig:
         return cls(
             enabled=True,
             downgrade_when="low_complexity",
+            catalog_routing=True,
             routes=[
                 ModelRoute(
                     source="claude-opus-4-5",
@@ -911,6 +922,8 @@ class RoutingDecision:
     routing_applied: bool = False
     tokens_saved: int = 0
     usd_saved: float = 0.0
+    source_cost_per_mtok: float | None = None
+    target_cost_per_mtok: float | None = None
     reason: str = "no_route"
     request_overrides: dict[str, Any] | None = None
     confidence: float | None = None
@@ -930,9 +943,11 @@ class ModelRouter:
         config: ModelRouterConfig | None = None,
         *,
         scorer: TaskComplexityScorer | None = None,
+        registry: DynamicModelRegistry | None = None,
     ) -> None:
         self.config = config or ModelRouterConfig.from_env()
         self.scorer = scorer or self._configured_scorer()
+        self.registry = registry
         artifact = getattr(self.scorer, "artifact", None)
         artifact_threshold = float(getattr(artifact, "minimum_confidence", 0.0) or 0.0)
         self.minimum_confidence = max(self.config.minimum_confidence, artifact_threshold)
@@ -971,6 +986,8 @@ class ModelRouter:
         task_assessment: TaskComplexityAssessment | None = None,
         client: str | None = None,
         required_capabilities: set[str] | None = None,
+        transport_provider: str | None = None,
+        transport_account_id: str | None = None,
     ) -> RoutingDecision:
         """Decide whether to downgrade this request to a cheaper
         model.
@@ -992,13 +1009,6 @@ class ModelRouter:
             return RoutingDecision(
                 source_model=requested_model,
                 reason="calibrated_scorer_required",
-            )
-        # Find a route for the requested model.
-        route = self._find_route(requested_model)
-        if route is None:
-            return RoutingDecision(
-                source_model=requested_model,
-                reason="no_route_for_model",
             )
         if assessment is not None and assessment.complexity == TaskComplexity.HIGH:
             return RoutingDecision(
@@ -1025,6 +1035,61 @@ class ModelRouter:
                     scorer=assessment.source if assessment else None,
                     signals=assessment.signals if assessment else (),
                 )
+        catalog_candidate = self._select_catalog_candidate(
+            requested_model,
+            task_complexity=task_complexity,
+            required_capabilities=required_capabilities,
+            transport_provider=transport_provider,
+            transport_account_id=transport_account_id,
+        )
+        if catalog_candidate is not None:
+            target_model, source_cost, target_cost = catalog_candidate
+            minimum_confidence = self._minimum_confidence_for(
+                client=client,
+                source_model=requested_model,
+                target_model=target_model,
+            )
+            if assessment is not None and assessment.confidence < minimum_confidence:
+                return RoutingDecision(
+                    source_model=requested_model,
+                    reason="confidence_below_threshold",
+                    confidence=assessment.confidence,
+                    scorer=assessment.source,
+                    signals=assessment.signals,
+                )
+            return RoutingDecision(
+                target_model=target_model,
+                source_model=requested_model,
+                routing_applied=True,
+                reason="catalog_candidate_selected",
+                source_cost_per_mtok=source_cost,
+                target_cost_per_mtok=target_cost,
+                request_overrides=self._request_overrides_for_target(target_model),
+                confidence=assessment.confidence if assessment else None,
+                scorer=assessment.source if assessment else None,
+                signals=assessment.signals if assessment else (),
+            )
+
+        if self._catalog_manages_source(
+            requested_model,
+            transport_provider=transport_provider,
+            transport_account_id=transport_account_id,
+        ):
+            return RoutingDecision(
+                source_model=requested_model,
+                reason="no_certified_capability_match",
+                confidence=assessment.confidence if assessment else None,
+                scorer=assessment.source if assessment else None,
+                signals=assessment.signals if assessment else (),
+            )
+
+        # Legacy explicit routes remain a compatibility fallback.
+        route = self._find_route(requested_model)
+        if route is None:
+            return RoutingDecision(
+                source_model=requested_model,
+                reason="no_route_for_model",
+            )
         target_model = route.target
         target_cost_override = route.target_cost_per_mtok
         if task_complexity == TaskComplexity.MEDIUM:
@@ -1101,6 +1166,115 @@ class ModelRouter:
             return {"reasoning": {"effort": "high"}}
         return None
 
+    @staticmethod
+    def _catalog_record_is_certified(record: ModelRecord) -> bool:
+        metadata = record.metadata if isinstance(record.metadata, dict) else {}
+        return (
+            record.available
+            and not record.deprecated
+            and metadata.get("routing_certified") is True
+            and metadata.get("routing_readiness", "ready") == "ready"
+        )
+
+    def _select_catalog_candidate(
+        self,
+        requested_model: str,
+        *,
+        task_complexity: TaskComplexity | None,
+        required_capabilities: set[str] | None,
+        transport_provider: str | None,
+        transport_account_id: str | None,
+    ) -> tuple[str, float, float] | None:
+        """Return the cheapest certified compatible deployment, if proven safe."""
+        if not self.config.catalog_routing or self.registry is None:
+            return None
+
+        source_records = [record for record in self.registry.list() if record.id == requested_model]
+        if transport_provider:
+            source_records = [r for r in source_records if r.provider == transport_provider]
+        if transport_account_id:
+            source_records = [r for r in source_records if r.account_id == transport_account_id]
+        source = next((r for r in source_records if self._catalog_record_is_certified(r)), None)
+        if source is None or source.input_cost_per_million is None:
+            return None
+
+        required = set(required_capabilities or source.capabilities)
+        candidates: list[ModelRecord] = []
+        for candidate in self.registry.list(
+            provider=source.provider,
+            required_capabilities=required,
+            available_only=True,
+        ):
+            if candidate.id == source.id or candidate.account_id != source.account_id:
+                continue
+            if not self._catalog_record_is_certified(candidate):
+                continue
+            if candidate.input_cost_per_million is None:
+                continue
+            if candidate.input_cost_per_million >= source.input_cost_per_million:
+                continue
+            if self.config.downgrade_when == "low_complexity":
+                candidate_tier = str(candidate.metadata.get("quality_tier", ""))
+                required_tier = "medium" if task_complexity == TaskComplexity.MEDIUM else "fast"
+                if candidate_tier != required_tier:
+                    continue
+            candidates.append(candidate)
+        if not candidates:
+            return None
+
+        if task_complexity == TaskComplexity.MEDIUM:
+            legacy_route = self._find_route(requested_model)
+            preferred_mid = legacy_route.medium_target if legacy_route else None
+            preferred = next((c for c in candidates if c.id == preferred_mid), None)
+            if preferred is not None:
+                preferred_cost = preferred.input_cost_per_million
+                if preferred_cost is None:
+                    raise AssertionError("catalog candidate lost verified pricing")
+                return (
+                    preferred.id,
+                    float(source.input_cost_per_million),
+                    float(preferred_cost),
+                )
+
+        def rank(candidate: ModelRecord) -> tuple[float, float, float, str]:
+            return (
+                float(candidate.input_cost_per_million or float("inf")),
+                -float(candidate.reliability or 0.0),
+                float(candidate.latency_ms or float("inf")),
+                candidate.deployment_key,
+            )
+
+        selected = min(candidates, key=rank)
+        selected_cost = selected.input_cost_per_million
+        if selected_cost is None:
+            raise AssertionError("catalog candidate lost verified pricing")
+        return (
+            selected.id,
+            float(source.input_cost_per_million),
+            float(selected_cost),
+        )
+
+    def _catalog_manages_source(
+        self,
+        requested_model: str,
+        *,
+        transport_provider: str | None,
+        transport_account_id: str | None,
+    ) -> bool:
+        """Whether catalog safety gates are authoritative for this source."""
+
+        if not self.config.catalog_routing or self.registry is None:
+            return False
+        for record in self.registry.list():
+            if record.id != requested_model:
+                continue
+            if transport_provider and record.provider != transport_provider:
+                continue
+            if transport_account_id and record.account_id != transport_account_id:
+                continue
+            return True
+        return False
+
     def _minimum_confidence_for(
         self,
         *,
@@ -1134,38 +1308,47 @@ class ModelRouter:
         """
         if not decision.routing_applied or decision.target_model is None:
             return decision
-        # Find the route again to get the per-mtok delta.
-        route = self._find_route(decision.source_model)
-        if route is None:
-            return decision
-        src_cost = route.source_cost_per_mtok
-        if decision.target_model == route.medium_target:
-            tgt_cost = route.medium_target_cost_per_mtok
-        else:
-            tgt_cost = route.target_cost_per_mtok
+        src_cost = decision.source_cost_per_mtok
+        tgt_cost = decision.target_cost_per_mtok
+        route: ModelRoute | None = None
         if src_cost is None or tgt_cost is None:
-            src_cost, tgt_cost = self._lookup_costs(route.source, decision.target_model)
+            # Legacy route decisions derive costs from their configured pair.
+            route = self._find_route(decision.source_model)
+            if route is None:
+                return decision
+            src_cost = route.source_cost_per_mtok
+            if decision.target_model == route.medium_target:
+                tgt_cost = route.medium_target_cost_per_mtok
+            else:
+                tgt_cost = route.target_cost_per_mtok
+            if src_cost is None or tgt_cost is None:
+                src_cost, tgt_cost = self._lookup_costs(route.source, decision.target_model)
         if src_cost is None or tgt_cost is None:
             return decision
         per_mtok_delta = src_cost - tgt_cost
         usd_saved = input_tokens * per_mtok_delta / 1_000_000.0
-        source_output = route.source_output_cost_per_mtok
-        target_output = (
-            route.medium_target_output_cost_per_mtok
-            if decision.target_model == route.medium_target
-            else route.target_output_cost_per_mtok
-        )
-        if output_tokens is not None and source_output is not None and target_output is not None:
-            usd_saved += output_tokens * (source_output - target_output) / 1_000_000.0
+        if route is not None:
+            source_output = route.source_output_cost_per_mtok
+            target_output = (
+                route.medium_target_output_cost_per_mtok
+                if decision.target_model == route.medium_target
+                else route.target_output_cost_per_mtok
+            )
+            if output_tokens is not None and source_output is not None and target_output is not None:
+                usd_saved += output_tokens * (source_output - target_output) / 1_000_000.0
         return RoutingDecision(
             target_model=decision.target_model,
             source_model=decision.source_model,
             routing_applied=decision.routing_applied,
             tokens_saved=input_tokens,
             usd_saved=usd_saved,
+            source_cost_per_mtok=src_cost,
+            target_cost_per_mtok=tgt_cost,
             reason=decision.reason,
+            request_overrides=decision.request_overrides,
             confidence=decision.confidence,
             scorer=decision.scorer,
+            signals=decision.signals,
         )
 
     def _find_route(self, model: str) -> ModelRoute | None:
@@ -1497,6 +1680,8 @@ def prepare_model_routing(
             task_assessment=task_assessment,
             client=client,
             required_capabilities=required_capabilities,
+            transport_provider=transport_provider,
+            transport_account_id=getattr(handler, "_orchestration_account_id", None),
         )
     except Exception as exc:  # noqa: BLE001
         attach_model_routing_trace(

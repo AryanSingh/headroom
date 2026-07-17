@@ -16,6 +16,8 @@ from unittest.mock import patch
 
 import pytest
 
+from cutctx.orchestration.models import Capability, ModelRecord
+from cutctx.orchestration.registry import DynamicModelRegistry
 from cutctx.proxy.model_router import (
     ModelRoute,
     ModelRouter,
@@ -130,6 +132,17 @@ def test_classifier_keeps_high_consequence_short_tasks_on_strong_model(content: 
     assert classify_task_complexity([{"role": "user", "content": content}]) != TaskComplexity.LOW
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        "Rotate the credentials and update IAM permissions.",
+        "Revoke API keys and audit access policies.",
+    ],
+)
+def test_classifier_keeps_inflected_security_work_on_strong_model(content: str) -> None:
+    assert classify_task_complexity([{"role": "user", "content": content}]) == TaskComplexity.HIGH
+
+
 # ─- maybe_route() ───────────────────────────────────────────────
 
 
@@ -157,6 +170,143 @@ def test_no_route_for_model_passes_through() -> None:
     decision = r.maybe_route("claude-opus-4-5")
     assert decision.routing_applied is False
     assert decision.reason == "no_route_for_model"
+
+
+def test_aggressive_routes_current_model_to_certified_capability_candidate() -> None:
+    """Aggressive routing must not depend on a stale source->target table."""
+    registry = DynamicModelRegistry()
+    registry.register(
+        ModelRecord(
+            provider="openai",
+            id="gpt-5.6-terra",
+            account_id="openai-main",
+            capabilities={
+                Capability.REASONING.value,
+                Capability.STREAMING.value,
+                Capability.TOOL_CALLING.value,
+            },
+            input_cost_per_million=10.0,
+            available=True,
+            metadata={"routing_certified": True, "quality_tier": "strong"},
+        )
+    )
+    registry.register(
+        ModelRecord(
+            provider="openai",
+            id="gpt-5.4-mini",
+            account_id="openai-main",
+            capabilities={
+                Capability.REASONING.value,
+                Capability.STREAMING.value,
+                Capability.TOOL_CALLING.value,
+            },
+            input_cost_per_million=1.0,
+            available=True,
+            metadata={"routing_certified": True, "quality_tier": "fast"},
+        )
+    )
+
+    router = ModelRouter(ModelRouterConfig.economy_preset(), registry=registry)
+
+    decision = router.maybe_route(
+        "gpt-5.6-terra",
+        required_capabilities={
+            Capability.REASONING.value,
+            Capability.STREAMING.value,
+            Capability.TOOL_CALLING.value,
+        },
+        transport_provider="openai",
+        transport_account_id="openai-main",
+    )
+
+    assert decision.routing_applied is True
+    assert decision.target_model == "gpt-5.4-mini"
+    assert decision.reason == "catalog_candidate_selected"
+    finalized = router.finalize_savings(decision, input_tokens=1_000_000)
+    assert finalized.usd_saved == pytest.approx(9.0)
+
+
+def test_aggressive_allows_certified_mini_on_proven_subscription_transport() -> None:
+    class Handler:
+        _orchestration_account_id = None
+
+        def __init__(self) -> None:
+            self._model_router = ModelRouter(
+                ModelRouterConfig.economy_preset(), registry=DynamicModelRegistry()
+            )
+
+    target, metadata = prepare_model_routing(
+        Handler(),
+        "gpt-5.6-terra",
+        messages=[{"role": "user", "content": "Fix typo in README."}],
+        transport_provider="openai",
+        implicit_downgrade_allowed=False,
+    )
+
+    assert target == "gpt-5.4-mini"
+    assert metadata["model_routing"]["target_model"] == "gpt-5.4-mini"
+
+
+def test_catalog_capability_rejection_cannot_fall_through_to_legacy_route() -> None:
+    registry = DynamicModelRegistry()
+    target = registry.get("openai:gpt-5.4-mini")
+    assert target is not None
+    target.capabilities.discard(Capability.VISION.value)
+
+    router = ModelRouter(ModelRouterConfig.economy_preset(), registry=registry)
+    decision = router.maybe_route(
+        "gpt-5.6-terra",
+        required_capabilities={Capability.VISION.value},
+        transport_provider="openai",
+    )
+
+    assert decision.routing_applied is False
+    assert decision.target_model is None
+    assert decision.reason == "no_certified_capability_match"
+
+
+@pytest.mark.parametrize(
+    ("provider", "source_model", "expected_target"),
+    [
+        ("openai", "gpt-5.6-terra", "gpt-5.4-mini"),
+        ("anthropic", "claude-opus-4-5", "claude-haiku-4-5"),
+        ("google", "gemini-2.5-pro", "gemini-2.5-flash"),
+    ],
+)
+def test_aggressive_catalog_routes_each_supported_provider_to_certified_candidate(
+    provider: str,
+    source_model: str,
+    expected_target: str,
+) -> None:
+    router = ModelRouter(ModelRouterConfig.economy_preset(), registry=DynamicModelRegistry())
+
+    decision = router.maybe_route(source_model, transport_provider=provider)
+
+    assert decision.routing_applied is True
+    assert decision.target_model == expected_target
+    assert decision.reason == "catalog_candidate_selected"
+
+
+def test_balanced_catalog_routes_medium_work_to_mid_tier_not_fast_tier() -> None:
+    router = ModelRouter(
+        ModelRouterConfig.codex_gpt54mini_high_preset(),
+        registry=DynamicModelRegistry(),
+    )
+    assessment = TaskComplexityAssessment(
+        complexity=TaskComplexity.MEDIUM,
+        confidence=0.85,
+        signals=("context_dependent",),
+    )
+
+    decision = router.maybe_route(
+        "gpt-5.6-terra",
+        task_complexity=TaskComplexity.MEDIUM,
+        task_assessment=assessment,
+        transport_provider="openai",
+    )
+
+    assert decision.routing_applied is True
+    assert decision.target_model == "gpt-5.6-luna"
 
 
 def test_route_applied_with_known_costs() -> None:

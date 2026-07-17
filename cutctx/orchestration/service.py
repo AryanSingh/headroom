@@ -757,6 +757,14 @@ class OrchestrationService:
         )
         if health.ok:
             self.model_registry.clear_provider_cooldowns(account.provider, account_id=account.id)
+        readiness = "ready"
+        if not health.ok:
+            readiness = "auth_failed" if health.status == "authentication_failed" else "unavailable"
+        self.model_registry.set_provider_routing_readiness(
+            account.provider,
+            account_id=account.id,
+            readiness=readiness,
+        )
         return {
             "ok": health.ok,
             "status": health.status,
@@ -770,6 +778,23 @@ class OrchestrationService:
             to_dict(model) | {"key": model.key, "deployment_key": model.deployment_key}
             for model in models
         ]
+
+    def certify_model_for_routing(self, deployment_key: str) -> dict[str, Any]:
+        """Certify one ready deployment and return only redacted evidence."""
+        try:
+            model = self.model_registry.certify_for_routing(deployment_key)
+        except (KeyError, ValueError) as exc:
+            raise RoutingUnavailableError(
+                str(exc),
+                assigned_model=deployment_key,
+                reason="routing_certification_failed",
+            ) from exc
+        return {
+            "deployment_key": model.deployment_key,
+            "routing_certified": True,
+            "routing_readiness": str(model.metadata.get("routing_readiness")),
+            "capabilities": sorted(model.capabilities),
+        }
 
     async def execute(
         self,

@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import threading
 from collections.abc import Callable, Coroutine
 from dataclasses import asdict, dataclass, field
@@ -279,9 +280,7 @@ def record_model_routing_comparison(
     """
 
     if judge is None:
-        from cutctx.evals.memory.judge import simple_judge
-
-        judge = simple_judge
+        judge = _simple_routing_judge
     question = _last_user_text(messages)
     score, _reasoning = judge(question, baseline_response, candidate_response)
     record = ModelRoutingEvalRecord(
@@ -300,6 +299,48 @@ def record_model_routing_comparison(
     )
     store.append(record)
     return record
+
+
+def _simple_routing_judge(
+    _question: str,
+    baseline_response: str,
+    candidate_response: str,
+) -> tuple[float, str]:
+    """Score response overlap without importing the optional eval stack.
+
+    Shadow routing runs in the proxy process, where the full evaluation package
+    (and its optional native extension) may not be installed. Keep the default
+    judge dependency-free while matching the evaluation package's 1-5 F1 bands.
+    """
+
+    baseline_tokens = re.findall(r"\b\w+\b", baseline_response.lower())
+    candidate_tokens = re.findall(r"\b\w+\b", candidate_response.lower())
+    if baseline_tokens == candidate_tokens:
+        return 5.0, "Exact match with baseline"
+    if not baseline_tokens or not candidate_tokens:
+        return 1.0, "No token overlap"
+
+    from collections import Counter
+
+    common = sum((Counter(baseline_tokens) & Counter(candidate_tokens)).values())
+    if common == 0:
+        f1 = 0.0
+    else:
+        precision = common / len(candidate_tokens)
+        recall = common / len(baseline_tokens)
+        f1 = 2 * precision * recall / (precision + recall)
+
+    if f1 >= 0.9:
+        score = 5.0
+    elif f1 >= 0.7:
+        score = 4.0
+    elif f1 >= 0.5:
+        score = 3.0
+    elif f1 >= 0.3:
+        score = 2.0
+    else:
+        score = 1.0
+    return score, f"Token overlap F1={f1:.2f}"
 
 
 async def maybe_run_model_routing_shadow(

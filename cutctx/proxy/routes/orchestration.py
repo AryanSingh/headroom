@@ -539,6 +539,16 @@ def create_orchestration_router(
             raise HTTPException(status_code=502, detail=f"Model refresh failed: {exc}") from exc
         return {"account_id": account_id, "models": models, "count": len(models)}
 
+    @router.post("/models/{deployment_key}/certify", dependencies=write_deps)
+    async def certify_model(deployment_key: str) -> dict[str, Any]:
+        try:
+            return service.certify_model_for_routing(deployment_key)
+        except RoutingUnavailableError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"message": str(exc), "reason": exc.reason},
+            ) from exc
+
     @router.post("/route", dependencies=read_deps)
     async def preview_route(payload: RoutingPayload) -> dict[str, Any]:
         try:
