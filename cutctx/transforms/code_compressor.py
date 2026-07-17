@@ -1636,7 +1636,6 @@ class CodeAwareCompressor(Transform):
             # If adding this statement would exceed budget and we already have
             # at least one statement, stop here
             if kept_line_count + stmt_line_count > body_limit and stmts_kept > 0:
-                omitted_statements.append("\n".join(stmt_lines))
                 break
 
             kept_lines.extend(stmt_lines)
@@ -1677,18 +1676,23 @@ class CodeAwareCompressor(Transform):
             result_parts.extend(kept_lines)
 
         if omitted_lines > 0:
-            result_parts.append(
-                _make_omitted_comment(
-                    func_name,
-                    omitted_lines,
-                    indent,
-                    lang_config.comment_prefix,
-                    analysis,
-                    preserved_anchors=preserved_anchors,
-                )
+            # Size gate: skip compression when comment-injection overhead
+            # would exceed the byte savings for the exact source span being
+            # replaced. This avoids expanding a compact suffix merely because
+            # the retained prefix is large.
+            omitted_comment = _make_omitted_comment(
+                func_name, omitted_lines, indent, lang_config.comment_prefix,
+                analysis, preserved_anchors=preserved_anchors,
             )
+            replacement = omitted_comment
             if lang_config.uses_colon_after_signature:
-                result_parts.append(f"{indent}pass")
+                replacement = f"{replacement}\n{indent}pass"
+            original_omitted = "\n".join(omitted_statements)
+
+            if len(replacement) < len(original_omitted):
+                result_parts.extend(replacement.split("\n"))
+            else:
+                result_parts.extend(original_omitted.split("\n"))
 
         if closing_brace_line is not None:
             result_parts.append(closing_brace_line)

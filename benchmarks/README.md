@@ -52,6 +52,34 @@ median per-fixture latency, run counts, interpreter, and platform metadata. It i
 a fixture regression check, not a substitute for a public comparison protocol with
 real corpora and downstream task-quality evaluation.
 
+#### Bind benchmark outputs to a release revision
+
+After the named benchmark reports have been generated, create their release
+manifest and bundle from a **clean checkout**:
+
+```bash
+python scripts/generate_benchmark_release_manifest.py
+python scripts/generate_benchmark_release_bundle.py
+python scripts/evaluate_release_evidence.py
+```
+
+The manifest hashes its fixture inputs and records interpreter/platform and
+checkpoint metadata. The bundle hashes the named report arms. The evidence
+evaluator intentionally reports an unavailable or non-market-eligible status
+when fixture hashes, external smoke evidence, or partner snapshots are missing.
+Do not reuse an artifact after changing a fixture or source file.
+
+#### Generate the local audit inventory
+
+```bash
+python scripts/generate_audit_evidence.py
+```
+
+This writes `artifacts/audit-evidence.json` with the exact Git revision,
+dirty-worktree state, built-in orchestration provider catalogue, SmartCrusher
+source inventory, and current release-evidence posture. It is an audit record,
+not a release certification.
+
 #### Verify model-routing quality and unsafe-downgrade safety:
 
 ```bash

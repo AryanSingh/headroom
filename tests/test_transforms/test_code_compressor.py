@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
+from cutctx.transforms import code_compressor as code_compressor_module
 from cutctx.transforms.code_compressor import (
     CodeAwareCompressor,
     CodeCompressionResult,
@@ -1133,6 +1134,39 @@ def _dead_helper():
         result += i
     return result
 '''
+
+
+@pytest.mark.skipif(not TREE_SITTER_INSTALLED, reason="tree-sitter-languages not installed")
+class TestReplacementSizeGuard:
+    def test_short_omitted_suffix_does_not_expand_retained_function_body(self):
+        """Metadata must be cheaper than the exact source it replaces."""
+        retained_value = "x" * 800
+        source = f'''def keep_large_prefix():
+    retained = "{retained_value}"
+    value = 1
+    return value
+'''
+        compressor = CodeAwareCompressor(
+            CodeCompressorConfig(
+                max_body_lines=1,
+                enable_ccr=False,
+                semantic_analysis=False,
+            )
+        )
+
+        parser = code_compressor_module._get_parser("python")
+        function_node = parser.parse(source.encode()).root_node.children[0]
+        result = compressor._compress_function_ast(
+            function_node,
+            source,
+            CodeLanguage.PYTHON,
+            code_compressor_module._LANG_CONFIGS[CodeLanguage.PYTHON],
+            {"keep_large_prefix": 1},
+            code_compressor_module._SymbolAnalysis(),
+        )
+
+        assert len(result) <= len(source)
+        assert "    value = 1\n    return value" in result
 
 
 @pytest.mark.skipif(not TREE_SITTER_INSTALLED, reason="tree-sitter-languages not installed")
