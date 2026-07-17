@@ -3039,14 +3039,13 @@ class OpenAIResponsesMixin:
                     )
                 elif _http_action.refuse:
                     if (
-                        not is_chatgpt_auth
-                        and client == "codex"
+                        (is_chatgpt_auth or client == "codex")
                         and _http_action.reason == "timeout"
                     ):
                         logger.warning(
                             "[%s] /v1/responses compression timed out on a Codex "
-                            "request (%d bytes); failing open to preserve the "
-                            "standalone CLI UX.",
+                            "or ChatGPT subscription request (%d bytes); failing "
+                            "open after preserving the downstream context guard.",
                             request_id,
                             _http_body_bytes,
                         )
