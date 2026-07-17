@@ -2,6 +2,7 @@
 """Verify all package manifest versions are in sync before publishing."""
 
 import json
+import re
 from pathlib import Path
 
 try:
@@ -53,6 +54,23 @@ def _read_cargo_package_version(path: Path) -> str:
     return str(package["version"])
 
 
+def _read_cargo_lock_version(path: Path, package_name: str) -> str:
+    with open(path, "rb") as f:
+        packages = tomllib.load(f).get("package", [])
+    for package in packages:
+        if isinstance(package, dict) and package.get("name") == package_name:
+            return str(package["version"])
+    raise ValueError(f"Missing package {package_name!r} in {path}")
+
+
+def _read_text_version(path: Path, pattern: str) -> str:
+    content = path.read_text(encoding="utf-8")
+    match = re.search(pattern, content, flags=re.MULTILINE)
+    if match is None:
+        raise ValueError(f"Missing version field in {path}")
+    return match.group(1)
+
+
 def main() -> None:
     with open(ROOT / "pyproject.toml", "rb") as f:
         py_ver = tomllib.load(f)["project"]["version"]
@@ -64,11 +82,24 @@ def main() -> None:
         "crates/cutctx-py/Cargo.toml": _read_cargo_package_version(
             ROOT / "crates/cutctx-py/Cargo.toml"
         ),
+        "Cargo.lock:cutctx-py": _read_cargo_lock_version(ROOT / "Cargo.lock", "cutctx-py"),
         "plugins/cutctx-agent-hooks/.claude-plugin/plugin.json": _read_json_version(
             ROOT / "plugins/cutctx-agent-hooks/.claude-plugin/plugin.json"
         ),
         "plugins/cutctx-agent-hooks/.github/plugin/plugin.json": _read_json_version(
             ROOT / "plugins/cutctx-agent-hooks/.github/plugin/plugin.json"
+        ),
+        "helm/cutctx/Chart.yaml:version": _read_text_version(
+            ROOT / "helm/cutctx/Chart.yaml", r"^version:\s*([^\s]+)$"
+        ),
+        "helm/cutctx/Chart.yaml:appVersion": _read_text_version(
+            ROOT / "helm/cutctx/Chart.yaml", r'^appVersion:\s*"([^"]+)"$'
+        ),
+        "helm/cutctx/values.yaml:image.tag": _read_text_version(
+            ROOT / "helm/cutctx/values.yaml", r'^\s{2}tag:\s*"([^"]+)"$'
+        ),
+        "k8s/deployment.yaml:image": _read_text_version(
+            ROOT / "k8s/deployment.yaml", r"ghcr\.io/cutctx/cutctx:v([^\s]+)"
         ),
     }
     versions.update(_read_marketplace_versions(ROOT / ".claude-plugin/marketplace.json"))

@@ -497,6 +497,25 @@ def test_content_router_pipeline_rejects_expansion_and_marginal_savings(
     assert marginal_counts["ratio_too_high"] == 1
 
 
+def test_content_router_inflation_guard_reverts_mixed_content() -> None:
+    """Direct router callers must never receive more bytes than they supplied."""
+    router = ContentRouter()
+    content = (
+        "Explanation line with enough prose words to be detected.\n"
+        "```python\nprint(1)\n```\n"
+    ) * 100
+
+    result = router.compress(content)
+
+    assert len(content.encode("utf-8")) == 8000
+    assert result.compressed == content
+    assert len(result.compressed.encode("utf-8")) <= len(content.encode("utf-8"))
+    assert result.strategy_used is CompressionStrategy.PASSTHROUGH
+    assert result.total_original_tokens == result.total_compressed_tokens
+    assert result.diagnostics["inflation_guard"] == "reverted"
+    assert result.diagnostics["attempted_strategy"] == CompressionStrategy.MIXED.value
+
+
 def test_content_router_apply_exposes_accept_and_reject_diagnostics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

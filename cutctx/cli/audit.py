@@ -37,13 +37,14 @@ def list_events(
 ) -> None:
     """List recent audit events."""
     try:
-        params = f"?limit={limit}"
+        params: dict[str, str | int] = {"limit": limit}
         if action:
-            params += f"&action={action}"
+            params["action"] = action
         if actor:
-            params += f"&actor={actor}"
+            params["actor"] = actor
         r = httpx.get(
-            f"{_api_base()}/audit/events{params}",
+            f"{_api_base()}/audit/events",
+            params=params,
             headers=_admin_headers(admin_key),
             timeout=10,
         )
@@ -84,11 +85,12 @@ def export_events(
 ) -> None:
     """Export audit log as JSON or JSONL."""
     try:
-        params = f"?format={fmt}&limit={limit}"
+        params: dict[str, str | int] = {"format": fmt, "limit": limit}
         if action:
-            params += f"&action={action}"
+            params["action"] = action
         r = httpx.get(
-            f"{_api_base()}/audit/export{params}",
+            f"{_api_base()}/audit/export",
+            params=params,
             headers=_admin_headers(admin_key),
             timeout=30,
         )
@@ -111,7 +113,8 @@ def audit_stats(admin_key: str | None, as_json: bool = False) -> None:
     """Show audit log statistics."""
     try:
         r = httpx.get(
-            f"{_api_base()}/audit/events?limit=1000",
+            f"{_api_base()}/audit/events",
+            params={"limit": 1000},
             headers=_admin_headers(admin_key),
             timeout=10,
         )

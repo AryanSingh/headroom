@@ -212,7 +212,7 @@ class TestFeatureCount:
         counts = {}
         for t in FEATURE_TIERS.values():
             counts[t] = counts.get(t, 0) + 1
-        assert counts[EntitlementTier.BUILDER] == 25
-        assert counts[EntitlementTier.TEAM] == 9
+        assert counts[EntitlementTier.BUILDER] == 27
+        assert counts[EntitlementTier.TEAM] == 7
         assert counts[EntitlementTier.BUSINESS] == 13
         assert counts[EntitlementTier.ENTERPRISE] == 15

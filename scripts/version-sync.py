@@ -129,6 +129,38 @@ def update_rust_extension_version(root: Path, version: str) -> None:
         raise ValueError(f"Could not locate [package] version in {manifest_path}")
     manifest_path.write_text(updated, encoding="utf-8")
 
+    _replace_version_field(
+        root / "Cargo.lock",
+        r'(\[\[package\]\]\nname = "cutctx-py"\nversion = ")[^"]+(".*)$',
+        rf"\g<1>{version}\g<2>",
+    )
+
+
+def _replace_version_field(path: Path, pattern: str, replacement: str) -> None:
+    """Replace one version field and fail if the manifest shape drifted."""
+    content = path.read_text(encoding="utf-8")
+    updated, count = re.subn(pattern, replacement, content, count=1, flags=re.MULTILINE)
+    if count != 1:
+        raise ValueError(f"Could not locate version field in {path}")
+    path.write_text(updated, encoding="utf-8")
+
+
+def update_deployment_versions(root: Path, version: str) -> None:
+    """Align Helm and Kubernetes deployment metadata with the release version."""
+    chart = root / "helm" / "cutctx" / "Chart.yaml"
+    _replace_version_field(chart, r"^version:\s*[^\n]+$", f"version: {version}")
+    _replace_version_field(chart, r'^appVersion:\s*"[^"]+"$', f'appVersion: "{version}"')
+
+    values = root / "helm" / "cutctx" / "values.yaml"
+    _replace_version_field(values, r'^\s{2}tag:\s*"[^"]+"$', f'  tag: "{version}"')
+
+    deployment = root / "k8s" / "deployment.yaml"
+    _replace_version_field(
+        deployment,
+        r"ghcr\.io/cutctx/cutctx:v[^\s]+",
+        f"ghcr.io/cutctx/cutctx:v{version}",
+    )
+
 
 def write_release_metadata(root: Path, version: str) -> None:
     """Write .releaseetadata JSON file."""
@@ -190,6 +222,7 @@ def main() -> None:
     )
     update_package_json(args.root / "sdk" / "typescript" / "package.json", version)
     update_plugin_versions(args.root, version)
+    update_deployment_versions(args.root, version)
     write_release_metadata(args.root, version)
 
     print(f"Version synchronized to {version}")

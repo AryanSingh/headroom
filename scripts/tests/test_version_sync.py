@@ -31,6 +31,10 @@ def temp_project(tmp_path: Path) -> dict[str, Path]:
     typescript.mkdir(parents=True)
     rust_extension = root / "crates" / "cutctx-py"
     rust_extension.mkdir(parents=True)
+    helm = root / "helm" / "cutctx"
+    helm.mkdir(parents=True)
+    k8s = root / "k8s"
+    k8s.mkdir(parents=True)
 
     # pyproject.toml
     pyproject = root / "pyproject.toml"
@@ -38,6 +42,23 @@ def temp_project(tmp_path: Path) -> dict[str, Path]:
 
     rust_manifest = rust_extension / "Cargo.toml"
     rust_manifest.write_text('[package]\nname = "cutctx-py"\nversion = "0.5.25"\n')
+    cargo_lock = root / "Cargo.lock"
+    cargo_lock.write_text('version = 4\n\n[[package]]\nname = "cutctx-py"\nversion = "0.5.25"\n')
+
+    helm_chart = helm / "Chart.yaml"
+    helm_chart.write_text('apiVersion: v2\nversion: 0.5.25\nappVersion: "0.5.25"\n')
+    helm_values = helm / "values.yaml"
+    helm_values.write_text('image:\n  repository: ghcr.io/cutctx/cutctx\n  tag: "0.5.25"\n')
+    k8s_deployment = k8s / "deployment.yaml"
+    k8s_deployment.write_text(
+        "apiVersion: apps/v1\n"
+        "kind: Deployment\n"
+        "spec:\n"
+        "  template:\n"
+        "    spec:\n"
+        "      containers:\n"
+        "        - image: ghcr.io/cutctx/cutctx:v0.5.25\n"
+    )
 
     # cutctx/_version.py is runtime-derived and must not be rewritten by version-sync.
     version_py = cutctx / "_version.py"
@@ -89,6 +110,10 @@ def temp_project(tmp_path: Path) -> dict[str, Path]:
         "root": root,
         "pyproject": pyproject,
         "rust_manifest": rust_manifest,
+        "cargo_lock": cargo_lock,
+        "helm_chart": helm_chart,
+        "helm_values": helm_values,
+        "k8s_deployment": k8s_deployment,
         "version_py": version_py,
         "openclaw_pkg": openclaw_pkg,
         "repo_claude_marketplace": repo_claude_marketplace,
@@ -116,6 +141,11 @@ def test_version_sync_explicit_version(temp_project: dict[str, Path]) -> None:
     pyproject_content = temp_project["pyproject"].read_text()
     assert 'version = "0.7.0"' in pyproject_content
     assert 'version = "0.7.0"' in temp_project["rust_manifest"].read_text()
+    assert 'name = "cutctx-py"\nversion = "0.7.0"' in temp_project["cargo_lock"].read_text()
+    assert "version: 0.7.0" in temp_project["helm_chart"].read_text()
+    assert 'appVersion: "0.7.0"' in temp_project["helm_chart"].read_text()
+    assert 'tag: "0.7.0"' in temp_project["helm_values"].read_text()
+    assert "ghcr.io/cutctx/cutctx:v0.7.0" in temp_project["k8s_deployment"].read_text()
 
     # Verify cutctx/_version.py is not a synced manifest.
     version_py_content = temp_project["version_py"].read_text()

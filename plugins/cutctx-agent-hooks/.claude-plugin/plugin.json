@@ -1,6 +1,6 @@
 {
   "name": "cutctx",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "description": "Cutctx startup hooks for Claude Code and GitHub Copilot CLI.",
   "author": {
     "name": "Cutctx Contributors",

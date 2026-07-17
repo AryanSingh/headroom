@@ -19,11 +19,26 @@ logger = logging.getLogger(__name__)
 GITHUB_RELEASE_URL = "https://github.com/rtk-ai/rtk/releases/download"
 
 _PINNED_ARCHIVE_SHA256 = {
-    ("v0.28.2", "aarch64-apple-darwin"): "5dede8ac36648960a3ad52611856b9047a7817b755750d2bdbda8d4e9931db4d",
-    ("v0.28.2", "aarch64-unknown-linux-gnu"): "9dbf6dd22cfdf8b85b916505a5e96e1721d7af4cbe2f3dc90b87c9d677d01636",
-    ("v0.28.2", "x86_64-apple-darwin"): "5ce5dab3b744a6ecce7ff9deea9fd4606f72c6490c9ee447d74883d9393dcbc7",
-    ("v0.28.2", "x86_64-pc-windows-msvc"): "8bd4ae58b8657f9afd82c76f28e06232b0e8f994e949176206425dcc6005936a",
-    ("v0.28.2", "x86_64-unknown-linux-musl"): "c7b61e87b8430e42b04ab84fbe1b3b41b563454b0181247fd04844b8e9194371",
+    (
+        "v0.43.0",
+        "aarch64-apple-darwin",
+    ): "8a17e49acbd378997eb21d0eb6f7f861111f35b4fc9b1c74edf4c7448e576c65",
+    (
+        "v0.43.0",
+        "aarch64-unknown-linux-gnu",
+    ): "5519f7ca12e5c143a609f0d28a0a77b97413a8dce31c2681f1a41c24519a8731",
+    (
+        "v0.43.0",
+        "x86_64-apple-darwin",
+    ): "a85f60e2637811be68366208b8d8b9c5ba1b748cb5df4477ab20cd73d3c5d9f8",
+    (
+        "v0.43.0",
+        "x86_64-pc-windows-msvc",
+    ): "7c5e4a2ef816a4d4ed947ddd74ca3df851fc39ea87d49a3ca2bf3abc515a016b",
+    (
+        "v0.43.0",
+        "x86_64-unknown-linux-musl",
+    ): "ff8a1e7766496e175291a85aeca1dc97c9ff6df33e51e5893d1fbc78fea2a609",
 }
 
 
@@ -91,7 +106,7 @@ def download_rtk(version: str | None = None) -> Path:
     """Download rtk binary from GitHub releases.
 
     Args:
-        version: Version to download (e.g., "v0.28.2"). Defaults to pinned version.
+        version: Version to download (e.g., "v0.43.0"). Defaults to pinned version.
 
     Returns:
         Path to the installed binary.
@@ -191,10 +206,18 @@ def ensure_rtk(version: str | None = None) -> Path | None:
 
     Returns path to rtk binary, or None if installation failed.
     """
-    from . import get_rtk_path
+    from . import get_rtk_path, get_rtk_version
 
     existing = get_rtk_path()
     if existing:
+        installed_version = get_rtk_version(existing)
+        if installed_version and installed_version != RTK_VERSION:
+            logger.warning(
+                "Using system rtk %s at %s; managed installer pin is %s",
+                installed_version,
+                existing,
+                RTK_VERSION,
+            )
         return existing
 
     try:

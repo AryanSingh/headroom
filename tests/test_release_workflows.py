@@ -683,6 +683,19 @@ def test_release_workflow_verifies_versions_before_build_outputs() -> None:
     assert second_sync < second_verify < build_wheels
 
 
+def test_ci_paths_include_deployment_manifests() -> None:
+    """Helm and Kubernetes changes must trigger code and e2e validation."""
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    filters = content.split("filters: |", 1)[1].split("  lint:", 1)[0]
+    code_filter = filters.split("code:", 1)[1].split("e2e:", 1)[0]
+    e2e_filter = filters.split("e2e:", 1)[1].split("workflows:", 1)[0]
+
+    for deployment_path in ("'helm/**'", "'k8s/**'"):
+        assert deployment_path in code_filter
+        assert deployment_path in e2e_filter
+
+
 def test_sdist_license_is_packaged_and_verified_before_upload() -> None:
     """STRUCTURAL INVARIANT: the sdist tarball must physically contain
     every license file PEP 639 declares in PKG-INFO, and the release

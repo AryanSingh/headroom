@@ -62,8 +62,8 @@ FEATURE_TIERS: dict[str, EntitlementTier] = {
     "kompress": EntitlementTier.BUILDER,
     "image_compressor": EntitlementTier.BUILDER,
     "audio_compressor": EntitlementTier.BUILDER,
-    "ccr": EntitlementTier.TEAM,
-    "ccr_marker": EntitlementTier.TEAM,
+    "ccr": EntitlementTier.BUILDER,
+    "ccr_marker": EntitlementTier.BUILDER,
     "episodic_memory": EntitlementTier.BUSINESS,
     "cross_agent_memory": EntitlementTier.BUSINESS,
     # ── Deployment modes (always available) ──────────────────────────

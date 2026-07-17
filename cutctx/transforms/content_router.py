@@ -1020,6 +1020,7 @@ class ContentRouter(Transform):
         Returns:
             RouterCompressionResult with compressed content and routing metadata.
         """
+        original_content = content
         mode = self._compression_mode()
         if mode is CompressionMode.OFF:
             # This is intentionally before normalization and detection: callers
@@ -1190,6 +1191,50 @@ class ContentRouter(Transform):
                 getattr(result.strategy_used, "value", result.strategy_used),
             )
             result.compressed = content
+
+        original_bytes = len(original_content.encode("utf-8", errors="replace"))
+        compressed_bytes = len(str(result.compressed).encode("utf-8", errors="replace"))
+        if compressed_bytes > original_bytes:
+            attempted_strategy = result.strategy_used.value
+            token_count = len(original_content.split())
+            logger.info(
+                "content_router: inflation guard reverted %d-byte output to %d-byte input "
+                "(strategy=%s)",
+                compressed_bytes,
+                original_bytes,
+                attempted_strategy,
+            )
+            result = RouterCompressionResult(
+                compressed=original_content,
+                original=original_content,
+                strategy_used=CompressionStrategy.PASSTHROUGH,
+                routing_log=[
+                    RoutingDecision(
+                        content_type=ContentType.PLAIN_TEXT,
+                        strategy=CompressionStrategy.PASSTHROUGH,
+                        original_tokens=token_count,
+                        compressed_tokens=token_count,
+                    )
+                ],
+                sections_processed=1,
+                strategy_chain=[attempted_strategy, CompressionStrategy.PASSTHROUGH.value],
+                diagnostics={
+                    "selected_strategy": CompressionStrategy.PASSTHROUGH.value,
+                    "attempted_strategy": attempted_strategy,
+                    "strategy_chain": [
+                        attempted_strategy,
+                        CompressionStrategy.PASSTHROUGH.value,
+                    ],
+                    "fallback_used": True,
+                    "inflation_guard": "reverted",
+                    "before_tokens": token_count,
+                    "after_tokens": token_count,
+                    "before_bytes": original_bytes,
+                    "attempted_bytes": compressed_bytes,
+                    "compression_ratio": 1.0,
+                    "tokens_saved": 0,
+                },
+            )
 
         result.diagnostics.setdefault("compression_mode", mode.value)
 

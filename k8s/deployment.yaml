@@ -41,7 +41,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: cutctx-proxy
-          image: ghcr.io/cutctx/cutctx:v0.30.0
+          image: ghcr.io/cutctx/cutctx:v0.31.0
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:

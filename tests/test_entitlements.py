@@ -59,10 +59,10 @@ class TestFeatureTiers:
         for f in core:
             assert FEATURE_TIERS[f] == EntitlementTier.BUILDER, f"{f} should be BUILDER tier"
 
-    def test_ccr_features_are_team(self):
-        """CCR is gated to TEAM tier."""
-        assert FEATURE_TIERS["ccr"] == EntitlementTier.TEAM
-        assert FEATURE_TIERS["ccr_marker"] == EntitlementTier.TEAM
+    def test_ccr_features_are_builder(self):
+        """CCR is part of the documented Builder feature set."""
+        assert FEATURE_TIERS["ccr"] == EntitlementTier.BUILDER
+        assert FEATURE_TIERS["ccr_marker"] == EntitlementTier.BUILDER
 
     def test_memory_features_are_business(self):
         """Episodic and cross-agent memory gated to BUSINESS."""
@@ -97,11 +97,11 @@ class TestEntitlementChecker:
         assert c.is_entitled("smart_crusher")
         assert c.is_entitled("proxy_mode")
 
-    def test_builder_not_entitled_to_ccr(self):
-        """CCR is gated to TEAM — builder should not have access."""
+    def test_builder_entitled_to_ccr(self):
+        """Builder includes CCR, matching the documented default runtime."""
         c = EntitlementChecker("builder")
-        assert not c.is_entitled("ccr")
-        assert not c.is_entitled("ccr_marker")
+        assert c.is_entitled("ccr")
+        assert c.is_entitled("ccr_marker")
 
     def test_team_entitled_to_ccr(self):
         """Team tier should have CCR access."""

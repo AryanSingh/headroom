@@ -7,12 +7,14 @@ enters the LLM context window. Cutctx downloads and manages the rtk binary.
 from __future__ import annotations
 
 import platform
+import re
 import shutil
+import subprocess
 from pathlib import Path
 
 from cutctx import paths as _paths
 
-RTK_VERSION = "v0.28.2"
+RTK_VERSION = "v0.43.0"
 RTK_BIN_DIR = _paths.bin_dir()
 _RTK_NAME = "rtk.exe" if platform.system() == "Windows" else "rtk"
 RTK_BIN_PATH = RTK_BIN_DIR / _RTK_NAME
@@ -46,3 +48,22 @@ def get_rtk_path() -> Path | None:
 def is_rtk_installed() -> bool:
     """Check if rtk is available."""
     return get_rtk_path() is not None
+
+
+def get_rtk_version(path: Path) -> str | None:
+    """Return a normalized ``vX.Y.Z`` version without rejecting the binary."""
+    try:
+        result = subprocess.run(
+            [str(path), "--version"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    match = re.search(r"\b(\d+\.\d+\.\d+)\b", result.stdout)
+    return f"v{match.group(1)}" if match else None
