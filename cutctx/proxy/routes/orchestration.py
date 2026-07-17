@@ -217,6 +217,7 @@ def create_orchestration_router(
     require_admin_auth: Callable[..., Any] | None = None,
     require_rbac_permission: Callable[..., Any] | None = None,
     enable_direct_execution: bool | None = None,
+    safe_savings_status_provider: Callable[[], dict[str, Any]] | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/v1/orchestration", tags=["orchestration"])
     read_deps: list[Any] = []
@@ -246,6 +247,13 @@ def create_orchestration_router(
             return service.public_config()
         except (TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.get("/safe-savings/status", dependencies=read_deps)
+    async def safe_savings_status() -> dict[str, Any]:
+        """Return the read-only Safe Savings operator representation."""
+        if safe_savings_status_provider is None:
+            raise HTTPException(status_code=503, detail="Safe Savings status is unavailable")
+        return safe_savings_status_provider()
 
     @router.get("/contracts", dependencies=read_deps)
     async def contracts() -> dict[str, Any]:

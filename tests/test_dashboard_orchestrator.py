@@ -134,6 +134,32 @@ def test_config_flags_enable_orchestrator_uses_configured_preset_routes() -> Non
         )
 
 
+def test_safe_savings_status_reads_live_proxy_router_configuration() -> None:
+    config = ProxyConfig(
+        backend="mock",
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        admin_api_key="admin_12345",
+        model_routing_preset="codex-gpt54mini-high",
+    )
+    app = create_app(config)
+
+    with TestClient(app) as client:
+        unauthorized = client.get("/v1/orchestration/safe-savings/status")
+        response = client.get(
+            "/v1/orchestration/safe-savings/status",
+            headers={"x-cutctx-admin-key": "admin_12345"},
+        )
+
+    assert unauthorized.status_code == 401
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["preset"] == "codex-gpt54mini-high"
+    assert payload["route_count"] == len(
+        ModelRouterConfig.codex_gpt54mini_high_preset().routes
+    )
+
+
 def test_config_flags_supports_balanced_and_aggressive_modes() -> None:
     config = ProxyConfig(
         backend="mock",
