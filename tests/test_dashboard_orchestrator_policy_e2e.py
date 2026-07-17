@@ -18,7 +18,7 @@ _TEST_ROOT = Path(__file__).resolve().parent
 _PROJECT_ROOT = _TEST_ROOT.parent
 
 
-def _install_dashboard_routes(page: Page) -> None:
+def _install_dashboard_routes(page: Page, *, safe_savings_experience_enabled: bool = True) -> None:
     dashboard_html = get_dashboard_html(prefer_react=True)
 
     stats_payload = {
@@ -84,6 +84,23 @@ def _install_dashboard_routes(page: Page) -> None:
         "frontier": [],
         "segmented": {"minimum_segment_samples": 20, "dimensions": {}},
         "shadow": {"enabled": True, "sample_rate": 0.1},
+    }
+    safe_savings_payload = {
+        "experience_enabled": safe_savings_experience_enabled,
+        "enabled": True,
+        "mode": "balanced",
+        "preset": "codex-gpt54mini-high",
+        "route_count": 10,
+        "transport_safe_targets": 10,
+        "rollback_available": True,
+        "decision": {
+            "state": "blocked",
+            "reason_title": "Required capability is unavailable",
+            "reason_explanation": "No eligible lower-cost route met the required capability.",
+            "confidence": 0.85,
+            "required_capabilities": ["tool_calling"],
+            "missing_capabilities": ["tool_calling"],
+        },
     }
     providers_payload = {
         "providers": [
@@ -311,6 +328,14 @@ def _install_dashboard_routes(page: Page) -> None:
             )
             return
 
+        if "/v1/orchestration/safe-savings/status" in url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(safe_savings_payload),
+            )
+            return
+
         if "/v1/providers" in url:
             route.fulfill(
                 status=200, content_type="application/json", body=json.dumps(providers_payload)
@@ -409,6 +434,54 @@ def test_orchestrator_renders_provider_policy_status() -> None:
             expect(page.get_by_text("Healthy", exact=True).first).to_be_visible()
             expect(page.get_by_text("Disabled", exact=True).first).to_be_visible()
             expect(page.get_by_role("button", name="Disable provider").first).to_be_visible()
+        finally:
+            browser.close()
+
+
+def test_orchestrator_renders_opt_in_safe_savings_status() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            page.add_init_script(
+                """
+                window.localStorage.setItem('cutctxAdminKey', 'testkey');
+                """
+            )
+            _install_dashboard_routes(page)
+
+            page.goto("http://cutctx.local/dashboard/orchestrator")
+            page.wait_for_load_state("networkidle")
+
+            expect(page.get_by_text("Guided Safe Savings", exact=True)).to_be_visible()
+            expect(page.get_by_text("Required capability is unavailable", exact=True)).to_be_visible()
+            expect(page.get_by_text("No eligible lower-cost route met the required capability.", exact=True)).to_be_visible()
+            expect(
+                page.get_by_text(
+                    "No automatic provider switching. Capability, account, transport, and credential protections remain enforced.",
+                    exact=True,
+                )
+            ).to_be_visible()
+        finally:
+            browser.close()
+
+
+def test_orchestrator_hides_safe_savings_when_proxy_feature_flag_is_off() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            page.add_init_script(
+                """
+                window.localStorage.setItem('cutctxAdminKey', 'testkey');
+                """
+            )
+            _install_dashboard_routes(page, safe_savings_experience_enabled=False)
+
+            page.goto("http://cutctx.local/dashboard/orchestrator")
+            page.wait_for_load_state("networkidle")
+
+            expect(page.get_by_text("Guided Safe Savings", exact=True)).to_have_count(0)
         finally:
             browser.close()
 
