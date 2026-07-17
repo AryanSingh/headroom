@@ -133,6 +133,16 @@ def test_config_flags_enable_orchestrator_uses_configured_preset_routes() -> Non
             ModelRouterConfig.codex_gpt54mini_high_preset().routes
         )
 
+        status = client.get(
+            "/v1/orchestration/safe-savings/status",
+            headers={"x-cutctx-admin-key": "admin_12345"},
+        )
+        assert status.status_code == 200
+        assert status.json()["preset"] == "codex-gpt54mini-high"
+        assert status.json()["route_count"] == len(
+            ModelRouterConfig.codex_gpt54mini_high_preset().routes
+        )
+
 
 def test_config_flags_supports_balanced_and_aggressive_modes() -> None:
     config = ProxyConfig(

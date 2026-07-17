@@ -4283,12 +4283,23 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         app.include_router(
             create_memory_router(require_admin_auth=admin_dep, require_rbac_permission=rbac_dep)
         )
+        def _safe_savings_status() -> dict[str, Any]:
+            from cutctx.proxy.safe_savings_status import build_safe_savings_status
+
+            recent_requests = proxy.logger.get_recent(20) if proxy.logger else []
+            return build_safe_savings_status(
+                router=getattr(proxy, "_model_router", None),
+                preset=getattr(proxy.config, "model_routing_preset", None),
+                recent_requests=recent_requests,
+            )
+
         if proxy._orchestration_service is not None:
             app.include_router(
                 create_orchestration_router(
                     service=proxy._orchestration_service,
                     require_admin_auth=admin_dep,
                     require_rbac_permission=rbac_dep,
+                    safe_savings_status_provider=_safe_savings_status,
                 )
             )
         app.include_router(
