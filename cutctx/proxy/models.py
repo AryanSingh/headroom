@@ -50,8 +50,14 @@ class RequestLog:
     cache_hit: bool
     transforms_applied: list[str]
     cache_saved_tokens: int = 0
+    provider_cache_observed: bool = False
+    provider_cache_write_tokens: int = 0
+    provider_cache_inferred: bool = False
     semantic_cache_saved_tokens: int = 0
+    semantic_cache_evaluated: bool = False
     self_hosted_prefix_cache_saved_tokens: int = 0
+    self_hosted_prefix_cache_evaluated: bool = False
+    cache_protection_evaluated: bool = False
     model_routing_saved_tokens: int = 0
     tool_schema_saved_tokens: int = 0
     scaffolding_tokens: int = 0
@@ -76,6 +82,9 @@ class RequestLog:
     decline_reason: str | None = None
     routing_metadata: dict[str, Any] | None = None
     fallback: dict[str, Any] | None = None
+    ccr_references: list[dict[str, Any]] | None = None
+    ccr_retrieval_outcome: str | None = None
+    decision_receipt: dict[str, Any] | None = None
 
     # Request/Response (optional, for debugging)
     request_messages: list[dict] | None = None

@@ -10,6 +10,8 @@ This module centralizes the marker contracts used across CCR and dedup:
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 CCR_TOOL_NAME = "cutctx_retrieve"
 DEDUP_REF_MARKER = "[cutctx:ref:{hash}]"
@@ -63,6 +65,29 @@ def extract_marker_hashes(
     return hashes
 
 
+def extract_marker_hashes_from_payload(value: Any) -> list[str]:
+    """Extract CCR marker hashes from nested provider-neutral payload data."""
+
+    hashes: list[str] = []
+    seen: set[str] = set()
+
+    def visit(item: Any) -> None:
+        if isinstance(item, str):
+            for hash_key in extract_marker_hashes(item):
+                if hash_key not in seen:
+                    seen.add(hash_key)
+                    hashes.append(hash_key)
+        elif isinstance(item, Mapping):
+            for nested in item.values():
+                visit(nested)
+        elif isinstance(item, Sequence) and not isinstance(item, bytes | bytearray):
+            for nested in item:
+                visit(nested)
+
+    visit(value)
+    return hashes
+
+
 __all__ = [
     "CCR_TOOL_NAME",
     "DEDUP_REF_MARKER",
@@ -72,5 +97,6 @@ __all__ = [
     "OPAQUE_CCR_MARKER_RE",
     "STANDARD_COMPRESSED_MARKER_RE",
     "extract_marker_hashes",
+    "extract_marker_hashes_from_payload",
     "format_dedup_ref",
 ]
