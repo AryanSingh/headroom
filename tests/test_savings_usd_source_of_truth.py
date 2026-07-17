@@ -172,3 +172,39 @@ def test_v7_migration_is_idempotent_and_skips_consistent_files(tmp_path) -> None
     assert snapshot["schema_version"] >= 7
     assert snapshot["lifetime"]["model_routing_savings_usd"] == pytest.approx(5.0)
     assert "attribution_reconciliation" not in snapshot
+
+
+def test_history_response_carries_attribution_provenance(tmp_path) -> None:
+    import json
+
+    path = tmp_path / "savings.json"
+    v6_state = {
+        "schema_version": 6,
+        "lifetime": {
+            "requests": 100,
+            "tokens_saved": 1_000_000,
+            "total_input_tokens": 5_000_000,
+            "total_input_cost_usd": 50.0,
+            "model_routing_savings_usd": 273.45,
+            "savings_by_source_usd.model_routing": 1122.32,
+        },
+        "display_session": {
+            "requests": 0,
+            "tokens_saved": 0,
+            "total_input_tokens": 0,
+            "total_input_cost_usd": 0.0,
+            "savings_percent": 0.0,
+            "started_at": "2026-07-18T00:00:00Z",
+            "last_activity_at": "2026-07-18T00:00:00Z",
+        },
+        "history": [],
+        "projects": {},
+        "models": {},
+        "clients": {},
+    }
+    path.write_text(json.dumps(v6_state))
+
+    response = SavingsTracker(path=str(path)).history_response()
+    assert "attribution_reconciliation" in response
+    fields = response["attribution_reconciliation"]["fields"]
+    assert "model_routing_savings_usd" in fields

@@ -2185,7 +2185,7 @@ class SavingsTracker:
             "monthly": self._build_rollup(raw_history, bucket="month"),
         }
         history = self._history_for_response(raw_history, mode=history_mode)
-        return {
+        response: dict[str, Any] = {
             "schema_version": snapshot["schema_version"],
             "generated_at": _to_utc_iso(_utc_now()),
             "storage_path": snapshot["storage_path"],
@@ -2210,6 +2210,13 @@ class SavingsTracker:
                 "compacted": len(history) < len(raw_history),
             },
         }
+        # Attribution provenance markers travel with the ledger so the
+        # dashboard can badge migrated/reconciled data instead of silently
+        # presenting rewritten numbers.
+        for provenance_key in ("attribution_note", "attribution_reconciliation"):
+            if provenance_key in snapshot:
+                response[provenance_key] = snapshot[provenance_key]
+        return response
 
     def export_rows(self, series: str = "history") -> list[dict[str, Any]]:
         """Return export rows for history or a rollup series."""

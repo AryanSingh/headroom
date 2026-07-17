@@ -228,7 +228,7 @@ function SavingsPanel({
   );
 }
 
-function SavingsMixPanel({ metric, created, observed, note, coverage }) {
+function SavingsMixPanel({ metric, created, observed, note, coverage, reconciliation }) {
   const byUsd = metric === 'usd';
   const createdValue = byUsd ? created.usd : created.tokens;
   const observedValue = byUsd ? observed.usd : observed.tokens;
@@ -260,6 +260,13 @@ function SavingsMixPanel({ metric, created, observed, note, coverage }) {
           {!coverage.complete ? (
             <p className="metric-footnote">
               Partial historical coverage · {formatPercent(coverage.percent)} of requests attributed
+            </p>
+          ) : null}
+          {reconciliation ? (
+            <p className="metric-footnote" title={reconciliation.note || ''}>
+              Ledger reconciled (schema v{reconciliation.schema_version || 7}):{' '}
+              {Object.keys(reconciliation.fields || {}).join(', ')} adopted the canonical
+              by-source ledger
             </p>
           ) : null}
         </div>
@@ -527,6 +534,7 @@ export default function Savings() {
                 observed={{ tokens: observedProviderSavingsTokens, usd: observedProviderSavingsUsd }}
                 note="Created savings come from Cutctx features. Observed savings come from upstream provider prompt-cache hits."
                 coverage={attributionCoverage}
+                reconciliation={historyData?.attribution_reconciliation || null}
               />
 
               <CompressionDeclineStrip stats={stats} />
