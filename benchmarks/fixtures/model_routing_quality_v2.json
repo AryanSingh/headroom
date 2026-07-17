@@ -31,6 +31,22 @@
     {"id":"codex_responses_function_call_context","client":"codex","prompt":"Show status.","expected_tier":"strong","category":"tool_use","messages":[{"role":"user","content":"Inspect the repository."},{"type":"function_call","name":"shell","arguments":"{}"},{"role":"user","content":"Show status."}]},
     {"id":"codex_chat_tool_calls_context","client":"codex","prompt":"Show status.","expected_tier":"strong","category":"tool_use","messages":[{"role":"user","content":"Inspect the repository."},{"role":"assistant","content":"","tool_calls":[{"type":"function","function":{"name":"shell","arguments":"{}"}}]},{"role":"user","content":"Show status."}]},
     {"id":"codex_local_shell_output_context","client":"codex","prompt":"Show status.","expected_tier":"strong","category":"tool_use","messages":[{"role":"user","content":"Inspect the repository."},{"type":"local_shell_call_output","call_id":"call-1","output":"done"},{"role":"user","content":"Show status."}]},
-    {"id":"stale_tool_context","client":"codex","prompt":"What is idempotency?","expected_tier":"mini","category":"context_recovery","messages":[{"role":"tool","content":"old build output"},{"role":"assistant","content":"old result"},{"role":"user","content":"old question"},{"role":"assistant","content":"answer"},{"role":"user","content":"another question"},{"role":"assistant","content":"answer"},{"role":"user","content":"more"},{"role":"assistant","content":"answer"},{"role":"user","content":"What is idempotency?"}]}
+    {"id":"stale_tool_context","client":"codex","prompt":"What is idempotency?","expected_tier":"mini","category":"context_recovery","messages":[{"role":"tool","content":"old build output"},{"role":"assistant","content":"old result"},{"role":"user","content":"old question"},{"role":"assistant","content":"answer"},{"role":"user","content":"another question"},{"role":"assistant","content":"answer"},{"role":"user","content":"more"},{"role":"assistant","content":"answer"},{"role":"user","content":"What is idempotency?"}]},
+    {"id":"plural_credentials","client":"codex","prompt":"Rotate the credentials and update IAM permissions.","expected_tier":"strong","category":"security"},
+    {"id":"oauth_token_rotation","client":"codex","prompt":"Rotate OAuth tokens for the service account.","expected_tier":"strong","category":"security"},
+    {"id":"grant_admin_roles","client":"codex","prompt":"Grant admin roles to the deployment identity.","expected_tier":"strong","category":"security"},
+    {"id":"revoke_api_keys","client":"opencode","prompt":"Revoke API keys and audit access policies.","expected_tier":"strong","category":"security"},
+    {"id":"delete_cloud_bucket","client":"claude","prompt":"Delete the production storage bucket.","expected_tier":"strong","category":"data_safety"},
+    {"id":"truncate_table","client":"codex","prompt":"Truncate the events table after the export.","expected_tier":"strong","category":"data_safety"},
+    {"id":"quota_failure","client":"opencode","prompt":"Investigate why the provider quota is exhausted.","expected_tier":"strong","category":"production"},
+    {"id":"auth_readiness","client":"codex","prompt":"Validate provider authentication and routing readiness.","expected_tier":"strong","category":"security"},
+    {"id":"cross_provider_fallback","client":"claude","prompt":"Design a cross-provider fallback policy for outages.","expected_tier":"strong","category":"design"},
+    {"id":"safe_env_list","client":"codex","prompt":"List the supported environment variables.","expected_tier":"mini","category":"informational"},
+    {"id":"safe_model_list","client":"opencode","prompt":"Show the available model names.","expected_tier":"mini","category":"informational"},
+    {"id":"safe_json_format","client":"claude","prompt":"Format this JSON object.","expected_tier":"mini","category":"small_edit"},
+    {"id":"prior_auth_failure","client":"codex","prompt":"Explain the previous authentication failure.","expected_tier":"strong","category":"security"},
+    {"id":"rewrite_prior_status","client":"opencode","prompt":"Rewrite the earlier status update neutrally.","expected_tier":"luna","category":"contextual"},
+    {"id":"summarize_provider_table","client":"claude","prompt":"Summarize the supported provider table.","expected_tier":"mini","category":"informational"},
+    {"id":"production_permission_change","client":"codex","prompt":"Change production permissions for the runtime identity.","expected_tier":"strong","category":"security"}
   ]
 }

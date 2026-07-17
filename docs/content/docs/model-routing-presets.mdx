@@ -42,7 +42,44 @@ The preset is intentionally conservative:
 - Routed low-complexity requests also receive `reasoning: { effort: "high" }` on OpenAI request paths.
 - The canonical preset explicitly allows `gpt-5.4-mini` and `gpt-5.6-luna` on Codex/ChatGPT subscription transports; arbitrary custom targets remain blocked unless explicitly allowlisted.
 
-## Current route table
+## Capability-certified catalog routing
+
+The canonical balanced preset and the aggressive `economy` preset prefer the
+live model catalog over the static compatibility table. A cheaper deployment is
+eligible for automatic routing only when all of the following are true:
+
+- the source and target belong to the provider and account proven by the active transport
+- the target satisfies every capability required by the source/request contract
+- provider readiness is `ready` and the target has been explicitly certified for routing
+- the source and target have known input pricing and the target is strictly cheaper
+- the target is available, not deprecated, and belongs to the tier allowed by the preset
+
+Candidate ordering is deterministic: input cost first, then reliability,
+latency, and deployment key. Balanced routing selects a certified medium tier
+for contextual work and a certified fast tier for low-complexity work.
+Aggressive routing selects the cheapest certified compatible candidate within
+the proven provider/account. If the catalog knows the source but no candidate
+passes every gate, routing fails closed and keeps the requested model; it does
+not bypass the rejection through a static route.
+
+Provider inventory discovery alone never certifies a model. An authenticated
+operator must first run the account readiness probe, then certify the exact
+deployment through:
+
+```text
+POST /v1/orchestration/models/{deployment_key}/certify
+```
+
+Readiness and certification responses contain deployment/capability state only;
+credentials and probe details are not returned. Built-in current model-family
+records are shipped as certified compatibility data so existing presets keep
+working before the first provider inventory refresh.
+
+## Static compatibility route table
+
+These routes remain for aliases and older model identifiers that are not yet
+represented in the managed catalog. They cannot override a catalog capability,
+readiness, certification, provider, or account rejection.
 
 - `claude-opus-4-5 -> claude-sonnet-4-5`
 - `claude-opus-4-5-20250514 -> claude-sonnet-4-5`

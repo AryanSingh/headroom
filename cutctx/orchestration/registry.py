@@ -9,6 +9,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 from .models import Capability, ModelRecord, to_dict
 from .providers import ProviderAdapter
@@ -100,6 +101,14 @@ class DynamicModelRegistry:
                 del self._models[key]
             for model in models:
                 model.account_id = account_id
+                metadata = model.metadata if isinstance(model.metadata, dict) else {}
+                model.metadata = metadata
+                metadata.setdefault("catalog_source", "provider_inventory")
+                # Inventory discovery proves availability only. A model remains
+                # ineligible for automatic downgrade until an operator or a
+                # capability-contract probe explicitly certifies it.
+                metadata.setdefault("routing_certified", False)
+                metadata.setdefault("routing_readiness", "unverified")
                 self._register_unlocked(model)
             self._save_cache()
         return models
@@ -237,6 +246,52 @@ class DynamicModelRegistry:
             self._save_cache()
             return len(matching)
 
+    def set_provider_routing_readiness(
+        self,
+        provider: str,
+        *,
+        account_id: str | None = None,
+        readiness: str,
+    ) -> int:
+        """Record a redacted readiness state for provider deployments."""
+        allowed = {"ready", "auth_failed", "unavailable", "unverified"}
+        if readiness not in allowed:
+            raise ValueError("Unsupported routing readiness state")
+        with self._lock:
+            updated = 0
+            for model in self._models.values():
+                if model.provider != provider or (
+                    account_id is not None and model.account_id != account_id
+                ):
+                    continue
+                model.metadata["routing_readiness"] = readiness
+                updated += 1
+            if updated:
+                self._save_cache()
+            return updated
+
+    def certify_for_routing(self, deployment_key: str) -> ModelRecord:
+        """Promote a ready deployment after its routing contract is complete."""
+        with self._lock:
+            model = self._models.get(deployment_key)
+            if model is None:
+                raise KeyError(deployment_key)
+            if model.metadata.get("routing_readiness") != "ready":
+                raise ValueError("Model is not ready for routing certification")
+            if not model.capabilities:
+                raise ValueError("Model has no verified capabilities")
+            if model.input_cost_per_million is None:
+                raise ValueError("Model has no verified input pricing")
+            model.metadata["routing_certified"] = True
+            model.metadata["routing_certified_at_epoch"] = time.time()
+            model.metadata["routing_certification_evidence"] = {
+                "capability_count": len(model.capabilities),
+                "pricing_verified": True,
+                "readiness_verified": True,
+            }
+            self._save_cache()
+            return model
+
     def _seed_legacy_models(self) -> None:
         try:
             from cutctx.models.registry import ModelRegistry
@@ -269,23 +324,48 @@ class DynamicModelRegistry:
         except Exception:
             pass
 
-        record = ModelRecord(
-            provider="openai",
-            id="gpt-5.4-mini",
-            display_name="GPT-5.4 Mini",
-            capabilities={
-                Capability.REASONING.value,
-                Capability.STREAMING.value,
-                Capability.TOOL_CALLING.value,
-                Capability.JSON_MODE.value,
-                Capability.STRUCTURED_OUTPUTS.value,
-                Capability.LONG_CONTEXT.value,
-            },
-            available=True,
-            recommended_usage=["Fast worker", "Cost-efficient reasoning", "Coding subtasks"],
-        )
-        if not any(model.key == record.key for model in self._models.values()):
-            self._models[record.deployment_key] = record
+        # Certified built-ins cover current routing families before a provider
+        # inventory refresh completes. They are deliberately provider-local;
+        # dynamic discovery may replace their metadata for a configured account.
+        common_capabilities = {
+            Capability.REASONING.value,
+            Capability.STREAMING.value,
+            Capability.TOOL_CALLING.value,
+            Capability.JSON_MODE.value,
+            Capability.STRUCTURED_OUTPUTS.value,
+            Capability.LONG_CONTEXT.value,
+        }
+        routing_models = [
+            ("openai", "gpt-5.6-terra", 10.0, "strong"),
+            ("openai", "gpt-5.6-sol", 10.0, "strong"),
+            ("openai", "gpt-5.5", 10.0, "strong"),
+            ("openai", "gpt-5.6-luna", 5.0, "medium"),
+            ("openai", "gpt-5.4", 5.0, "medium"),
+            ("openai", "gpt-5", 5.0, "medium"),
+            ("openai", "gpt-5.4-mini", 1.0, "fast"),
+            ("anthropic", "claude-opus-4-5", 15.0, "strong"),
+            ("anthropic", "claude-sonnet-4-5", 3.0, "medium"),
+            ("anthropic", "claude-haiku-4-5", 0.8, "fast"),
+            ("google", "gemini-2.5-pro", 1.25, "strong"),
+            ("google", "gemini-2.5-flash", 0.3, "fast"),
+        ]
+        for provider, model_id, input_cost, quality_tier in routing_models:
+            record = ModelRecord(
+                provider=provider,
+                id=model_id,
+                display_name=model_id,
+                capabilities=set(common_capabilities),
+                input_cost_per_million=input_cost,
+                available=True,
+                metadata={
+                    "routing_certified": True,
+                    "routing_readiness": "ready",
+                    "quality_tier": quality_tier,
+                    "catalog_source": "builtin",
+                },
+            )
+            if not any(model.key == record.key for model in self._models.values()):
+                self._models[record.deployment_key] = record
 
     def _load_cache(self) -> None:
         if self.cache_path is None or not self.cache_path.exists():
@@ -322,7 +402,7 @@ class DynamicModelRegistry:
                 os.unlink(temporary)
 
 
-def _finite_signal(value: float) -> float:
+def _finite_signal(value: Any) -> float:
     parsed = float(value)
     if parsed != parsed or parsed in {float("inf"), float("-inf")}:
         raise ValueError("Runtime routing signals must be finite")

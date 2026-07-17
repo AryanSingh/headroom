@@ -45,6 +45,23 @@ def test_legacy_admin_config_flags_orchestrator_surface() -> None:
         assert response2.json()["config"]["orchestrator"] is False
 
 
+def test_proxy_model_router_uses_the_orchestration_registry() -> None:
+    app = create_app(
+        ProxyConfig(
+            backend="mock",
+            cache_enabled=False,
+            rate_limit_enabled=False,
+            model_routing_preset="economy",
+        )
+    )
+
+    proxy = app.state.proxy
+
+    assert proxy._model_router is not None
+    assert proxy._orchestration_service is not None
+    assert proxy._model_router.registry is proxy._orchestration_service.model_registry
+
+
 def test_config_flags_can_enable_live_orchestrator_when_routes_are_configured(
     monkeypatch,
 ) -> None:
@@ -157,6 +174,10 @@ def test_config_flags_supports_balanced_and_aggressive_modes() -> None:
         assert payload["config"]["orchestrator"] is True
         assert payload["model_routing"]["mode"] == "balanced"
         assert payload["model_routing"]["preset"] == "codex-gpt54mini-high"
+        assert (
+            app.state.proxy._model_router.registry
+            is app.state.proxy._orchestration_service.model_registry
+        )
 
         response = client.post(
             "/config/flags",
@@ -171,3 +192,7 @@ def test_config_flags_supports_balanced_and_aggressive_modes() -> None:
         assert payload["config"]["orchestrator"] is True
         assert payload["model_routing"]["mode"] == "aggressive"
         assert payload["model_routing"]["preset"] == "economy"
+        assert (
+            app.state.proxy._model_router.registry
+            is app.state.proxy._orchestration_service.model_registry
+        )

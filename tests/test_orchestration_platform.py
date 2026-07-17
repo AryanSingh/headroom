@@ -85,6 +85,19 @@ def _engine(config: OrchestrationConfig, *models: ModelRecord) -> DeterministicR
     return DeterministicRoutingEngine(config, registry)
 
 
+def test_dynamic_registry_seeds_certified_current_openai_routing_models() -> None:
+    registry = DynamicModelRegistry()
+
+    source = registry.get("openai:gpt-5.6-terra")
+    target = registry.get("openai:gpt-5.4-mini")
+
+    assert source is not None
+    assert target is not None
+    assert source.metadata["routing_certified"] is True
+    assert target.metadata["routing_certified"] is True
+    assert source.input_cost_per_million > target.input_cost_per_million
+
+
 def test_given_role_assignment_when_routing_then_assigned_model_is_enforced() -> None:
     config = OrchestrationConfig(
         roles=[Role(id="implementer", name="Implementer")],
@@ -1605,6 +1618,13 @@ def test_direct_execution_route_is_explicitly_opt_in(tmp_path: Path) -> None:
     assert "/v1/orchestration/workflows/{workflow_id}/run" in enabled_paths
 
 
+def test_operator_router_exposes_explicit_model_certification_endpoint(tmp_path: Path) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    paths = {route.path for route in create_orchestration_router(service).routes}
+
+    assert "/v1/orchestration/models/{deployment_key}/certify" in paths
+
+
 @pytest.mark.asyncio
 async def test_workflow_execution_uses_role_bound_service_and_persists_output(
     tmp_path: Path,
@@ -1869,6 +1889,72 @@ async def test_account_health_probe_updates_reliability_and_latency_signals(tmp_
     assert model.latency_ms == pytest.approx(1.0)
     assert model.metadata["health_score"] == 1.0
     assert service.model_registry.cooldown_remaining_seconds(model.deployment_key) is None
+
+
+@pytest.mark.asyncio
+async def test_account_probe_distinguishes_unavailable_from_auth_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    await service.refresh_models("openai-main")
+
+    class UnavailableAdapter:
+        async def authenticate(self) -> ProviderHealth:
+            return ProviderHealth(False, "unreachable", 2.0, "redacted")
+
+    monkeypatch.setattr(service, "adapter", lambda _account_id: UnavailableAdapter())
+
+    result = await service.test_account("openai-main")
+    model = service.model_registry.get("openai:openai-main:openai-model")
+
+    assert result["status"] == "unreachable"
+    assert model is not None
+    assert model.metadata["routing_readiness"] == "unavailable"
+
+
+@pytest.mark.asyncio
+async def test_discovered_model_requires_readiness_and_explicit_routing_certification(
+    tmp_path: Path,
+) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+
+    await service.refresh_models("openai-main")
+    model = service.model_registry.get("openai:openai-main:openai-model")
+
+    assert model is not None
+    assert model.metadata["routing_certified"] is False
+    assert model.metadata["routing_readiness"] == "unverified"
+
+    await service.test_account("openai-main")
+
+    assert model.metadata["routing_readiness"] == "ready"
+    assert model.metadata["routing_certified"] is False
+
+
+@pytest.mark.asyncio
+async def test_fake_provider_readiness_then_certification_promotes_model_for_routing(
+    tmp_path: Path,
+) -> None:
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    await service.refresh_models("openai-main")
+    model = service.model_registry.get("openai:openai-main:openai-model")
+    assert model is not None
+    model.input_cost_per_million = 1.0
+
+    with pytest.raises(RoutingUnavailableError, match="not ready"):
+        service.certify_model_for_routing(model.deployment_key)
+
+    await service.test_account("openai-main")
+    result = service.certify_model_for_routing(model.deployment_key)
+
+    assert result == {
+        "deployment_key": "openai:openai-main:openai-model",
+        "routing_certified": True,
+        "routing_readiness": "ready",
+        "capabilities": ["streaming", "tool_calling"],
+    }
+    assert model.metadata["routing_certified"] is True
+    assert "credential" not in json.dumps(result).lower()
 
 
 def test_disabled_explicit_provider_account_cannot_execute(tmp_path: Path) -> None:

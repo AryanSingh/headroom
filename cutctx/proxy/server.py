@@ -2476,6 +2476,8 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         from cutctx.orchestration import build_orchestration_service
 
         proxy._orchestration_service = build_orchestration_service()
+        if proxy._model_router is not None:
+            proxy._model_router.registry = proxy._orchestration_service.model_registry
     except Exception:
         logger.exception("Orchestration service failed to initialize")
         proxy._orchestration_service = None
@@ -4127,6 +4129,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             current_router = getattr(proxy, "_model_router", None)
             current_config = getattr(current_router, "config", None)
 
+            def bind_registry(router: ModelRouter) -> ModelRouter:
+                orchestration_service = getattr(proxy, "_orchestration_service", None)
+                if orchestration_service is not None:
+                    router.registry = orchestration_service.model_registry
+                return router
+
             if normalized == "off":
                 config.orchestrator_enabled = False
                 if current_config is not None:
@@ -4142,7 +4150,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 if preset_config is not None:
                     config.model_routing_preset = preset
                     preset_config.enabled = True
-                    proxy._model_router = ModelRouter(config=preset_config)
+                    proxy._model_router = bind_registry(ModelRouter(config=preset_config))
                     config.orchestrator_enabled = True
                     return
 
@@ -4154,7 +4162,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             fallback_config = ModelRouterConfig.codex_gpt54mini_high_preset()
             fallback_config.enabled = True
             config.model_routing_preset = "codex-gpt54mini-high"
-            proxy._model_router = ModelRouter(config=fallback_config)
+            proxy._model_router = bind_registry(ModelRouter(config=fallback_config))
             config.orchestrator_enabled = True
 
         if "cache" in payload:

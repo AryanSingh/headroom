@@ -1883,6 +1883,12 @@ def create_admin_router(
         model_router = getattr(_proxy, "_model_router", None)
         current_config = getattr(model_router, "config", None)
 
+        def bind_registry(router: ModelRouter) -> ModelRouter:
+            orchestration_service = getattr(_proxy, "_orchestration_service", None)
+            if orchestration_service is not None:
+                router.registry = orchestration_service.model_registry
+            return router
+
         if normalized == "off":
             _set_flag_on_config("orchestrator", False)
             if current_config is not None:
@@ -1898,7 +1904,7 @@ def create_admin_router(
             if preset_config is not None:
                 _config.model_routing_preset = preset
                 preset_config.enabled = True
-                _proxy._model_router = ModelRouter(config=preset_config)
+                _proxy._model_router = bind_registry(ModelRouter(config=preset_config))
                 _set_flag_on_config("orchestrator", True)
                 return
 
@@ -1910,7 +1916,7 @@ def create_admin_router(
         fallback_config = ModelRouterConfig.codex_gpt54mini_high_preset()
         fallback_config.enabled = True
         _config.model_routing_preset = "codex-gpt54mini-high"
-        _proxy._model_router = ModelRouter(config=fallback_config)
+        _proxy._model_router = bind_registry(ModelRouter(config=fallback_config))
         _set_flag_on_config("orchestrator", True)
 
     @router.get(
