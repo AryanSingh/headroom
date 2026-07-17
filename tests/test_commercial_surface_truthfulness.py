@@ -34,13 +34,14 @@ def test_commercial_license_surfaces_use_consistent_entity_and_branding() -> Non
         assert "CutCtx" not in text, f"{path} should use Cutctx branding"
 
 
-def test_billing_docs_describe_current_hybrid_surface_truthfully() -> None:
+def test_billing_docs_describe_pitchtoship_as_the_single_hosted_checkout_authority() -> None:
     text = (PROJECT_ROOT / "docs/BILLING_INTEGRATION.md").read_text(encoding="utf-8")
+    normalized = " ".join(text.split())
 
-    assert "Hosted checkout / portal helpers" in text
-    assert "Enterprise subscription mapping" in text
-    assert "not a single polished self-serve system" in text
-    assert "Razorpay" not in text
+    assert "PitchToShip" in text
+    assert "Razorpay Standard Checkout" in text
+    assert "PITCHTOSHIP_URL" in text
+    assert "does not create a Stripe Checkout Session" in normalized
 
 
 def test_commercial_artifacts_do_not_present_dead_pitchtoship_checkout_as_live() -> None:
