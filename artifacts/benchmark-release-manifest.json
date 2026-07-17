@@ -7,7 +7,7 @@
     "cutctx/transforms/content_router.py": "c569be4524c5afa46f158de03a196894713ec1bcfb8d47b76907f2f1a541d334",
     "cutctx/transforms/verbatim_compactor.py": "ea9a23a7a292d2ca915edaf863eb24add250ddd3bf513118becd3b07bb63d1e0"
   },
-  "git_sha": "c48fe63f5e204d4c6a14f4ed7f76d0dc24ed37e1",
+  "git_sha": "6e695f7fb2187746fca3c5bc6a632a0b6e52e75a",
   "packages": {
     "cutctx-ai": "0.31.0",
     "llmlingua": "unavailable",
@@ -22,5 +22,5 @@
   "python_version": "3.12.12",
   "schema_version": 1,
   "seed": 42,
-  "timestamp": "2026-07-17T17:50:50.851256+00:00"
+  "timestamp": "2026-07-17T18:05:01.037582+00:00"
 }
