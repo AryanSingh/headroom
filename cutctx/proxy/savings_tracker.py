@@ -1488,13 +1488,33 @@ class SavingsTracker:
             lifetime["ghost_tokens"] = int(lifetime.get("ghost_tokens", 0)) + delta_ghost_tokens
             from cutctx.proxy.savings_pricing import value_tokens_usd
 
+            def _canonical_source_usd(source_key: str, token_delta: int) -> float:
+                # The by-source dict is canonical (it feeds the headline
+                # created/observed split); the flat re-estimate is a legacy
+                # fallback for callers that attach tokens without USD.
+                # Re-estimating here priced model_routing at the routed-to
+                # model's flat input rate instead of the router's
+                # (source − target) delta, so the typed lifetime counter
+                # drifted 4x from savings_by_source_usd.model_routing.
+                if source_key in savings_by_source_usd:
+                    return _coerce_float(savings_by_source_usd[source_key])
+                return value_tokens_usd(model, token_delta)
+
             created_compression = compression_source_usd
-            created_cache = value_tokens_usd(model, int(cache_read_tokens or 0))
-            created_semantic = value_tokens_usd(model, delta_semantic_cache_tokens)
-            created_self_hosted = value_tokens_usd(model, delta_self_hosted_tokens)
-            created_routing = value_tokens_usd(model, delta_model_routing_tokens)
-            created_tool_schema = value_tokens_usd(model, delta_tool_schema_compaction_tokens)
-            created_api_surface = value_tokens_usd(model, delta_api_surface_slimming_tokens)
+            created_cache = _canonical_source_usd(
+                "provider_prompt_cache", int(cache_read_tokens or 0)
+            )
+            created_semantic = _canonical_source_usd("semantic_cache", delta_semantic_cache_tokens)
+            created_self_hosted = _canonical_source_usd(
+                "prefix_cache_self_hosted", delta_self_hosted_tokens
+            )
+            created_routing = _canonical_source_usd("model_routing", delta_model_routing_tokens)
+            created_tool_schema = _canonical_source_usd(
+                "tool_schema_compaction", delta_tool_schema_compaction_tokens
+            )
+            created_api_surface = _canonical_source_usd(
+                "api_surface_slimming", delta_api_surface_slimming_tokens
+            )
 
             lifetime["compression_savings_usd"] = round(
                 lifetime.get("compression_savings_usd", 0.0) + created_compression, 6
