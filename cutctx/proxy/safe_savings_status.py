@@ -79,6 +79,7 @@ def _latest_decision(
         applied = bool(summary.get("routed", False))
         requested = summary.get("requested_model")
         effective = summary.get("actual_model") or row.get("model") or requested
+        transport = summary.get("transport")
         explanation = explain_safe_savings_reason(reason)
         return {
             "request_id": str(row.get("request_id") or ""),
@@ -93,11 +94,7 @@ def _latest_decision(
             "signals": _string_list(summary.get("signals")),
             "required_capabilities": _string_list(summary.get("required_capabilities")),
             "missing_capabilities": _string_list(summary.get("missing_capabilities")),
-            "transport": (
-                dict(summary.get("transport"))
-                if isinstance(summary.get("transport"), Mapping)
-                else {}
-            ),
+            "transport": dict(transport) if isinstance(transport, Mapping) else {},
         }
     return None
 
