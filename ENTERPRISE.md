@@ -105,7 +105,7 @@ helm install cutctx ./helm/cutctx
 ### Review materials
 - [SECURITY.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/SECURITY.md)
 - [docs/security-and-privacy.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/docs/security-and-privacy.md)
-- [artifacts/security-one-pager.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/artifacts/security-one-pager.md)
+- [artifacts/security-one-pager.md](artifacts/security-one-pager.md)
 
 ## Pricing
 
@@ -116,7 +116,7 @@ helm install cutctx ./helm/cutctx
 | Business | $42,000/year |
 | Enterprise | $60,000-$150,000+/year |
 
-Detailed pricing: [artifacts/pricing-sheet.md](/Users/aryansingh/Documents/Claude/Projects/cutctx/artifacts/pricing-sheet.md)
+Detailed pricing: [artifacts/pricing-sheet.md](artifacts/pricing-sheet.md)
 
 ## What Still Requires External Work
 

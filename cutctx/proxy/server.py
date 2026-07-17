@@ -409,6 +409,30 @@ def _load_entitlement_checker(plan: str | None) -> Any:
     return EntitlementChecker(plan=plan)
 
 
+def _apply_validated_license(proxy: Any, info: Any) -> None:
+    """Sync the runtime entitlement checker to a validated license result.
+
+    A validated plan always wins over the operator-declared tier: an
+    active/trial license upgrades or downgrades to its plan, and an
+    expired/invalid license fails closed to the free tier. ``info`` is
+    ``None`` when validation never ran (no license key configured), in
+    which case the configured checker is kept.
+    """
+    if info is None:
+        return
+    status = getattr(info, "status", None)
+    plan = getattr(info, "plan", None)
+    if status in ("active", "trial") and plan:
+        proxy.entitlement_checker = _load_entitlement_checker(plan)
+        logger.info("Entitlements synced from validated license (plan=%s)", plan)
+    elif status in ("expired", "invalid"):
+        proxy.entitlement_checker = _load_entitlement_checker(None)
+        logger.warning(
+            "License status is '%s'; entitlements fail closed to the free tier",
+            status,
+        )
+
+
 def _check_rust_core() -> tuple[str, str | None]:
     """Verify the Rust extension `cutctx._core` is loadable at startup.
 
@@ -891,21 +915,25 @@ class CutctxProxy(
         # Turn counter for context tracking
         self._turn_counter = 0
 
+        # ``cutctx_ee`` is optional, so an OSS install uses a fail-closed
+        # checker instead of failing proxy startup. Built before any
+        # tier-gated component so activation decisions can consult it; a
+        # configured license key re-validates (and can override) this tier
+        # during startup().
+        self.entitlement_checker = _load_entitlement_checker(config.entitlement_tier)
+        self.component_init_errors: dict[str, str] = {}
+        if config.entitlement_tier and not config.license_key:
+            logger.warning(
+                "Entitlement tier '%s' declared without a license key; commercial "
+                "deployments must configure license_key so the tier can be "
+                "validated at startup",
+                config.entitlement_tier,
+            )
+
         # Episodic Memory Session Tracker (file-backed cross-session memory)
         self.episodic_tracker = None
         if config.episodic_memory_enabled:
-            from cutctx.memory.session_tracker import EpisodicSessionTracker
-            from cutctx.memory.store import EpisodicMemoryStore
-
-            _ep_store = EpisodicMemoryStore()
-            self.episodic_tracker = EpisodicSessionTracker(
-                _ep_store,
-                idle_timeout_seconds=config.episodic_idle_timeout_seconds,
-                extraction_model=config.episodic_extraction_model,
-            )
-            logger.info(
-                "Episodic Memory: ENABLED (idle timeout: %ds)", config.episodic_idle_timeout_seconds
-            )
+            self._activate_episodic_tracker()
 
         # Memory Handler (persistent user memory)
         self.memory_handler: MemoryHandler | None = None
@@ -1005,10 +1033,6 @@ class CutctxProxy(
                 report_interval=config.license_report_interval,
             )
 
-        # ``cutctx_ee`` is optional, so an OSS install uses a fail-closed
-        # checker instead of failing proxy startup.
-        self.entitlement_checker = _load_entitlement_checker(config.entitlement_tier)
-        self.component_init_errors: dict[str, str] = {}
 
         # Audit logger (enterprise compliance — structured event logging)
         self.audit_logger = None
@@ -1498,6 +1522,55 @@ class CutctxProxy(
             )
         )
 
+    def _activate_episodic_tracker(self) -> None:
+        """Activate episodic memory when the deployment's tier includes it.
+
+        Fail-closed but non-fatal: an unentitled deployment keeps running
+        with the feature off and a visible component error instead of
+        silently receiving a BUSINESS-tier capability.
+        """
+        if not self.entitlement_checker.is_entitled("episodic_memory"):
+            self.episodic_tracker = None
+            self.component_init_errors["episodic_memory"] = (
+                "episodic_memory requires a business-tier license; "
+                "running with the feature disabled"
+            )
+            logger.warning(
+                "Episodic Memory requested but not entitled at tier '%s'; "
+                "the feature stays disabled",
+                getattr(self.entitlement_checker, "plan_name", "builder"),
+            )
+            return
+        from cutctx.memory.session_tracker import EpisodicSessionTracker
+        from cutctx.memory.store import EpisodicMemoryStore
+
+        _ep_store = EpisodicMemoryStore()
+        self.episodic_tracker = EpisodicSessionTracker(
+            _ep_store,
+            idle_timeout_seconds=self.config.episodic_idle_timeout_seconds,
+            extraction_model=self.config.episodic_extraction_model,
+        )
+        self.component_init_errors.pop("episodic_memory", None)
+        logger.info(
+            "Episodic Memory: ENABLED (idle timeout: %ds)",
+            self.config.episodic_idle_timeout_seconds,
+        )
+
+    def _reconcile_episodic_entitlement(self) -> None:
+        """Re-apply episodic gating after the entitlement checker changed."""
+        entitled = self.entitlement_checker.is_entitled("episodic_memory")
+        if not entitled and self.episodic_tracker is not None:
+            self.episodic_tracker = None
+            self.component_init_errors["episodic_memory"] = (
+                "episodic_memory requires a business-tier license; "
+                "disabled after license validation"
+            )
+            logger.warning(
+                "Episodic Memory disabled: validated license does not include it"
+            )
+        elif entitled and self.episodic_tracker is None and self.config.episodic_memory_enabled:
+            self._activate_episodic_tracker()
+
     async def startup(self):
         """Initialize async resources."""
         _patch_getaddrinfo_for_intercept()
@@ -1521,6 +1594,17 @@ class CutctxProxy(
             http2=self.config.http2,
             verify=_ca_bundle if _ca_bundle is not None else True,
         )
+        if self.usage_reporter is not None:
+            try:
+                await self.usage_reporter.start(self)
+                _apply_validated_license(self, self.usage_reporter.license_info)
+            except Exception:
+                logger.warning(
+                    "Startup license validation failed; keeping configured entitlements",
+                    exc_info=True,
+                )
+            else:
+                self._reconcile_episodic_entitlement()
         logger.info("Cutctx Proxy started")
         if os.environ.get("CUTCTX_ALLOW_DEBUG", "").strip() in ("1", "true", "yes"):
             logger.warning(
@@ -1770,6 +1854,12 @@ class CutctxProxy(
             result = close_fn()
             if inspect.isawaitable(result):
                 await result
+
+        if self.usage_reporter is not None:
+            try:
+                await self.usage_reporter.stop()
+            except Exception:
+                logger.debug("Usage reporter stop failed", exc_info=True)
 
         if self.http_client:
             await self.http_client.aclose()
@@ -4164,6 +4254,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             config.ccr_context_tracking = ccr_enabled
             config.ccr_handle_responses = ccr_enabled
         if "memory" in payload:
+            if bool(payload["memory"]):
+                # Same entitlement gate as the canonical /config/flags route:
+                # episodic memory is a BUSINESS-tier feature.
+                await _runtime_require_entitlement("episodic_memory")(request)
             config.episodic_memory_enabled = bool(payload["memory"])
             if config.episodic_memory_enabled and getattr(proxy, "episodic_tracker", None) is None:
                 try:

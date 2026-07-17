@@ -463,7 +463,11 @@ Enterprise features are in the `cutctx_ee` module (compiled Cython `.so` binarie
 ### Billing & Entitlements
 
 - 59-feature × 4-tier entitlement matrix (Builder / Team / Business / Enterprise)
-- Runtime enforcement — enterprise features gated at import time
+- Runtime enforcement — fail-closed entitlement checks on admin surfaces and
+  config toggles; tier-gated runtime features (e.g. episodic memory) are
+  entitlement-checked at activation; a configured license key is validated at
+  startup and its plan overrides the declared tier (expired/invalid licenses
+  fail closed to the free tier)
 - Stripe integration for subscription management
 
 ### Security Hardening

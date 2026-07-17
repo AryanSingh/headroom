@@ -56,6 +56,9 @@ def episodic_client(tmp_memory_dir):
         cost_tracking_enabled=False,
         episodic_memory_enabled=True,
         episodic_idle_timeout_seconds=300,
+        # Episodic memory is a BUSINESS-tier feature; the fixture declares
+        # its tier explicitly now that activation is entitlement-gated.
+        entitlement_tier="business",
     )
     from cutctx.proxy.server import create_app
 
