@@ -1,42 +1,43 @@
 # SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
 # Copyright (c) 2025-2026 Cutctx Labs.
 
-"""SP-5: Per-customer watermarking and leak tracing.
+"""Read-only release identity markers for enterprise artifacts.
 
-Embeds per-license watermarks and canary tokens into EE artifacts so that
-leaked copies can be traced back to the specific customer who received them.
-
-Design principles:
-- Watermarks are embedded at build time, not runtime
-- Canary tokens are unique inert markers (fake internal URLs/strings)
-- Extraction is deterministic: given a build, recover the lic_id
-- All watermark→license mappings stored server-side for correlation
+Release tooling may place a signed manifest alongside an artifact. This module
+only creates and parses the marker payload; it never edits package files or
+inspects binaries. That boundary keeps runtime installations predictable and
+avoids behavior commonly associated with endpoint-protection false positives.
 """
 
-import hashlib
+from __future__ import annotations
+
+import base64
 import json
 import secrets
 import sqlite3
 import time
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any
+
+MARKER_PREFIX = "CTXWM:"
+MANIFEST_SCHEMA_VERSION = 1
 
 
-@dataclass
+@dataclass(frozen=True)
 class Watermark:
-    """A per-license watermark embedded in an EE artifact."""
+    """A release-identity marker associated with one enterprise license."""
 
     lic_id: str
     customer_id: str
     build_id: str
-    # Unique canary token — an inert string that identifies this specific build
     canary_token: str = field(default_factory=lambda: secrets.token_hex(16))
-    # Timestamp of embedding
     embedded_at: float = field(default_factory=time.time)
 
     def to_marker(self) -> str:
-        """Convert to a marker string embedded in compiled artifacts."""
+        """Serialize this marker in the compatibility-preserving CTXWM form."""
+
         payload = json.dumps(
             {
                 "lic": self.lic_id,
@@ -47,158 +48,71 @@ class Watermark:
             },
             separators=(",", ":"),
         )
-        # Base64-encode for safe embedding in compiled binaries
-        import base64
-
-        encoded = base64.urlsafe_b64encode(payload.encode()).decode()
-        return f"CTXWM:{encoded}"
+        return MARKER_PREFIX + base64.urlsafe_b64encode(payload.encode()).decode()
 
     @classmethod
-    def from_marker(cls, marker: str) -> Optional["Watermark"]:
-        """Extract a watermark from an embedded marker string."""
-        if not marker.startswith("CTXWM:"):
+    def from_marker(cls, marker: str) -> Watermark | None:
+        """Parse a marker without raising for malformed or untrusted input."""
+
+        if not marker.startswith(MARKER_PREFIX):
             return None
         try:
-            import base64
-
-            encoded = marker[6:]  # Strip CTXWM: prefix
-            payload = json.loads(base64.urlsafe_b64decode(encoded))
+            payload = json.loads(base64.urlsafe_b64decode(marker[len(MARKER_PREFIX) :]))
+            if not isinstance(payload, dict):
+                return None
             return cls(
-                lic_id=payload["lic"],
-                customer_id=payload["cus"],
-                build_id=payload["bld"],
-                canary_token=payload["cny"],
-                embedded_at=payload["ts"],
+                lic_id=str(payload["lic"]),
+                customer_id=str(payload["cus"]),
+                build_id=str(payload["bld"]),
+                canary_token=str(payload["cny"]),
+                embedded_at=float(payload["ts"]),
             )
-        except Exception:
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             return None
 
 
-def generate_canary_strings(lic_id: str, count: int = 3) -> list[str]:
-    """Generate unique canary strings for a specific license.
+def watermark_manifest(watermark: Watermark) -> dict[str, str | int]:
+    """Return metadata for a release pipeline to write into a signed manifest."""
 
-    These are fake "internal" strings that should never appear in public.
-    If found on paste sites or public repos, they identify the leaker.
-    """
-    canaries = []
-    for i in range(count):
-        hashlib.sha256(f"{lic_id}:canary:{i}".encode()).digest()[:8]
-        canary = f"CUTCTX_INTERNAL_{secrets.token_hex(8)}"
-        canaries.append(canary)
-    return canaries
+    return {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "marker": watermark.to_marker(),
+    }
 
 
-def embed_watermark_in_source(
-    source_dir: Path,
-    watermark: Watermark,
-) -> int:
-    """Embed watermark markers in Python source files (pre-compilation).
+def extract_watermark_from_manifest(manifest: Mapping[str, Any]) -> Watermark | None:
+    """Extract a marker from already-loaded release metadata."""
 
-    Adds the CTXWM marker and canary strings as comments in __init__.py
-    and other key files. These survive Nuitka compilation as string constants.
-
-    Returns the number of files modified.
-    """
-    marker = watermark.to_marker()
-    canaries = generate_canary_strings(watermark.lic_id)
-    modified = 0
-
-    # Always watermark __init__.py
-    init_file = source_dir / "__init__.py"
-    if init_file.exists():
-        content = init_file.read_text(encoding="utf-8")
-        # Append watermark as a string constant (survives compilation)
-        watermark_line = f'__watermark__ = "{marker}"  # SP-5: do not remove\n'
-        canary_lines = [
-            f'__canary_{i}__ = "{c}"  # SP-5: do not remove\n' for i, c in enumerate(canaries)
-        ]
-        if "__watermark__" not in content:
-            content += "\n" + watermark_line + "".join(canary_lines)
-            init_file.write_text(content, encoding="utf-8")
-            modified += 1
-
-    return modified
-
-
-def extract_watermark_from_binary(binary_path: Path) -> list[Watermark]:
-    """Extract embedded watermarks from a compiled binary or .so.
-
-    Scans the binary for CTXWM: markers and decodes them.
-    """
-
-    data = binary_path.read_bytes()
-    watermarks = []
-
-    # Search for CTXWM: pattern
-    prefix = b"CTXWM:"
-    offset = 0
-    while True:
-        pos = data.find(prefix, offset)
-        if pos == -1:
-            break
-
-        # Read until null byte or non-base64 character
-        end = pos + len(prefix)
-        while end < len(data) and end < pos + 1024:
-            c = data[end : end + 1]
-            if c in (b"\x00", b"\n", b"\r"):
-                break
-            end += 1
-
-        marker = data[pos:end].decode("utf-8", errors="ignore")
-        wm = Watermark.from_marker(marker)
-        if wm:
-            watermarks.append(wm)
-
-        offset = end
-
-    return watermarks
-
-
-def extract_watermark_from_source(source_dir: Path) -> list[Watermark]:
-    """Extract watermarks from source files (pre-compilation)."""
-    watermarks = []
-    init_file = source_dir / "__init__.py"
-    if init_file.exists():
-        content = init_file.read_text(encoding="utf-8")
-        for line in content.splitlines():
-            if "__watermark__" in line and "CTXWM:" in line:
-                # Extract the marker from the string literal
-                start = line.find("CTXWM:")
-                if start != -1:
-                    end = line.find('"', start)
-                    if end == -1:
-                        end = len(line)
-                    marker = line[start:end]
-                    wm = Watermark.from_marker(marker)
-                    if wm:
-                        watermarks.append(wm)
-    return watermarks
+    marker = manifest.get("marker")
+    return Watermark.from_marker(marker) if isinstance(marker, str) else None
 
 
 def verify_watermark_traceability(
-    source_dir: Path,
+    watermarks: Iterable[Watermark],
     license_db_path: Path,
 ) -> dict[str, bool]:
-    """V-10 verification: extract watermarks and check they map to valid lic_ids.
+    """Verify supplied marker license IDs against a local SQLite license DB."""
 
-    Returns a dict mapping lic_id -> is_traceable (found in license DB).
-    """
-    watermarks = extract_watermark_from_source(source_dir)
-
+    markers = list(watermarks)
     if not license_db_path.exists():
-        return {wm.lic_id: False for wm in watermarks}
+        return {watermark.lic_id: False for watermark in markers}
 
-    # Query the actual license DB for each watermark lic_id
-    conn = sqlite3.connect(str(license_db_path))
-    try:
-        results = {}
-        for wm in watermarks:
-            cursor = conn.execute(
+    with sqlite3.connect(str(license_db_path)) as connection:
+        return {
+            watermark.lic_id: connection.execute(
                 "SELECT 1 FROM licenses WHERE license_key = ?",
-                (wm.lic_id,),
-            )
-            results[wm.lic_id] = cursor.fetchone() is not None
-        return results
-    finally:
-        conn.close()
+                (watermark.lic_id,),
+            ).fetchone()
+            is not None
+            for watermark in markers
+        }
+
+
+__all__ = [
+    "MANIFEST_SCHEMA_VERSION",
+    "MARKER_PREFIX",
+    "Watermark",
+    "extract_watermark_from_manifest",
+    "verify_watermark_traceability",
+    "watermark_manifest",
+]

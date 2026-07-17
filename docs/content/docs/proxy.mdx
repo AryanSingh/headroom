@@ -136,6 +136,15 @@ The dashboard build also carries a commented-out production obfuscation hook in
 `dashboard/vite.config.js`. Source maps are explicitly disabled, but the
 obfuscator plugin is not active in the current build.
 
+### Enterprise release markers
+
+Enterprise releases may carry a signed marker manifest that associates a build
+with its license metadata. The proxy runtime only parses that pre-existing
+metadata and can verify explicitly supplied license IDs against a local
+database. It does not rewrite package source files or scan compiled binaries;
+those release-engineering and forensic operations are intentionally outside the
+runtime distribution.
+
 <Callout type="info" title="LLMLingua remains optional">
 LLMLingua is still available as an optional compression path and is reported in the proxy's live capability status. Cutctx's default proxy compression path uses ContentRouter plus the current built-in compressors, including Kompress where applicable.
 </Callout>

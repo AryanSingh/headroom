@@ -278,13 +278,6 @@ class TestStructuredOutputValidator:
 
 # ─── watermark ──────────────────────────────────────────────────────────
 class TestWatermark:
-    def test_generate_canary(self):
-        from cutctx_ee.watermark import generate_canary_strings
-
-        canaries = generate_canary_strings(lic_id="TEST-123", count=3)
-        assert len(canaries) == 3
-        assert all("CUTCTX_INTERNAL" in c for c in canaries)
-
     def test_watermark_to_marker_and_back(self):
         from cutctx_ee.watermark import Watermark
 
@@ -296,37 +289,23 @@ class TestWatermark:
         assert w2.lic_id == "L1"
         assert w2.customer_id == "C1"
 
-    def test_embed_and_extract(self, tmp_path):
+    def test_verify_traceability_without_package_mutation(self, tmp_path):
         from cutctx_ee.watermark import (
             Watermark,
-            embed_watermark_in_source,
-            extract_watermark_from_source,
-        )
-
-        # embed_watermark_in_source only works on __init__.py files
-        init_file = tmp_path / "__init__.py"
-        init_file.write_text("# package\n")
-        w = Watermark(lic_id="LEAK-456", customer_id="C1", build_id="B1")
-        embed_watermark_in_source(tmp_path, w)
-        content = init_file.read_text()
-        assert "CTXWM:" in content
-        watermarks = extract_watermark_from_source(tmp_path)
-        assert len(watermarks) >= 1
-
-    def test_verify_traceability(self, tmp_path):
-        from cutctx_ee.watermark import (
-            Watermark,
-            embed_watermark_in_source,
+            extract_watermark_from_manifest,
             verify_watermark_traceability,
+            watermark_manifest,
         )
 
-        init_file = tmp_path / "__init__.py"
-        init_file.write_text("# pkg\n")
-        w = Watermark(lic_id="TRACE-789", customer_id="C1", build_id="B1")
-        embed_watermark_in_source(tmp_path, w)
-        result = verify_watermark_traceability(tmp_path, license_db_path=tmp_path / "licenses.db")
-        # Returns dict mapping lic_id -> is_traceable
-        assert "TRACE-789" in result
+        w = Watermark(
+            lic_id="TRACE-789",
+            customer_id="C1",
+            build_id="B1",
+            embedded_at=1,
+        )
+        assert extract_watermark_from_manifest(watermark_manifest(w)) == w
+        result = verify_watermark_traceability([w], license_db_path=tmp_path / "licenses.db")
+        assert result == {"TRACE-789": False}
 
 
 # ─── abuse ──────────────────────────────────────────────────────────────
