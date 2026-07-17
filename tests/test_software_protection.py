@@ -5,7 +5,6 @@
 
 import time
 from pathlib import Path
-from unittest.mock import patch
 
 # ---------------------------------------------------------------------------
 # SP-3: compile_ee.py tests
@@ -93,31 +92,34 @@ class TestWatermark:
         assert Watermark.from_marker("CTXWM:invalid_base64!!!") is None
         assert Watermark.from_marker("") is None
 
-    def test_generate_canary_strings(self):
-        from cutctx_ee.watermark import generate_canary_strings
+    def test_watermark_manifest_roundtrip(self):
+        from cutctx_ee.watermark import (
+            Watermark,
+            extract_watermark_from_manifest,
+            watermark_manifest,
+        )
 
-        canaries = generate_canary_strings("lic_test", count=3)
-        assert len(canaries) == 3
-        assert all(c.startswith("CUTCTX_INTERNAL_") for c in canaries)
-        # Unique per lic_id
-        canaries2 = generate_canary_strings("lic_other", count=3)
-        assert canaries != canaries2
+        watermark = Watermark(
+            lic_id="lic_manifest",
+            customer_id="cust",
+            build_id="build1",
+            canary_token="fixed-token",
+            embedded_at=1,
+        )
 
-    def test_extract_watermark_from_source(self):
-        from cutctx_ee.watermark import Watermark, extract_watermark_from_source
+        assert extract_watermark_from_manifest(watermark_manifest(watermark)) == watermark
 
-        with patch("pathlib.Path.read_text") as mock_read:
-            marker = Watermark(
-                lic_id="lic_extract",
-                customer_id="cust",
-                build_id="build1",
-            ).to_marker()
-            mock_read.return_value = f'__watermark__ = "{marker}"  # SP-5\n'
+    def test_malformed_manifest_is_not_a_watermark(self):
+        from cutctx_ee.watermark import extract_watermark_from_manifest
 
-            with patch("pathlib.Path.exists", return_value=True):
-                wms = extract_watermark_from_source(Path("/fake"))
-                assert len(wms) == 1
-                assert wms[0].lic_id == "lic_extract"
+        assert extract_watermark_from_manifest({}) is None
+        assert extract_watermark_from_manifest({"marker": 42}) is None
+
+    def test_runtime_mutation_and_binary_scan_apis_are_absent(self):
+        import cutctx_ee.watermark as watermark
+
+        assert not hasattr(watermark, "embed_watermark_in_source")
+        assert not hasattr(watermark, "extract_watermark_from_binary")
 
 
 # ---------------------------------------------------------------------------
