@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import anyio
 import pytest
+import zstandard
 from fastapi import HTTPException, Request
 
 from cutctx.proxy.handlers.openai import (
@@ -296,6 +297,37 @@ def test_handle_openai_responses_routes_chatgpt_auth_to_backend_api(monkeypatch)
     assert headers["ChatGPT-Account-ID"] == "acct-from-jwt"
     assert body["input"] == "hello"
     assert response.status_code == 200
+
+
+def test_handle_openai_responses_drops_encoding_after_decoding_zstd(monkeypatch):
+    body = {
+        "model": "gpt-5.6-terra",
+        "input": "header normalization regression",
+    }
+    encoded_body = zstandard.ZstdCompressor().compress(json.dumps(body).encode("utf-8"))
+    request = _build_request(
+        body,
+        {
+            "Authorization": "Bearer sk-test",
+            "Content-Encoding": "zstd",
+            "Content-Length": str(len(encoded_body)),
+            "X-Codex-Window-ID": "window-regression",
+        },
+        payload=encoded_body,
+    )
+    handler = _DummyOpenAIHandler()
+
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+
+    response = anyio.run(handler.handle_openai_responses, request)
+
+    assert response.status_code == 200
+    assert handler.captured_request is not None
+    _, _, headers, forwarded_body = handler.captured_request
+    assert forwarded_body["input"] == "header normalization regression"
+    assert "content-encoding" not in {key.lower() for key in headers}
+    assert "content-length" not in {key.lower() for key in headers}
+    assert headers["x-codex-window-id"] == "window-regression"
 
 
 def test_handle_openai_responses_routes_api_key_auth_direct_to_openai(monkeypatch):
