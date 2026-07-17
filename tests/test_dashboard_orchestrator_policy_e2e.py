@@ -18,8 +18,100 @@ _TEST_ROOT = Path(__file__).resolve().parent
 _PROJECT_ROOT = _TEST_ROOT.parent
 
 
-def _install_dashboard_routes(page: Page) -> None:
+def _safe_savings_enabled_payload() -> dict:
+    return {
+        "schema_version": 1,
+        "experience_enabled": True,
+        "enabled": True,
+        "mode": "balanced",
+        "preset": "codex-gpt54mini-high",
+        "route_count": 1,
+        "routes": [
+            {
+                "source_model": "gpt-5.6-sol",
+                "low_target_model": "gpt-5.4-mini",
+                "medium_target_model": "gpt-5.6-luna",
+                "low_target_capabilities": ["tools"],
+                "medium_target_capabilities": ["tools"],
+                "low_target_transport_safe": True,
+                "medium_target_transport_safe": False,
+            }
+        ],
+        "transport_safe_targets": ["gpt-5.4-mini"],
+        "decision": {
+            "request_id": "req-1",
+            "requested_model": "gpt-5.6-sol",
+            "effective_model": "gpt-5.4-mini",
+            "candidate_model": "gpt-5.4-mini",
+            "applied": True,
+            "reason": "downgrade_applied",
+            "title": "Safe route applied",
+            "explanation": (
+                "The request passed the configured safety and compatibility gates "
+                "for the selected lower-cost model."
+            ),
+            "scorer": None,
+            "confidence": 0.9,
+            "signals": ["explicit_low_complexity"],
+            "required_capabilities": [],
+            "missing_capabilities": [],
+            "transport": {},
+        },
+        "rollback_available": True,
+    }
+
+
+def _safe_savings_blocked_payload() -> dict:
+    payload = _safe_savings_enabled_payload()
+    payload["decision"] = {
+        "request_id": "req-2",
+        "requested_model": "gpt-5.6-sol",
+        "effective_model": "gpt-5.6-sol",
+        "candidate_model": "gpt-5.4-mini",
+        "applied": False,
+        "reason": "downgrade_blocked_unproven_transport",
+        "title": "Transport proof blocked routing",
+        "explanation": (
+            "The target transport or account could not be proven safe, so Cutctx "
+            "retained the requested model."
+        ),
+        "scorer": None,
+        "confidence": None,
+        "signals": [],
+        "required_capabilities": ["tools"],
+        "missing_capabilities": [],
+        "transport": {},
+    }
+    return payload
+
+
+def _safe_savings_off_payload() -> dict:
+    return {
+        "schema_version": 1,
+        "experience_enabled": True,
+        "enabled": False,
+        "mode": "off",
+        "preset": None,
+        "route_count": 0,
+        "routes": [],
+        "transport_safe_targets": [],
+        "decision": None,
+        "rollback_available": False,
+    }
+
+
+def _install_dashboard_routes(
+    page: Page,
+    *,
+    safe_savings_payloads: list | None = None,
+    config_flags_handler=None,
+) -> None:
     dashboard_html = get_dashboard_html(prefer_react=True)
+    safe_savings_queue = (
+        list(safe_savings_payloads)
+        if safe_savings_payloads is not None
+        else [_safe_savings_enabled_payload()]
+    )
 
     stats_payload = {
         "model_routing": {
@@ -305,6 +397,15 @@ def _install_dashboard_routes(page: Page) -> None:
             )
             return
 
+        if "/v1/orchestration/safe-savings/status" in url:
+            payload = safe_savings_queue[0]
+            if len(safe_savings_queue) > 1:
+                safe_savings_queue.pop(0)
+            route.fulfill(
+                status=200, content_type="application/json", body=json.dumps(payload)
+            )
+            return
+
         if "/v1/orchestration/routing/evidence" in url:
             route.fulfill(
                 status=200, content_type="application/json", body=json.dumps(evidence_payload)
@@ -366,6 +467,8 @@ def _install_dashboard_routes(page: Page) -> None:
             return
 
         if "/config/flags" in url or "/admin/config/flags" in url:
+            if config_flags_handler is not None and config_flags_handler(route):
+                return
             route.fulfill(status=404, content_type="text/plain", body="not found")
             return
 
@@ -504,5 +607,138 @@ def test_orchestrator_roles_expose_advanced_binding_editor() -> None:
             expect(page.get_by_label("Binding id for Worker worker-default")).to_be_visible()
             expect(page.get_by_label("Selectors for Worker worker-docs")).to_be_visible()
             expect(page.get_by_label("Required capabilities for Worker worker-docs")).to_be_visible()
+        finally:
+            browser.close()
+
+
+def _open_orchestrator(page: Page) -> None:
+    page.add_init_script(
+        "window.localStorage.setItem('cutctxAdminKey', 'testkey');"
+    )
+    page.goto("http://cutctx.local/dashboard/orchestrator")
+    page.wait_for_load_state("networkidle")
+
+
+def test_safe_savings_panel_renders_exact_routes_and_applied_decision() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            page.add_init_script(
+                "window.localStorage.setItem('cutctxAdminKey', 'testkey');"
+            )
+            _install_dashboard_routes(page)
+            page.goto("http://cutctx.local/dashboard/orchestrator")
+            page.wait_for_load_state("networkidle")
+
+            expect(page.get_by_text("Safe Savings", exact=True)).to_be_visible()
+            expect(
+                page.get_by_text("gpt-5.6-sol → gpt-5.4-mini", exact=True).first
+            ).to_be_visible()
+            expect(page.get_by_text("Safe route applied", exact=True)).to_be_visible()
+            expect(page.get_by_text("Confidence 0.90", exact=True)).to_be_visible()
+        finally:
+            browser.close()
+
+
+def test_safe_savings_panel_renders_blocked_decision_without_bypass() -> None:
+    import re
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            _install_dashboard_routes(
+                page, safe_savings_payloads=[_safe_savings_blocked_payload()]
+            )
+            _open_orchestrator(page)
+
+            expect(
+                page.get_by_text("Transport proof blocked routing", exact=True)
+            ).to_be_visible()
+            expect(
+                page.get_by_text("gpt-5.6-sol → gpt-5.6-sol", exact=True).first
+            ).to_be_visible()
+            bypass = page.get_by_role(
+                "button", name=re.compile("bypass|override|force|allow", re.IGNORECASE)
+            )
+            assert bypass.count() == 0
+        finally:
+            browser.close()
+
+
+def test_safe_savings_off_action_uses_config_mutation_and_confirms() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            posted_bodies: list[dict] = []
+
+            def flags_handler(route) -> bool:
+                if route.request.method != "POST":
+                    return False
+                posted_bodies.append(json.loads(route.request.post_data or "{}"))
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body=json.dumps(
+                        {"applied_live": {"orchestrator_mode": {"mode": "off"}}}
+                    ),
+                )
+                return True
+
+            _install_dashboard_routes(
+                page,
+                safe_savings_payloads=[
+                    _safe_savings_enabled_payload(),
+                    _safe_savings_off_payload(),
+                ],
+                config_flags_handler=flags_handler,
+            )
+            page.on("dialog", lambda dialog: dialog.accept())
+            _open_orchestrator(page)
+
+            expect(page.get_by_text("Safe route applied", exact=True)).to_be_visible()
+            page.get_by_role("button", name="Turn Safe Savings off").click()
+            expect(
+                page.get_by_text(
+                    "Requests retain the originally requested model.", exact=True
+                )
+            ).to_be_visible()
+            assert posted_bodies == [{"orchestrator_mode": "off"}]
+        finally:
+            browser.close()
+
+
+def test_safe_savings_off_action_failure_keeps_enabled_display() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+
+            def flags_handler(route) -> bool:
+                if route.request.method != "POST":
+                    return False
+                route.fulfill(
+                    status=500, content_type="text/plain", body="server error"
+                )
+                return True
+
+            _install_dashboard_routes(
+                page,
+                safe_savings_payloads=[_safe_savings_enabled_payload()],
+                config_flags_handler=flags_handler,
+            )
+            page.on("dialog", lambda dialog: dialog.accept())
+            _open_orchestrator(page)
+
+            page.get_by_role("button", name="Turn Safe Savings off").click()
+            expect(
+                page.locator(".safe-savings-panel [role='alert']")
+            ).to_be_visible()
+            expect(page.get_by_text("Safe route applied", exact=True)).to_be_visible()
+            expect(
+                page.get_by_text("gpt-5.6-sol → gpt-5.4-mini", exact=True).first
+            ).to_be_visible()
         finally:
             browser.close()
