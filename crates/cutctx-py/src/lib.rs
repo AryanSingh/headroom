@@ -13,7 +13,7 @@
 //! IPC / subprocess / RPC bridge would dominate the cost we're trying to
 //! save. PyO3 calls cost ~microseconds; staying in-process is ~free.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 use cutctx_core::antidebug::deny_debugger_attach as rust_deny_debugger_attach;
@@ -21,6 +21,7 @@ use cutctx_core::licensing::verify_license_signature as rust_verify_license_sign
 use cutctx_core::signals::{
     ImportanceCategory, ImportanceContext, KeywordDetector, KeywordRegistry, LineImportanceDetector,
 };
+use cutctx_core::stack_graph::ResolvedReference;
 use cutctx_core::transforms::smart_crusher::compaction::DocumentCompactor;
 use cutctx_core::transforms::smart_crusher::{
     CrushResult as RustCrushResult, SmartCrusher as RustSmartCrusher,
@@ -105,7 +106,7 @@ fn build_crush_array_dict<'py>(
     compacted: Option<String>,
     compaction_kind: Option<&'static str>,
 ) -> Bound<'py, PyDict> {
-    let dict = PyDict::new_bound(py);
+    let dict = PyDict::new(py);
     dict.set_item("items", kept_json).unwrap();
     dict.set_item("ccr_hash", ccr_hash).unwrap();
     dict.set_item("dropped_summary", dropped_summary).unwrap();
@@ -113,6 +114,16 @@ fn build_crush_array_dict<'py>(
     dict.set_item("compacted", compacted).unwrap();
     dict.set_item("compaction_kind", compaction_kind).unwrap();
     dict
+}
+
+fn resolved_reference_to_python(py: Python<'_>, reference: ResolvedReference) -> Py<PyDict> {
+    let dict = PyDict::new(py);
+    dict.set_item("target_file", reference.target_file).unwrap();
+    dict.set_item("target_line", reference.target_line).unwrap();
+    dict.set_item("target_column", reference.target_column).unwrap();
+    dict.set_item("symbol_name", reference.symbol_name).unwrap();
+    dict.set_item("confidence", reference.confidence).unwrap();
+    dict.unbind()
 }
 
 // ─── DiffCompressorConfig ──────────────────────────────────────────────────
@@ -929,7 +940,7 @@ impl PyDetectionResult {
     /// the underlying Rust value.
     #[getter]
     fn metadata<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         for (k, v) in &self.inner.metadata {
             // Convert each JSON value into the closest Python primitive.
             // Detection metadata is always a flat dict of scalars (ints,
@@ -1088,7 +1099,7 @@ fn content_has_error_indicators(text: &str) -> bool {
 #[pyfunction]
 fn keyword_registry_snapshot(py: Python<'_>) -> Py<PyDict> {
     let registry = KeywordRegistry::default_set();
-    let dict = PyDict::new_bound(py);
+    let dict = PyDict::new(py);
     for (key, words) in registry.as_map() {
         dict.set_item(key, words).unwrap();
     }
@@ -1199,7 +1210,7 @@ impl PySearchCompressionResult {
     }
     #[getter]
     fn summaries<'py>(&self, py: Python<'py>) -> Bound<'py, PyDict> {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         for (k, v) in &self.inner.summaries {
             dict.set_item(k, v).unwrap();
         }
@@ -1399,7 +1410,7 @@ impl PyLogCompressionResult {
     }
     #[getter]
     fn stats<'py>(&self, py: Python<'py>) -> Bound<'py, PyDict> {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         for (k, v) in &self.inner.stats {
             dict.set_item(k, v).unwrap();
         }
@@ -1591,7 +1602,7 @@ fn compress_openai_responses_live_zone(
                 .collect();
             let reason = rust_summarize_openai_responses_no_change_reason(&manifest).to_string();
             (
-                PyBytes::new_bound(py, body).unbind(),
+                PyBytes::new(py, body).unbind(),
                 false,
                 saved,
                 transforms,
@@ -1609,7 +1620,7 @@ fn compress_openai_responses_live_zone(
                 .map(String::from)
                 .collect();
             (
-                PyBytes::new_bound(py, bytes).unbind(),
+                PyBytes::new(py, bytes).unbind(),
                 true,
                 saved,
                 transforms,
@@ -1620,7 +1631,7 @@ fn compress_openai_responses_live_zone(
             // BodyNotJson / NoMessagesArray are non-fatal: nothing to
             // compress, fall through to passthrough byte-for-byte.
             (
-                PyBytes::new_bound(py, body).unbind(),
+                PyBytes::new(py, body).unbind(),
                 false,
                 0,
                 Vec::new(),
@@ -1703,22 +1714,10 @@ impl PyStackGraphManager {
         path: &str,
         line: usize,
         column: usize,
-    ) -> Option<HashMap<String, PyObject>> {
+    ) -> Option<Py<PyDict>> {
         let inner = self.inner.lock().unwrap();
         let result = inner.resolve_reference(path, line, column)?;
-        let map = Python::with_gil(|py| {
-            let mut m = HashMap::new();
-            m.insert("target_file".to_string(), result.target_file.into_py(py));
-            m.insert("target_line".to_string(), result.target_line.into_py(py));
-            m.insert(
-                "target_column".to_string(),
-                result.target_column.into_py(py),
-            );
-            m.insert("symbol_name".to_string(), result.symbol_name.into_py(py));
-            m.insert("confidence".to_string(), result.confidence.into_py(py));
-            m
-        });
-        Some(map)
+        Some(Python::with_gil(|py| resolved_reference_to_python(py, result)))
     }
 
     /// BFS from definitions matching `symbol_name` in the file at `path`,
@@ -1734,21 +1733,13 @@ impl PyStackGraphManager {
         path: &str,
         symbol_name: &str,
         max_depth: usize,
-    ) -> Vec<HashMap<String, PyObject>> {
+    ) -> Vec<Py<PyDict>> {
         let inner = self.inner.lock().unwrap();
         let results = inner.reachable_definitions(path, symbol_name, max_depth);
         Python::with_gil(|py| {
             results
                 .into_iter()
-                .map(|r| {
-                    let mut m = HashMap::new();
-                    m.insert("target_file".to_string(), r.target_file.into_py(py));
-                    m.insert("target_line".to_string(), r.target_line.into_py(py));
-                    m.insert("target_column".to_string(), r.target_column.into_py(py));
-                    m.insert("symbol_name".to_string(), r.symbol_name.into_py(py));
-                    m.insert("confidence".to_string(), r.confidence.into_py(py));
-                    m
-                })
+                .map(|reference| resolved_reference_to_python(py, reference))
                 .collect()
         })
     }
@@ -1764,21 +1755,13 @@ impl PyStackGraphManager {
         path: &str,
         symbol_name: &str,
         max_depth: usize,
-    ) -> Vec<HashMap<String, PyObject>> {
+    ) -> Vec<Py<PyDict>> {
         let inner = self.inner.lock().unwrap();
         let results = inner.callers_of(path, symbol_name, max_depth);
         Python::with_gil(|py| {
             results
                 .into_iter()
-                .map(|r| {
-                    let mut m = HashMap::new();
-                    m.insert("target_file".to_string(), r.target_file.into_py(py));
-                    m.insert("target_line".to_string(), r.target_line.into_py(py));
-                    m.insert("target_column".to_string(), r.target_column.into_py(py));
-                    m.insert("symbol_name".to_string(), r.symbol_name.into_py(py));
-                    m.insert("confidence".to_string(), r.confidence.into_py(py));
-                    m
-                })
+                .map(|reference| resolved_reference_to_python(py, reference))
                 .collect()
         })
     }

@@ -2,9 +2,12 @@
 
 ## Verdict
 
-**Not ready to ship** (production-readiness score: **58/100**).
+**Local implementation gaps remediated; external release evidence pending.**
 
-The exercised core build, test, type-check, lint, CLI, and proxy-health paths are strong. However, the release requirement that every shipped module be functional and contain no stubs is not met: the Rust parity module contains two deliberate non-functional comparators, and the published OpenClaw plugin reports a compaction as successful without performing it.
+The exercised core build, test, type-check, lint, CLI, and proxy-health paths
+are strong. The two originally blocking functional gaps and the strict Clippy
+failure were remediated after this audit. A public-release decision still
+requires the external staging and host evidence listed below.
 
 ## Verified checks
 
@@ -23,26 +26,31 @@ The exercised core build, test, type-check, lint, CLI, and proxy-health paths ar
 
 ## Findings
 
-### High — OpenClaw `compact()` is a no-op that returns success
+### Resolved — OpenClaw `compact()` no longer reports a no-op as successful
 
-- **Affected:** `plugins/openclaw/src/engine.ts:156-193`
-- **Evidence:** the method's own TODO says it must read the session file, extract messages, call compression, and write compacted messages. Instead it increments a counter and returns `{ ok: true, compacted: true }`.
-- **Impact:** callers can discard or defer a real compaction operation believing it completed. This violates the advertised compact-context workflow and creates a data/UX correctness risk.
-- **Required remediation:** either implement the read/compress/write transaction (including atomic persistence and error propagation) or expose the action as deferred/no-op and remove the successful `compacted: true` result. Add an integration test that verifies persisted session content and token reduction.
+- **Affected:** `plugins/openclaw/src/engine.ts`
+- **Remediation:** standalone compaction now returns `{ ok: false, compacted:
+  false }` with an explicit deferred reason and does not increment compaction
+  statistics. Context compression remains available through `assemble()`.
+- **Regression coverage:** `plugins/openclaw/test/engine.test.ts` verifies that
+  no successful session mutation is claimed.
 
-### High — Rust parity module deliberately skips two advertised comparators
+### Resolved — Rust parity no longer advertises unimplemented comparators
 
-- **Affected:** `crates/cutctx-parity/src/lib.rs:148-173`
-- **Evidence:** `CacheAlignerComparator` and `CcrComparator` are generated from `stub_comparator`; their `run()` always returns `not implemented (Phase 0)`. The harness turns this into `Skipped`, so the existing parity test pass does not prove those transforms are equivalent across Python and Rust.
-- **Impact:** the parity binary is shipped/buildable but cannot validate two named transform paths. If parity is a release claim or customer-facing module, this is a direct functional gap.
-- **Required remediation:** implement both comparators and add fixtures with zero skipped outcomes; otherwise remove/feature-gate the incomplete commands and document them as unavailable.
+- **Affected:** `crates/cutctx-parity/src/lib.rs`
+- **Remediation:** `cache_aligner` and `ccr` stubs were removed from the
+  built-in comparator catalog. `parity-run list` now exposes only implemented
+  transforms, and the supported fixture suite reports 153 matches, zero diffs,
+  and zero skips.
 
-### Medium — Strict Rust lint gate fails
+### Resolved — Strict Rust lint gate passes
 
-- **Affected:** `crates/cutctx-core/tests/test_stack_graphs.rs:39`
-- **Evidence:** `cargo clippy --workspace --all-targets -- -D warnings` fails on `clippy::unnecessary_unwrap`: `result.unwrap_err()` is guarded by `result.is_err()`.
-- **Impact:** the repository does not satisfy a strict all-targets Clippy release gate. This is test code, so it is not a runtime blocker, but it prevents a clean quality gate.
-- **Required remediation:** use `if let Err(error) = result { ... }` (or equivalent) and add strict Clippy to CI if it is intended as a release criterion.
+- **Affected:** `crates/cutctx-core/tests/test_stack_graphs.rs` and
+  `crates/cutctx-py/src/lib.rs`
+- **Remediation:** the stack-graph test uses `if let Err(error)` rather than an
+  unnecessary unwrap; PyO3 binding calls now use the current `new` and
+  `IntoPyObject`-compatible dict construction APIs. `cargo clippy --workspace
+  --all-targets -- -D warnings` passes.
 
 ### Medium — Some major paths have only mocked/unit coverage in this audit
 
@@ -51,12 +59,12 @@ The exercised core build, test, type-check, lint, CLI, and proxy-health paths ar
 - **Impact:** the audit cannot certify production behavior for provider-specific auth/streaming or optional deployment surfaces.
 - **Required remediation:** require staging evidence for each supported provider/auth mode, Docker-native compose smoke, Helm deployment with `/readyz`, and IDE-host smoke tests before a public release.
 
-### Low — Dashboard main bundle exceeds the configured advisory threshold
+### Resolved — Dashboard main bundle is within the advisory threshold
 
-- **Affected:** dashboard production build
-- **Evidence:** Vite reports `dist/assets/index-*.js` at 504.18 kB minified (144.23 kB gzip), above its 500 kB advisory threshold.
-- **Impact:** potential first-load cost; not a functional blocker.
-- **Required remediation:** code-split large route modules and retain a bundle budget.
+- **Affected:** `dashboard/src/App.jsx`
+- **Remediation:** route pages are lazy-loaded behind a `Suspense` fallback.
+  The entry chunk is now 255.55 kB minified, and an automated dashboard test
+  enforces Vite's 500 kB per-JavaScript-chunk threshold.
 
 ## Intentional/non-blocking items
 
@@ -66,4 +74,8 @@ The exercised core build, test, type-check, lint, CLI, and proxy-health paths ar
 
 ## Release gate
 
-Do not approve this release as “all modules functional; no stubs.” Clear the two High findings first, fix the strict lint failure, then collect the staging/host evidence listed above. Re-run the commands in **Verified checks** and require a parity run with zero skips for supported transforms.
+The local functional and quality gates above are closed. Do not make a public
+release certification until staging evidence exists for each supported
+provider/auth mode, Docker Compose, Helm `/readyz`, and supported IDE hosts.
+Retain a parity-run report with zero skips for the transforms it lists and run
+the full serial Python/Rust suites before release.

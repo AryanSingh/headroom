@@ -1,5 +1,5 @@
 import { readStoredAdminKey, writeStoredAdminKey } from './lib/admin-auth';
-import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import {
   Activity,
@@ -18,16 +18,16 @@ import {
   TerminalSquare,
   Zap,
 } from 'lucide-react';
-import Overview from './pages/Overview';
-import Savings from './pages/Savings';
-import Firewall from './pages/Firewall';
-import Governance from './pages/Governance';
-import Memory from './pages/Memory';
-import Playground from './pages/Playground';
-import Capabilities from './pages/Capabilities';
-import Docs from './pages/Docs';
-import Orchestrator from './pages/Orchestrator';
-import Replay from './pages/Replay';
+const Overview = lazy(() => import('./pages/Overview'));
+const Savings = lazy(() => import('./pages/Savings'));
+const Firewall = lazy(() => import('./pages/Firewall'));
+const Governance = lazy(() => import('./pages/Governance'));
+const Memory = lazy(() => import('./pages/Memory'));
+const Playground = lazy(() => import('./pages/Playground'));
+const Capabilities = lazy(() => import('./pages/Capabilities'));
+const Docs = lazy(() => import('./pages/Docs'));
+const Orchestrator = lazy(() => import('./pages/Orchestrator'));
+const Replay = lazy(() => import('./pages/Replay'));
 import { PageHeader } from './components/PageHeader';
 import { StatePanel } from './components/StatePanel';
 import { DashboardDataProvider } from './lib/dashboard-context';
@@ -378,19 +378,21 @@ function AppFrame() {
         />
         <main className="page-shell" id="main-content" tabIndex="-1">
           <ErrorBoundary>
-            <Routes>
-              <Route path="/" element={<Overview searchQuery={searchQuery} />} />
-              <Route path="/savings" element={<Savings />} />
-              <Route path="/orchestrator" element={<Orchestrator searchQuery={searchQuery} />} />
-              <Route path="/capabilities" element={<Capabilities />} />
-              <Route path="/governance" element={<Governance searchQuery={searchQuery.toLowerCase()} />} />
-              <Route path="/firewall" element={<Firewall searchQuery={searchQuery.toLowerCase()} />} />
-              <Route path="/memory" element={<Memory searchQuery={searchQuery.toLowerCase()} />} />
-              <Route path="/replay" element={<Replay />} />
-              <Route path="/playground" element={<Playground />} />
-              <Route path="/docs" element={<Docs />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <Suspense fallback={<div className="page-shell" role="status">Loading dashboard…</div>}>
+              <Routes>
+                <Route path="/" element={<Overview searchQuery={searchQuery} />} />
+                <Route path="/savings" element={<Savings />} />
+                <Route path="/orchestrator" element={<Orchestrator searchQuery={searchQuery} />} />
+                <Route path="/capabilities" element={<Capabilities />} />
+                <Route path="/governance" element={<Governance searchQuery={searchQuery.toLowerCase()} />} />
+                <Route path="/firewall" element={<Firewall searchQuery={searchQuery.toLowerCase()} />} />
+                <Route path="/memory" element={<Memory searchQuery={searchQuery.toLowerCase()} />} />
+                <Route path="/replay" element={<Replay />} />
+                <Route path="/playground" element={<Playground />} />
+                <Route path="/docs" element={<Docs />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </ErrorBoundary>
         </main>
       </div>

@@ -172,23 +172,17 @@ export class CutctxContextEngine {
       return { ok: false, compacted: false, reason: "Proxy not available" };
     }
 
-    // Read current messages from session file if available
-    // For now, compact() works in tandem with assemble() — the next assemble()
-    // call will compress with the token budget. When compact() is called
-    // independently, we report success since our pipeline handles it.
-    //
-    // TODO: Read session file, extract messages, call compress() with tokenBudget,
-    //       write back compacted messages.
-
-    this.stats.compactions++;
+    // OpenClaw owns the persisted session format. Until this plugin can read,
+    // compress, and atomically write that format, reporting a successful
+    // standalone compaction would falsely claim that the session changed.
+    // assemble() remains the supported compression path.
     this.logger.info(
-      `Compact called (budget: ${params.tokenBudget ?? "none"}, force: ${params.force ?? false})`,
+      `Standalone compaction deferred (budget: ${params.tokenBudget ?? "none"}, force: ${params.force ?? false})`,
     );
-
     return {
-      ok: true,
-      compacted: true,
-      reason: "Cutctx applies SmartCrusher + Kompress + RollingWindow on next assemble()",
+      ok: false,
+      compacted: false,
+      reason: "Standalone compaction is unavailable; Cutctx only compresses context during assemble()",
     };
   }
 

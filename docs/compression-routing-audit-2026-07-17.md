@@ -6,7 +6,9 @@
 
 ## Provenance and limits
 
-This record describes the checked-out worktree, which contains uncommitted changes. It does **not** claim that any fixes are merged. The worktree also contains unrelated user changes; this audit does not attribute them to this work.
+The original remediation was committed in `c48fe63f`; this record is an
+evidence-based audit, not a release certification. It does not attribute
+unrelated worktree changes to the compression-routing remediation.
 
 The previous version's aggregate test total, benchmark reductions/latencies, and competitor feature matrix had no commands, fixture definitions, revision identifiers, or primary-source citations. Those assertions are not retained as verified findings. They require a versioned benchmark harness and dated competitor research before use in product or sales material.
 
@@ -25,7 +27,7 @@ governed by the [competitor evidence ledger](evidence/competitor-routing-compres
 | `uv run --no-sync python -m pytest tests/test_model_router.py tests/test_model_routing_evals.py tests/test_model_routing_training.py tests/test_openai_responses_model_routing_shadow.py tests/test_anthropic_model_routing.py -q --tb=short` | 101 passed | Confidence gating, model-routing calibration, and sampled shadow evaluation have automated coverage. |
 | `uv run --no-sync python -m pytest -q --tb=short` | 9,181 collected; completed successfully | Full Python suite, run serially. Python and Rust tests must not run concurrently because they share native-build state. |
 | `cargo test --workspace --no-fail-fast` | completed successfully | Full Rust workspace suite, run serially after Python verification. |
-| `python scripts/generate_benchmark_release_manifest.py` | blocked as designed | Refuses a dirty worktree; a release manifest must be generated from a clean committed revision. |
+| `python scripts/generate_benchmark_release_manifest.py` | completed for `c48fe63f` | The committed manifest binds fixture and environment metadata to the verified remediation revision. |
 
 ## Verified compression findings
 
@@ -52,23 +54,23 @@ The system has two different routing surfaces that must not be conflated.
 
 Consequently, claims that the product has *no* confidence-based routing or *no* shadow-mode comparison are incorrect. A narrower claim is supported: the deterministic orchestration engine does not autonomously adapt its selected route from outcome telemetry.
 
-## Open work required for stronger product claims
+## Evidence requirements before stronger product claims
 
-1. **Benchmark provenance:** use the existing manifest/bundle workflow for each
-   publishable benchmark run; it records fixture hashes, checkpoint, platform,
-   and named arms. Retain warmup, iteration, token-counter, and quality-gate
-   configuration with the benchmark report.
-2. **Competitor comparisons:** use the dated [competitor evidence ledger](evidence/competitor-routing-compression-2026-07-17.md) and do not infer an absence from a local code review.
-3. **Provider breadth:** generate the inventory rather than hand-counting.
-   It distinguishes the 16 built-in orchestration specs from LiteLLM-mediated
-   availability and configured-provider support.
-4. **Architecture inventory:** generate the inventory rather than copying a
-   stale line count. It records source paths and counts against the Git state.
-5. **Release evidence:** the current full Python and Rust suites pass when run
-   serially. Generate the release manifest and bundle only from a clean,
-   committed revision; the current dirty worktree is correctly ineligible for
-   release/market claims.
+The local mechanisms are complete: the benchmark manifest/bundle workflow,
+audit inventory, dated competitor ledger, provider inventory, and architecture
+inventory are all available and the remediation revision has a generated
+manifest. For every future publishable claim, retain the resulting fixture
+hashes, checkpoints, warmup/iteration/token-counter/quality-gate configuration,
+and dated primary-source competitor evidence.
+
+External evidence is intentionally still required before market claims: remote
+hosted Python and TypeScript smoke runs, a staged gateway and dashboard, and
+two valid partner snapshots. The evaluator reports this absence rather than
+making an unsupported claim.
 
 ## Conclusion
 
-The local fixes above have direct regression coverage. The compression and routing subsystems have meaningful, verified capabilities, but the prior industry-leadership, benchmark, and full-suite claims are unproven from the available evidence and should not be used until the listed evidence work is complete.
+The local fixes above have direct regression coverage. The compression and
+routing subsystems have meaningful, verified capabilities, but industry-
+leadership and market claims remain prohibited until the required external
+evidence is collected.

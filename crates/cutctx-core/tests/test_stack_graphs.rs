@@ -35,8 +35,8 @@ mod tests {
         // .rs files are listed in LANGUAGE_ALIASES but only python/javascript have
         // registered grammars — this might succeed or fail depending on the impl
         let result = mgr.add_file("test.rs", "fn foo() {}\n");
-        if result.is_err() {
-            assert!(result.unwrap_err().contains("Unsupported"));
+        if let Err(error) = result {
+            assert!(error.contains("Unsupported"));
         }
     }
 

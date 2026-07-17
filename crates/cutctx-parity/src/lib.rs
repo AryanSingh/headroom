@@ -1,9 +1,7 @@
 //! Parity harness: load JSON fixtures recorded from the Python implementation,
 //! run the Rust port, and compare outputs.
 //!
-//! Phase 0: the per-transform comparators are stubs (`todo!()`), but the
-//! harness wiring (fixture loading, dispatch, diff reporting) is real and
-//! covered by a negative test.
+//! The harness only exposes transforms with implemented Rust comparators.
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -144,33 +142,6 @@ pub fn run_comparator(dir: &Path, comparator: &dyn TransformComparator) -> Resul
     }
     Ok(report)
 }
-
-// --- Built-in comparator stubs ---------------------------------------------
-//
-// Phase 1 will replace `todo!()` bodies with real Rust ports. Until then they
-// return `Err`, causing the harness to mark fixtures as `Skipped` instead of
-// panicking. The parity-run binary wires them up so the CLI works today.
-
-macro_rules! stub_comparator {
-    ($ty:ident, $name:literal) => {
-        pub struct $ty;
-        impl TransformComparator for $ty {
-            fn name(&self) -> &str {
-                $name
-            }
-            fn run(
-                &self,
-                _input: &serde_json::Value,
-                _config: &serde_json::Value,
-            ) -> Result<serde_json::Value> {
-                anyhow::bail!(concat!("comparator ", $name, " not implemented (Phase 0)"))
-            }
-        }
-    };
-}
-
-stub_comparator!(CacheAlignerComparator, "cache_aligner");
-stub_comparator!(CcrComparator, "ccr");
 
 /// Real comparator for the Rust-backed log compressor. The fixture output is
 /// the public Python shim's dataclass serialization, so use an in-memory CCR
@@ -658,9 +629,7 @@ pub fn builtin_comparators() -> Vec<Box<dyn TransformComparator>> {
     vec![
         Box::new(LogCompressorComparator),
         Box::new(DiffCompressorComparator),
-        Box::new(CacheAlignerComparator),
         Box::new(TokenizerComparator),
-        Box::new(CcrComparator),
         Box::new(SmartCrusherComparator),
         Box::new(ContentDetectorComparator),
         Box::new(AdaptiveSizerComparator),
@@ -772,6 +741,17 @@ mod tests {
         let report = run_comparator(tmp.path(), &LogCompressorComparator).unwrap();
         assert_eq!(report.diffed.len(), 1);
         assert_eq!(report.matched, 0);
+    }
+
+    #[test]
+    fn builtins_only_advertise_implemented_comparators() {
+        let names = builtin_comparators()
+            .into_iter()
+            .map(|comparator| comparator.name().to_string())
+            .collect::<Vec<_>>();
+
+        assert!(!names.contains(&"cache_aligner".to_string()));
+        assert!(!names.contains(&"ccr".to_string()));
     }
 
     /// Minimal tempdir helper to avoid a dev-dependency on `tempfile`.
