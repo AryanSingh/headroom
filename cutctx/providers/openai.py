@@ -555,8 +555,7 @@ class OpenAIProvider(Provider):
         input_price, output_price = pricing
 
         if input_tokens > 272_000 and (
-            model == "gpt-5.4"
-            or re.fullmatch(r"gpt-5\.4-(?:\d{8}|\d{4}-\d{2}-\d{2})", model)
+            model == "gpt-5.4" or re.fullmatch(r"gpt-5\.4-(?:\d{8}|\d{4}-\d{2}-\d{2})", model)
         ):
             input_price *= 2
             output_price *= 1.5

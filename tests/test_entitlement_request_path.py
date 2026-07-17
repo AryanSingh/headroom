@@ -39,9 +39,7 @@ def test_episodic_memory_refused_at_init_without_business_tier() -> None:
 
 
 def test_episodic_memory_activates_with_business_tier() -> None:
-    app = create_app(
-        _config(episodic_memory_enabled=True, entitlement_tier="business")
-    )
+    app = create_app(_config(episodic_memory_enabled=True, entitlement_tier="business"))
     with TestClient(app):
         proxy = app.state.proxy
         assert proxy.episodic_tracker is not None

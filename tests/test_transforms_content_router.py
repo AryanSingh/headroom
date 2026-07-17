@@ -501,8 +501,7 @@ def test_content_router_inflation_guard_reverts_mixed_content() -> None:
     """Direct router callers must never receive more bytes than they supplied."""
     router = ContentRouter()
     content = (
-        "Explanation line with enough prose words to be detected.\n"
-        "```python\nprint(1)\n```\n"
+        "Explanation line with enough prose words to be detected.\n```python\nprint(1)\n```\n"
     ) * 100
 
     result = router.compress(content)

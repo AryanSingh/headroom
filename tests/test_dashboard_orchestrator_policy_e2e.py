@@ -410,9 +410,8 @@ def _install_dashboard_routes(
             return
 
         if (
-            ("/config/flags" in url or "/admin/config/flags" in url)
-            and route.request.method == "POST"
-        ):
+            "/config/flags" in url or "/admin/config/flags" in url
+        ) and route.request.method == "POST":
             config_mutations.append(json.loads(route.request.post_data or "{}"))
             if config_update_status != 200:
                 route.fulfill(
@@ -432,9 +431,7 @@ def _install_dashboard_routes(
             route.fulfill(
                 status=200,
                 content_type="application/json",
-                body=json.dumps(
-                    {"applied_live": {"orchestrator_mode": {"mode": "off"}}}
-                ),
+                body=json.dumps({"applied_live": {"orchestrator_mode": {"mode": "off"}}}),
             )
             return
 
@@ -605,9 +602,7 @@ def test_orchestrator_keeps_safe_savings_enabled_when_off_update_fails() -> None
                     exact=True,
                 )
             ).to_be_visible()
-            expect(
-                panel.get_by_text("gpt-5.6-sol → gpt-5.4-mini", exact=True)
-            ).to_be_visible()
+            expect(panel.get_by_text("gpt-5.6-sol → gpt-5.4-mini", exact=True)).to_be_visible()
             assert config_mutations == [{"orchestrator_mode": "off"}]
         finally:
             browser.close()
@@ -703,6 +698,8 @@ def test_orchestrator_roles_expose_advanced_binding_editor() -> None:
             expect(page.get_by_text("Advanced bindings", exact=True).first).to_be_visible()
             expect(page.get_by_label("Binding id for Worker worker-default")).to_be_visible()
             expect(page.get_by_label("Selectors for Worker worker-docs")).to_be_visible()
-            expect(page.get_by_label("Required capabilities for Worker worker-docs")).to_be_visible()
+            expect(
+                page.get_by_label("Required capabilities for Worker worker-docs")
+            ).to_be_visible()
         finally:
             browser.close()

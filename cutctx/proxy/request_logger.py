@@ -321,9 +321,7 @@ class RequestLogger:
         # ``get_recent_with_messages`` unchanged.
         entry_redactions = 0
         if entry.request_messages is not None:
-            entry.request_messages, count = redact_image_base64_with_count(
-                entry.request_messages
-            )
+            entry.request_messages, count = redact_image_base64_with_count(entry.request_messages)
             entry_redactions += count
         if entry.compressed_messages is not None:
             entry.compressed_messages, count = redact_image_base64_with_count(
@@ -331,9 +329,7 @@ class RequestLogger:
             )
             entry_redactions += count
         if entry.response_content is not None:
-            entry.response_content, count = redact_image_base64_with_count(
-                entry.response_content
-            )
+            entry.response_content, count = redact_image_base64_with_count(entry.response_content)
             entry_redactions += count
         if entry_redactions > 0 and isinstance(entry.decision_receipt, dict):
             receipt = dict(entry.decision_receipt)

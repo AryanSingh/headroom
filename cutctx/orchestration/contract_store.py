@@ -103,11 +103,7 @@ class ContractStore:
     def get_version(self, contract_id: str, version: str) -> WorkloadContract:
         with self._lock:
             payload = self._load()
-            values = (
-                payload.get("contracts", {})
-                .get(contract_id, {})
-                .get(version)
-            )
+            values = payload.get("contracts", {}).get(contract_id, {}).get(version)
             if not isinstance(values, dict):
                 raise KeyError(f"Unknown contract version: {contract_id}@{version}")
             return contract_from_dict(values)
@@ -162,9 +158,7 @@ class ContractStore:
                 raise KeyError(f"Unknown contract version: {contract_id}@{version}")
             contract = contract_from_dict(values)
             if target not in _TRANSITIONS[contract.state]:
-                raise ContractTransitionError(
-                    f"Cannot transition {contract.state} to {target}"
-                )
+                raise ContractTransitionError(f"Cannot transition {contract.state} to {target}")
             updated = replace(contract, state=target)
             versions[version] = contract_to_dict(updated)
             if target == ContractLifecycle.ACTIVE.value:
@@ -190,9 +184,7 @@ class ContractStore:
             values = versions.get(version) if isinstance(versions, dict) else None
             if not isinstance(values, dict):
                 raise KeyError(f"Unknown contract version: {contract_id}@{version}")
-            restored = replace(
-                contract_from_dict(values), state=ContractLifecycle.ACTIVE.value
-            )
+            restored = replace(contract_from_dict(values), state=ContractLifecycle.ACTIVE.value)
             for other_version, other_values in versions.items():
                 if other_version == version or not isinstance(other_values, dict):
                     continue

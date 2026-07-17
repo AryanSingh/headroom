@@ -81,11 +81,7 @@ def compile_contract(
     allowed_data_classifications = _narrow_allow_list(
         "allowed data classifications",
         infrastructure.settings.allowed_data_classifications,
-        (
-            organization_settings.allowed_data_classifications
-            if organization_settings
-            else set()
-        ),
+        (organization_settings.allowed_data_classifications if organization_settings else set()),
         contract.requirements.allowed_data_classifications,
     )
 
@@ -136,9 +132,7 @@ def compile_contract(
             or model.account_id in contract.requirements.allowed_accounts
         )
         and (
-            not infrastructure.providers
-            or not model.account_id
-            or model.account_id in provider_ids
+            not infrastructure.providers or not model.account_id or model.account_id in provider_ids
         )
         and (
             contract.requirements.minimum_context_tokens is None
@@ -149,8 +143,7 @@ def compile_contract(
             contract.requirements.minimum_output_tokens is None
             or (
                 model.max_output_tokens is not None
-                and model.max_output_tokens
-                >= contract.requirements.minimum_output_tokens
+                and model.max_output_tokens >= contract.requirements.minimum_output_tokens
             )
         )
     ]

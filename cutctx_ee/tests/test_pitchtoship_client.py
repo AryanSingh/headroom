@@ -3,8 +3,7 @@ from __future__ import annotations
 import base64
 import json
 
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
@@ -34,9 +33,11 @@ def test_online_verification_caches_the_public_key_for_first_offline_use(monkeyp
 
 def test_verify_signed_token_accepts_a_signature_with_high_bit_der_integer():
     private_key = ec.generate_private_key(ec.SECP256R1())
-    payload_b64 = base64.urlsafe_b64encode(
-        json.dumps({"tier": "builder"}).encode("utf-8")
-    ).rstrip(b"=").decode("ascii")
+    payload_b64 = (
+        base64.urlsafe_b64encode(json.dumps({"tier": "builder"}).encode("utf-8"))
+        .rstrip(b"=")
+        .decode("ascii")
+    )
     signed_data = f"pts1.{payload_b64}".encode("ascii")
 
     for _ in range(256):
@@ -50,8 +51,12 @@ def test_verify_signed_token_accepts_a_signature_with_high_bit_der_integer():
 
     signature_b64 = base64.urlsafe_b64encode(raw_signature).rstrip(b"=").decode("ascii")
     token = f"pts1.{payload_b64}.{signature_b64}"
-    pem = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("ascii")
+    pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("ascii")
+    )
     assert client.verify_signed_token(token, pem) == {"tier": "builder"}

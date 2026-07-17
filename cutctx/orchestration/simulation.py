@@ -93,11 +93,7 @@ def receipt_from_unavailable(
     message: str,
 ) -> ContractDecisionReceipt:
     """Represent an unavailable route without aborting a draft/live comparison."""
-    rejected = (
-        RejectedCandidate(model=assigned_model, reason=reason)
-        if assigned_model
-        else None
-    )
+    rejected = RejectedCandidate(model=assigned_model, reason=reason) if assigned_model else None
     return ContractDecisionReceipt(
         request_id=request_id,
         selected_model="",

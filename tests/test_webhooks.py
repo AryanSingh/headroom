@@ -44,6 +44,7 @@ def _resolve_test_webhooks_to_public_address(monkeypatch: pytest.MonkeyPatch) ->
         AsyncMock(return_value={"93.184.216.34"}),
     )
 
+
 # ── Subscription management ─────────────────────────────────────────
 
 

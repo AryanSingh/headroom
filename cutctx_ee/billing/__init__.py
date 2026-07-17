@@ -41,12 +41,14 @@ def get_checkout_url(
         logger.warning("Unknown billing %r, defaulting to annual", billing)
         billing = "annual"
 
-    query = urlencode({
-        "product": "cutctx",
-        "plan": plan,
-        "billing": billing,
-        **({"email": email.strip()} if email and email.strip() else {}),
-    })
+    query = urlencode(
+        {
+            "product": "cutctx",
+            "plan": plan,
+            "billing": billing,
+            **({"email": email.strip()} if email and email.strip() else {}),
+        }
+    )
     return f"{PITCHTOSHIP_BASE_URL}/billing?{query}"
 
 

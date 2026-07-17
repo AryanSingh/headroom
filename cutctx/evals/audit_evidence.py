@@ -47,7 +47,9 @@ def build_audit_inventory(
     """Return local facts without converting them into release claims."""
     root = root.resolve()
     status = _git_value(root, "status", "--porcelain")
-    resolved_dirty = status != "unavailable" and bool(status) if worktree_dirty is None else worktree_dirty
+    resolved_dirty = (
+        status != "unavailable" and bool(status) if worktree_dirty is None else worktree_dirty
+    )
     providers = _provider_ids(provider_specs)
     return {
         "schema_version": 1,

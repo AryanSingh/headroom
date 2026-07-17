@@ -1203,18 +1203,13 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
             decision_receipt = build_decision_receipt(
                 {
                     "request_id": outcome.request_id,
-                    "requested_model": (routing_meta or {}).get("requested_model")
-                    or outcome.model,
+                    "requested_model": (routing_meta or {}).get("requested_model") or outcome.model,
                     "effective_model": outcome.model,
-                    "routing_trace": routing_trace
-                    if isinstance(routing_trace, dict)
-                    else None,
+                    "routing_trace": routing_trace if isinstance(routing_trace, dict) else None,
                     "routing_summary": routing_meta,
                     "input_tokens_original": outcome.original_tokens,
                     "input_tokens_forwarded": outcome.optimized_tokens,
-                    "direct_tokens_saved": _savings_by_source_tokens.get(
-                        "cutctx_compression", 0
-                    ),
+                    "direct_tokens_saved": _savings_by_source_tokens.get("cutctx_compression", 0),
                     "transforms": list(outcome.transforms_applied),
                     "decline_reason": decline_reason,
                     "cache_protected_tokens": cache_protected_tokens,
@@ -1228,8 +1223,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                         or outcome.semantic_cache_hit
                         or outcome.from_response_cache
                     ),
-                    "semantic_cache_hit": outcome.semantic_cache_hit
-                    or outcome.from_response_cache,
+                    "semantic_cache_hit": outcome.semantic_cache_hit or outcome.from_response_cache,
                     "semantic_cache_saved_tokens": semantic_cache_saved_tokens,
                     "prefix_cache_evaluated": bool(
                         outcome.self_hosted_prefix_cache_evaluated

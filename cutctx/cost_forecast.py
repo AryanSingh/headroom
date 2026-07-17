@@ -75,6 +75,7 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
     "gemini-1.5-flash": {"input": 0.075, "output": 0.30},
 }
 
+
 def _resolve_model_pricing(model: str) -> tuple[float, float] | None:
     """Resolve input/output pricing per 1M tokens for a model.
 
@@ -148,16 +149,12 @@ class CostEstimator:
         input_rate, output_rate = self._input_per_m, self._output_per_m
         if input_tokens > 272_000 and (
             self.model == "gpt-5.4"
-            or re.fullmatch(
-                r"gpt-5\.4-(?:\d{8}|\d{4}-\d{2}-\d{2})", self.model
-            )
+            or re.fullmatch(r"gpt-5\.4-(?:\d{8}|\d{4}-\d{2}-\d{2})", self.model)
         ):
             return input_rate * 2, output_rate * 1.5
         if input_tokens > 200_000 and (
             self.model == "gemini-2.5-pro"
-            or re.fullmatch(
-                r"gemini-2\.5-pro-(?:\d{8}|\d{4}-\d{2}-\d{2})", self.model
-            )
+            or re.fullmatch(r"gemini-2\.5-pro-(?:\d{8}|\d{4}-\d{2}-\d{2})", self.model)
         ):
             return 2.50, 15.00
         return input_rate, output_rate
@@ -216,9 +213,7 @@ class CostEstimator:
                     model=self.model,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
-                    input_usd=round(
-                        total_usd - (output_tokens / 1_000_000 * output_rate), 6
-                    ),
+                    input_usd=round(total_usd - (output_tokens / 1_000_000 * output_rate), 6),
                     output_usd=round((output_tokens / 1_000_000 * output_rate), 6),
                     total_usd=round(total_usd, 6),
                     compression_savings_usd=round(savings, 6),

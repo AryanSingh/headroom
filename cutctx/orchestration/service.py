@@ -228,11 +228,7 @@ class OrchestrationService:
         if request.profile is not None:
             normalized_profile = request.profile.casefold()
             profile = next(
-                (
-                    item
-                    for item in config.profiles
-                    if item.id.casefold() == normalized_profile
-                ),
+                (item for item in config.profiles if item.id.casefold() == normalized_profile),
                 None,
             )
             if profile is None:
@@ -380,9 +376,7 @@ class OrchestrationService:
         if any(value < 0 for value in savings):
             raise ValueError("Routed savings must not be negative")
         mean_quality = sum(scores) / len(scores) if scores else None
-        unsafe = sum(
-            score < contract.evaluation.unsafe_quality_floor for score in scores
-        )
+        unsafe = sum(score < contract.evaluation.unsafe_quality_floor for score in scores)
         unsafe_rate = unsafe / len(scores) if scores else None
         quality_blocked = bool(
             scores
@@ -481,8 +475,7 @@ class OrchestrationService:
             item
             for item in versions
             if item.version != getattr(active, "version", None)
-            and item.state
-            in {ContractLifecycle.RETIRED.value, ContractLifecycle.PAUSED.value}
+            and item.state in {ContractLifecycle.RETIRED.value, ContractLifecycle.PAUSED.value}
         ]
         if not candidates:
             raise ContractTransitionError("no_rollback_target")
@@ -509,9 +502,7 @@ class OrchestrationService:
         model = str(execution.get("actual_model", ""))
         account = execution.get("account_id")
         selected_model = str(execution.get("assigned_model") or f"{provider}:{model}")
-        selected_deployment = (
-            f"{provider}:{account}:{model}" if account else selected_model
-        )
+        selected_deployment = f"{provider}:{account}:{model}" if account else selected_model
         return {
             "receipt_version": 2,
             "request_id": request_id,
@@ -815,7 +806,9 @@ class OrchestrationService:
         response: dict[str, Any] | None = None
         execution_adapter: ProviderAdapter | None = None
         deployment_attempts = 0
-        deployments = {decision.selected_deployment or f"{decision.provider}:{decision.actual_model}"}
+        deployments = {
+            decision.selected_deployment or f"{decision.provider}:{decision.actual_model}"
+        }
 
         while True:
             remaining = deadline - time.perf_counter()
@@ -869,8 +862,7 @@ class OrchestrationService:
                     break
                 deployment_attempts = 0
                 deployments.add(
-                    decision.selected_deployment
-                    or f"{decision.provider}:{decision.actual_model}"
+                    decision.selected_deployment or f"{decision.provider}:{decision.actual_model}"
                 )
 
         latency_ms = (time.perf_counter() - started) * 1000
@@ -968,7 +960,9 @@ class OrchestrationService:
         started_at = datetime.now(timezone.utc).isoformat()
         attempts = 0
         deployment_attempts = 0
-        deployments = {decision.selected_deployment or f"{decision.provider}:{decision.actual_model}"}
+        deployments = {
+            decision.selected_deployment or f"{decision.provider}:{decision.actual_model}"
+        }
         error: Exception | None = None
         emitted_any = False
         first_token_latency_ms: float | None = None
@@ -1098,8 +1092,7 @@ class OrchestrationService:
                     deployments_attempted=len(deployments),
                     total_deadline_seconds=budget.total_deadline_seconds,
                     deadline_exceeded=(
-                        terminal_timeout is not None
-                        and "total deadline" in str(terminal_timeout)
+                        terminal_timeout is not None and "total deadline" in str(terminal_timeout)
                     ),
                     first_token_latency_ms=first_token_latency_ms,
                 )

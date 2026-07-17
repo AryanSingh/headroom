@@ -1085,7 +1085,13 @@ class AnthropicHandlerMixin:
                         ),
                         num_messages=len(messages),
                         messages=self._anthropic_messages_to_routing_messages(messages),
-                        required_capabilities=infer_request_capabilities({"tools": getattr(body, "tools", None), "stream": getattr(body, "stream", False), "messages": messages}),
+                        required_capabilities=infer_request_capabilities(
+                            {
+                                "tools": getattr(body, "tools", None),
+                                "stream": getattr(body, "stream", False),
+                                "messages": messages,
+                            }
+                        ),
                         transport_provider=provider_name,
                     )
                     if routed_model != model:

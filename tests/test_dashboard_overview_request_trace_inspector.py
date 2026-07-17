@@ -180,9 +180,29 @@ def _retained_trace_payload() -> dict:
     trace["decision_receipt"] = {
         "schema_version": 1,
         "observation": {"completeness": "complete", "missing": [], "payload_capture": "disabled"},
-        "routing": {"status": "retained", "reason": "workload_not_downgradeable", "explanation": "Recent tool context was classified as high-risk, so Cutctx retained the requested model.", "requested_model": "gpt-5.4", "effective_model": "gpt-5.4", "mechanism": "optimization_preset", "required_capabilities": ["tool_calling"], "candidates": ["gpt-5.4-mini"], "rejected_candidates": [{"candidate": "gpt-5.4-mini", "reason": "workload_not_downgradeable"}]},
-        "compression": {"status": "applied", "transforms": ["smart_crusher"], "protected_content": {"cache_protected_tokens": 200}},
-        "cache": {"provider_prompt_cache": {"status": "hit"}, "semantic_response_cache": {"status": "unobserved"}, "self_hosted_prefix_cache": {"status": "unobserved"}},
+        "routing": {
+            "status": "retained",
+            "reason": "workload_not_downgradeable",
+            "explanation": "Recent tool context was classified as high-risk, so Cutctx retained the requested model.",
+            "requested_model": "gpt-5.4",
+            "effective_model": "gpt-5.4",
+            "mechanism": "optimization_preset",
+            "required_capabilities": ["tool_calling"],
+            "candidates": ["gpt-5.4-mini"],
+            "rejected_candidates": [
+                {"candidate": "gpt-5.4-mini", "reason": "workload_not_downgradeable"}
+            ],
+        },
+        "compression": {
+            "status": "applied",
+            "transforms": ["smart_crusher"],
+            "protected_content": {"cache_protected_tokens": 200},
+        },
+        "cache": {
+            "provider_prompt_cache": {"status": "hit"},
+            "semantic_response_cache": {"status": "unobserved"},
+            "self_hosted_prefix_cache": {"status": "unobserved"},
+        },
         "ccr": {"status": "not_used", "retrieval_outcome": "not_requested"},
         "attribution": {"created_savings_tokens": 300, "observed_provider_savings_tokens": 200},
         "policy": {"config_fingerprint": "sha256:abc"},

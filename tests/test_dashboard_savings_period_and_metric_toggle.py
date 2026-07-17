@@ -453,11 +453,7 @@ def test_attribution_reconciliation_badge_renders_when_ledger_was_migrated() -> 
             page.goto("http://cutctx.local/dashboard/savings")
             page.wait_for_load_state("networkidle")
 
-            expect(
-                page.get_by_text("Ledger reconciled (schema v7)", exact=False)
-            ).to_be_visible()
-            expect(
-                page.get_by_text("model_routing_savings_usd", exact=False)
-            ).to_be_visible()
+            expect(page.get_by_text("Ledger reconciled (schema v7)", exact=False)).to_be_visible()
+            expect(page.get_by_text("model_routing_savings_usd", exact=False)).to_be_visible()
         finally:
             browser.close()

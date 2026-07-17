@@ -613,9 +613,7 @@ def test_responses_context_guard_does_not_count_inline_image_base64_as_text() ->
 
     handler = _HandlerHarness(ContentRouter(ContentRouterConfig()))
     handler.openai_provider = SimpleNamespace(
-        get_token_counter=lambda _model: SimpleNamespace(
-            count_text=lambda value: len(value) // 2
-        ),
+        get_token_counter=lambda _model: SimpleNamespace(count_text=lambda value: len(value) // 2),
         get_context_limit=lambda _model: 258_400,
     )
     payload = {
@@ -779,8 +777,8 @@ def test_chatgpt_emergency_truncation_clears_responses_context_guard() -> None:
         ],
     }
 
-    refused_before, estimated_before, threshold, _ = (
-        handler._openai_responses_context_guard(body, model=model)
+    refused_before, estimated_before, threshold, _ = handler._openai_responses_context_guard(
+        body, model=model
     )
     assert refused_before is True
     assert estimated_before > 500_000

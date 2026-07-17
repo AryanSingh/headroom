@@ -773,9 +773,7 @@ def test_subscription_websocket_preserves_requested_model() -> None:
 
     assert model == "gpt-5.6-sol"
     assert metadata["model_routing_trace"]["applied"] is False
-    assert metadata["model_routing_trace"]["reason"] == (
-        "downgrade_blocked_unproven_transport"
-    )
+    assert metadata["model_routing_trace"]["reason"] == ("downgrade_blocked_unproven_transport")
 
 
 def test_unverified_target_remains_blocked_on_subscription_transport() -> None:
@@ -1243,9 +1241,17 @@ def test_lookup_costs_returns_none_when_litellm_missing() -> None:
 
 
 def test_router_rejects_downgrade_when_target_capability_is_unproven() -> None:
-    router = ModelRouter(ModelRouterConfig(enabled=True, downgrade_when="always", routes=[
-        ModelRoute(source="strong", target="cheap", source_cost_per_mtok=10, target_cost_per_mtok=1)
-    ]))
+    router = ModelRouter(
+        ModelRouterConfig(
+            enabled=True,
+            downgrade_when="always",
+            routes=[
+                ModelRoute(
+                    source="strong", target="cheap", source_cost_per_mtok=10, target_cost_per_mtok=1
+                )
+            ],
+        )
+    )
     decision = router.maybe_route("strong", required_capabilities={"tool_calling"})
     assert not decision.routing_applied
     assert decision.reason == "target_missing_capabilities"
@@ -1253,17 +1259,44 @@ def test_router_rejects_downgrade_when_target_capability_is_unproven() -> None:
 
 
 def test_router_routes_when_target_explicitly_proves_request_capability() -> None:
-    router = ModelRouter(ModelRouterConfig(enabled=True, downgrade_when="always", routes=[
-        ModelRoute(source="strong", target="cheap", source_cost_per_mtok=10, target_cost_per_mtok=1,
-                   target_capabilities={"tool_calling"})
-    ]))
-    assert router.maybe_route("strong", required_capabilities={"tool_calling"}).target_model == "cheap"
+    router = ModelRouter(
+        ModelRouterConfig(
+            enabled=True,
+            downgrade_when="always",
+            routes=[
+                ModelRoute(
+                    source="strong",
+                    target="cheap",
+                    source_cost_per_mtok=10,
+                    target_cost_per_mtok=1,
+                    target_capabilities={"tool_calling"},
+                )
+            ],
+        )
+    )
+    assert (
+        router.maybe_route("strong", required_capabilities={"tool_calling"}).target_model == "cheap"
+    )
 
 
 def test_finalize_savings_includes_output_delta_when_known() -> None:
-    router = ModelRouter(ModelRouterConfig(enabled=True, downgrade_when="always", routes=[
-        ModelRoute(source="strong", target="cheap", source_cost_per_mtok=10, target_cost_per_mtok=1,
-                   source_output_cost_per_mtok=20, target_output_cost_per_mtok=2)
-    ]))
+    router = ModelRouter(
+        ModelRouterConfig(
+            enabled=True,
+            downgrade_when="always",
+            routes=[
+                ModelRoute(
+                    source="strong",
+                    target="cheap",
+                    source_cost_per_mtok=10,
+                    target_cost_per_mtok=1,
+                    source_output_cost_per_mtok=20,
+                    target_output_cost_per_mtok=2,
+                )
+            ],
+        )
+    )
     decision = router.maybe_route("strong")
-    assert router.finalize_savings(decision, input_tokens=100_000, output_tokens=50_000).usd_saved == pytest.approx(1.8)
+    assert router.finalize_savings(
+        decision, input_tokens=100_000, output_tokens=50_000
+    ).usd_saved == pytest.approx(1.8)

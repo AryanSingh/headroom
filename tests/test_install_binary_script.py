@@ -81,9 +81,7 @@ def test_prefix_argument_emits_prefix_aware_pipx_command(tmp_path: Path) -> None
         (("--prefix", "/tmp/a", "--prefix", "/tmp/b"), "Duplicate option: --prefix"),
     ],
 )
-def test_rejects_invalid_arguments(
-    tmp_path: Path, args: tuple[str, ...], error: str
-) -> None:
+def test_rejects_invalid_arguments(tmp_path: Path, args: tuple[str, ...], error: str) -> None:
     result = _run(tmp_path, *args)
 
     assert result.returncode != 0

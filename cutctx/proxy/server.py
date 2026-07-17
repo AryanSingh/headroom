@@ -1033,7 +1033,6 @@ class CutctxProxy(
                 report_interval=config.license_report_interval,
             )
 
-
         # Audit logger (enterprise compliance — structured event logging)
         self.audit_logger = None
         if getattr(config, "audit_enabled", True):
@@ -1565,9 +1564,7 @@ class CutctxProxy(
                 "episodic_memory requires a business-tier license; "
                 "disabled after license validation"
             )
-            logger.warning(
-                "Episodic Memory disabled: validated license does not include it"
-            )
+            logger.warning("Episodic Memory disabled: validated license does not include it")
         elif entitled and self.episodic_tracker is None and self.config.episodic_memory_enabled:
             self._activate_episodic_tracker()
 
@@ -4274,9 +4271,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
                     tracker = EpisodicSessionTracker(
                         EpisodicMemoryStore(),
-                        idle_timeout_seconds=getattr(
-                            config, "episodic_idle_timeout_seconds", 300
-                        ),
+                        idle_timeout_seconds=getattr(config, "episodic_idle_timeout_seconds", 300),
                         enabled=True,
                         extraction_model=getattr(
                             config,

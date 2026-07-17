@@ -1114,9 +1114,7 @@ def test_github_release_stays_draft_until_all_assets_are_published() -> None:
     import json
 
     config = json.loads((ROOT / ".release-please-config.json").read_text(encoding="utf-8"))
-    release_yml = (ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
+    release_yml = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     release_please_yml = (ROOT / ".github" / "workflows" / "release-please.yml").read_text(
         encoding="utf-8"
     )

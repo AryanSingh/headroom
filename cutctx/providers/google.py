@@ -398,9 +398,7 @@ class GoogleProvider(Provider):
         input_price, output_price = None, None
         for model_prefix, (inp, outp) in _PRICING.items():
             suffix = model_lower.removeprefix(model_prefix)
-            if model_lower == model_prefix or re.fullmatch(
-                r"-(?:\d{8}|\d{4}-\d{2}-\d{2})", suffix
-            ):
+            if model_lower == model_prefix or re.fullmatch(r"-(?:\d{8}|\d{4}-\d{2}-\d{2})", suffix):
                 input_price, output_price = inp, outp
                 break
 
@@ -409,9 +407,7 @@ class GoogleProvider(Provider):
 
         if input_tokens > 200_000 and (
             model_lower == "gemini-2.5-pro"
-            or re.fullmatch(
-                r"gemini-2\.5-pro-(?:\d{8}|\d{4}-\d{2}-\d{2})", model_lower
-            )
+            or re.fullmatch(r"gemini-2\.5-pro-(?:\d{8}|\d{4}-\d{2}-\d{2})", model_lower)
         ):
             input_price, output_price = 2.50, 15.00
 

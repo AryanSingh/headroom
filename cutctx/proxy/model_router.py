@@ -71,7 +71,9 @@ def infer_request_capabilities(payload: dict[str, Any]) -> set[str]:
         required.add("tool_calling")
     response_format = payload.get("response_format") or payload.get("text")
     if isinstance(response_format, dict):
-        if response_format.get("type") in {"json_object", "json_schema"} or response_format.get("format"):
+        if response_format.get("type") in {"json_object", "json_schema"} or response_format.get(
+            "format"
+        ):
             required.add("structured_outputs")
     if payload.get("stream"):
         required.add("streaming")
@@ -1334,7 +1336,11 @@ class ModelRouter:
                 if decision.target_model == route.medium_target
                 else route.target_output_cost_per_mtok
             )
-            if output_tokens is not None and source_output is not None and target_output is not None:
+            if (
+                output_tokens is not None
+                and source_output is not None
+                and target_output is not None
+            ):
                 usd_saved += output_tokens * (source_output - target_output) / 1_000_000.0
         return RoutingDecision(
             target_model=decision.target_model,

@@ -64,12 +64,10 @@ _REASON_EXPLANATIONS = {
         "the requested model."
     ),
     "router_disabled": (
-        "Model routing is turned off, so every request keeps its originally requested "
-        "model."
+        "Model routing is turned off, so every request keeps its originally requested model."
     ),
     "router_error": (
-        "An internal routing check failed safely, so Cutctx retained the requested "
-        "model."
+        "An internal routing check failed safely, so Cutctx retained the requested model."
     ),
     "transport_mismatch": (
         "The provider transport for the candidate model did not match the request, so "
@@ -218,9 +216,7 @@ def build_decision_receipt(
 
     missing: list[str] = []
     if not routing_trace:
-        missing.extend(
-            ("routing.confidence", "routing.rejected_candidates", "routing.transport")
-        )
+        missing.extend(("routing.confidence", "routing.rejected_candidates", "routing.transport"))
     if not provider_observed:
         missing.append("cache.provider_prompt_cache")
     if ccr_references and ccr_outcome is None:

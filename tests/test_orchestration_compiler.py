@@ -135,15 +135,11 @@ def test_compiled_policy_bundle_carries_contract_identity_and_hash() -> None:
 def test_compiler_preserves_registered_models_when_accounts_are_implicit() -> None:
     infrastructure = _infrastructure_config()
     infrastructure.providers = []
-    infrastructure.models = [
-        ModelRecord(provider="openai", id="gpt-5", account_id="primary")
-    ]
+    infrastructure.models = [ModelRecord(provider="openai", id="gpt-5", account_id="primary")]
 
     compiled = compile_contract(_implementation_contract(), infrastructure)
 
-    assert [model.deployment_key for model in compiled.config.models] == [
-        "openai:primary:gpt-5"
-    ]
+    assert [model.deployment_key for model in compiled.config.models] == ["openai:primary:gpt-5"]
 
 
 def test_compiler_excludes_models_below_contract_capacity_floors() -> None:
@@ -175,6 +171,4 @@ def test_compiler_excludes_models_below_contract_capacity_floors() -> None:
 
     compiled = compile_contract(contract, infrastructure)
 
-    assert [model.deployment_key for model in compiled.config.models] == [
-        "openai:primary:gpt-5"
-    ]
+    assert [model.deployment_key for model in compiled.config.models] == ["openai:primary:gpt-5"]

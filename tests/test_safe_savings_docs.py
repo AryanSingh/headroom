@@ -4,9 +4,7 @@ from pathlib import Path
 
 
 def test_safe_savings_docs_name_flag_status_command_and_authoritative_rollback() -> None:
-    text = Path("docs/content/docs/model-routing-presets.mdx").read_text(
-        encoding="utf-8"
-    )
+    text = Path("docs/content/docs/model-routing-presets.mdx").read_text(encoding="utf-8")
 
     assert "CUTCTX_SAFE_SAVINGS_EXPERIENCE" in text
     assert "cutctx routing status" in text

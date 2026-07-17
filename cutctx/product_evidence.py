@@ -124,7 +124,10 @@ def _is_downstream_task_report(payload: dict[str, Any]) -> bool:
     for benchmark in benchmarks:
         if not isinstance(benchmark, dict):
             continue
-        if benchmark.get("baseline_score") is not None and benchmark.get("cutctx_score") is not None:
+        if (
+            benchmark.get("baseline_score") is not None
+            and benchmark.get("cutctx_score") is not None
+        ):
             return True
         if str(benchmark.get("metric", "")).lower() in DOWNSTREAM_TASK_METRICS:
             return True
@@ -219,7 +222,8 @@ def build_product_evidence(
     generated_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     ordered_rows = sorted(
         savings_rows,
-        key=lambda row: _parse_timestamp(row.get("timestamp")) or datetime.max.replace(tzinfo=timezone.utc),
+        key=lambda row: _parse_timestamp(row.get("timestamp"))
+        or datetime.max.replace(tzinfo=timezone.utc),
     )
     first_request = aggregate_savings_receipt(ordered_rows[:1])
     if ordered_rows:
@@ -241,14 +245,18 @@ def build_product_evidence(
 
     limitations: list[str] = []
     if downstream["status"] != "available":
-        limitations.append("Downstream task-quality evidence is unavailable; compression fidelity is not a substitute.")
+        limitations.append(
+            "Downstream task-quality evidence is unavailable; compression fidelity is not a substitute."
+        )
     release_payload = evidence["release_posture"].get("payload", {})
     if evidence["release_posture"]["status"] != "available":
         limitations.append(
             "Release evidence integrity is unavailable or invalid; no release posture is claimed."
         )
     elif not release_payload.get("market_claim_eligible", False):
-        limitations.append("External market-claim eligibility is not established by this local receipt.")
+        limitations.append(
+            "External market-claim eligibility is not established by this local receipt."
+        )
     if period["status"] == "no_data":
         limitations.append("No persisted request savings are available for the selected period.")
     if evidence["assurance"]["status"] != "available":

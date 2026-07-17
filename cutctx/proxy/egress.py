@@ -133,9 +133,7 @@ class EgressEnforcer:
             )
 
         for original, allowed_host, wildcard in self._host_rules:
-            matches = (
-                host.endswith(f".{allowed_host}") if wildcard else host == allowed_host
-            )
+            matches = host.endswith(f".{allowed_host}") if wildcard else host == allowed_host
             if matches:
                 return EgressDecision(
                     allowed=True,

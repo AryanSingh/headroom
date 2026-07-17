@@ -182,9 +182,7 @@ def test_safe_savings_status_reads_live_proxy_router_configuration() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["preset"] == "codex-gpt54mini-high"
-    assert payload["route_count"] == len(
-        ModelRouterConfig.codex_gpt54mini_high_preset().routes
-    )
+    assert payload["route_count"] == len(ModelRouterConfig.codex_gpt54mini_high_preset().routes)
 
 
 def test_config_flags_supports_balanced_and_aggressive_modes() -> None:

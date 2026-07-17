@@ -78,7 +78,11 @@ def test_downstream_report_selection_rejects_compression_only_metrics(tmp_path: 
             "timestamp": "2026-07-14T11:00:00+00:00",
             "summary": {"all_passed": True},
             "benchmarks": [
-                {"metric": "exact_match_flexible-extract", "baseline_score": 0.8, "cutctx_score": 0.79}
+                {
+                    "metric": "exact_match_flexible-extract",
+                    "baseline_score": 0.8,
+                    "cutctx_score": 0.79,
+                }
             ],
         },
     )

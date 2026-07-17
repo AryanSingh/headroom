@@ -267,6 +267,4 @@ async def test_rate_limit_denial_is_available_in_the_trace_inspector(tmp_path):
     assert matching[0]["compression"]["decline_reason"] == "rate_limit_exceeded"
     assert matching[0]["tags"]["rate_limit_denied"] == "true"
     assert matching[0]["decision_receipt"]["observation"]["completeness"] == "partial"
-    assert matching[0]["decision_receipt"]["observation"]["missing"] == [
-        "rate_limit_exceeded"
-    ]
+    assert matching[0]["decision_receipt"]["observation"]["missing"] == ["rate_limit_exceeded"]

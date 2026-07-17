@@ -25,14 +25,14 @@ def _verified_digest(data: bytes, expected_sha256: str) -> None:
         raise RuntimeError("A valid pinned SHA-256 digest is required for binary installation")
     actual = hashlib.sha256(data).hexdigest()
     if not hmac.compare_digest(actual, expected):
-        raise RuntimeError(
-            f"Binary archive SHA-256 mismatch (expected {expected}, got {actual})"
-        )
+        raise RuntimeError(f"Binary archive SHA-256 mismatch (expected {expected}, got {actual})")
 
 
 def _read_tar_binary(data: bytes, binary_name: str) -> bytes:
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
-        matches = [member for member in archive.getmembers() if Path(member.name).name == binary_name]
+        matches = [
+            member for member in archive.getmembers() if Path(member.name).name == binary_name
+        ]
         if len(matches) != 1:
             raise RuntimeError(f"Expected exactly one {binary_name!r} binary in archive")
         member = matches[0]

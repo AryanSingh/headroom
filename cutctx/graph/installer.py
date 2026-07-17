@@ -41,9 +41,7 @@ def _expected_archive_sha256(version: str, platform_name: str) -> str:
     return expected
 
 
-def _get_download_url(
-    version: str, platform_name: str
-) -> tuple[str, Literal["tar.gz", "zip"]]:
+def _get_download_url(version: str, platform_name: str) -> tuple[str, Literal["tar.gz", "zip"]]:
     archive_type: Literal["tar.gz", "zip"] = (
         "zip" if platform_name.startswith("windows-") else "tar.gz"
     )

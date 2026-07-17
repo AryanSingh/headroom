@@ -222,7 +222,9 @@ def contract_from_dict(payload: dict[str, Any]) -> WorkloadContract:
         maximum_cost_usd=objective_payload.get("maximum_cost_usd"),
         maximum_ttft_ms=objective_payload.get("maximum_ttft_ms"),
         maximum_total_latency_ms=objective_payload.get("maximum_total_latency_ms"),
-        weights={str(key): float(value) for key, value in objective_payload.get("weights", {}).items()},
+        weights={
+            str(key): float(value) for key, value in objective_payload.get("weights", {}).items()
+        },
     )
 
     reliability_payload = dict(payload.get("reliability", {}))
@@ -313,9 +315,7 @@ def contract_from_dict(payload: dict[str, Any]) -> WorkloadContract:
         ),
         automatic_rollback_conditions={
             str(key): float(value)
-            for key, value in evaluation_payload.get(
-                "automatic_rollback_conditions", {}
-            ).items()
+            for key, value in evaluation_payload.get("automatic_rollback_conditions", {}).items()
         },
     )
 
@@ -330,9 +330,7 @@ def contract_from_dict(payload: dict[str, Any]) -> WorkloadContract:
         selectors={str(key): str(value) for key, value in payload.get("selectors", {}).items()},
         task_types=set(payload.get("task_types", [])),
         baseline_model=(
-            str(payload["baseline_model"])
-            if payload.get("baseline_model") is not None
-            else None
+            str(payload["baseline_model"]) if payload.get("baseline_model") is not None else None
         ),
         fallback_models=tuple(str(value) for value in payload.get("fallback_models", [])),
         requirements=requirements,
@@ -389,7 +387,9 @@ def legacy_contracts_from_config(config: OrchestrationConfig) -> list[WorkloadCo
             (
                 binding
                 for binding in config.bindings
-                if binding.enabled and binding.role and binding.role.casefold() == role.id.casefold()
+                if binding.enabled
+                and binding.role
+                and binding.role.casefold() == role.id.casefold()
             ),
             key=lambda binding: (bool(binding.selectors), binding.id),
         )
@@ -417,9 +417,7 @@ def legacy_contracts_from_config(config: OrchestrationConfig) -> list[WorkloadCo
                     },
                     allowed_providers=set(config.settings.allowed_providers),
                     allowed_regions=set(config.settings.allowed_regions),
-                    allowed_data_classifications=set(
-                        config.settings.allowed_data_classifications
-                    ),
+                    allowed_data_classifications=set(config.settings.allowed_data_classifications),
                 ),
                 objective=ContractObjective(
                     type=ContractObjectiveType.EXACT_ASSIGNMENT.value,

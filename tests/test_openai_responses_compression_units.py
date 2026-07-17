@@ -240,9 +240,9 @@ def test_openai_responses_large_plain_tool_output_avoids_ml_latency_and_preserve
 
     router.compress = MethodType(compress, router)
     handler = _handler_with_router(router)
-    text = (
-        "The wrapped session must preserve this ordinary narrative tool output safely. " * 700
-    )[: 36 * 1024]
+    text = ("The wrapped session must preserve this ordinary narrative tool output safely. " * 700)[
+        : 36 * 1024
+    ]
     payload = {
         "model": "gpt-5",
         "input": [

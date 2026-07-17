@@ -127,9 +127,7 @@ def test_download_cbm_invalid_url_download_failure_and_extract_errors(
         installer.download_cbm()
 
     wrong_binary_archive = _build_archive("some/other-binary")
-    monkeypatch.setenv(
-        "CUTCTX_CBM_SHA256", hashlib.sha256(wrong_binary_archive).hexdigest()
-    )
+    monkeypatch.setenv("CUTCTX_CBM_SHA256", hashlib.sha256(wrong_binary_archive).hexdigest())
     monkeypatch.setattr(
         installer, "urlopen", lambda url, timeout=60: FakeResponse(wrong_binary_archive)
     )
@@ -138,9 +136,7 @@ def test_download_cbm_invalid_url_download_failure_and_extract_errors(
 
     invalid_archive = b"not a tar"
     monkeypatch.setenv("CUTCTX_CBM_SHA256", hashlib.sha256(invalid_archive).hexdigest())
-    monkeypatch.setattr(
-        installer, "urlopen", lambda url, timeout=60: FakeResponse(invalid_archive)
-    )
+    monkeypatch.setattr(installer, "urlopen", lambda url, timeout=60: FakeResponse(invalid_archive))
     with pytest.raises(RuntimeError, match="Failed to extract verified binary archive"):
         installer.download_cbm()
 

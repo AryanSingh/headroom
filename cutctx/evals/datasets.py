@@ -744,9 +744,7 @@ def load_codesearchnet(
     try:
         # CodeSearchNet is large; stream so an n-sample evaluation does not
         # download an entire language split before it can begin.
-        ds = load_dataset(
-            "code-search-net/code_search_net", language, split=split, streaming=True
-        )
+        ds = load_dataset("code-search-net/code_search_net", language, split=split, streaming=True)
     except Exception as e:
         raise ValueError(f"Failed to load CodeSearchNet for '{language}': {e}") from e
 

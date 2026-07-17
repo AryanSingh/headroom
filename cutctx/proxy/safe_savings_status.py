@@ -34,7 +34,7 @@ def safe_savings_experience_enabled(env: Mapping[str, str] | None = None) -> boo
 
 
 def _string_list(value: Any) -> list[str]:
-    if not isinstance(value, (list, tuple, set)):
+    if not isinstance(value, list | tuple | set):
         return []
     return [str(item) for item in value if item is not None]
 
@@ -65,9 +65,7 @@ def _route_status(route: Any, safe_targets: set[str]) -> dict[str, Any]:
             str(item) for item in (route.medium_target_capabilities or set())
         ),
         "low_target_transport_safe": low_target in safe_targets,
-        "medium_target_transport_safe": bool(
-            medium_target and medium_target in safe_targets
-        ),
+        "medium_target_transport_safe": bool(medium_target and medium_target in safe_targets),
     }
 
 
@@ -107,7 +105,9 @@ def _latest_decision(
         missing_capabilities = _string_list(summary.get("missing_capabilities"))
         if not missing_capabilities and reason == "target_missing_capabilities":
             missing_capabilities = _string_list(
-                selection_evidence.get("signals") if isinstance(selection_evidence, Mapping) else None
+                selection_evidence.get("signals")
+                if isinstance(selection_evidence, Mapping)
+                else None
             )
         signals = _string_list(summary.get("signals"))
         if not signals and isinstance(selection_evidence, Mapping):
@@ -145,7 +145,9 @@ def build_safe_savings_status(
     config = getattr(router, "config", None)
     routes = list(getattr(config, "routes", []) or [])
     enabled = bool(getattr(config, "enabled", False))
-    safe_targets = {str(item) for item in (getattr(config, "transport_safe_targets", set()) or set())}
+    safe_targets = {
+        str(item) for item in (getattr(config, "transport_safe_targets", set()) or set())
+    }
     return {
         "schema_version": SAFE_SAVINGS_STATUS_SCHEMA_VERSION,
         "experience_enabled": (

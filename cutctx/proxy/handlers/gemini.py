@@ -428,7 +428,9 @@ class GeminiHandlerMixin:
         from cutctx.proxy.memory_query import MemoryQuery
 
         system_instruction = body.get("systemInstruction") or body.get("system_instruction")
-        messages, preserved_indices = self._gemini_contents_to_messages(contents, system_instruction)
+        messages, preserved_indices = self._gemini_contents_to_messages(
+            contents, system_instruction
+        )
 
         memory_decision = MemoryDecision.decide(
             headers=request.headers,

@@ -2495,14 +2495,10 @@ class SavingsTracker:
             lifetime_for_migration = raw.get("lifetime")
             if isinstance(lifetime_for_migration, dict):
                 canonical_raw = lifetime_for_migration.get("savings_by_source_usd.model_routing")
-                typed_value = _coerce_float(
-                    lifetime_for_migration.get("model_routing_savings_usd")
-                )
+                typed_value = _coerce_float(lifetime_for_migration.get("model_routing_savings_usd"))
                 canonical_value = _coerce_float(canonical_raw)
                 if canonical_raw is not None and canonical_value > typed_value + 0.01:
-                    lifetime_for_migration["model_routing_savings_usd"] = round(
-                        canonical_value, 6
-                    )
+                    lifetime_for_migration["model_routing_savings_usd"] = round(canonical_value, 6)
                     raw["attribution_reconciliation"] = {
                         "schema_version": 7,
                         "note": (

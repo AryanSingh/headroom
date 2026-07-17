@@ -104,9 +104,7 @@ def test_orchestration_contract_draft_simulation_and_lifecycle_api(
         durable = client.get("/v1/orchestration/contracts", headers=headers)
         assert durable.status_code == 200
         assert durable.json()["revision"] == 1
-        assert [contract["id"] for contract in durable.json()["contracts"]] == [
-            "implementation"
-        ]
+        assert [contract["id"] for contract in durable.json()["contracts"]] == ["implementation"]
         assert durable.json()["contracts"][0]["template"] == "implementation"
 
         fetched = client.get(

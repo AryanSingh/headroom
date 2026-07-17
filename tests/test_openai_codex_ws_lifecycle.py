@@ -508,8 +508,7 @@ async def test_ws_opaque_continuation_ignores_approximate_context_refusal():
     forwarded = json.loads(upstream.sent[0])
     assert forwarded["response"]["model"] == "gpt-5.6-sol"
     assert (
-        forwarded["response"]["input"][0]["encrypted_content"]
-        == "opaque-model-bound-continuation"
+        forwarded["response"]["input"][0]["encrypted_content"] == "opaque-model-bound-continuation"
     )
     assert client_ws.close_code != 1009
 

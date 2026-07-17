@@ -22,8 +22,7 @@ def test_pricing_public_exports_and_provider_registries() -> None:
     anthropic_registry = get_anthropic_registry()
     assert openai_registry.source_url == "https://developers.openai.com/api/docs/pricing"
     assert (
-        anthropic_registry.source_url
-        == "https://platform.claude.com/docs/en/about-claude/pricing"
+        anthropic_registry.source_url == "https://platform.claude.com/docs/en/about-claude/pricing"
     )
     assert openai_registry.prices["gpt-4o"] == OPENAI_PRICES["gpt-4o"]
     assert (

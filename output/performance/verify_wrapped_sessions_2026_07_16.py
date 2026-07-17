@@ -215,9 +215,7 @@ async def main() -> None:
                         "p50_percent_of_direct": round(
                             100.0 * overhead_p50 / direct_summary["p50_ms"], 2
                         ),
-                        "p95_ms": round(
-                            wrapped_summary["p95_ms"] - direct_summary["p95_ms"], 3
-                        ),
+                        "p95_ms": round(wrapped_summary["p95_ms"] - direct_summary["p95_ms"], 3),
                     },
                     "semantic_input_unchanged": semantic_ok,
                     "expected_input_sha256": canonical_input_hash,

@@ -31,9 +31,7 @@ def test_telemetry_route_uses_telemetry_collector_module(
     monkeypatch.setattr("cutctx.telemetry.collector.get_telemetry_collector", lambda: collector)
 
     with TestClient(_app()) as client:
-        response = client.get(
-            "/v1/telemetry", headers={"x-cutctx-admin-key": "admin-runtime-key"}
-        )
+        response = client.get("/v1/telemetry", headers={"x-cutctx-admin-key": "admin-runtime-key"})
 
     assert response.status_code == 200
     assert response.json() == {"live": True}
@@ -44,9 +42,7 @@ def test_toin_route_uses_toin_module(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("cutctx.telemetry.toin.get_toin", lambda: toin)
 
     with TestClient(_app()) as client:
-        response = client.get(
-            "/v1/toin/stats", headers={"x-cutctx-admin-key": "admin-runtime-key"}
-        )
+        response = client.get("/v1/toin/stats", headers={"x-cutctx-admin-key": "admin-runtime-key"})
 
     assert response.status_code == 200
     assert response.json() == {"patterns": 3}

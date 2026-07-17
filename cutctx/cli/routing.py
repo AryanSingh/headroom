@@ -50,7 +50,9 @@ def status(proxy_url: str | None, admin_key: str | None) -> None:
     except httpx.HTTPError as exc:
         raise click.ClickException(f"Could not retrieve Safe Savings status: {exc}") from exc
     except (TypeError, ValueError) as exc:
-        raise click.ClickException("Proxy returned an invalid Safe Savings status response") from exc
+        raise click.ClickException(
+            "Proxy returned an invalid Safe Savings status response"
+        ) from exc
 
     if not isinstance(payload, dict):
         raise click.ClickException("Proxy returned an invalid Safe Savings status response")
@@ -75,21 +77,15 @@ def status(proxy_url: str | None, admin_key: str | None) -> None:
             low_target = route.get("low_target_model")
             if source and low_target:
                 low_posture = (
-                    "transport-safe"
-                    if route.get("low_target_transport_safe")
-                    else "restricted"
+                    "transport-safe" if route.get("low_target_transport_safe") else "restricted"
                 )
                 click.echo(f"  {source} -> {low_target} (low, {low_posture})")
             medium_target = route.get("medium_target_model")
             if source and medium_target:
                 medium_posture = (
-                    "transport-safe"
-                    if route.get("medium_target_transport_safe")
-                    else "restricted"
+                    "transport-safe" if route.get("medium_target_transport_safe") else "restricted"
                 )
-                click.echo(
-                    f"  {source} -> {medium_target} (medium, {medium_posture})"
-                )
+                click.echo(f"  {source} -> {medium_target} (medium, {medium_posture})")
 
     decision = payload.get("decision")
     if not isinstance(decision, dict):
@@ -99,9 +95,7 @@ def status(proxy_url: str | None, admin_key: str | None) -> None:
     disposition = "applied" if decision.get("applied") else "retained"
     requested_model = decision.get("requested_model") or "unknown"
     effective_model = decision.get("effective_model") or requested_model
-    click.echo(
-        f"Recent decision: {disposition} {requested_model} -> {effective_model}"
-    )
+    click.echo(f"Recent decision: {disposition} {requested_model} -> {effective_model}")
     if decision.get("title"):
         click.echo(f"Reason: {decision['title']}")
     if decision.get("explanation"):

@@ -201,6 +201,7 @@ def _is_remote_compaction_subscription_request(body: dict[str, Any]) -> bool:
     except (TypeError, ValueError):
         return False
 
+
 # Codex Responses Lite is a client hint, not proof that the model itself
 # must be rewritten. The proxy strips the internal Lite header before
 # forwarding api.openai.com requests, and chatgpt.com model availability is
@@ -292,11 +293,7 @@ def _responses_context_estimate_payload(payload: Any) -> tuple[Any, int]:
         return 1_600
 
     def _visit(value: Any, *, key: str | None = None) -> tuple[Any, int]:
-        if (
-            key == "image_url"
-            and isinstance(value, str)
-            and value.startswith("data:image/")
-        ):
+        if key == "image_url" and isinstance(value, str) and value.startswith("data:image/"):
             return "<inline image data>", _inline_image_tokens(value)
         if isinstance(value, dict):
             copied: dict[str, Any] = {}
@@ -953,10 +950,9 @@ def _truncate_body_for_chatgpt(
         if isinstance(value, str):
             if parent_key == "image_url":
                 return _shrink_image_url(value)
-            if (
-                (truncate_all_strings or parent_key in _PAYLOAD_STRING_KEYS)
-                and len(value) > char_limit
-            ):
+            if (truncate_all_strings or parent_key in _PAYLOAD_STRING_KEYS) and len(
+                value
+            ) > char_limit:
                 return value[:char_limit] + "…[truncated]"
             return value
         if isinstance(value, list):
@@ -1036,8 +1032,7 @@ def _truncate_body_for_chatgpt(
         while instruction_limit > 1024 and _is_over_budget():
             instruction_limit //= 2
             body["instructions"] = (
-                instructions[:instruction_limit]
-                + "\n…[instructions truncated by cutctx]"
+                instructions[:instruction_limit] + "\n…[instructions truncated by cutctx]"
             )
         if _is_over_budget():
             body["instructions"] = "[instructions truncated by cutctx]"
@@ -1538,9 +1533,7 @@ class OpenAIResponsesMixin:
                                     "item_type": item_type,
                                     "call_id": call_id,
                                     "text_chars": len(text),
-                                    "text_bytes": len(
-                                        text.encode("utf-8", errors="replace")
-                                    ),
+                                    "text_bytes": len(text.encode("utf-8", errors="replace")),
                                     "item": item,
                                 }
                             )
@@ -1971,7 +1964,9 @@ class OpenAIResponsesMixin:
                     compacted_tools, tools_modified, tools_before_bytes, tools_after_bytes = (
                         compress_tool_schemas(
                             _tools_list,
-                            max_description_length=120 if canary_arm == "tool_api_slimming" else 200,
+                            max_description_length=120
+                            if canary_arm == "tool_api_slimming"
+                            else 200,
                             aggressive=canary_arm == "tool_api_slimming",
                         )
                     )
@@ -2211,8 +2206,7 @@ class OpenAIResponsesMixin:
             # supports it, without catching TypeError raised inside compression.
             parameters = inspect.signature(compress_fn).parameters
             accepts_kwargs = any(
-                parameter.kind is inspect.Parameter.VAR_KEYWORD
-                for parameter in parameters.values()
+                parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()
             )
             if not accepts_kwargs:
                 kwargs = {name: value for name, value in kwargs.items() if name in parameters}
@@ -2518,8 +2512,7 @@ class OpenAIResponsesMixin:
         raw_request_headers = dict(request.headers.items())
         _, is_chatgpt_subscription = _resolve_codex_routing_headers(raw_request_headers)
         is_remote_compaction = (
-            is_chatgpt_subscription
-            and _is_remote_compaction_subscription_request(body)
+            is_chatgpt_subscription and _is_remote_compaction_subscription_request(body)
         )
         from cutctx.proxy.handlers.openai.utils import _has_codex_responses_lite_hint
 
@@ -2538,9 +2531,7 @@ class OpenAIResponsesMixin:
                 assignment_identity_source=_canary_identity.source,
                 assignment_sticky=_canary_identity.sticky,
                 transport_provider="openai",
-                implicit_downgrade_allowed=not (
-                    is_chatgpt_subscription or codex_responses_lite
-                ),
+                implicit_downgrade_allowed=not (is_chatgpt_subscription or codex_responses_lite),
                 allow_transport_safe_targets=not is_chatgpt_subscription,
                 required_capabilities=infer_request_capabilities(body),
             )
@@ -3038,10 +3029,7 @@ class OpenAIResponsesMixin:
                         _truncated_bytes,
                     )
                 elif _http_action.refuse:
-                    if (
-                        (is_chatgpt_auth or client == "codex")
-                        and _http_action.reason == "timeout"
-                    ):
+                    if (is_chatgpt_auth or client == "codex") and _http_action.reason == "timeout":
                         logger.warning(
                             "[%s] /v1/responses compression timed out on a Codex "
                             "or ChatGPT subscription request (%d bytes); failing "
@@ -3140,6 +3128,7 @@ class OpenAIResponsesMixin:
         elif _guard_refuse:
             _CHATGPT_MAX_BODY_BYTES = 900 * 1024  # conservative chatgpt.com ceiling
             if is_chatgpt_auth:
+
                 def _chatgpt_context_over_budget(candidate: dict[str, Any]) -> bool:
                     candidate_model = str(candidate.get("model") or _guard_model)
                     candidate_refuse, _, _, _ = self._openai_responses_context_guard(
@@ -4987,8 +4976,7 @@ class OpenAIResponsesMixin:
                         model=_guard_model,
                     )
                     _opaque_subscription_continuation = (
-                        is_chatgpt_auth
-                        and _contains_opaque_responses_continuation(_guard_inner)
+                        is_chatgpt_auth and _contains_opaque_responses_continuation(_guard_inner)
                     )
                     if _guard_refuse and _opaque_subscription_continuation:
                         logger.warning(
@@ -5202,8 +5190,10 @@ class OpenAIResponsesMixin:
                                     else None,
                                 )
                                 frame_surface_saved = frame_surface_result.tokens_saved
-                                if not is_chatgpt_auth and frame_surface_result.modified and isinstance(
-                                    inner_payload, dict
+                                if (
+                                    not is_chatgpt_auth
+                                    and frame_surface_result.modified
+                                    and isinstance(inner_payload, dict)
                                 ):
                                     inner_payload = {
                                         **inner_payload,
@@ -5459,8 +5449,7 @@ class OpenAIResponsesMixin:
                             model=str(new_inner.get("model") or "unknown"),
                         )
                         if guard_refuse and not (
-                            is_chatgpt_auth
-                            and _contains_opaque_responses_continuation(new_inner)
+                            is_chatgpt_auth and _contains_opaque_responses_continuation(new_inner)
                         ):
                             logger.error(
                                 "[%s] WS /v1/responses refusing oversized frame "

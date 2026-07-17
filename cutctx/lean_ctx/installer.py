@@ -19,13 +19,34 @@ logger = logging.getLogger(__name__)
 GITHUB_RELEASE_URL = "https://github.com/yvgude/lean-ctx/releases/download"
 
 _PINNED_ARCHIVE_SHA256 = {
-    ("v3.4.7", "aarch64-apple-darwin"): "c4db95966f80ab47aadfca296d0f95937085cf601833f0288eeec8b9f02872cd",
-    ("v3.4.7", "aarch64-unknown-linux-gnu"): "72435a42bb33afc3d3cd5a62426955c6488192826a3a84d57e26f587740534d9",
-    ("v3.4.7", "aarch64-unknown-linux-musl"): "be68c45ebb19e30ae6fc4713ec56f148ef2dfa08669b2db4abe57706e625c0e8",
-    ("v3.4.7", "x86_64-apple-darwin"): "9d55d9ed24d3b3726c16eea3cc16255538f286a880531b7fa90e7fb00361e2e2",
-    ("v3.4.7", "x86_64-pc-windows-msvc"): "57ff7ff936228828ffc94e0803e1727c5ad03d92791283614406b7e4f66706b0",
-    ("v3.4.7", "x86_64-unknown-linux-gnu"): "ec405e643a4c4cb3e7fdd2818801f11a6d0209cbcfe0ce085df1d62335a5053b",
-    ("v3.4.7", "x86_64-unknown-linux-musl"): "d2cb70294044a04edc32b7bb9ba2e81f826c042db4840226058d2bd4941e0034",
+    (
+        "v3.4.7",
+        "aarch64-apple-darwin",
+    ): "c4db95966f80ab47aadfca296d0f95937085cf601833f0288eeec8b9f02872cd",
+    (
+        "v3.4.7",
+        "aarch64-unknown-linux-gnu",
+    ): "72435a42bb33afc3d3cd5a62426955c6488192826a3a84d57e26f587740534d9",
+    (
+        "v3.4.7",
+        "aarch64-unknown-linux-musl",
+    ): "be68c45ebb19e30ae6fc4713ec56f148ef2dfa08669b2db4abe57706e625c0e8",
+    (
+        "v3.4.7",
+        "x86_64-apple-darwin",
+    ): "9d55d9ed24d3b3726c16eea3cc16255538f286a880531b7fa90e7fb00361e2e2",
+    (
+        "v3.4.7",
+        "x86_64-pc-windows-msvc",
+    ): "57ff7ff936228828ffc94e0803e1727c5ad03d92791283614406b7e4f66706b0",
+    (
+        "v3.4.7",
+        "x86_64-unknown-linux-gnu",
+    ): "ec405e643a4c4cb3e7fdd2818801f11a6d0209cbcfe0ce085df1d62335a5053b",
+    (
+        "v3.4.7",
+        "x86_64-unknown-linux-musl",
+    ): "d2cb70294044a04edc32b7bb9ba2e81f826c042db4840226058d2bd4941e0034",
 }
 
 

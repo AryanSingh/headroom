@@ -1681,8 +1681,12 @@ class CodeAwareCompressor(Transform):
             # replaced. This avoids expanding a compact suffix merely because
             # the retained prefix is large.
             omitted_comment = _make_omitted_comment(
-                func_name, omitted_lines, indent, lang_config.comment_prefix,
-                analysis, preserved_anchors=preserved_anchors,
+                func_name,
+                omitted_lines,
+                indent,
+                lang_config.comment_prefix,
+                analysis,
+                preserved_anchors=preserved_anchors,
             )
             replacement = omitted_comment
             if lang_config.uses_colon_after_signature:

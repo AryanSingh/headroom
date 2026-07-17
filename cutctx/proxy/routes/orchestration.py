@@ -262,9 +262,7 @@ def create_orchestration_router(
             "revision": service.contract_store.revision,
         }
 
-    @router.get(
-        "/contracts/{contract_id}/versions/{version}", dependencies=read_deps
-    )
+    @router.get("/contracts/{contract_id}/versions/{version}", dependencies=read_deps)
     async def get_contract(contract_id: str, version: str) -> dict[str, Any]:
         try:
             contract = service.get_contract(contract_id, version)
@@ -272,12 +270,8 @@ def create_orchestration_router(
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return {"contract": contract_to_dict(contract)}
 
-    @router.put(
-        "/contracts/{contract_id}/draft", dependencies=write_deps, status_code=201
-    )
-    async def put_contract_draft(
-        contract_id: str, payload: ContractDraftPayload
-    ) -> dict[str, Any]:
+    @router.put("/contracts/{contract_id}/draft", dependencies=write_deps, status_code=201)
+    async def put_contract_draft(contract_id: str, payload: ContractDraftPayload) -> dict[str, Any]:
         try:
             contract = contract_from_dict(payload.contract)
             if contract.id != contract_id:
@@ -309,9 +303,7 @@ def create_orchestration_router(
         except RoutingUnavailableError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-    async def transition_contract(
-        contract_id: str, version: str, target: str
-    ) -> dict[str, Any]:
+    async def transition_contract(contract_id: str, version: str, target: str) -> dict[str, Any]:
         try:
             contract = service.transition_contract(contract_id, version, target=target)
         except KeyError as exc:
@@ -323,15 +315,11 @@ def create_orchestration_router(
             "revision": service.contract_store.revision,
         }
 
-    @router.post(
-        "/contracts/{contract_id}/versions/{version}/shadow", dependencies=write_deps
-    )
+    @router.post("/contracts/{contract_id}/versions/{version}/shadow", dependencies=write_deps)
     async def shadow_contract(contract_id: str, version: str) -> dict[str, Any]:
         return await transition_contract(contract_id, version, "shadow")
 
-    @router.post(
-        "/contracts/{contract_id}/versions/{version}/canary", dependencies=write_deps
-    )
+    @router.post("/contracts/{contract_id}/versions/{version}/canary", dependencies=write_deps)
     async def canary_contract(contract_id: str, version: str) -> dict[str, Any]:
         try:
             contract = service.promote_contract(contract_id, version, target="canary")
@@ -344,15 +332,11 @@ def create_orchestration_router(
             ) from exc
         return {"contract": contract_to_dict(contract), "revision": service.contract_store.revision}
 
-    @router.post(
-        "/contracts/{contract_id}/versions/{version}/pause", dependencies=write_deps
-    )
+    @router.post("/contracts/{contract_id}/versions/{version}/pause", dependencies=write_deps)
     async def pause_contract(contract_id: str, version: str) -> dict[str, Any]:
         return await transition_contract(contract_id, version, "paused")
 
-    @router.post(
-        "/contracts/{contract_id}/versions/{version}/rollback", dependencies=write_deps
-    )
+    @router.post("/contracts/{contract_id}/versions/{version}/rollback", dependencies=write_deps)
     async def rollback_contract(contract_id: str, version: str) -> dict[str, Any]:
         try:
             contract = service.rollback_contract(contract_id)
@@ -363,9 +347,7 @@ def create_orchestration_router(
             ) from exc
         return {"contract": contract_to_dict(contract), "revision": service.contract_store.revision}
 
-    @router.post(
-        "/contracts/{contract_id}/versions/{version}/promote", dependencies=write_deps
-    )
+    @router.post("/contracts/{contract_id}/versions/{version}/promote", dependencies=write_deps)
     async def promote_contract(contract_id: str, version: str) -> dict[str, Any]:
         try:
             current = service.get_contract(contract_id, version)
@@ -400,9 +382,7 @@ def create_orchestration_router(
         payload: ContractEvidencePayload,
     ) -> dict[str, Any]:
         try:
-            return service.record_contract_evidence(
-                contract_id, version, payload.model_dump()
-            )
+            return service.record_contract_evidence(contract_id, version, payload.model_dump())
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:

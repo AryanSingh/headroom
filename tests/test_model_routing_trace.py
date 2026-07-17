@@ -88,7 +88,10 @@ def test_abstained_routing_trace_has_dashboard_safe_summary() -> None:
     model, metadata = prepare_model_routing(
         handler,
         "gpt-5.6-terra",
-        messages=[{"role": "tool", "content": "repository output"}, {"role": "user", "content": "summarize this"}],
+        messages=[
+            {"role": "tool", "content": "repository output"},
+            {"role": "user", "content": "summarize this"},
+        ],
         num_messages=2,
         request_id="req-tool-context",
         request_savings_metadata={},
