@@ -2347,3 +2347,60 @@ def test_legacy_proxy_refuses_cross_provider_assignment(tmp_path: Path) -> None:
         )
 
     assert error.value.reason == "transport_mismatch"
+
+
+def test_safe_savings_status_endpoint_is_authenticated_and_read_only(
+    tmp_path: Path,
+) -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    calls = {"provider": 0}
+
+    def status_provider() -> dict[str, Any]:
+        calls["provider"] += 1
+        return {
+            "schema_version": 1,
+            "experience_enabled": True,
+            "enabled": False,
+            "mode": "off",
+            "preset": None,
+            "route_count": 0,
+            "routes": [],
+            "transport_safe_targets": [],
+            "decision": None,
+            "rollback_available": False,
+        }
+
+    app = FastAPI()
+    app.include_router(
+        create_orchestration_router(
+            service,
+            require_admin_auth=lambda: None,
+            safe_savings_status_provider=status_provider,
+        )
+    )
+    client = TestClient(app)
+
+    response = client.get("/v1/orchestration/safe-savings/status")
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "off"
+    assert calls == {"provider": 1}
+
+
+def test_safe_savings_status_endpoint_fails_explicitly_without_provider(
+    tmp_path: Path,
+) -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    service = _service(tmp_path, {"openai": {}, "anthropic": {}})
+    app = FastAPI()
+    app.include_router(create_orchestration_router(service))
+    client = TestClient(app)
+
+    response = client.get("/v1/orchestration/safe-savings/status")
+
+    assert response.status_code == 503

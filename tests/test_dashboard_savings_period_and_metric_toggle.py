@@ -426,3 +426,38 @@ def test_overview_page_attribution_toggle_switches_between_tokens_and_cost() -> 
             )
         finally:
             browser.close()
+
+
+def test_attribution_reconciliation_badge_renders_when_ledger_was_migrated() -> None:
+    mock_history = _base_mock_history()
+    mock_history["lifetime"]["created_savings_tokens"] = 1_000_000
+    mock_history["lifetime"]["created_savings_usd"] = 1122.32
+    mock_history["lifetime"]["observed_provider_savings_tokens"] = 2_000_000
+    mock_history["lifetime"]["observed_provider_savings_usd"] = 8264.05
+    mock_history["attribution_reconciliation"] = {
+        "schema_version": 7,
+        "note": "model_routing_savings_usd reconciled onto the canonical ledger",
+        "fields": {
+            "model_routing_savings_usd": {
+                "previous": 273.45,
+                "reconciled_to": 1122.32,
+            }
+        },
+    }
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1200})
+            _install_dashboard_routes(page, mock_history)
+            page.goto("http://cutctx.local/dashboard/savings")
+            page.wait_for_load_state("networkidle")
+
+            expect(
+                page.get_by_text("Ledger reconciled (schema v7)", exact=False)
+            ).to_be_visible()
+            expect(
+                page.get_by_text("model_routing_savings_usd", exact=False)
+            ).to_be_visible()
+        finally:
+            browser.close()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+
 import pytest
 
 # Ensure test HMAC secret is set before any module imports it
@@ -18,7 +19,6 @@ from generate_license import generate_license_key, tier_to_prefix  # noqa: E402
 
 from cutctx import billing  # noqa: E402
 from cutctx.billing import (  # noqa: E402
-    PITCHTOSHIP_BASE_URL,
     get_checkout_url,
     get_portal_url,
     map_tier_to_plan,

@@ -146,7 +146,7 @@ def test_savings_tracker_sanitizes_legacy_state_and_applies_retention(tmp_path):
     )
     snapshot = tracker.snapshot()
 
-    assert snapshot["schema_version"] == 6
+    assert snapshot["schema_version"] == 7
     assert "attribution_note" in snapshot
     assert snapshot["lifetime"] == {
         "requests": 0,

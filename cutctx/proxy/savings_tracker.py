@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 CUTCTX_SAVINGS_PATH_ENV_VAR = _paths.CUTCTX_SAVINGS_PATH_ENV
 DEFAULT_SAVINGS_DIR = ".cutctx"
 DEFAULT_SAVINGS_FILE = "proxy_savings.json"
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 DEFAULT_MAX_HISTORY_POINTS = 5000
 DEFAULT_MAX_PROJECTS = 50
 DEFAULT_MAX_MODELS = 50
@@ -1492,7 +1492,17 @@ class SavingsTracker:
             created_cache = value_tokens_usd(model, int(cache_read_tokens or 0))
             created_semantic = value_tokens_usd(model, delta_semantic_cache_tokens)
             created_self_hosted = value_tokens_usd(model, delta_self_hosted_tokens)
-            created_routing = value_tokens_usd(model, delta_model_routing_tokens)
+            # Routing savings are a re-pricing, not avoided tokens: valuing
+            # them at the routed-to model's flat input rate measured "what
+            # you paid," not "what you saved," and drifted 4x from the
+            # router's (source − target) delta carried by the by-source
+            # ledger. Like compression, the by-source figure is canonical;
+            # the flat estimate remains only for legacy callers that attach
+            # routed tokens without USD.
+            if "model_routing" in savings_by_source_usd:
+                created_routing = _coerce_float(savings_by_source_usd["model_routing"])
+            else:
+                created_routing = value_tokens_usd(model, delta_model_routing_tokens)
             created_tool_schema = value_tokens_usd(model, delta_tool_schema_compaction_tokens)
             created_api_surface = value_tokens_usd(model, delta_api_surface_slimming_tokens)
 
@@ -2175,7 +2185,7 @@ class SavingsTracker:
             "monthly": self._build_rollup(raw_history, bucket="month"),
         }
         history = self._history_for_response(raw_history, mode=history_mode)
-        return {
+        response: dict[str, Any] = {
             "schema_version": snapshot["schema_version"],
             "generated_at": _to_utc_iso(_utc_now()),
             "storage_path": snapshot["storage_path"],
@@ -2200,6 +2210,13 @@ class SavingsTracker:
                 "compacted": len(history) < len(raw_history),
             },
         }
+        # Attribution provenance markers travel with the ledger so the
+        # dashboard can badge migrated/reconciled data instead of silently
+        # presenting rewritten numbers.
+        for provenance_key in ("attribution_note", "attribution_reconciliation"):
+            if provenance_key in snapshot:
+                response[provenance_key] = snapshot[provenance_key]
+        return response
 
     def export_rows(self, series: str = "history") -> list[dict[str, Any]]:
         """Return export rows for history or a rollup series."""
@@ -2270,6 +2287,8 @@ class SavingsTracker:
             }
             if "attribution_note" in self._state:
                 ret["attribution_note"] = self._state["attribution_note"]
+            if "attribution_reconciliation" in self._state:
+                ret["attribution_reconciliation"] = self._state["attribution_reconciliation"]
             return ret
 
     def get_summary_stats(
@@ -2463,6 +2482,43 @@ class SavingsTracker:
                 "explicit created/observed token attribution introduced in schema v6; "
                 "legacy requests remain visible but are excluded from attribution percentages"
             )
+            raw["schema_version"] = SCHEMA_VERSION
+        if source_schema_version < 7:
+            # Schema v7: the typed ``model_routing_savings_usd`` lifetime
+            # counter historically re-estimated routing savings at the
+            # routed-to model's flat input rate instead of adopting the
+            # router's (source − target) delta carried by the by-source
+            # ledger, drifting ~4x low. Adopt the canonical ledger value and
+            # keep the pre-reconciliation figure auditable. Only the upward
+            # direction is reconciled: the mispricing always understated, and
+            # downward edits would be clawed back by the history-row backfill.
+            lifetime_for_migration = raw.get("lifetime")
+            if isinstance(lifetime_for_migration, dict):
+                canonical_raw = lifetime_for_migration.get("savings_by_source_usd.model_routing")
+                typed_value = _coerce_float(
+                    lifetime_for_migration.get("model_routing_savings_usd")
+                )
+                canonical_value = _coerce_float(canonical_raw)
+                if canonical_raw is not None and canonical_value > typed_value + 0.01:
+                    lifetime_for_migration["model_routing_savings_usd"] = round(
+                        canonical_value, 6
+                    )
+                    raw["attribution_reconciliation"] = {
+                        "schema_version": 7,
+                        "note": (
+                            "model_routing_savings_usd reconciled onto the canonical "
+                            "savings_by_source_usd ledger (pre-v7 accumulation priced "
+                            "routed tokens at the target model's flat input rate); "
+                            "pre-v7 compression_savings_usd may retain a legacy "
+                            "estimate-based residual vs its by-source counterpart"
+                        ),
+                        "fields": {
+                            "model_routing_savings_usd": {
+                                "previous": round(typed_value, 6),
+                                "reconciled_to": round(canonical_value, 6),
+                            }
+                        },
+                    }
             raw["schema_version"] = SCHEMA_VERSION
 
         history_raw = raw.get("history", [])
@@ -2682,6 +2738,8 @@ class SavingsTracker:
         }
         if "attribution_note" in raw:
             state["attribution_note"] = raw["attribution_note"]
+        if "attribution_reconciliation" in raw:
+            state["attribution_reconciliation"] = raw["attribution_reconciliation"]
         for field, value in lifetime_extra_usd.items():
             if value > 0 or (isinstance(lifetime_raw, dict) and field in lifetime_raw):
                 state["lifetime"][field] = round(value, 6)

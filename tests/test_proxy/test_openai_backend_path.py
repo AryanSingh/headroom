@@ -402,6 +402,16 @@ def test_chat_completion_routed_to_mini_drops_reasoning_override():
     with patch("cutctx.proxy.server.AnyLLMBackend", return_value=recording_backend):
         app = create_app(config)
         with TestClient(app) as client:
+            registry = client.app.state.proxy._orchestration_service.model_registry
+            for model_id, quality_tier in (
+                ("gpt-5.6-sol", "strong"),
+                ("gpt-5.4-mini", "fast"),
+            ):
+                record = next(item for item in registry.list() if item.id == model_id)
+                record.metadata["routing_readiness"] = "ready"
+                record.metadata["quality_tier"] = quality_tier
+                registry.certify_for_routing(record.deployment_key)
+
             resp = client.post(
                 "/v1/chat/completions",
                 json={

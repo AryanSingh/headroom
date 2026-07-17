@@ -15,7 +15,7 @@ def _load_sync_module():
     return module
 
 
-def test_sync_replaces_stale_hashed_assets_and_copies_entrypoint(tmp_path: Path) -> None:
+def test_sync_replaces_stale_hashed_assets_and_copies_all_chunks(tmp_path: Path) -> None:
     sync = _load_sync_module()
     source = tmp_path / "dist"
     source_assets = source / "assets"
@@ -24,12 +24,14 @@ def test_sync_replaces_stale_hashed_assets_and_copies_entrypoint(tmp_path: Path)
     (source / "favicon.svg").write_text("new-favicon")
     (source_assets / "index-new.js").write_text("new-js")
     (source_assets / "index-new.css").write_text("new-css")
+    (source_assets / "Savings-new.js").write_text("new-route-chunk")
 
     destination = tmp_path / "package-dashboard"
     stale_assets = destination / "assets"
     stale_assets.mkdir(parents=True)
     (stale_assets / "index-old.js").write_text("old-js")
     (stale_assets / "index-old.css").write_text("old-css")
+    (stale_assets / "Savings-old.js").write_text("old-route-chunk")
     (stale_assets / "keep.txt").write_text("keep")
 
     sync.sync_dashboard_assets(source, destination)
@@ -40,8 +42,10 @@ def test_sync_replaces_stale_hashed_assets_and_copies_entrypoint(tmp_path: Path)
     assert (destination / "favicon.svg").read_text() == "new-favicon"
     assert (stale_assets / "index-new.js").read_text() == "new-js"
     assert (stale_assets / "index-new.css").read_text() == "new-css"
+    assert (stale_assets / "Savings-new.js").read_text() == "new-route-chunk"
     assert not (stale_assets / "index-old.js").exists()
     assert not (stale_assets / "index-old.css").exists()
+    assert not (stale_assets / "Savings-old.js").exists()
     assert (stale_assets / "keep.txt").exists()
 
 

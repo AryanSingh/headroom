@@ -124,6 +124,11 @@ class UsageReporter:
         self._last_tokens_sent_by_model: dict[str, int] = {}
         self._last_requests_by_model: dict[str, int] = {}
 
+    @property
+    def license_info(self) -> LicenseInfo | None:
+        """Most recent validation result (None until validate_license ran)."""
+        return self._license_info
+
     async def validate_license(self) -> LicenseInfo:
         """Validate the license key against the cloud API.
 

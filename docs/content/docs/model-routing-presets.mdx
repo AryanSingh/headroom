@@ -407,6 +407,36 @@ candidate scores, and rejected-candidate reasons. This lets operators tell
 whether a route was constrained by request semantics, policy, temporary
 deployment isolation, or the configured allocation.
 
+## Guided Safe Savings
+
+Guided Safe Savings is a read-only operator experience for inspecting
+conservative model routing. Enable its discoverability with:
+
+```bash
+export CUTCTX_SAFE_SAVINGS_EXPERIENCE=true
+cutctx routing status --proxy-url http://127.0.0.1:8787
+```
+
+`CUTCTX_SAFE_SAVINGS_EXPERIENCE` controls discoverability only — it surfaces
+the `cutctx routing status` command and the dashboard Safe Savings panel. It
+never enables routing; routing remains separately opt-in through the existing
+preset and orchestrator configuration.
+
+Status is served by the authenticated endpoint
+`GET /v1/orchestration/safe-savings/status` (admin key or RBAC `providers.read`
+permission). Reading status performs zero provider calls and zero state
+writes, and it does not bypass account, capability, or transport proof — it
+only reports the routes and the most recent recorded routing decision. The
+response includes the active preset, exact route pairs with capability and
+transport posture, and the latest applied or retained decision with its
+confidence and signals.
+
+Rollback uses the existing authoritative configuration mutation: the dashboard
+panel's "Turn Safe Savings off" action (and any API client) posts
+`{"orchestrator_mode": "off"}` to the authenticated config endpoint. No new
+mutation path is introduced, and new requests then retain their originally
+requested models.
+
 ## Implementation notes
 
 - Router config: [`cutctx/proxy/model_router.py`](/Users/aryansingh/Documents/Claude/Projects/headroom/cutctx/proxy/model_router.py)

@@ -72,7 +72,7 @@ def test_savings_tracker_schema_migration():
         snapshot = storage.snapshot()
 
         # Check migration note
-        assert snapshot["schema_version"] == 6
+        assert snapshot["schema_version"] == 7
         assert "attribution_note" in snapshot
         assert (
             "explicit created/observed token attribution introduced in schema v6"
