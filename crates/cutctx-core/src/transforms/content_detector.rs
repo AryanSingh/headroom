@@ -214,8 +214,10 @@ static HTML_STRUCTURAL_TAGS: LazyLock<Regex> = LazyLock::new(|| {
 /// 2. JSON array (highest priority for `SmartCrusher`)
 /// 3. Git diff (≥ 0.7 confidence required)
 /// 4. HTML (≥ 0.7 confidence required)
-/// 5. Search results (≥ 0.6 confidence required)
-/// 6. Build / log output (≥ 0.5 confidence required)
+/// 5. **Build / log output (≥ 0.5 confidence required)**
+///    Log lines can match the search pattern via timestamp HH:MM: format,
+///    so logs must be checked before search results to avoid misrouting.
+/// 6. Search results (≥ 0.6 confidence required)
 /// 7. Source code (≥ 0.5 confidence required)
 /// 8. Fallback to `PlainText` confidence 0.5
 pub fn detect_content_type(content: &str) -> DetectionResult {
@@ -236,13 +238,15 @@ pub fn detect_content_type(content: &str) -> DetectionResult {
             return r;
         }
     }
-    if let Some(r) = try_detect_search(content) {
-        if r.confidence >= 0.6 {
+    // Logs before search: log timestamps (HH:MM:) match the search pattern
+    // so checking logs first prevents misrouting log content to SearchCompressor.
+    if let Some(r) = try_detect_log(content) {
+        if r.confidence >= 0.5 {
             return r;
         }
     }
-    if let Some(r) = try_detect_log(content) {
-        if r.confidence >= 0.5 {
+    if let Some(r) = try_detect_search(content) {
+        if r.confidence >= 0.6 {
             return r;
         }
     }
@@ -592,6 +596,15 @@ mod tests {
         let r = detect_content_type(content);
         assert_eq!(r.content_type, ContentType::SearchResults);
         assert!(r.confidence >= 0.6);
+    }
+
+    #[test]
+    fn timestamped_logs_win_over_search_result_shape() {
+        // The `T10:00:` fragment has the same prefix shape as `file:line:`.
+        let content =
+            "2025-01-01T10:00:00Z [ERROR] compilation failed\n2025-01-01T10:00:01Z [INFO] retrying";
+        let r = detect_content_type(content);
+        assert_eq!(r.content_type, ContentType::BuildOutput);
     }
 
     #[test]

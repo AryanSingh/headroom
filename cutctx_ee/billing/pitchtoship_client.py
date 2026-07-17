@@ -247,6 +247,10 @@ def verify_signed_token(signed_token: str, public_key_pem: str) -> dict[str, Any
             n_bytes = n.to_bytes(32, "big")
             # Strip leading zeros
             n_bytes = n_bytes.lstrip(b"\x00") or b"\x00"
+            # ASN.1 INTEGER is signed. Prefix positive values whose high bit
+            # is set so cryptography does not interpret them as negative.
+            if n_bytes[0] & 0x80:
+                n_bytes = b"\x00" + n_bytes
             return b"\x02" + bytes([len(n_bytes)]) + n_bytes
 
         r_der = _int_to_der_bytes(r)
@@ -327,6 +331,10 @@ def verify_license(license_key: str, hwid: str) -> dict[str, Any] | None:
         signed_token = result.get("signed_token")
         if signed_token:
             _cache_signed_token(signed_token, license_key)
+            # Prime the public-key cache while the service is reachable. Without
+            # this, a first successful online activation cannot be verified when
+            # the next validation happens offline.
+            _fetch_public_key()
         return result
 
     # PitchToShip unreachable or returned invalid — try offline verification

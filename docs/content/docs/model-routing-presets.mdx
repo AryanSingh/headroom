@@ -114,6 +114,37 @@ It shows the source-to-target pair for an applied route, or a reason such as
 Large agent turns with recent tool context, code, or other high-risk signals
 are intentionally retained on the requested model even in Aggressive mode.
 
+## Guided Safe Savings (opt-in status surface)
+
+Set `CUTCTX_SAFE_SAVINGS_EXPERIENCE=1` on the proxy to expose a read-only,
+authenticated explanation of the existing routing state at:
+
+```text
+GET /v1/orchestration/safe-savings/status
+```
+
+The response reports the active preset and exact configured routes, the latest
+privacy-safe routing decision, its explanation and confidence when available,
+required or missing capabilities, and whether every route target is proven
+safe for its transport. It never includes prompts, completions, credentials,
+or account secrets.
+
+When the same opt-in is enabled for the CLI, operators can inspect that status
+without making a routing change:
+
+```bash
+cutctx routing status --proxy-url http://127.0.0.1:8787
+```
+
+The dashboard shows the same panel only when the proxy status response opts
+in. The existing **Routing mode control** remains the only configuration
+surface: choosing **Off** uses the existing confirmed config update and
+rollback path, `{"orchestrator_mode":"off"}`. The flag exposes the status
+surface only; routing remains separately opt-in through its normal preset or
+configuration path. Reading status does not perform provider calls or bypass
+account, capability, or transport proof. Guided Safe Savings never silently
+switches providers, accounts, credentials, transports, or models.
+
 ## Complexity heuristic
 
 The router only applies the low-complexity branch when a request is clearly simple, such as:

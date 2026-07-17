@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import os
 import sys
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 # Ensure test HMAC secret is set before any module imports it
@@ -18,6 +16,7 @@ if _SCRIPTS_DIR not in sys.path:
 
 from generate_license import generate_license_key, tier_to_prefix  # noqa: E402
 
+from cutctx import billing  # noqa: E402
 from cutctx.billing import (  # noqa: E402
     PITCHTOSHIP_BASE_URL,
     get_checkout_url,
@@ -54,47 +53,21 @@ class TestTierMapping:
 
 
 class TestCheckoutURL:
-    def test_get_checkout_url_returns_fallback_on_timeout(self):
-        """Returns a fallback pitchtoship URL when the HTTP call times out."""
-        import httpx
+    def test_get_checkout_url_is_a_pitchtoship_billing_deep_link(self, monkeypatch):
+        """Checkout always opens the hosted PitchToShip Razorpay billing flow."""
+        monkeypatch.setattr(billing, "PITCHTOSHIP_BASE_URL", "https://billing.example")
 
-        with patch("httpx.post", side_effect=httpx.TimeoutException("timed out")):
-            result = get_checkout_url("starter")
+        assert get_checkout_url("starter", "buyer@example.com", "monthly") == (
+            "https://billing.example/billing?product=cutctx&plan=starter"
+            "&billing=monthly&email=buyer%40example.com"
+        )
 
-        assert isinstance(result, str)
-        assert "pitchtoship.com" in result or PITCHTOSHIP_BASE_URL in result
+    def test_get_checkout_url_normalizes_unknown_values(self, monkeypatch):
+        monkeypatch.setattr(billing, "PITCHTOSHIP_BASE_URL", "https://billing.example")
 
-    def test_get_checkout_url_returns_fallback_on_connection_error(self):
-        """Returns fallback URL when connection fails."""
-        import httpx
-
-        with patch("httpx.post", side_effect=httpx.ConnectError("refused")):
-            result = get_checkout_url("studio")
-
-        assert isinstance(result, str)
-        assert PITCHTOSHIP_BASE_URL in result
-
-    def test_get_checkout_url_returns_url_from_api_response(self):
-        """Returns the URL field from a successful API response."""
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"url": "https://checkout.stripe.com/pay/cs_test_abc123"}
-
-        with patch("httpx.post", return_value=mock_response):
-            result = get_checkout_url("starter")
-
-        assert result == "https://checkout.stripe.com/pay/cs_test_abc123"
-
-    def test_get_checkout_url_fallback_on_missing_url_field(self):
-        """Falls back when API response has no 'url' key."""
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"error": "something went wrong"}
-
-        with patch("httpx.post", return_value=mock_response):
-            result = get_checkout_url("portfolio")
-
-        assert PITCHTOSHIP_BASE_URL in result
+        assert get_checkout_url("unknown", billing="weekly") == (
+            "https://billing.example/billing?product=cutctx&plan=starter&billing=annual"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -103,31 +76,12 @@ class TestCheckoutURL:
 
 
 class TestPortalURL:
-    def test_get_portal_url_returns_fallback_on_timeout(self):
-        """Returns fallback URL when the portal HTTP call times out."""
-        import httpx
+    def test_get_portal_url_is_the_pitchtoship_account_portal(self, monkeypatch):
+        monkeypatch.setattr(billing, "PITCHTOSHIP_BASE_URL", "https://billing.example")
 
-        with patch("httpx.post", side_effect=httpx.TimeoutException("timed out")):
-            result = get_portal_url("user@example.com")
-
-        assert isinstance(result, str)
-        assert PITCHTOSHIP_BASE_URL in result
-
-    def test_get_portal_url_returns_fallback_on_empty_email(self):
-        """Returns fallback URL when no email is provided."""
-        result = get_portal_url("")
-        assert PITCHTOSHIP_BASE_URL in result
-
-    def test_get_portal_url_returns_url_from_api_response(self):
-        """Returns the URL field from a successful portal API response."""
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"url": "https://billing.stripe.com/session/bps_test_xyz"}
-
-        with patch("httpx.post", return_value=mock_response):
-            result = get_portal_url("user@example.com")
-
-        assert result == "https://billing.stripe.com/session/bps_test_xyz"
+        assert get_portal_url("buyer@example.com") == (
+            "https://billing.example/account?email=buyer%40example.com"
+        )
 
 
 # ---------------------------------------------------------------------------

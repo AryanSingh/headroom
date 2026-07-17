@@ -1,125 +1,87 @@
-# Billing Integration Status
+# CutCtx Billing and Licensing Integration
 
-This document describes the **current repository state** for Cutctx billing and
-licensing. It is intentionally operational and does not claim that the hosted
-self-serve billing path is production-ready.
+## Hosted commerce authority
 
-## Current architecture in this repo
+**PitchToShip is the single hosted commerce authority for CutCtx.** It owns
+the pricing catalogue, Razorpay Standard Checkout, payment-signature
+verification, license issuance, and customer account portal. CutCtx never
+creates a payment order, calls Razorpay, or receives a Razorpay key or webhook
+secret.
 
-The billing surface is split across two layers:
+The historical name **Headroom** is a compatibility alias only. Customer-facing
+purchase, installation, and support material uses **CutCtx**.
 
-1. **Hosted checkout / portal helpers** prefer direct Stripe when it is
-   explicitly configured, and retain the operator-managed PitchToShip path as
-   a compatibility fallback.
-2. **Enterprise subscription mapping** in the EE webhook handler is
-   Stripe-based and reads `STRIPE_*` environment variables for tier mapping.
+## Customer flow
 
-That means the current codebase reflects a **hybrid, transitional billing
-surface**, not a single polished self-serve system.
+1. A CutCtx purchase action calls `get_checkout_url()`.
+2. The helper opens a deterministic PitchToShip deep link:
 
-## What the code does today
+   ```text
+   https://pitchtoship.com/billing?product=cutctx&plan=starter&billing=monthly
+   ```
 
-### Checkout helpers
+3. PitchToShip displays the selected CutCtx context and opens Razorpay Standard
+   Checkout. The backend derives the amount and currency; CutCtx does not send
+   a price.
+4. PitchToShip verifies Razorpay's HMAC payment signature, issues a license,
+   and sends the customer to the account portal.
+5. The customer configures CutCtx with the issued license key. CutCtx verifies
+   it through PitchToShip and applies the returned entitlement tier/features.
 
-- `cutctx/billing.py`
-- `cutctx_ee/billing/__init__.py`
+`get_portal_url(email)` opens `https://pitchtoship.com/account?email=...` so a
+customer can find active licenses and expiry information.
 
-When direct Stripe is configured, these helpers:
+## CutCtx activation contract
 
-- create a Stripe Checkout Session for the mapped tier/period Price ID
-- look up the Stripe customer by email and create a Billing Portal session
-- return only Stripe-hosted URLs from the direct path
+Set only the hosted license-service base URL in CutCtx:
 
-Without direct Stripe configuration, these helpers retain the legacy path:
+```env
+PITCHTOSHIP_URL=https://pitchtoship.com
+CUTCTX_LICENSE_KEY=PTS-...
+```
 
-- default `PITCHTOSHIP_BASE_URL` to `https://pitchtoship.com`
-- call `POST /api/billing/checkout` to request a checkout URL
-- fall back to `/checkout?plan=...` if the API call fails
-- call `POST /api/billing/portal` for a portal URL
-- fall back to `/billing` if the API call fails
+The `cutctx_ee.billing.pitchtoship_client` calls:
 
-Current tier mapping in these helpers is:
+```text
+POST /api/licenses/verify
+{ "license_key": "PTS-...", "hwid": "machine-id" }
+```
 
-| Cutctx tier | Hosted plan key |
-|---|---|
+When valid, PitchToShip returns an ECDSA P-256 signed token in
+`pts1.<payload>.<signature>` format. CutCtx caches the token encrypted on the
+machine and verifies it with PitchToShip's public key for offline use. Invalid,
+tampered, or expired tokens deny commercial features.
+
+## Plan mapping
+
+| CutCtx commercial tier | PitchToShip plan |
+| --- | --- |
 | `team` | `starter` |
 | `business` | `studio` |
-| `enterprise` | `portfolio` |
+| `enterprise` | `portfolio` (contact sales) |
 
-### EE webhook handling
+This mapping is for navigation only. The PitchToShip license service remains
+the authority for actual entitlement tier, features, seats, and expiry.
 
-- `cutctx_ee/billing/stripe_webhook.py`
+## Environment boundary
 
-The enterprise webhook handler is Stripe-based. It currently reads:
+CutCtx must not set any `RAZORPAY_*` secret. Configure Razorpay credentials
+only in PitchToShip's server/Pages environment.
 
-- `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_API_KEY`
-- `STRIPE_PRICE_TEAM`
-- `STRIPE_PRICE_BUSINESS`
-- `STRIPE_PRICE_ENTERPRISE`
+The legacy `STRIPE_*` configuration and `/webhooks/stripe` handler exist only
+for explicitly managed enterprise compatibility. They are not part of CutCtx
+self-serve checkout. In particular, CutCtx **does not create a Stripe Checkout
+Session**.
 
-The webhook code maps Stripe price IDs back to Cutctx tiers.
+## Local verification
 
-### Offline / air-gapped licensing
+1. Run a local PitchToShip license service with a temporary database and
+   Razorpay test credentials.
+2. Complete a Razorpay test-mode checkout from the PitchToShip billing page.
+3. Configure `PITCHTOSHIP_URL` to that local service and activate CutCtx with
+   the issued test license key.
+4. Confirm the online response is valid, then verify a cached token while the
+   service is unavailable.
 
-Offline licensing does **not** depend on the hosted billing URLs.
-Air-gapped and offline paths rely on signed local verification material such as:
-
-- `CUTCTX_LICENSE_HMAC_SECRET`
-- offline license data / locally cached license state
-
-See:
-
-- `docs/air-gap-deployment.md`
-
-## Environment variables in active use
-
-### Hosted helper layer
-
-```env
-# Direct Stripe self-service (all required for direct Checkout)
-STRIPE_SECRET_KEY=sk_test_...
-CUTCTX_STRIPE_PRICE_TEAM_ANNUAL=price_...
-CUTCTX_STRIPE_PRICE_TEAM_MONTHLY=price_...
-CUTCTX_STRIPE_PRICE_BUSINESS_ANNUAL=price_...
-CUTCTX_STRIPE_PRICE_BUSINESS_MONTHLY=price_...
-CUTCTX_STRIPE_PRICE_ENTERPRISE_ANNUAL=price_...
-CUTCTX_STRIPE_PRICE_ENTERPRISE_MONTHLY=price_...
-CUTCTX_STRIPE_SUCCESS_URL=https://cutctx.com/billing/success?session_id={CHECKOUT_SESSION_ID}
-CUTCTX_STRIPE_CANCEL_URL=https://cutctx.com/pricing
-CUTCTX_STRIPE_PORTAL_RETURN_URL=https://cutctx.com/billing
-
-# Legacy operator-managed fallback
-PITCHTOSHIP_URL=https://pitchtoship.com
-```
-
-### Stripe webhook layer
-
-```env
-STRIPE_WEBHOOK_SECRET=...
-STRIPE_API_KEY=...
-STRIPE_PRICE_TEAM=...
-STRIPE_PRICE_BUSINESS=...
-STRIPE_PRICE_ENTERPRISE=...
-```
-
-### Offline verification
-
-```env
-CUTCTX_LICENSE_HMAC_SECRET=...
-CUTCTX_OFFLINE_MODE=1
-```
-
-## Important release note
-
-The repository contains tested direct Stripe request construction, but that is
-**not evidence of a working customer self-serve checkout flow**. Release,
-go/no-go, and audit work must verify Checkout, Portal, and a signed webhook
-against Stripe test-mode credentials and real Price IDs before treating the
-flow as launch-ready.
-
-## Support guidance
-
-Until the hosted billing path is fully verified and customer-facing materials are
-updated, treat billing and licensing issues as an operator-led support flow
-rather than a self-serve flow.
+Never place production Razorpay secrets, customer payment details, or a real
+license key in CutCtx source, fixtures, or documentation examples.

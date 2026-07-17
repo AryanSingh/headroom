@@ -98,4 +98,22 @@ describe("CutctxContextEngine proxy startup helpers", () => {
     });
     expect(mocked.start).toHaveBeenCalledTimes(1);
   });
+
+  it("reports standalone compaction as deferred without claiming session changes", async () => {
+    const engine = new CutctxContextEngine();
+    (engine as { proxyUrl: string | null }).proxyUrl = "http://127.0.0.1:8787";
+
+    await expect(
+      engine.compact({
+        sessionId: "session-1",
+        sessionFile: "session.jsonl",
+        tokenBudget: 1_000,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      compacted: false,
+      reason: "Standalone compaction is unavailable; Cutctx only compresses context during assemble()",
+    });
+    expect(engine.getStats().compactions).toBe(0);
+  });
 });

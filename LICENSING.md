@@ -45,7 +45,7 @@ These were moved out of the Apache `cutctx/` package into the proprietary
 SPDX header). Thin **Apache-2.0 import shims** remain at the historical
 `cutctx/<name>` paths and transparently re-export the commercial implementation
 (via `sys.modules` rebinding) when the `cutctx_ee` distribution is installed:
-- `cutctx_ee/billing/**` — license issuance/DB, Stripe webhook (shim: `cutctx/billing/`)
+- `cutctx_ee/billing/**` — license issuance/DB and hosted PitchToShip integration (shim: `cutctx/billing/`); the legacy Stripe webhook is enterprise compatibility only
 - `cutctx_ee/entitlements.py` — feature gating by tier (shim: `cutctx/entitlements.py`)
 - `cutctx_ee/trial.py`, `cutctx_ee/seats.py` — trial & seat enforcement (shims at old paths)
 - `cutctx_ee/sso.py`, `cutctx_ee/scim.py`, `cutctx_ee/rbac.py` — enterprise identity/access

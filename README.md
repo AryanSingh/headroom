@@ -220,6 +220,7 @@ For buyers, operators, and security reviewers:
 - [Security one-pager](artifacts/security-one-pager.md)
 - [Deployment architecture](docs/deployment-architecture.md)
 - [Commercialization execution kit](artifacts/COMMERCIALIZATION_EXECUTION_KIT.md)
+- [Billing and licensing integration](docs/BILLING_INTEGRATION.md)
 - [Artifacts index](artifacts/README.md)
 
 <details>

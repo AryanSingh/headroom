@@ -752,6 +752,50 @@ def test_codex_responses_timeout_fails_open_in_standalone_proxy(monkeypatch):
     assert body["input"][0]["output"] == "large tool output"
 
 
+def test_chatgpt_subscription_timeout_fails_open_when_client_header_is_absent(
+    monkeypatch,
+):
+    """Subscription routing is authoritative even when the harness UA is generic.
+
+    Codex Desktop background/continuation HTTP requests can carry the ChatGPT
+    account proof without an ``X-Client`` header or a recognizable Codex
+    User-Agent.  Those requests previously fell into the generic compression
+    timeout policy and returned a local 413 despite being valid subscription
+    traffic below the upstream body limit.
+    """
+    request = _build_request(
+        {
+            "model": "gpt-5.6-terra",
+            "input": "large but upstream-valid continuation " * 20_000,
+        },
+        {
+            "Authorization": "Bearer sk-test",
+            "ChatGPT-Account-ID": "acct-from-jwt",
+            "User-Agent": "OpenAI/Python 2.0",
+        },
+    )
+    handler = _DummyOpenAIHandler()
+    handler.config.optimize = True
+    handler._openai_responses_context_guard = MagicMock(
+        return_value=(False, 180_000, 242_400, 258_400)
+    )
+
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr(
+        handler,
+        "_compress_openai_responses_payload",
+        lambda *args, **kwargs: (_ for _ in ()).throw(TimeoutError()),
+    )
+
+    response = anyio.run(handler.handle_openai_responses, request)
+
+    assert response.status_code == 200
+    assert handler.captured_request is not None
+    _, url, _, body = handler.captured_request
+    assert url == "https://chatgpt.com/backend-api/codex/responses"
+    assert body["input"].startswith("large but upstream-valid continuation")
+
+
 class _DummyWebSocket:
     def __init__(self, headers: dict[str, str]):
         self.headers = headers

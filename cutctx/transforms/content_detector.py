@@ -149,15 +149,17 @@ def detect_content_type(content: str) -> DetectionResult:
     if html_result and html_result.confidence >= 0.7:
         return html_result
 
-    # 4. Check for search results (file:line: format)
-    search_result = _try_detect_search(content)
-    if search_result and search_result.confidence >= 0.6:
-        return search_result
-
-    # 5. Check for build/log output
+    # 4. Check for build/log output FIRST
+    #    (log lines can match the search pattern via timestamp HH:MM: format,
+    #    so logs must be checked before search results to avoid misrouting)
     log_result = _try_detect_log(content)
     if log_result and log_result.confidence >= 0.5:
         return log_result
+
+    # 5. Check for search results (file:line: format)
+    search_result = _try_detect_search(content)
+    if search_result and search_result.confidence >= 0.6:
+        return search_result
 
     # 6. Check for source code
     code_result = _try_detect_code(content)

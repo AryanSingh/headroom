@@ -143,6 +143,21 @@ def test_log_detection_prefers_build_output_patterns() -> None:
     assert _try_detect_log("\n".join(["ERROR one", *["plain"] * 15])) is None
 
 
+def test_timestamped_logs_win_over_search_result_shape() -> None:
+    """ISO timestamps contain the same colon-delimited prefix as grep output."""
+    log_output = "\n".join(
+        [
+            "2025-01-01T10:00:00Z [ERROR] compilation failed",
+            "2025-01-01T10:00:01Z [INFO] retrying",
+        ]
+    )
+
+    assert _try_detect_search(log_output) is not None
+    result = detect_content_type(log_output)
+
+    assert result.content_type is ContentType.BUILD_OUTPUT
+
+
 def test_code_detection_identifies_language_and_thresholds() -> None:
     python_code = "\n".join(
         [

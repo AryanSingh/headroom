@@ -12,6 +12,7 @@ import {
 } from "../lib/use-dashboard-data";
 import OrchestrationStudio from "../components/OrchestrationStudio";
 import RoutingStudio from "../components/routing-studio/RoutingStudio";
+import SafeSavingsPanel from "../components/SafeSavingsPanel";
 
 const ROUTING_MODES = [
   { value: "off", label: "Off", description: "Disable model routing" },
@@ -97,6 +98,11 @@ export default function Orchestrator({ searchQuery = "" }) {
   const [providerError, setProviderError] = useState(null);
   const [providerLoading, setProviderLoading] = useState(true);
   const [providerMutation, setProviderMutation] = useState({});
+  const [safeSavingsStatus, setSafeSavingsStatus] = useState(null);
+  const [safeSavingsError, setSafeSavingsError] = useState(null);
+  const [safeSavingsLoading, setSafeSavingsLoading] = useState(true);
+  const [safeSavingsDisabling, setSafeSavingsDisabling] = useState(false);
+  const [safeSavingsDisableError, setSafeSavingsDisableError] = useState(null);
 
   useEffect(() => {
     if (!loading) {
@@ -181,9 +187,38 @@ export default function Orchestrator({ searchQuery = "" }) {
       }
     }
 
+    async function loadSafeSavingsStatus() {
+      setSafeSavingsLoading(true);
+      try {
+        const data = await fetchDashboardJson(
+          "/v1/orchestration/safe-savings/status",
+        );
+        if (!active) {
+          return;
+        }
+        setSafeSavingsStatus(data);
+        setSafeSavingsError(null);
+      } catch (err) {
+        if (!active) {
+          return;
+        }
+        setSafeSavingsStatus(null);
+        setSafeSavingsError(
+          isUnsupportedDashboardEndpointError(err)
+            ? null
+            : err?.message || "Unable to load Safe Savings status",
+        );
+      } finally {
+        if (active) {
+          setSafeSavingsLoading(false);
+        }
+      }
+    }
+
     loadPolicyStatus();
     loadProviderStatus();
     loadRoutingEvidence();
+    loadSafeSavingsStatus();
 
     return () => {
       active = false;
@@ -251,6 +286,37 @@ export default function Orchestrator({ searchQuery = "" }) {
       setProviderError(err?.message || `Unable to ${action} provider`);
     } finally {
       setProviderMutation((current) => ({ ...current, [providerName]: false }));
+    }
+  };
+
+  const handleSafeSavingsDisable = async () => {
+    if (
+      !window.confirm(
+        "Turn Safe Savings off? New requests will retain the requested model.",
+      )
+    ) {
+      return;
+    }
+
+    setSafeSavingsDisabling(true);
+    setSafeSavingsDisableError(null);
+    try {
+      const response = await patchDashboardConfig({ orchestrator_mode: "off" });
+      if (acknowledgedRoutingMode(response) !== "off") {
+        throw new Error("Server did not acknowledge routing mode off");
+      }
+      const next = await fetchDashboardJson(
+        "/v1/orchestration/safe-savings/status",
+      );
+      setSafeSavingsStatus(next);
+      setOptimisticMode({ mode: "off", generation: committedGeneration });
+      await refresh?.();
+    } catch (err) {
+      setSafeSavingsDisableError(
+        `Unable to turn Safe Savings off: ${err?.message || "config update failed"}`,
+      );
+    } finally {
+      setSafeSavingsDisabling(false);
     }
   };
 
@@ -438,6 +504,14 @@ export default function Orchestrator({ searchQuery = "" }) {
 
       <RoutingStudio />
       <OrchestrationStudio searchQuery={normalizedQuery} />
+      <SafeSavingsPanel
+        status={safeSavingsStatus}
+        loading={safeSavingsLoading}
+        error={safeSavingsError}
+        disabling={safeSavingsDisabling}
+        disableError={safeSavingsDisableError}
+        onDisable={handleSafeSavingsDisable}
+      />
 
       <section className="panel">
         <div className="section-heading">

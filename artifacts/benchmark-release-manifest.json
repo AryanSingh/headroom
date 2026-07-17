@@ -4,12 +4,12 @@
   "fixture_hashes": {
     "cutctx/evals/benchmark_runner.py": "2e21a4fe66db9dce9535c24368e76e484305601f7328651edc8651c0a3f1c197",
     "cutctx/evals/datasets.py": "1fd3b9a8419bc0fc6546fe6121a86de7fba7d899819ee675ca4c54fc2404e921",
-    "cutctx/transforms/content_router.py": "cab530748e499ef2a8aaf22eff554c59b40cb9725e80e17d09a259fa13845b03",
+    "cutctx/transforms/content_router.py": "c569be4524c5afa46f158de03a196894713ec1bcfb8d47b76907f2f1a541d334",
     "cutctx/transforms/verbatim_compactor.py": "ea9a23a7a292d2ca915edaf863eb24add250ddd3bf513118becd3b07bb63d1e0"
   },
-  "git_sha": "3d4b6ae7a18f149bd6a1a6a1b33ca4f23ddb99e0",
+  "git_sha": "6e695f7fb2187746fca3c5bc6a632a0b6e52e75a",
   "packages": {
-    "cutctx-ai": "0.30.0",
+    "cutctx-ai": "0.31.0",
     "llmlingua": "unavailable",
     "torch": "2.11.0",
     "transformers": "5.12.1"
@@ -22,5 +22,5 @@
   "python_version": "3.12.12",
   "schema_version": 1,
   "seed": 42,
-  "timestamp": "2026-07-15T07:07:55.272150+00:00"
+  "timestamp": "2026-07-17T18:05:01.037582+00:00"
 }
