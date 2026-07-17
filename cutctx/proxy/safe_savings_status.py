@@ -79,10 +79,9 @@ def _latest_decision(
         if not isinstance(summary, Mapping) or not summary:
             continue
         receipt = request.get("decision_receipt")
-        receipt_routing = (
-            receipt.get("routing")
-            if isinstance(receipt, Mapping) and isinstance(receipt.get("routing"), Mapping)
-            else {}
+        receipt_routing_value = receipt.get("routing") if isinstance(receipt, Mapping) else None
+        receipt_routing: Mapping[str, Any] = (
+            receipt_routing_value if isinstance(receipt_routing_value, Mapping) else {}
         )
         reason_value = summary.get("reason")
         reason = str(reason_value) if reason_value else None
