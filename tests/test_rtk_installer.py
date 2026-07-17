@@ -59,6 +59,18 @@ def test_ensure_rtk_keeps_mismatched_system_binary(monkeypatch, tmp_path: Path) 
     warning.assert_called_once()
 
 
+def test_ensure_rtk_diagnostic_uses_explicit_requested_version(monkeypatch, tmp_path: Path) -> None:
+    system_binary = tmp_path / "rtk"
+    system_binary.write_bytes(b"binary")
+    monkeypatch.setattr("cutctx.rtk.get_rtk_path", lambda: system_binary)
+    monkeypatch.setattr("cutctx.rtk.get_rtk_version", lambda _path: "v0.42.0")
+
+    with patch.object(installer.logger, "warning") as warning:
+        assert installer.ensure_rtk("v0.42.0") == system_binary
+
+    warning.assert_not_called()
+
+
 def test_get_rtk_path_finds_windows_managed_binary(tmp_path: Path) -> None:
     managed_dir = tmp_path / ".cutctx" / "bin"
     managed_dir.mkdir(parents=True)

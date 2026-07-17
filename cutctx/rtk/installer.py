@@ -208,15 +208,16 @@ def ensure_rtk(version: str | None = None) -> Path | None:
     """
     from . import get_rtk_path, get_rtk_version
 
+    requested_version = version or RTK_VERSION
     existing = get_rtk_path()
     if existing:
         installed_version = get_rtk_version(existing)
-        if installed_version and installed_version != RTK_VERSION:
+        if installed_version and installed_version != requested_version:
             logger.warning(
-                "Using system rtk %s at %s; managed installer pin is %s",
+                "Using system rtk %s at %s; requested managed version is %s",
                 installed_version,
                 existing,
-                RTK_VERSION,
+                requested_version,
             )
         return existing
 
