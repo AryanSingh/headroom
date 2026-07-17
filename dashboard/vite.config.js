@@ -161,12 +161,5 @@ export default defineConfig({
   build: {
     // Disable source maps in production — never ship a roadmap to your source
     sourcemap: false,
-    // scripts/sync_dashboard_assets.py only packages the index-* entry
-    // assets, so the build must stay a single bundle.
-    rollupOptions: {
-      output: {
-        inlineDynamicImports: true,
-      },
-    },
   },
 });

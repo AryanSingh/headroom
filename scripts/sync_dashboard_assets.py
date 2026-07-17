@@ -14,13 +14,14 @@ from pathlib import Path
 
 
 def sync_dashboard_assets(source: Path, destination: Path) -> None:
-    """Replace packaged entry assets with the current Vite build."""
+    """Replace packaged JavaScript and CSS assets with the current Vite build."""
     source = source.resolve()
     destination = destination.resolve()
     source_assets = source / "assets"
-    asset_files = [*source_assets.glob("index-*.js"), *source_assets.glob("index-*.css")]
-    if not asset_files:
+    entry_assets = [*source_assets.glob("index-*.js"), *source_assets.glob("index-*.css")]
+    if not entry_assets:
         raise FileNotFoundError(f"No Vite entry assets found in {source_assets}")
+    asset_files = [*source_assets.glob("*.js"), *source_assets.glob("*.css")]
 
     destination.mkdir(parents=True, exist_ok=True)
     destination_assets = destination / "assets"
@@ -31,7 +32,7 @@ def sync_dashboard_assets(source: Path, destination: Path) -> None:
         if source_file.is_file():
             shutil.copy2(source_file, destination / name)
 
-    for stale in [*destination_assets.glob("index-*.js"), *destination_assets.glob("index-*.css")]:
+    for stale in [*destination_assets.glob("*.js"), *destination_assets.glob("*.css")]:
         stale.unlink()
     for asset in asset_files:
         shutil.copy2(asset, destination_assets / asset.name)
