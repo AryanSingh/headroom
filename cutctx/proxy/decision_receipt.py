@@ -51,6 +51,30 @@ _REASON_EXPLANATIONS = {
     "no_route_for_model": (
         "The active routing policy had no eligible target for the requested model."
     ),
+    "account_transport_mismatch": (
+        "The account's provider transport could not be proven compatible with the "
+        "candidate model, so Cutctx retained the requested model."
+    ),
+    "calibrated_scorer_required": (
+        "Routing requires a calibrated complexity scorer that was not available, so "
+        "Cutctx retained the requested model."
+    ),
+    "cost_lookup_failed": (
+        "Cutctx could not verify that the candidate model was cheaper, so it retained "
+        "the requested model."
+    ),
+    "router_disabled": (
+        "Model routing is turned off, so every request keeps its originally requested "
+        "model."
+    ),
+    "router_error": (
+        "An internal routing check failed safely, so Cutctx retained the requested "
+        "model."
+    ),
+    "transport_mismatch": (
+        "The provider transport for the candidate model did not match the request, so "
+        "Cutctx retained the requested model."
+    ),
 }
 
 
