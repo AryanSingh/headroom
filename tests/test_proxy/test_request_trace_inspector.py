@@ -228,12 +228,13 @@ async def test_request_trace_endpoints_fall_back_to_memory_when_shared_log_unava
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_denial_is_available_in_the_trace_inspector():
+async def test_rate_limit_denial_is_available_in_the_trace_inspector(tmp_path):
     app = create_app(
         ProxyConfig(
             cache_enabled=False,
             rate_limit_enabled=True,
             rate_limit_requests_per_minute=1,
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
         )
     )
     app.state.proxy.logger.log_file = None
@@ -265,3 +266,7 @@ async def test_rate_limit_denial_is_available_in_the_trace_inspector():
     assert matching
     assert matching[0]["compression"]["decline_reason"] == "rate_limit_exceeded"
     assert matching[0]["tags"]["rate_limit_denied"] == "true"
+    assert matching[0]["decision_receipt"]["observation"]["completeness"] == "partial"
+    assert matching[0]["decision_receipt"]["observation"]["missing"] == [
+        "rate_limit_exceeded"
+    ]
