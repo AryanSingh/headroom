@@ -18,7 +18,12 @@ _TEST_ROOT = Path(__file__).resolve().parent
 _PROJECT_ROOT = _TEST_ROOT.parent
 
 
-def _install_dashboard_routes(page: Page, *, safe_savings_experience_enabled: bool = True) -> None:
+def _install_dashboard_routes(
+    page: Page,
+    *,
+    safe_savings_experience_enabled: bool = True,
+    config_update_status: int = 200,
+) -> list[dict[str, object]]:
     dashboard_html = get_dashboard_html(prefer_react=True)
 
     stats_payload = {
@@ -90,18 +95,32 @@ def _install_dashboard_routes(page: Page, *, safe_savings_experience_enabled: bo
         "enabled": True,
         "mode": "balanced",
         "preset": "codex-gpt54mini-high",
-        "route_count": 10,
-        "transport_safe_targets": 10,
+        "route_count": 1,
+        "routes": [
+            {
+                "source_model": "gpt-5.6-sol",
+                "low_target_model": "gpt-5.4-mini",
+                "medium_target_model": "gpt-5.6-luna",
+                "low_target_transport_safe": True,
+                "medium_target_transport_safe": False,
+            }
+        ],
+        "transport_safe_targets": ["gpt-5.4-mini"],
         "rollback_available": True,
         "decision": {
-            "state": "blocked",
-            "reason_title": "Required capability is unavailable",
-            "reason_explanation": "No eligible lower-cost route met the required capability.",
+            "requested_model": "gpt-5.6-sol",
+            "effective_model": "gpt-5.6-sol",
+            "candidate_model": "gpt-5.4-mini",
+            "applied": False,
+            "title": "Capability proof blocked routing",
+            "explanation": "The candidate lacked a required capability, so the requested model was retained.",
             "confidence": 0.85,
+            "signals": ["recent_tool_use"],
             "required_capabilities": ["tool_calling"],
             "missing_capabilities": ["tool_calling"],
         },
     }
+    config_mutations: list[dict[str, object]] = []
     providers_payload = {
         "providers": [
             {
@@ -390,6 +409,35 @@ def _install_dashboard_routes(page: Page, *, safe_savings_experience_enabled: bo
             )
             return
 
+        if (
+            ("/config/flags" in url or "/admin/config/flags" in url)
+            and route.request.method == "POST"
+        ):
+            config_mutations.append(json.loads(route.request.post_data or "{}"))
+            if config_update_status != 200:
+                route.fulfill(
+                    status=config_update_status,
+                    content_type="application/json",
+                    body=json.dumps({"detail": "config update failed"}),
+                )
+                return
+            safe_savings_payload.update(
+                {
+                    "enabled": False,
+                    "mode": "off",
+                    "rollback_available": False,
+                    "decision": None,
+                }
+            )
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {"applied_live": {"orchestrator_mode": {"mode": "off"}}}
+                ),
+            )
+            return
+
         if "/config/flags" in url or "/admin/config/flags" in url:
             route.fulfill(status=404, content_type="text/plain", body="not found")
             return
@@ -397,6 +445,7 @@ def _install_dashboard_routes(page: Page, *, safe_savings_experience_enabled: bo
         route.fulfill(status=404, content_type="text/plain", body="not found")
 
     page.route("**/*", handler)
+    return config_mutations
 
 
 def test_orchestrator_renders_provider_policy_status() -> None:
@@ -454,8 +503,20 @@ def test_orchestrator_renders_opt_in_safe_savings_status() -> None:
             page.wait_for_load_state("networkidle")
 
             expect(page.get_by_text("Guided Safe Savings", exact=True)).to_be_visible()
-            expect(page.get_by_text("Required capability is unavailable", exact=True)).to_be_visible()
-            expect(page.get_by_text("No eligible lower-cost route met the required capability.", exact=True)).to_be_visible()
+            expect(page.get_by_text("gpt-5.6-sol → gpt-5.4-mini", exact=True)).to_be_visible()
+            expect(page.get_by_text("Transport-safe target", exact=True)).to_be_visible()
+            expect(page.get_by_text("gpt-5.6-sol → gpt-5.6-luna", exact=True)).to_be_visible()
+            expect(page.get_by_text("Restricted transport", exact=True)).to_be_visible()
+            expect(page.get_by_text("Capability proof blocked routing", exact=True)).to_be_visible()
+            expect(
+                page.get_by_text(
+                    "The candidate lacked a required capability, so the requested model was retained.",
+                    exact=True,
+                )
+            ).to_be_visible()
+            expect(page.get_by_text("gpt-5.6-sol → gpt-5.6-sol", exact=True)).to_be_visible()
+            expect(page.get_by_text("Confidence 0.85", exact=True)).to_be_visible()
+            expect(page.get_by_text("Signals: recent_tool_use", exact=True)).to_be_visible()
             expect(
                 page.get_by_text(
                     "No automatic provider switching. Capability, account, transport, and credential protections remain enforced.",
@@ -482,6 +543,72 @@ def test_orchestrator_hides_safe_savings_when_proxy_feature_flag_is_off() -> Non
             page.wait_for_load_state("networkidle")
 
             expect(page.get_by_text("Guided Safe Savings", exact=True)).to_have_count(0)
+        finally:
+            browser.close()
+
+
+def test_orchestrator_turns_safe_savings_off_through_confirmed_config_path() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            page.add_init_script(
+                """
+                window.localStorage.setItem('cutctxAdminKey', 'testkey');
+                """
+            )
+            config_mutations = _install_dashboard_routes(page)
+            page.on("dialog", lambda dialog: dialog.accept())
+
+            page.goto("http://cutctx.local/dashboard/orchestrator")
+            page.wait_for_load_state("networkidle")
+            panel = page.get_by_role("region", name="Guided Safe Savings")
+
+            panel.get_by_role("button", name="Turn Safe Savings off").click()
+
+            expect(
+                panel.get_by_text(
+                    "Requests retain the originally requested model.",
+                    exact=True,
+                )
+            ).to_be_visible()
+            assert config_mutations == [{"orchestrator_mode": "off"}]
+        finally:
+            browser.close()
+
+
+def test_orchestrator_keeps_safe_savings_enabled_when_off_update_fails() -> None:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page(viewport={"width": 1440, "height": 1400})
+            page.add_init_script(
+                """
+                window.localStorage.setItem('cutctxAdminKey', 'testkey');
+                """
+            )
+            config_mutations = _install_dashboard_routes(
+                page,
+                config_update_status=500,
+            )
+            page.on("dialog", lambda dialog: dialog.accept())
+
+            page.goto("http://cutctx.local/dashboard/orchestrator")
+            page.wait_for_load_state("networkidle")
+            panel = page.get_by_role("region", name="Guided Safe Savings")
+
+            panel.get_by_role("button", name="Turn Safe Savings off").click()
+
+            expect(
+                panel.get_by_role("alert").get_by_text(
+                    "Unable to turn Safe Savings off: Failed update config: 500",
+                    exact=True,
+                )
+            ).to_be_visible()
+            expect(
+                panel.get_by_text("gpt-5.6-sol → gpt-5.4-mini", exact=True)
+            ).to_be_visible()
+            assert config_mutations == [{"orchestrator_mode": "off"}]
         finally:
             browser.close()
 

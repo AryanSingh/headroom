@@ -102,9 +102,11 @@ cutctx routing status --proxy-url http://127.0.0.1:8787
 The dashboard shows the same panel only when the proxy status response opts
 in. The existing **Routing mode control** remains the only configuration
 surface: choosing **Off** uses the existing confirmed config update and
-rollback path. Guided Safe Savings never silently switches providers,
-accounts, credentials, transports, or models; all capability, account, and
-transport gates remain authoritative.
+rollback path, `{"orchestrator_mode":"off"}`. The flag exposes the status
+surface only; routing remains separately opt-in through its normal preset or
+configuration path. Reading status does not perform provider calls or bypass
+account, capability, or transport proof. Guided Safe Savings never silently
+switches providers, accounts, credentials, transports, or models.
 
 ## Complexity heuristic
 
