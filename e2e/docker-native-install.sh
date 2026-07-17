@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE="${CUTCTX_DOCKER_IMAGE:?set CUTCTX_DOCKER_IMAGE to a built test image}"
+: "${CUTCTX_PROXY_API_KEY:?set CUTCTX_PROXY_API_KEY to a test-only proxy client key}"
 PROFILE="ci-smoke"
 TMP_HOME="$(mktemp -d)"
 PORT="$(python3 - <<'PY'

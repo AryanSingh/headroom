@@ -504,7 +504,7 @@ jobs:
       # The native image binds its proxy on 0.0.0.0 inside Docker, so the
       # deployment-security guard requires explicit, separate test-only keys.
       CUTCTX_ADMIN_API_KEY: ci-native-e2e-key
-      CUTCTX_PROXY_API_KEY: ci-native-e2e-proxy-key
+      CUTCTX_PROXY_API_KEY: ci-native-e2e-proxy-client-key
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
