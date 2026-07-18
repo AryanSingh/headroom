@@ -460,6 +460,8 @@ def _sanitize_detail(event_type: str, detail: dict[str, Any] | None) -> dict[str
         "response_received": ("tokens_used", "model", "stage"),
         "llm_request_sent": ("model", "provider", "stage"),
         "tool_call_detected": ("tool_name",),
+        "stream_completed": ("output_tokens",),
+        "stream_truncated": ("output_tokens",),
         "error": ("code",),
         "circuit_breaker_triggered": ("code", "cooldown_ms"),
     }

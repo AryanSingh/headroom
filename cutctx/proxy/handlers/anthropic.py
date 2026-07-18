@@ -2802,6 +2802,7 @@ class AnthropicHandlerMixin:
                             request_savings_metadata,
                             schema_savings_metadata,
                         ),
+                        session_id=session_id,
                     )
                 else:
                     retry_kwargs: dict[str, Any] = {}

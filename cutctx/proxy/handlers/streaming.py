@@ -904,6 +904,7 @@ class StreamingMixin:
         memory_request_ctx: Any | None = None,
         outcome_provider: str | None = None,
         savings_metadata: dict[str, dict[str, Any]] | None = None,
+        session_id: str | None = None,
     ) -> Response | StreamingResponse:
         """Stream response with metrics tracking and memory tool handling.
 
@@ -1900,6 +1901,16 @@ class StreamingMixin:
                     logger.warning(
                         "[%s] Stream ended without terminal event — upstream may have truncated",
                         request_id,
+                    )
+                if session_id:
+                    from cutctx.proxy.session_replay import record_replay_event
+
+                    record_replay_event(
+                        session_id=session_id,
+                        event_type=("stream_completed" if stream_complete else "stream_truncated"),
+                        surface="streaming",
+                        request_id=request_id,
+                        detail={"output_tokens": stream_state.get("output_tokens")},
                     )
                 await self._finalize_stream_response(
                     body=body,

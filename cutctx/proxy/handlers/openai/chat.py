@@ -1543,6 +1543,7 @@ class OpenAIChatMixin:
                     pipeline_timing=pipeline_timing,
                     prefix_tracker=openai_prefix_tracker,
                     savings_metadata=request_savings_metadata,
+                    session_id=openai_session_id,
                 )
             else:
                 headers = await apply_copilot_api_auth(headers, url=url)
