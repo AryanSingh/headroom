@@ -2670,13 +2670,38 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         allow_headers=_cors_headers,
     )
 
+    # Content-Security-Policy for the operator dashboard. The bundled SPA
+    # loads a single same-origin module script and no inline scripts, so
+    # `script-src 'self'` is safe; React sets inline style attributes, hence
+    # `'unsafe-inline'` on style only. Favicons are data: URIs.
+    _SECURITY_CSP = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+
     @app.middleware("http")
     async def _runtime_request_id_middleware(request: Request, call_next):
-        """Give every runtime request one ID shared by the response and trace."""
+        """Give every runtime request one ID shared by the response and
+        trace, and attach hardening headers so a network-facing dashboard
+        is not clickjackable / MIME-sniffable and the framework is not
+        advertised."""
         request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
         request.state.cutctx_request_id = request_id
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Content-Security-Policy", _SECURITY_CSP)
+        # Overwrite uvicorn's framework fingerprint.
+        response.headers["Server"] = "cutctx"
         return response
 
     async def _build_stats_payload() -> dict[str, Any]:
@@ -4614,6 +4639,10 @@ def run_server(
         # default. Disabling proxy_headers here guarantees the guard sees the
         # real peer address regardless of env.
         proxy_headers=False,
+        # Don't advertise the ASGI server framework. The app middleware
+        # sets `Server: cutctx`; without this uvicorn appends a second
+        # `Server: uvicorn` header (framework fingerprint disclosure).
+        server_header=False,
         # uvicorn defaults to ws_ping_interval=20s / ws_ping_timeout=20s.
         # Codex's WS session (/v1/responses) stays open across an entire
         # agent turn, including local tool calls that can run for minutes

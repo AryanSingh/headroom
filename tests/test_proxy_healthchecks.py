@@ -429,3 +429,19 @@ def test_health_upstream_failure_is_reported_and_cached(monkeypatch):
         assert first.status_code == 503
         assert second.status_code == 503
         assert calls["head"] == 1, "failed probe must also be cached (short retry TTL)"
+
+
+def test_security_headers_present_on_responses(client):
+    """Hardening headers must be present so a network-facing dashboard is
+    not clickjackable / MIME-sniffable, and the server framework is not
+    advertised. Applies to every response via middleware."""
+    resp = client.get("/livez")
+    h = resp.headers
+    assert h.get("x-content-type-options") == "nosniff"
+    assert h.get("x-frame-options") == "DENY"
+    assert "no-referrer" in (h.get("referrer-policy") or "")
+    csp = h.get("content-security-policy") or ""
+    assert "frame-ancestors 'none'" in csp
+    assert "default-src 'self'" in csp
+    # Framework fingerprint must not be advertised.
+    assert (h.get("server") or "").lower() != "uvicorn"
