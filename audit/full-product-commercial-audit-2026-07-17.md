@@ -291,3 +291,36 @@ Not addressed here (still open from this audit): RTK version-pin drift
 (§2.5), published SLA/compliance evidence, trial/upgrade flow,
 cost-allocation/showback, the Context Decision Explorer forensics view
 (§4.3), and load testing (§Performance).
+
+### Benchmark verification — 2026-07-18 (measured, local, reproducible)
+
+All numbers measured on macOS arm64, Python 3.11.14, this working tree.
+
+- **Compression (per-workload matrix)** — `cutctx evals benchmark` across
+  the four built-in local corpora, seed 42 (report refreshed in
+  `benchmark_results.md`; ratio = kept fraction, lower is better):
+  ContentRouter on tool outputs keeps 71.5% at F1 0.945 / recall 1.000;
+  SmartCrusher keeps 79.1% at F1 1.000. Individual compressors correctly
+  pass through code/prose (100% kept). Honest caveat recorded: the full
+  router compresses RAG fixtures to 54.7% kept at F1 0.695 — aggressive
+  prose compression carries measurable quality cost on those fixtures.
+  Small-N fixture corpora; regression check, not a marketing claim.
+- **Proxy overhead / load (closes "zero load testing")** —
+  `benchmarks/proxy_request_benchmark.py`, in-process ASGI with fixed
+  upstream: per-request overhead p50 2.5 ms / p95 3.1 ms at c=1 (50x under
+  the 150 ms gate); ~443 req/s single-worker saturation at c=50 with p95
+  187 ms (queueing-dominated, Little's-law consistent); 0 failures across
+  2,800 requests.
+- **Routing quality** — `benchmarks/model_routing_quality.py` (corpus v2,
+  75 cases, 4 clients, 22 categories): accuracy 1.000, tier accuracy
+  1.000, unsafe_downgrade_rate 0.0, fp=0/fn=0, mean confidence 0.955.
+- **Negative-compression guard verified end-to-end** — the audit's
+  problem shape (mixed small code-block content) now returns 3,259 →
+  3,238 bytes (570 → 544 tokens) through the full router; no benchmark
+  cell produced expansion.
+- **RTK version-pin drift (§2.5) — verified already closed**: pin is
+  v0.43.0 with a current SHA-256 table and a version-mismatch warning in
+  `cutctx/rtk/installer.py`.
+- **Published SLA (§4.4) — closed**: `docs/content/docs/sla.mdx` mirrors
+  `SLA.md` (pinned by `tests/test_plans_docs.py`). Service-credit remedy
+  percentages remain a pending business/legal decision.
