@@ -289,6 +289,31 @@ class ReplayEventStore:
             "events": [event.to_dict() for event in events],
         }
 
+    def list_recent_sessions(self, *, limit: int = 50) -> dict[str, Any]:
+        """Return bounded session summaries ordered by their latest event."""
+
+        if limit < 1:
+            return {"session_count": 0, "sessions": []}
+        try:
+            with self._lock, self._connect() as connection:
+                rows = connection.execute(
+                    """
+                    SELECT session_id, COUNT(*) AS event_count, MAX(event_id) AS last_event_id
+                    FROM replay_events
+                    GROUP BY session_id
+                    ORDER BY last_event_id DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
+        except (OSError, sqlite3.Error) as exc:
+            logger.warning("event=replay_session_list_failed reason=%s", type(exc).__name__)
+            rows = []
+        sessions = [
+            {"session_id": row[0], "event_count": row[1], "last_event_id": row[2]} for row in rows
+        ]
+        return {"session_count": len(sessions), "sessions": sessions}
+
 
 _STORE: ReplayEventStore | None = None
 

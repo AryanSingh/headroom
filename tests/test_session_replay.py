@@ -164,3 +164,17 @@ def test_reduce_replay_events_derives_session_state() -> None:
         "policy_block_count": 1,
         "policy_redaction_count": 0,
     }
+
+
+def test_store_lists_recent_sessions_by_latest_event(tmp_path: Path) -> None:
+    store = ReplayEventStore(db_path=tmp_path / "replay.sqlite3")
+    store.record(session_id="older", event_type="request", surface="test")
+    store.record(session_id="newer", event_type="request", surface="test")
+    store.record(session_id="older", event_type="response_received", surface="test")
+
+    payload = store.list_recent_sessions(limit=1)
+
+    assert payload == {
+        "session_count": 1,
+        "sessions": [{"session_id": "older", "event_count": 2, "last_event_id": 3}],
+    }

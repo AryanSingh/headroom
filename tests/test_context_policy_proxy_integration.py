@@ -297,6 +297,29 @@ def test_session_state_api_reads_persisted_events(
     assert response.json()["compression"]["tokens_saved"] == 6
 
 
+def test_sessions_api_lists_persisted_sessions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CUTCTX_REPLAY", "1")
+    monkeypatch.setenv("CUTCTX_REPLAY_DB_PATH", str(tmp_path / "replay.sqlite3"))
+
+    from cutctx.proxy.session_replay import record_replay_event, reset_replay_store
+
+    reset_replay_store()
+    record_replay_event(session_id="sess-1", event_type="request", surface="openai")
+    reset_replay_store()
+    app = create_app(ProxyConfig(admin_api_key="admin-secret"))
+
+    with TestClient(app) as client:
+        response = client.get("/v1/sessions", headers={"x-cutctx-admin-key": "admin-secret"})
+
+    assert response.status_code == 200
+    assert response.json()["sessions"] == [
+        {"session_id": "sess-1", "event_count": 1, "last_event_id": 1}
+    ]
+
+
 def test_context_policy_redacts_anthropic_messages_before_forwarding(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
