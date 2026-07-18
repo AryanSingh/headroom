@@ -128,7 +128,10 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
         raise SystemExit(1) from None
     else:
         click.echo(f"Error: License server returned status {resp.status_code}.", err=True)
-        click.echo("Try again later or open an issue: https://github.com/AryanSingh/headroom/issues", err=True)
+        click.echo(
+            "Try again later or open an issue: https://github.com/AryanSingh/headroom/issues",
+            err=True,
+        )
         raise SystemExit(1) from None
 
 

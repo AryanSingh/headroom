@@ -222,8 +222,9 @@ def build_product_evidence(
     generated_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     ordered_rows = sorted(
         savings_rows,
-        key=lambda row: _parse_timestamp(row.get("timestamp"))
-        or datetime.max.replace(tzinfo=timezone.utc),
+        key=lambda row: (
+            _parse_timestamp(row.get("timestamp")) or datetime.max.replace(tzinfo=timezone.utc)
+        ),
     )
     first_request = aggregate_savings_receipt(ordered_rows[:1])
     if ordered_rows:

@@ -106,9 +106,7 @@ def _install_dashboard_routes(
                 route.fulfill(
                     status=200,
                     content_type="application/json",
-                    body=json.dumps(
-                        {"current_tier": "builder", "features": entitlements_features}
-                    ),
+                    body=json.dumps({"current_tier": "builder", "features": entitlements_features}),
                 )
                 return
             route.fulfill(

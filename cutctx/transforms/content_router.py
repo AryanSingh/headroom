@@ -1785,10 +1785,7 @@ class ContentRouter(Transform):
         if (
             compressed is not None
             and compressed != content
-            and (
-                (compressed_tokens or 0) > original_tokens
-                or len(compressed) > len(content)
-            )
+            and ((compressed_tokens or 0) > original_tokens or len(compressed) > len(content))
         ):
             logger.debug(
                 "Rejecting expanded output from %s (%d -> %d tokens, %d -> %d chars)",

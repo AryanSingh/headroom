@@ -18,7 +18,7 @@ import pytest
 
 from cutctx.transforms.code_compressor import CodeAwareCompressor
 
-RETRY_HELPER = '''from __future__ import annotations
+RETRY_HELPER = """from __future__ import annotations
 
 import asyncio
 import httpx
@@ -42,7 +42,7 @@ async def fetch_with_retry(client: httpx.AsyncClient, url: str, retries: int = 3
 def summarize_user(payload: dict) -> str:
     user = payload.get("user") or {}
     return f"{user.get('name', 'unknown')}<{user.get('email', 'n/a')}>"
-'''
+"""
 
 
 @pytest.fixture()
