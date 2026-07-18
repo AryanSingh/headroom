@@ -6,8 +6,8 @@ import { resolve } from 'node:path';
 import process from 'node:process';
 import { defineConfig } from 'vite';
 
-const CUTCTX_PROXY_HOST = '127.0.0.1';
-const CUTCTX_PROXY_PORT = 8787;
+const CUTCTX_PROXY_HOST = process.env.CUTCTX_PROXY_HOST || '127.0.0.1';
+const CUTCTX_PROXY_PORT = Number(process.env.CUTCTX_PROXY_PORT) || 8787;
 const CUTCTX_PROXY_PREFIXES = [
   '/health',
   '/stats',
@@ -18,6 +18,13 @@ const CUTCTX_PROXY_PREFIXES = [
   '/rbac',
   '/firewall/scan',
   '/firewall/status',
+  // The Orchestrator page reads provider policy decisions; without this
+  // prefix the dev server answers with the SPA shell and the panel shows
+  // "/policy/status returned non-JSON response".
+  '/policy',
+  // Request-trace inspector (Overview) and Governance tier data.
+  '/transformations',
+  '/entitlements',
 ];
 // SPA routes that look like they might match a proxy prefix but are not API endpoints.
 const SPA_ROUTE_PREFIXES = ['/firewall', '/governance', '/orchestrator', '/capabilities', '/memory', '/playground', '/docs', '/'];

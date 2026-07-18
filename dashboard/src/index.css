@@ -2269,7 +2269,9 @@ text-align: right;
 }
 
 .request-table th {
-  white-space: normal;
+  /* Headers are single words ("Routing", "When") — wrapping them mid-word
+     at narrow widths rendered "WHE/N". Cells keep overflow-wrap above. */
+  white-space: nowrap;
 }
 
 .request-table th:nth-child(1),
@@ -3742,4 +3744,32 @@ grid-template-columns: 1fr;
   .safe-savings-panel .safe-savings-routes {
     flex-direction: column;
   }
+}
+
+.feature-config-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--warning, #b45309);
+  font-size: var(--text-xs);
+  margin: var(--space-xs) 0 0;
+}
+
+.dark .feature-config-error {
+  color: #fbbf24;
+}
+
+.orchestration-empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-2xl);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  max-width: 32rem;
+}
+
+.orchestration-empty-state strong {
+  color: var(--text-primary);
 }

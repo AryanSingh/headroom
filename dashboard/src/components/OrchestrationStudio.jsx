@@ -624,6 +624,16 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       {tab === "roles" ? (
         <div className="orchestration-pane">
           <div className="orchestration-role-list">
+            {filteredRoles.length === 0 ? (
+              <div className="orchestration-empty-state">
+                <strong>No roles yet</strong>
+                <span>
+                  Roles bind a workload (planner, implementer, reviewer) to an
+                  approved provider and model. Add your first role below to
+                  start locking assignments.
+                </span>
+              </div>
+            ) : null}
             {filteredRoles.map((role) => {
               const binding = bindingForRole(role.id);
               const bindings = roleBindingsFor(role.id);

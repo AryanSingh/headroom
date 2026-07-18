@@ -336,7 +336,11 @@ def test_overview_request_trace_inspector_renders_trace_details() -> None:
 
             expect(page.get_by_text("Recent requests", exact=True)).to_be_visible()
             expect(trace_panel).not_to_be_visible()
-            expect(page.get_by_text("workload_not_downgradeable", exact=True)).to_be_visible()
+            # The table shows operator copy for the routing reason; the raw
+            # code stays available via the cell tooltip and the trace receipt.
+            expect(
+                page.get_by_text("Workload retained on requested model", exact=True)
+            ).to_be_visible()
             page.get_by_role("button", name="gpt-5.6-terra", exact=True).click()
             expect(page.get_by_text("Request trace", exact=True)).to_be_visible()
             expect(trace_panel.get_by_text("trace-1")).to_be_visible()

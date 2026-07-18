@@ -217,18 +217,30 @@ def _tail_lines(path: Path, n: int, chunk_size: int = 65_536) -> list[bytes]:
     lets ``get_recent`` stay cheap on a long-lived, multi-process-shared
     JSONL log that keeps growing.
     """
+    # Hard ceiling on how much of the file a tail-read may touch. Entries
+    # carrying full request/response messages can exceed 100 KB each, so an
+    # unbounded backwards read over a multi-hundred-MB shared log would block
+    # the caller (and, from an async endpoint, the whole event loop).
+    max_bytes = 32 * 1024 * 1024
     try:
         with open(path, "rb") as f:
             f.seek(0, 2)
             pos = f.tell()
-            buffer = b""
-            lines: list[bytes] = []
-            while pos > 0 and len(lines) <= n:
+            chunks: list[bytes] = []
+            newlines = 0
+            read_total = 0
+            while pos > 0 and newlines <= n and read_total < max_bytes:
                 read_size = min(chunk_size, pos)
                 pos -= read_size
                 f.seek(pos)
-                buffer = f.read(read_size) + buffer
-                lines = [ln for ln in buffer.split(b"\n") if ln.strip()]
+                chunk = f.read(read_size)
+                # Count incrementally instead of re-splitting the whole
+                # accumulated buffer per chunk (which was quadratic).
+                newlines += chunk.count(b"\n")
+                read_total += read_size
+                chunks.append(chunk)
+            buffer = b"".join(reversed(chunks))
+            lines = [ln for ln in buffer.split(b"\n") if ln.strip()]
             return lines[-n:]
     except OSError:
         return []
@@ -409,9 +421,15 @@ class RequestLogger:
             return entries
         return [asdict(e) for e in list(self._logs)[-n:]]
 
+    # Inspector lookups only ever target ids visible in the dashboard's
+    # recent-requests table (last ≤100 rows); a generous window keeps the
+    # tail-read bounded instead of scanning MAX_LOG_ENTRIES full-message
+    # entries (hundreds of MB on long-lived shared logs).
+    TRACE_LOOKUP_WINDOW = 500
+
     def get_request_with_messages(self, request_id: str) -> dict | None:
         """Return one request log entry, preferring the shared JSONL file."""
-        entries = self._read_recent_from_file(self.MAX_LOG_ENTRIES)
+        entries = self._read_recent_from_file(self.TRACE_LOOKUP_WINDOW)
         if entries is not None:
             for entry in reversed(entries):
                 if entry.get("request_id") == request_id:

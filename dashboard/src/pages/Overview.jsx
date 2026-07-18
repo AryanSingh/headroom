@@ -2067,6 +2067,37 @@ function getRequestModelSummary(request) {
   };
 }
 
+// Operator copy for routing reason codes — mirrors the titles the proxy
+// ships in its Safe Savings status API so the dashboard and CLI narrate
+// decisions identically. Unknown codes fall back to a humanized form with
+// the raw code preserved in the tooltip.
+const ROUTING_REASON_LABELS = {
+  account_transport_mismatch: 'Account proof blocked routing',
+  calibrated_scorer_required: 'Calibration required',
+  confidence_below_threshold: 'Confidence protected the request',
+  cost_lookup_failed: 'Cost proof unavailable',
+  downgrade_applied: 'Safe route applied',
+  downgrade_blocked_unproven_transport: 'Transport proof blocked routing',
+  low_complexity: 'Safe route applied',
+  no_route_for_model: 'No exact route configured',
+  router_disabled: 'Routing is off',
+  router_error: 'Routing retained the requested model',
+  target_missing_capabilities: 'Capability proof blocked routing',
+  transport_mismatch: 'Provider transport blocked routing',
+  workload_not_downgradeable: 'Workload retained on requested model',
+};
+
+function humanizeRoutingReason(reason) {
+  if (!reason) {
+    return null;
+  }
+  if (ROUTING_REASON_LABELS[reason]) {
+    return ROUTING_REASON_LABELS[reason];
+  }
+  const text = String(reason).replaceAll('_', ' ');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function getRequestRoutingSummary(request) {
   const routing = request?.routing_metadata;
   if (!routing || typeof routing !== 'object') {
@@ -2077,13 +2108,15 @@ function getRequestRoutingSummary(request) {
     };
   }
 
-  const primary = routing.reason || (routing.routed ? 'Routed' : 'Retained');
+  const primary =
+    humanizeRoutingReason(routing.reason) || (routing.routed ? 'Routed' : 'Retained');
   const secondary = routing.routed
     ? (routing.source_model || request?.model || '—') + ' → ' + (routing.target_model || request?.model || '—')
     : null;
 
+  const rawSuffix = routing.reason ? ` (${routing.reason})` : '';
   return {
-    title: secondary ? primary + ' · ' + secondary : primary,
+    title: (secondary ? primary + ' · ' + secondary : primary) + rawSuffix,
     primary,
     secondary,
   };

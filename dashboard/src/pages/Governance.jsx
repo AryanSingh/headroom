@@ -323,6 +323,7 @@ function FeatureRow({
   sections,
   onToggle,
   toggleBusy,
+  toggleError,
 }) {
   const isActive = resolveFeatureState(feature, stats, configFlags, liveFlags, sections);
   const availability = getFeatureAvailability(feature, sections);
@@ -362,6 +363,11 @@ function FeatureRow({
         <p className="feature-config-desc">{feature.description}</p>
         {locked ? (
           <p className="feature-config-desc">Available on {requiredTier} tier.</p>
+        ) : null}
+        {toggleError?.flagKey === feature.flagKey ? (
+          <p className="feature-config-error" role="alert">
+            <AlertTriangle size={12} /> {toggleError.message}
+          </p>
         ) : null}
       </div>
 
@@ -417,6 +423,7 @@ export default function Governance({ searchQuery = "" }) {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveFlags, setLiveFlags] = useState({});
   const [toggleBusy, setToggleBusy] = useState(null);
+  const [toggleError, setToggleError] = useState(null);
 
   const configLiveFlags = useMemo(() => {
     if (!configFlags) {
@@ -483,6 +490,7 @@ export default function Governance({ searchQuery = "" }) {
   const handleToggle = useCallback(
     async (flagKey, value) => {
       setToggleBusy(flagKey);
+      setToggleError(null);
       try {
         const response = await patchDashboardConfig({ [flagKey]: value });
         const appliedLive = normalizeAppliedLiveFlags(response?.applied_live);
@@ -493,6 +501,15 @@ export default function Governance({ searchQuery = "" }) {
           ...appliedLive,
         }));
         await refresh?.();
+      } catch (error) {
+        const detail = error?.detail;
+        const message =
+          detail?.error === "feature_not_available"
+            ? `This feature requires the ${titleCase(detail.required_tier || "higher")} ` +
+              `tier (current tier: ${titleCase(detail.current_tier || "builder")}). ` +
+              "Configure a license key to unlock it."
+            : error?.message || "The proxy rejected this change.";
+        setToggleError({ flagKey, message });
       } finally {
         setToggleBusy(null);
       }
@@ -694,6 +711,7 @@ export default function Governance({ searchQuery = "" }) {
                 sections={sections}
                 onToggle={handleToggle}
                 toggleBusy={toggleBusy}
+                toggleError={toggleError}
               />
             ))
           ) : (

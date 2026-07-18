@@ -28,6 +28,14 @@ export function formatCurrency(value) {
   if (!Number.isFinite(number)) {
     return "$0.00";
   }
+  // Sub-millidollar values would render as the broken-looking "$0.000";
+  // show an honest floor instead. Exact zero stays "$0.00".
+  if (number === 0) {
+    return "$0.00";
+  }
+  if (number > 0 && number < 0.001) {
+    return "< $0.01";
+  }
   return `$${number.toFixed(number < 10 ? 3 : 2)}`;
 }
 

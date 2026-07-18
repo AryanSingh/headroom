@@ -2626,7 +2626,17 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             except Exception as exc:
                 _upstream_check_cache["ok"] = False
                 _upstream_check_cache["error"] = str(exc)
-                _upstream_check_cache["expires_at"] = time.monotonic() + _UPSTREAM_CHECK_TTL
+            # Cache both outcomes. Successes previously never refreshed
+            # expires_at, so every /health poll fired a live upstream HEAD
+            # while a single transient failure was pinned for the full TTL —
+            # flapping 503s that look like proxy outages to monitors and
+            # k8s probes. Failures retry sooner so recovery is fast.
+            ttl = (
+                _UPSTREAM_CHECK_TTL
+                if _upstream_check_cache["ok"]
+                else min(_UPSTREAM_CHECK_TTL, 10.0)
+            )
+            _upstream_check_cache["expires_at"] = time.monotonic() + ttl
 
     # Mirror the primary app's CORS behavior in the runtime app branch.
     _cors_origins = getattr(config, "cors_origins", None) or []
@@ -3798,7 +3808,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     async def request_trace(request_id: str):
         if not proxy or not proxy.logger:
             raise HTTPException(status_code=404, detail="request trace not found")
-        log = proxy.logger.get_request_with_messages(request_id)
+        # File-backed lookup; keep it off the event loop so a large shared
+        # log can never stall live proxy traffic.
+        log = await asyncio.to_thread(proxy.logger.get_request_with_messages, request_id)
         if not log:
             raise HTTPException(status_code=404, detail="request trace not found")
         return {

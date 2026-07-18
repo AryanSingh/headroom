@@ -27,10 +27,14 @@ const LEGACY_FLAG_KEYS = new Set([
 
 const UNSUPPORTED_STATUS_CODES = new Set([404, 405, 501, 503]);
 
-function createDashboardError(path, message, status = null) {
+function createDashboardError(path, message, status = null, detail = null) {
   const error = new Error(message);
   error.path = path;
   error.status = status;
+  // Structured error payload from the proxy (e.g. feature_not_available
+  // with required_tier) so callers can render actionable copy instead of
+  // a bare status code.
+  error.detail = detail;
   return error;
 }
 
@@ -152,7 +156,12 @@ export async function patchDashboardConfig(updates) {
       return data || {};
     }
 
-    lastError = createDashboardError(path, `Failed update config: ${response.status}`, response.status);
+    lastError = createDashboardError(
+      path,
+      `Failed update config: ${response.status}`,
+      response.status,
+      data?.detail ?? null,
+    );
     if (!isUnsupportedDashboardEndpointError(lastError)) {
       throw lastError;
     }

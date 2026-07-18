@@ -359,3 +359,73 @@ def test_health_includes_upstream_check_result(monkeypatch):
     assert "enabled" in upstream
     assert "ready" in upstream
     assert "status" in upstream
+
+
+def test_health_upstream_success_is_cached_within_ttl(monkeypatch):
+    """A successful upstream probe must be cached: /health previously
+    re-probed the provider on every poll (expires_at was never set on the
+    success path) while failures were pinned for the full TTL — producing
+    flapping 503s that read as proxy outages to monitors and k8s probes."""
+    monkeypatch.delenv("CUTCTX_SKIP_UPSTREAM_CHECK", raising=False)
+    config = ProxyConfig(
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        cost_tracking_enabled=False,
+    )
+    app = create_app(config)
+
+    with TestClient(app) as test_client:
+        proxy = app.state.proxy
+        calls = {"head": 0}
+
+        class _StubResponse:
+            status_code = 200
+
+        class _StubClient:
+            async def head(self, url, timeout=None):
+                calls["head"] += 1
+                return _StubResponse()
+
+            async def aclose(self):
+                return None
+
+        proxy.http_client = _StubClient()
+
+        for _ in range(3):
+            response = test_client.get("/health")
+            assert response.status_code == 200
+
+        assert calls["head"] == 1, "successful upstream probe must be cached for the TTL"
+
+
+def test_health_upstream_failure_is_reported_and_cached(monkeypatch):
+    monkeypatch.delenv("CUTCTX_SKIP_UPSTREAM_CHECK", raising=False)
+    config = ProxyConfig(
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        cost_tracking_enabled=False,
+    )
+    app = create_app(config)
+
+    with TestClient(app) as test_client:
+        proxy = app.state.proxy
+        calls = {"head": 0}
+
+        class _FailingClient:
+            async def head(self, url, timeout=None):
+                calls["head"] += 1
+                raise RuntimeError("connection reset")
+
+            async def aclose(self):
+                return None
+
+        proxy.http_client = _FailingClient()
+
+        first = test_client.get("/health")
+        second = test_client.get("/health")
+
+        assert first.status_code == 503
+        assert second.status_code == 503
+        assert calls["head"] == 1, "failed probe must also be cached (short retry TTL)"
