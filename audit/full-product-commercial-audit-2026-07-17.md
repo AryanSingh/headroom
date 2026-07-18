@@ -241,3 +241,53 @@ Items not required to block a free/community-tier release: public SLA, complianc
 ## Appendix: Prior Audit Cross-Reference
 
 This audit deliberately did not read or build on any pre-existing `audit/*.md` files (per explicit scoping decision). Where findings here happen to reference "a prior audit" (§2.2's entitlement gap, §3's UI regression checks), those references come from evidence embedded in the current codebase/comments (e.g., the fail-open→fail-closed refactor comment in `server.py:3463`, or a 2026-07-01-dated screenshot filename) — not from reading the old reports directly.
+
+---
+
+## Remediation addendum — 2026-07-18
+
+Verified fixes landed on `codex/cutctx-pitchtoship-billing` after this audit;
+re-verify against code before citing (commit hashes in parentheses):
+
+1. **Entitlement enforcement (Exec item 1, §2.2) — closed for the current
+   tier map** (0085cde2). Note the tier map changed after this audit:
+   `ccr`/`ccr_marker` moved to the free BUILDER tier (c4899e45), making
+   CCR's default-on legitimate. Remaining BUSINESS-gated runtime features
+   (episodic memory, cross-agent memory) are now fail-closed enforced at
+   proxy init, on both `/config/flags` endpoints, and re-checked after
+   startup license validation. `UsageReporter.validate_license()` now runs
+   in `startup()`; a validated plan overrides the declared tier and
+   expired/invalid licenses fail closed to Builder. `PRODUCT_GUIDE.md`'s
+   "gated at import time" claim corrected. Tests:
+   `tests/test_entitlement_request_path.py`. Caveat: a declared tier
+   without any license key is still honored (with a loud warning) —
+   closing that requires a product decision to hard-require licenses.
+2. **Version-sync release blocker (Exec item 2, §2.6) — closed** prior to
+   this addendum; `scripts/verify-versions.py` passes with all packages,
+   Helm, and K8s manifests aligned at 0.31.0.
+3. **Savings attribution divergence — closed** (f3f32c01, ad076363,
+   70b1c9cf): `model_routing_savings_usd` was 4.1x under the canonical
+   by-source ledger (flat target-rate re-estimate vs router delta); the
+   typed counter now adopts the by-source ledger, a schema v7 migration
+   reconciles historical data (pre-migration value kept under
+   `attribution_reconciliation`), and the Savings dashboard badges
+   reconciled ledgers. Tests: `tests/test_savings_usd_source_of_truth.py`.
+4. **Negative-compression guard (§2.4) — closed** (ee152651): the content
+   router now rejects any strategy output larger than its input
+   (tokens or bytes) and falls back to passthrough
+   (`decision_reason="expansion_guard"`).
+5. **Public tier feature matrix (§4.4) — added**:
+   `docs/content/docs/plans.mdx` with entitlement-accurate rows, pinned by
+   `tests/test_plans_docs.py`.
+6. **ContractEditor checkbox-group labeling (§3.3 confirmed finding) —
+   fixed** (ee152651): the capability grid is now a labeled
+   `role="group"` instead of nested labels.
+7. **Guided Safe Savings Mode (model-routing audit Opportunity A) —
+   implemented** (61c4a451..982c224f): read-only status API/CLI/dashboard
+   panel behind `CUTCTX_SAFE_SAVINGS_EXPERIENCE`, rollback via the existing
+   `orchestrator_mode` mutation.
+
+Not addressed here (still open from this audit): RTK version-pin drift
+(§2.5), published SLA/compliance evidence, trial/upgrade flow,
+cost-allocation/showback, the Context Decision Explorer forensics view
+(§4.3), and load testing (§Performance).
