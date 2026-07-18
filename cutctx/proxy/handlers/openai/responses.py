@@ -2669,6 +2669,17 @@ class OpenAIResponsesMixin:
         # Token counting on converted messages
         tokenizer = get_tokenizer(model)
         original_tokens = tokenizer.count_messages(messages)
+        from cutctx.proxy.session_replay import record_prompt_received
+
+        record_prompt_received(
+            session_id=_responses_session_id,
+            surface="openai_responses",
+            request_id=request_id,
+            message_count=len(messages),
+            token_count=original_tokens,
+            model=model,
+            provider="openai",
+        )
 
         # Defaults below feed downstream telemetry and memory injection.
         # If optimization remains enabled, the Responses payload is compressed
