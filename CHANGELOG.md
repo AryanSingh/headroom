@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-07-18 — Commercial hardening, attribution integrity, benchmarks
+
+**Guided Safe Savings Mode** (feature-flagged, read-only): status model,
+authenticated `GET /v1/orchestration/safe-savings/status`, `cutctx routing
+status` CLI, and a dashboard panel with confirmed rollback to
+`orchestrator_mode: off`. Discoverability via
+`CUTCTX_SAFE_SAVINGS_EXPERIENCE`; the flag never enables routing.
+
+**Savings attribution integrity (schema v7):** the lifetime
+`model_routing_savings_usd` counter had drifted 4.1x below the canonical
+by-source ledger (it re-estimated routing savings at the routed-to model's
+flat input rate instead of the router's source−target delta). The typed
+counter now adopts the by-source ledger, a one-time v7 migration reconciles
+historical data (pre-migration values preserved under
+`attribution_reconciliation`), and the Savings dashboard badges reconciled
+ledgers.
+
+**Entitlement enforcement on the request path:** episodic/cross-agent
+memory (BUSINESS tier) is fail-closed gated at proxy init, on both
+config-flags endpoints, and re-checked after startup license validation;
+`UsageReporter.validate_license()` now runs at startup and a validated plan
+overrides the declared tier (expired/invalid → free tier). CCR is
+free-tier by prior product decision.
+
+**Compression quality guarantees:** the content router never returns
+output larger than its input (`expansion_guard`); Python code elision now
+keeps `from __future__` imports first (reassembled output is
+`compile()`-verified) and preserves numeric configuration constants in a
+`values:` anchor line (code information recall 0.400 → 0.800 measured).
+
+**Measured benchmarks (recorded in `benchmark_results.md` and the
+2026-07-17 audit addendum):** per-request proxy overhead p50 2.5 ms / p95
+3.1 ms (~443 req/s single-worker, 0 failures); routing quality 75/75 with
+zero unsafe downgrades; four-corpus compression matrix with honest
+kept-fraction framing.
+
+**Commercial surface:** public plans/feature matrix
+(`docs/content/docs/plans.mdx`) and published SLA (`docs/content/docs/sla.mdx`),
+both test-pinned; PRODUCT_GUIDE enforcement claim corrected; dead doc links
+repointed.
+
 ## Latest Verification Notes - 2026-07-03
 
 - 2026-07-04 verification rerun: restored a corrupted uncommitted working-tree

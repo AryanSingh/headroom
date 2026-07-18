@@ -4,7 +4,10 @@
     {
       "name": "dashboard",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "cwd": "dashboard",
       "port": 5173,
       "autoPort": false
@@ -12,9 +15,24 @@
     {
       "name": "dashboard-preview-build",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "preview", "--port", "4173"],
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--port",
+        "4173"
+      ],
       "cwd": "dashboard",
       "port": 4173,
+      "autoPort": false
+    },
+    {
+      "name": "proxy-latest",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "CUTCTX_ADMIN_API_KEY=$(cat ~/.cutctx/admin_key.txt) CUTCTX_LOG_LEVEL=INFO /opt/homebrew/bin/python3.11 -m cutctx.cli.main proxy --host 127.0.0.1 --port 8899"
+      ],
+      "port": 8899,
       "autoPort": false
     }
   ]
