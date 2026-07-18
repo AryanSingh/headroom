@@ -1237,6 +1237,11 @@ def proxy(
         anyllm_provider=effective_anyllm_provider,
         # License / Usage Reporting (managed/enterprise)
         license_key=license_key,
+        # Declared entitlement tier (documented dev/QA path for exercising
+        # paid features without a license server). A validated license key
+        # still overrides this at startup; on an OSS build the fail-closed
+        # checker ignores it, so this cannot grant paid features for free.
+        entitlement_tier=(os.environ.get("CUTCTX_ENTITLEMENT_TIER") or "").strip() or None,
         # Stateless mode: disable all filesystem writes
         stateless=is_stateless,
         # Unit 4: bounded pre-upstream concurrency on the Anthropic HTTP
