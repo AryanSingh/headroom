@@ -15,7 +15,8 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 **Please DO NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, please email us at: **security@cutctx.com**
+Instead, report privately via **GitHub Security Advisories**:
+[github.com/AryanSingh/headroom/security/advisories/new](https://github.com/AryanSingh/headroom/security/advisories/new)
 
 Include the following information:
 - Type of vulnerability (e.g., injection, data exposure, authentication bypass)

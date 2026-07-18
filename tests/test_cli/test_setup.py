@@ -33,7 +33,10 @@ def test_setup_exits_nonzero_and_explains_recovery_when_unhealthy(monkeypatch) -
     assert result.exit_code == 1, result.output
     assert "Setup needs attention" in result.output
     assert "cutctx proxy --port 8787" in result.output
-    assert "https://cutctx.com/docs/troubleshooting" in result.output
+    assert (
+        "https://github.com/AryanSingh/headroom/blob/main/docs/content/docs/troubleshooting.mdx"
+        in result.output
+    )
     assert "Setup Complete!" not in result.output
 
 

@@ -1,3 +1,7 @@
+> **Superseded:** point-in-time verification notes (latest delta
+> 2026-06-28). Current release evidence: `CHANGELOG.md` and
+> `audit/release-commercial-qa-audit-2026-07-18.md`.
+
 ## 2026-06-28 Final Verification Delta
 
 This top section supersedes stale historical notes below.

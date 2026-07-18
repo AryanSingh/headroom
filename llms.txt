@@ -8,9 +8,9 @@ The canonical, always-current documentation index lives at the docs site below. 
 
 ## Canonical docs (start here)
 
-- [Live llms.txt (full doc index)](https://cutctx.com/llms.txt): Auto-generated index of every doc page with descriptions.
-- [Live llms-full.txt (every doc page concatenated)](https://cutctx.com/llms-full.txt): One Markdown blob containing every doc page. Use when you can spend the tokens for full context.
-- [Docs site](https://cutctx.com/docs): Human-browsable docs with search.
+- [Live llms.txt (full doc index)](llms.txt): Auto-generated index of every doc page with descriptions.
+- [Live llms-full.txt (every doc page concatenated)](llms.txt): One Markdown blob containing every doc page. Use when you can spend the tokens for full context.
+- [Docs site](docs/content/docs/index.mdx): Human-browsable docs with search.
 - [GitHub repo](https://github.com/cutctx/cutctx): Source, issues, releases.
 - [PyPI package](https://pypi.org/project/cutctx-ai/): Python install.
 - [npm package](https://www.npmjs.com/package/cutctx-ai): TypeScript install.
@@ -25,42 +25,42 @@ The canonical, always-current documentation index lives at the docs site below. 
 
 ## Entry points
 
-- [Quickstart](https://cutctx.com/docs/quickstart): 5-minute end-to-end (install → compress → call the model).
-- [Installation](https://cutctx.com/docs/installation): All install paths, extras, Docker tags, env vars.
-- [Proxy server](https://cutctx.com/docs/proxy): Run as a local HTTP proxy in front of OpenAI / Anthropic / Gemini.
-- [MCP server](https://cutctx.com/docs/mcp): `cutctx_compress`, `cutctx_retrieve`, `cutctx_stats` for Claude Code / Cursor / any MCP host.
-- [API reference](https://cutctx.com/docs/api-reference): Python + TypeScript `compress()` API.
+- [Quickstart](docs/content/docs/quickstart.mdx): 5-minute end-to-end (install → compress → call the model).
+- [Installation](docs/content/docs/installation.mdx): All install paths, extras, Docker tags, env vars.
+- [Proxy server](docs/content/docs/proxy.mdx): Run as a local HTTP proxy in front of OpenAI / Anthropic / Gemini.
+- [MCP server](docs/content/docs/mcp.mdx): `cutctx_compress`, `cutctx_retrieve`, `cutctx_stats` for Claude Code / Cursor / any MCP host.
+- [API reference](docs/content/docs/api-reference.mdx): Python + TypeScript `compress()` API.
 
 ## How it works
 
-- [How compression works](https://cutctx.com/docs/how-compression-works): Three-stage pipeline + automatic content routing.
-- [SmartCrusher](https://cutctx.com/docs/smart-crusher): Statistical JSON / array compression (70–90% on tool outputs).
-- [Code compression](https://cutctx.com/docs/code-compression): AST-aware via tree-sitter (preserves imports, signatures, types).
-- [Text & log compression](https://cutctx.com/docs/text-and-logs): Search results, build logs, diffs.
-- [CCR (reversible)](https://cutctx.com/docs/ccr): Compress-Cache-Retrieve — originals never deleted; LLM retrieves on demand.
+- [How compression works](docs/content/docs/how-compression-works.mdx): Three-stage pipeline + automatic content routing.
+- [SmartCrusher](docs/content/docs/smart-crusher.mdx): Statistical JSON / array compression (70–90% on tool outputs).
+- [Code compression](docs/content/docs/code-compression.mdx): AST-aware via tree-sitter (preserves imports, signatures, types).
+- [Text & log compression](docs/content/docs/text-and-logs.mdx): Search results, build logs, diffs.
+- [CCR (reversible)](docs/content/docs/ccr.mdx): Compress-Cache-Retrieve — originals never deleted; LLM retrieves on demand.
 
 ## SDK / framework integrations
 
-- [Anthropic SDK](https://cutctx.com/docs/anthropic-sdk): `withCutctx(anthropic)` wrapper.
-- [OpenAI SDK](https://cutctx.com/docs/openai-sdk): `withCutctx(openai)` wrapper.
-- [Vercel AI SDK](https://cutctx.com/docs/vercel-ai-sdk): Middleware + `withCutctx()`.
-- [LangChain](https://cutctx.com/docs/langchain): Chat models, memory, retrievers, agents.
-- [Agno](https://cutctx.com/docs/agno): Model wrapping + observability hooks.
-- [Strands](https://cutctx.com/docs/strands): Model wrapping + hook-based tool output compression.
-- [LiteLLM](https://cutctx.com/docs/litellm): Single callback; works with all 100+ LiteLLM providers.
+- [Anthropic SDK](docs/content/docs/anthropic-sdk.mdx): `withCutctx(anthropic)` wrapper.
+- [OpenAI SDK](docs/content/docs/openai-sdk.mdx): `withCutctx(openai)` wrapper.
+- [Vercel AI SDK](docs/content/docs/vercel-ai-sdk.mdx): Middleware + `withCutctx()`.
+- [LangChain](docs/content/docs/langchain.mdx): Chat models, memory, retrievers, agents.
+- [Agno](docs/content/docs/agno.mdx): Model wrapping + observability hooks.
+- [Strands](docs/content/docs/strands.mdx): Model wrapping + hook-based tool output compression.
+- [LiteLLM](docs/content/docs/litellm.mdx): Single callback; works with all 100+ LiteLLM providers.
 
 ## Memory & cross-agent state
 
-- [Persistent memory](https://cutctx.com/docs/memory): Per-project SQLite + HNSW vector store. No cross-project bleed (GH #462).
-- [SharedContext](https://cutctx.com/docs/shared-context): Compressed inter-agent context handoffs.
-- [Failure learning](https://cutctx.com/docs/failure-learning): Offline analysis writes corrections to `CLAUDE.md` / `AGENTS.md`.
+- [Persistent memory](docs/content/docs/memory.mdx): Per-project SQLite + HNSW vector store. No cross-project bleed (GH #462).
+- [SharedContext](docs/content/docs/shared-context.mdx): Compressed inter-agent context handoffs.
+- [Failure learning](docs/content/docs/failure-learning.mdx): Offline analysis writes corrections to `CLAUDE.md` / `AGENTS.md`.
 
 ## Operations
 
-- [Configuration](https://cutctx.com/docs/configuration): Env vars, config file, per-call overrides.
-- [Benchmarks](https://cutctx.com/docs/benchmarks): Token-savings numbers across content types.
-- [Troubleshooting](https://cutctx.com/docs/troubleshooting): Common failure modes and fixes.
-- [Limitations](https://cutctx.com/docs/limitations): What Cutctx won't do well today.
+- [Configuration](docs/content/docs/configuration.mdx): Env vars, config file, per-call overrides.
+- [Benchmarks](docs/content/docs/benchmarks.mdx): Token-savings numbers across content types.
+- [Troubleshooting](docs/content/docs/troubleshooting.mdx): Common failure modes and fixes.
+- [Limitations](docs/content/docs/limitations.mdx): What Cutctx won't do well today.
 
 ## Licensing
 

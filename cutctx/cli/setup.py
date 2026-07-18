@@ -197,7 +197,7 @@ def setup(port: int, auto_detect: bool, start: bool, do_register_mcp: bool) -> N
     click.echo(f"  Agents: {len(agents)} detected, {len(mcp_registered)} MCP registered")
     if not health["running"]:
         click.echo(f"\n  Start proxy: cutctx proxy --port {port}")
-        click.echo("  Troubleshooting: https://cutctx.com/docs/troubleshooting")
+        click.echo("  Troubleshooting: https://github.com/AryanSingh/headroom/blob/main/docs/content/docs/troubleshooting.mdx")
     click.echo()
 
     if start and not health["running"]:
