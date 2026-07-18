@@ -118,11 +118,11 @@ Retrieve:  LLM calls ccr_retrieve("abc123")  ->  original 1000 items
 
 ## Session Replay Journal
 
-Set `CUTCTX_REPLAY=1` to record compact proxy lifecycle events in a local SQLite journal. The journal keeps prompt-shape, compression, LLM-send, response, policy, and failure metadata so you can inspect a session through the local-admin-protected `GET /v1/sessions/{session_id}/replay` endpoint after the proxy restarts.
+Set `CUTCTX_REPLAY=1` to record compact proxy lifecycle events in a local SQLite journal. The journal keeps prompt-shape, compression, LLM-send, tool-call, response, policy, and failure metadata so you can inspect a session through the local-admin-protected `GET /v1/sessions/{session_id}/replay` endpoint after the proxy restarts.
 
 `CUTCTX_REPLAY_DB_PATH` selects the SQLite file. Without it, CutCtx stores the journal at `~/.cutctx/replay.sqlite3`. `CUTCTX_REPLAY_RETENTION_DAYS` sets retention and defaults to seven days; use `0` to disable time-based deletion. The journal stores identifiers, event types, message and token counts, model/provider labels, strategy names, and policy rule names. It does not store message text, model output, tool payloads, request headers, or API keys.
 
-Use the same local-admin credential with `GET /v1/sessions/{session_id}/state` to read deterministic operational state derived from the persisted timeline. The state includes event counts, event bounds, compression totals, response and policy counts, plus the latest model and pipeline stage. It is a read model only; it does not change replay events or add retained request content.
+Use the same local-admin credential with `GET /v1/sessions/{session_id}/state` to read deterministic operational state derived from the persisted timeline. The state includes event counts, event bounds, prompt and compression totals, sent and completed request counts, detected tool-call counts, policy counts, plus the latest model and pipeline stage. Tool arguments are never retained. It is a read model only; it does not change replay events or add retained request content.
 
 `GET /v1/sessions` lists the most recently active persisted sessions. For bounded restart recovery, `GET /v1/sessions/recover?limit=50` derives a compact state summary for each recent session directly from its journal events. Both endpoints require the local-admin credential, are unavailable while replay is disabled, and clamp `limit` to 1–200.
 

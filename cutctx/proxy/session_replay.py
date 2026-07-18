@@ -68,6 +68,8 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "input_message_count": 0,
         "input_token_count": 0,
         "llm_request_count": 0,
+        "tool_call_count": 0,
+        "tool_call_counts": {},
         "response_count": 0,
         "policy_block_count": 0,
         "policy_redaction_count": 0,
@@ -122,6 +124,13 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
             model = detail.get("model")
             if isinstance(model, str) and model:
                 state["latest_model"] = model
+        elif event_type == "tool_call_detected":
+            state["tool_call_count"] += 1
+            tool_name = detail.get("tool_name")
+            if isinstance(tool_name, str) and tool_name:
+                state["tool_call_counts"][tool_name] = (
+                    state["tool_call_counts"].get(tool_name, 0) + 1
+                )
         elif event_type == "response_received":
             state["response_count"] += 1
             model = detail.get("model")
@@ -132,6 +141,43 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         elif event_type == "policy_redacted":
             state["policy_redaction_count"] += 1
     return state
+
+
+def _tool_names_from_response(response: Any, provider: str) -> list[str]:
+    """Extract bounded tool names from provider envelopes, never arguments."""
+
+    if not isinstance(response, Mapping):
+        try:
+            response = response.json()
+        except (AttributeError, TypeError, ValueError):
+            return []
+    if not isinstance(response, Mapping):
+        return []
+    names: list[str] = []
+    if provider == "openai":
+        choices = response.get("choices")
+        if isinstance(choices, list):
+            for choice in choices:
+                message = choice.get("message") if isinstance(choice, Mapping) else None
+                calls = message.get("tool_calls") if isinstance(message, Mapping) else None
+                if isinstance(calls, list):
+                    for call in calls:
+                        function = call.get("function") if isinstance(call, Mapping) else None
+                        name = function.get("name") if isinstance(function, Mapping) else None
+                        if isinstance(name, str) and name:
+                            names.append(name)
+    elif provider == "anthropic":
+        content = response.get("content")
+        if isinstance(content, list):
+            for block in content:
+                if (
+                    isinstance(block, Mapping)
+                    and block.get("type") == "tool_use"
+                    and isinstance(block.get("name"), str)
+                    and block["name"]
+                ):
+                    names.append(block["name"])
+    return names
 
 
 class ReplayEventStore:
@@ -357,6 +403,8 @@ class ReplayEventStore:
                     "input_message_count": state["input_message_count"],
                     "input_token_count": state["input_token_count"],
                     "llm_request_count": state["llm_request_count"],
+                    "tool_call_count": state["tool_call_count"],
+                    "tool_call_counts": state["tool_call_counts"],
                     "response_count": state["response_count"],
                 }
             )
@@ -402,6 +450,7 @@ def _sanitize_detail(event_type: str, detail: dict[str, Any] | None) -> dict[str
         "compression": ("tokens_before", "tokens_after", "savings", "stage"),
         "response_received": ("tokens_used", "model", "stage"),
         "llm_request_sent": ("model", "provider", "stage"),
+        "tool_call_detected": ("tool_name",),
         "error": ("code",),
         "circuit_breaker_triggered": ("code", "cooldown_ms"),
     }
@@ -593,6 +642,14 @@ class ReplayPipelineExtension:
             )
 
         elif event.stage is PipelineStage.RESPONSE_RECEIVED:
+            for tool_name in _tool_names_from_response(event.response, event.provider):
+                record_replay_event(
+                    session_id=session_id,
+                    event_type="tool_call_detected",
+                    surface="pipeline",
+                    request_id=request_id,
+                    detail={"tool_name": tool_name},
+                )
             tokens_used = metadata.get("tokens_after") or metadata.get("output_tokens")
             if tokens_used is not None:
                 record_replay_event(

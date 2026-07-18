@@ -166,6 +166,8 @@ def test_reduce_replay_events_derives_session_state() -> None:
         "input_message_count": 0,
         "input_token_count": 0,
         "llm_request_count": 0,
+        "tool_call_count": 0,
+        "tool_call_counts": {},
         "response_count": 1,
         "policy_block_count": 1,
         "policy_redaction_count": 0,
@@ -210,6 +212,8 @@ def test_store_recovers_recent_session_states(tmp_path: Path) -> None:
                 "input_message_count": 0,
                 "input_token_count": 0,
                 "llm_request_count": 0,
+                "tool_call_count": 0,
+                "tool_call_counts": {},
                 "response_count": 0,
             }
         ],
@@ -309,3 +313,51 @@ def test_store_persists_only_prompt_metadata(tmp_path: Path) -> None:
         "model": "gpt-test",
         "provider": "openai",
     }
+
+
+def test_pipeline_extension_records_tool_call_names_without_arguments(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("CUTCTX_REPLAY", "1")
+    monkeypatch.setenv("CUTCTX_REPLAY_DB_PATH", str(tmp_path / "replay.sqlite3"))
+    reset_replay_store()
+
+    ReplayPipelineExtension().on_pipeline_event(
+        PipelineEvent(
+            stage=PipelineStage.RESPONSE_RECEIVED,
+            operation="proxy.request",
+            request_id="req-1",
+            provider="openai",
+            response={
+                "choices": [
+                    {
+                        "message": {
+                            "tool_calls": [
+                                {"function": {"name": "search", "arguments": "must-not-persist"}}
+                            ]
+                        }
+                    }
+                ]
+            },
+            metadata={"session_id": "sess-1"},
+        )
+    )
+
+    events = ReplayEventStore(db_path=tmp_path / "replay.sqlite3").get("sess-1")["events"]
+
+    assert len(events) == 1
+    assert events[0]["event_type"] == "tool_call_detected"
+    assert events[0]["detail"] == {"tool_name": "search"}
+
+
+def test_reduce_replay_events_counts_detected_tool_calls() -> None:
+    state = reduce_replay_events(
+        [
+            {"event_type": "tool_call_detected", "detail": {"tool_name": "search"}},
+            {"event_type": "tool_call_detected", "detail": {"tool_name": "search"}},
+            {"event_type": "tool_call_detected", "detail": {"tool_name": "read_file"}},
+        ]
+    )
+
+    assert state["tool_call_count"] == 3
+    assert state["tool_call_counts"] == {"search": 2, "read_file": 1}

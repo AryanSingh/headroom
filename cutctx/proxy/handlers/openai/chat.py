@@ -1262,6 +1262,7 @@ class OpenAIChatMixin:
                             "path": "/v1/chat/completions",
                             "stream": False,
                             "status_code": backend_response.status_code,
+                            "session_id": openai_session_id,
                         },
                     )
                     self.pipeline_extensions.emit(
@@ -1275,6 +1276,7 @@ class OpenAIChatMixin:
                             "path": "/v1/chat/completions",
                             "stream": False,
                             "status_code": backend_response.status_code,
+                            "session_id": openai_session_id,
                         },
                     )
 
@@ -1560,6 +1562,7 @@ class OpenAIChatMixin:
                         "path": "/v1/chat/completions",
                         "stream": False,
                         "status_code": response.status_code,
+                        "session_id": openai_session_id,
                     },
                 )
                 self.pipeline_extensions.emit(
@@ -1573,6 +1576,7 @@ class OpenAIChatMixin:
                         "path": "/v1/chat/completions",
                         "stream": False,
                         "status_code": response.status_code,
+                        "session_id": openai_session_id,
                     },
                 )
 

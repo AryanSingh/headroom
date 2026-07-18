@@ -2609,6 +2609,7 @@ class AnthropicHandlerMixin:
                                 "path": pipeline_path,
                                 "stream": False,
                                 "status_code": backend_response.status_code,
+                                "session_id": session_id,
                             },
                         )
                         self.pipeline_extensions.emit(
@@ -2622,6 +2623,7 @@ class AnthropicHandlerMixin:
                                 "path": pipeline_path,
                                 "stream": False,
                                 "status_code": backend_response.status_code,
+                                "session_id": session_id,
                             },
                         )
                         # Non-stream: first-byte and connect are effectively
@@ -2836,6 +2838,7 @@ class AnthropicHandlerMixin:
                             "path": pipeline_path,
                             "stream": False,
                             "status_code": response.status_code,
+                            "session_id": session_id,
                         },
                     )
                     self.pipeline_extensions.emit(
@@ -2849,6 +2852,7 @@ class AnthropicHandlerMixin:
                             "path": pipeline_path,
                             "stream": False,
                             "status_code": response.status_code,
+                            "session_id": session_id,
                         },
                     )
                     if (

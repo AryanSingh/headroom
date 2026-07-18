@@ -62,6 +62,12 @@ def _assert_stage_order(stages: list[PipelineStage]) -> None:
     assert positions == sorted(positions)
 
 
+def _assert_response_events_are_session_bound(events: list) -> None:
+    responses = [event for event in events if event.stage is PipelineStage.RESPONSE_RECEIVED]
+    assert responses
+    assert all(isinstance(event.metadata.get("session_id"), str) for event in responses)
+
+
 def test_proxy_shutdown_unloads_image_models() -> None:
     config = ProxyConfig(
         optimize=False,
@@ -192,6 +198,7 @@ def test_openai_chat_pipeline_events_cover_proxy_lifecycle(monkeypatch) -> None:
     assert response.status_code == 200
     _assert_stage_order(recorder.stages)
     _assert_compressed_event_carries_originals(recorder.events)
+    _assert_response_events_are_session_bound(recorder.events)
 
 
 def test_anthropic_messages_pipeline_events_cover_proxy_lifecycle(monkeypatch) -> None:
@@ -271,3 +278,4 @@ def test_anthropic_messages_pipeline_events_cover_proxy_lifecycle(monkeypatch) -
     assert response.status_code == 200
     _assert_stage_order(recorder.stages)
     _assert_compressed_event_carries_originals(recorder.events)
+    _assert_response_events_are_session_bound(recorder.events)
