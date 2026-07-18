@@ -162,6 +162,7 @@ def test_reduce_replay_events_derives_session_state() -> None:
             "future_event": 1,
         },
         "compression": {"tokens_before": 10, "tokens_after": 4, "tokens_saved": 6},
+        "llm_request_count": 0,
         "response_count": 1,
         "policy_block_count": 1,
         "policy_redaction_count": 0,
@@ -202,6 +203,8 @@ def test_store_recovers_recent_session_states(tmp_path: Path) -> None:
                 "first_event_id": 1,
                 "last_event_id": 1,
                 "compression": {"tokens_before": 10, "tokens_after": 4, "tokens_saved": 6},
+                "llm_request_count": 0,
+                "response_count": 0,
             }
         ],
     }
@@ -235,3 +238,20 @@ def test_pipeline_extension_records_llm_request_sent(tmp_path: Path, monkeypatch
         "request_id": "req-1",
         "detail": {"model": "gpt-test", "provider": "openai", "stage": "pre_send"},
     }
+
+
+def test_reduce_replay_events_counts_sent_requests_without_a_response() -> None:
+    state = reduce_replay_events(
+        [
+            {
+                "event_id": 1,
+                "timestamp": 1.0,
+                "event_type": "llm_request_sent",
+                "detail": {"model": "gpt-test", "provider": "openai", "stage": "pre_send"},
+            }
+        ]
+    )
+
+    assert state["llm_request_count"] == 1
+    assert state["latest_model"] == "gpt-test"
+    assert state["response_count"] == 0

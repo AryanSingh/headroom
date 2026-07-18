@@ -64,6 +64,7 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "latest_stage": None,
         "event_type_counts": {},
         "compression": {"tokens_before": 0, "tokens_after": 0, "tokens_saved": 0},
+        "llm_request_count": 0,
         "response_count": 0,
         "policy_block_count": 0,
         "policy_redaction_count": 0,
@@ -101,6 +102,11 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
                 value = detail.get(source)
                 if isinstance(value, int | float) and not isinstance(value, bool):
                     state["compression"][target] += value
+        elif event_type == "llm_request_sent":
+            state["llm_request_count"] += 1
+            model = detail.get("model")
+            if isinstance(model, str) and model:
+                state["latest_model"] = model
         elif event_type == "response_received":
             state["response_count"] += 1
             model = detail.get("model")
@@ -332,6 +338,8 @@ class ReplayEventStore:
                     "first_event_id": state["first_event_id"],
                     "last_event_id": state["last_event_id"],
                     "compression": state["compression"],
+                    "llm_request_count": state["llm_request_count"],
+                    "response_count": state["response_count"],
                 }
             )
         return {"session_count": len(sessions), "sessions": sessions}
