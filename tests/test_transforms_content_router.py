@@ -949,3 +949,28 @@ def test_pinning_skips_already_compressed(monkeypatch: pytest.MonkeyPatch) -> No
     )
     # Already-compressed marker keeps proxy idempotent across turns
     assert result["content"][0]["text"] == pinned
+
+
+def test_expanding_compressor_output_is_never_returned_as_compressed() -> None:
+    """A strategy whose output is larger than its input must fall back to
+    passthrough: the router must never hand upstream a payload bigger than
+    the one it received (2026-07-17 audit: -1.33% "compression" on small
+    mixed content had no validation gate)."""
+    router = ContentRouter(ContentRouterConfig(enable_kompress=False))
+
+    class ExpandingCompressor:
+        def compress(self, content, context="", **kwargs):
+            return SimpleNamespace(compressed=content + " padded-expansion" * 20)
+
+    router._get_prose_compressor = lambda: ExpandingCompressor()  # type: ignore[method-assign]
+
+    content = ("plain prose sentence that should compress or stay put " * 10).strip()
+    compressed, compressed_tokens, chain = router._apply_strategy_to_content(
+        content,
+        CompressionStrategy.TEXT,
+        context="",
+    )
+
+    assert compressed == content
+    assert compressed_tokens == len(content.split())
+    assert chain[-1] == CompressionStrategy.PASSTHROUGH.value

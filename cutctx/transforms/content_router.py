@@ -1778,6 +1778,30 @@ class ContentRouter(Transform):
             decision_reason = "compression_exception"
             logger.warning("Compression with %s failed: %s", strategy.value, e)
 
+        # Compression-guarantee gate: never hand upstream a payload larger
+        # than the one we received. Strategies occasionally expand small or
+        # mixed content (framing overhead, markers); treat any expansion as
+        # a failed attempt and fall through to passthrough below.
+        if (
+            compressed is not None
+            and compressed != content
+            and (
+                (compressed_tokens or 0) > original_tokens
+                or len(compressed) > len(content)
+            )
+        ):
+            logger.debug(
+                "Rejecting expanded output from %s (%d -> %d tokens, %d -> %d chars)",
+                compressor_name,
+                original_tokens,
+                compressed_tokens or 0,
+                len(content),
+                len(compressed),
+            )
+            decision_reason = "expansion_guard"
+            compressed = None
+            compressed_tokens = None
+
         # If compression succeeded, record to TOIN
         if compressed is not None and compressed_tokens is not None:
             fallback_eligible_strategy = strategy in {

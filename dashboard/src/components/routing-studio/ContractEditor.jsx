@@ -120,7 +120,11 @@ export default function ContractEditor({ draft, onChange, onSave, saving }) {
             }
           />
         </label>
-        <label className="field field-wide">
+        <div
+          className="field field-wide"
+          role="group"
+          aria-label="Required capabilities"
+        >
           <span>Required capabilities</span>
           <div className="routing-check-grid">
             {CAPABILITIES.map((capability) => (
@@ -148,7 +152,7 @@ export default function ContractEditor({ draft, onChange, onSave, saving }) {
               </label>
             ))}
           </div>
-        </label>
+        </div>
         <label className="field">
           <span>Allowed providers</span>
           <input

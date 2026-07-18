@@ -1,0 +1,77 @@
+---
+title: Plans & Feature Matrix
+description: What each Cutctx tier includes, and how entitlements are enforced at runtime.
+---
+
+# Plans & Feature Matrix
+
+Cutctx ships in four tiers. The free Builder tier includes the full
+compression pipeline — the paid tiers add team analytics, org management,
+and enterprise governance. Entitlements are enforced at runtime: admin
+surfaces and tier-gated features perform fail-closed checks against the
+active tier, and a configured license key is validated at startup (its plan
+overrides any locally declared tier; expired or invalid licenses fail closed
+to Builder).
+
+## Tier overview
+
+| Tier | Annual | Target |
+|---|---|---|
+| **Builder** | $0 | Individual engineers, OSS evaluators |
+| **Team** | $18,000 | Single engineering team |
+| **Business** | $42,000 | Platform teams, multi-project orgs |
+| **Enterprise** | $60,000–$150,000+ | Security-sensitive, procurement-heavy orgs |
+
+Monthly billing is available at a 20% premium over annual.
+
+## Feature matrix
+
+| Capability | Builder | Team | Business | Enterprise |
+|---|---|---|---|---|
+| Full compression pipeline (all 12 algorithms) | ✅ | ✅ | ✅ | ✅ |
+| Multimodal compression (images, audio) | ✅ | ✅ | ✅ | ✅ |
+| Cross-provider support (Anthropic, OpenAI, Google, Bedrock, Vertex) | ✅ | ✅ | ✅ | ✅ |
+| Proxy, CLI wrap, SDK, MCP server, Docker | ✅ | ✅ | ✅ | ✅ |
+| Local dashboard | ✅ | ✅ | ✅ | ✅ |
+| CCR (reversible compression) | ✅ | ✅ | ✅ | ✅ |
+| Persistent user memory | ✅ | ✅ | ✅ | ✅ |
+| Conservative model routing (opt-in presets) | ✅ | ✅ | ✅ | ✅ |
+| Team analytics dashboard | — | ✅ | ✅ | ✅ |
+| Savings & usage reports | — | ✅ | ✅ | ✅ |
+| Policy presets & budget controls | — | ✅ | ✅ | ✅ |
+| Episodic memory (cross-session) | — | — | ✅ | ✅ |
+| Cross-agent shared context | — | — | ✅ | ✅ |
+| Org → Workspace → Project hierarchy | — | — | ✅ | ✅ |
+| Historical / exportable reporting | — | — | ✅ | ✅ |
+| Kubernetes manifests + Helm | — | — | ✅ | ✅ |
+| OIDC/JWT SSO admin authentication | — | — | — | ✅ |
+| RBAC (Viewer / Operator / Admin) | — | — | — | ✅ |
+| Audit logging with export | — | — | — | ✅ |
+| Retention controls | — | — | — | ✅ |
+| Fleet management & SCIM provisioning APIs | — | — | — | ✅ |
+| Air-gap deployment support | — | — | — | ✅ |
+
+## How enforcement works
+
+- The proxy resolves its tier from a validated license when `license_key`
+  is configured; the validated plan always wins over a locally declared
+  tier, and expired/invalid licenses fail closed to Builder.
+- Tier-gated features refuse to activate on unentitled deployments — at
+  startup, and on runtime config toggles — with an explicit
+  `feature_not_available` error naming the required tier.
+- Reading status or savings data never requires a paid tier.
+
+## What still requires external validation
+
+SOC 2 and formal third-party audit reports are not available today; they
+can be supported for lighthouse enterprise customers. See
+`ENTERPRISE.md` in the repository for the current enterprise capability
+and compliance posture.
+
+## Add-ons
+
+| Add-On | Price |
+|---|---|
+| Onboarding package | $5,000 |
+| Deployment hardening (K8s/Helm review) | $3,000 |
+| Premium SLA upgrade (24/7, 1-hour critical response) | $10,000/year |

@@ -581,7 +581,8 @@ Monthly billing available at 20% premium over annual.
 - Cross-provider support
 - Proxy, CLI wrap, SDK, MCP server
 - Local dashboard
-- Memory and CCR
+- Persistent user memory and CCR (episodic and cross-agent memory are
+  Business-tier)
 - Docker deployment
 - Community support (Discord)
 
