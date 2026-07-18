@@ -669,17 +669,16 @@ class ReplayPipelineExtension:
                     detail={"tool_name": tool_name},
                 )
             tokens_used = metadata.get("tokens_after") or metadata.get("output_tokens")
-            if tokens_used is not None:
-                record_replay_event(
-                    session_id=session_id,
-                    event_type="response_received",
-                    surface="pipeline",
-                    request_id=request_id,
-                    detail={
-                        "tokens_used": tokens_used,
-                        "model": metadata.get("model", ""),
-                        "stage": event.stage.value,
-                    },
-                )
+            record_replay_event(
+                session_id=session_id,
+                event_type="response_received",
+                surface="pipeline",
+                request_id=request_id,
+                detail={
+                    "tokens_used": tokens_used,
+                    "model": event.model,
+                    "stage": event.stage.value,
+                },
+            )
 
         return event

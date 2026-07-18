@@ -349,9 +349,9 @@ def test_pipeline_extension_records_tool_call_names_without_arguments(
 
     events = ReplayEventStore(db_path=tmp_path / "replay.sqlite3").get("sess-1")["events"]
 
-    assert len(events) == 1
-    assert events[0]["event_type"] == "tool_call_detected"
+    assert [event["event_type"] for event in events] == ["tool_call_detected", "response_received"]
     assert events[0]["detail"] == {"tool_name": "search"}
+    assert events[1]["detail"] == {"model": "", "stage": "response_received"}
 
 
 def test_reduce_replay_events_counts_detected_tool_calls() -> None:
@@ -387,8 +387,7 @@ def test_pipeline_extension_records_failed_response_without_error_payload(
 
     events = ReplayEventStore(db_path=tmp_path / "replay.sqlite3").get("sess-1")["events"]
 
-    assert len(events) == 1
-    assert events[0]["event_type"] == "error"
+    assert [event["event_type"] for event in events] == ["error", "response_received"]
     assert events[0]["detail"] == {"code": "http_429"}
 
 
