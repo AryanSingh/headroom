@@ -210,8 +210,11 @@ class TestSessionTrackerIntegration:
 
 
 class TestHealthWithEpisodic:
-    def test_health_endpoint(self, episodic_client):
+    def test_health_endpoint(self, episodic_client, monkeypatch):
         """Proxy should still respond to health checks with episodic enabled."""
+        # This test asserts proxy wiring, not provider connectivity; the
+        # live upstream probe made it flake in offline/parallel runs.
+        monkeypatch.setenv("CUTCTX_SKIP_UPSTREAM_CHECK", "1")
         resp = episodic_client.get("/health")
         # Health endpoint might not exist on this path; try /healthz
         if resp.status_code == 404:

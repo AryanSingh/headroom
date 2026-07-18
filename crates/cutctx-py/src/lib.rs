@@ -120,7 +120,8 @@ fn resolved_reference_to_python(py: Python<'_>, reference: ResolvedReference) ->
     let dict = PyDict::new(py);
     dict.set_item("target_file", reference.target_file).unwrap();
     dict.set_item("target_line", reference.target_line).unwrap();
-    dict.set_item("target_column", reference.target_column).unwrap();
+    dict.set_item("target_column", reference.target_column)
+        .unwrap();
     dict.set_item("symbol_name", reference.symbol_name).unwrap();
     dict.set_item("confidence", reference.confidence).unwrap();
     dict.unbind()
@@ -1709,15 +1710,12 @@ impl PyStackGraphManager {
     ///     "confidence": float,
     /// }
     /// ```
-    fn resolve_reference(
-        &self,
-        path: &str,
-        line: usize,
-        column: usize,
-    ) -> Option<Py<PyDict>> {
+    fn resolve_reference(&self, path: &str, line: usize, column: usize) -> Option<Py<PyDict>> {
         let inner = self.inner.lock().unwrap();
         let result = inner.resolve_reference(path, line, column)?;
-        Some(Python::with_gil(|py| resolved_reference_to_python(py, result)))
+        Some(Python::with_gil(|py| {
+            resolved_reference_to_python(py, result)
+        }))
     }
 
     /// BFS from definitions matching `symbol_name` in the file at `path`,
@@ -1750,12 +1748,7 @@ impl PyStackGraphManager {
     /// Same return shape as ``reachable_definitions``. Returns an empty
     /// list when the file is not indexed or the symbol cannot be found.
     #[pyo3(signature = (path, symbol_name, max_depth = 10))]
-    fn callers_of(
-        &self,
-        path: &str,
-        symbol_name: &str,
-        max_depth: usize,
-    ) -> Vec<Py<PyDict>> {
+    fn callers_of(&self, path: &str, symbol_name: &str, max_depth: usize) -> Vec<Py<PyDict>> {
         let inner = self.inner.lock().unwrap();
         let results = inner.callers_of(path, symbol_name, max_depth);
         Python::with_gil(|py| {

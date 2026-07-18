@@ -1,3 +1,8 @@
+> **Superseded:** this snapshot describes v0.29.0 (2026-07-01). For the
+> current release picture see `CHANGELOG.md`, the dated addenda in
+> `audit/full-product-commercial-audit-2026-07-17.md`, and
+> `audit/release-commercial-qa-audit-2026-07-18.md`.
+
 # Cutctx v0.29.0 — Release Status
 
 **Date:** 2026-07-01  
