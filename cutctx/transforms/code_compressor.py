@@ -228,7 +228,12 @@ class LangConfig:
 
 _LANG_CONFIGS: dict[CodeLanguage, LangConfig] = {
     CodeLanguage.PYTHON: LangConfig(
-        import_nodes=frozenset({"import_statement", "import_from_statement"}),
+        # ``future_import_statement`` is a distinct tree-sitter node; missing
+        # it made reassembly emit ``from __future__ import ...`` after
+        # function definitions — syntactically invalid Python.
+        import_nodes=frozenset(
+            {"import_statement", "import_from_statement", "future_import_statement"}
+        ),
         function_nodes=frozenset({"function_definition"}),
         class_nodes=frozenset({"class_definition"}),
         type_nodes=frozenset({"type_alias_statement"}),
@@ -1652,6 +1657,7 @@ class CodeAwareCompressor(Transform):
             protected_symbols,
             query_anchor_symbols=query_anchor_symbols,
         )
+        preserved_values = _extract_omitted_value_anchors(omitted_statements)
 
         # Build compressed output preserving original indentation
         result_parts: list[str] = []
@@ -1687,6 +1693,7 @@ class CodeAwareCompressor(Transform):
                 lang_config.comment_prefix,
                 analysis,
                 preserved_anchors=preserved_anchors,
+                preserved_values=preserved_values,
             )
             replacement = omitted_comment
             if lang_config.uses_colon_after_signature:
@@ -2223,6 +2230,7 @@ def _make_omitted_comment(
     comment_prefix: str,
     analysis: _SymbolAnalysis | None,
     preserved_anchors: list[str] | None = None,
+    preserved_values: list[str] | None = None,
 ) -> str:
     """Build omitted comment with call information from analysis."""
     calls_info = ""
@@ -2244,7 +2252,18 @@ def _make_omitted_comment(
         anchor_info = "; anchors: " + ", ".join(preserved_anchors[:5])
         if len(preserved_anchors) > 5:
             anchor_info += f" +{len(preserved_anchors) - 5} more"
-    return f"{indent}{comment_prefix} [{omitted_count} lines omitted{calls_info}{anchor_info}]"
+    values_info = ""
+    if preserved_values:
+        # Numeric configuration values (timeouts, backoffs, limits) from the
+        # omitted body: without them, "what is the timeout?" needs a CCR
+        # retrieval round-trip even though the identifier anchors survived.
+        values_info = "; values: " + ", ".join(preserved_values[:4])
+        if len(preserved_values) > 4:
+            values_info += f" +{len(preserved_values) - 4} more"
+    return (
+        f"{indent}{comment_prefix} "
+        f"[{omitted_count} lines omitted{calls_info}{anchor_info}{values_info}]"
+    )
 
 
 def _detect_indent(lines: list[str]) -> str:
@@ -2288,6 +2307,37 @@ def _extract_preserved_anchors_from_omitted(
         deduped.append(anchor)
     anchors = deduped
     return sorted(anchors, key=len, reverse=True)
+
+
+_NUMERIC_KWARG_PATTERN = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\s*=\s*-?\d+(?:\.\d+)?\b")
+_FLOAT_LITERAL_PATTERN = re.compile(r"-?\b\d+\.\d+\b")
+
+
+def _extract_omitted_value_anchors(omitted_statements: list[str]) -> list[str]:
+    """Numeric configuration values inside omitted code, most specific first.
+
+    Keyword assignments (``timeout=10.0``) carry their own context; bare
+    float literals (backoff factors, thresholds) are appended when not
+    already covered by a keyword match. Bare small integers are skipped as
+    noise.
+    """
+    if not omitted_statements:
+        return []
+    omitted_text = "\n".join(omitted_statements)
+    values: list[str] = [
+        re.sub(r"\s+", "", match) for match in _NUMERIC_KWARG_PATTERN.findall(omitted_text)
+    ]
+    covered = "\n".join(values)
+    values.extend(
+        match for match in _FLOAT_LITERAL_PATTERN.findall(omitted_text) if match not in covered
+    )
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value and value not in seen:
+            seen.add(value)
+            deduped.append(value)
+    return deduped
 
 
 _IDENTIFIER_PATTERN = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\b")

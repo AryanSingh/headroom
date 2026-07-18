@@ -12,23 +12,28 @@ Measured highlights from this run (2026-07-18, seed 42):
 - **Tool outputs (primary workload):** ContentRouter keeps 71.5% of tokens
   (28.5% reduction) at F1 0.945 with 1.000 information recall;
   SmartCrusher keeps 79.1% at F1 1.000.
-- **Code and prose/RAG:** individual compressors correctly pass through
-  (100% kept). The full router compresses RAG fixtures to 54.7% kept but at
-  F1 0.695 — aggressive prose compression carries measurable quality cost
-  on these fixtures, consistent with the documented limitation that code
-  and RAG content is not the primary compression target.
+- **RAG/prose is query-aware, not lossy-blind:** with a query, the router
+  drops query-irrelevant content (54.7% kept) while keeping information
+  recall at 1.000 — the F1-vs-whole-input drop reflects intentionally
+  removed irrelevant text. Without a query signal, prose passes through
+  unchanged (100% kept, verified per-sample).
+- **Code elision keeps configuration values:** omitted function bodies now
+  carry a `values:` line (timeouts, backoff factors) alongside identifier
+  anchors, raising code information recall from 0.400 to 0.800; the
+  remainder is raw elided-body spans recoverable via the CCR retrieval
+  hash. Reassembled Python is verified syntactically valid (future-import
+  ordering fixed).
 - **No expansion:** no cell in this run produced output larger than its
-  input (the router now enforces this as a hard guarantee —
-  `expansion_guard`).
+  input (the router enforces this as a hard guarantee — `expansion_guard`).
 
-Seed: `42` | Duration: 9.7s | Datasets: ToolOutputSamples, CodeSamples, RAGSamples, MixedAgentTraces
+Seed: `42` | Duration: 8.7s | Datasets: ToolOutputSamples, CodeSamples, RAGSamples, MixedAgentTraces
 
 ## Compression Ratio by Dataset × Compressor
 
 | Dataset | N | SmartCrusher | Log | Search | Diff | Kompress | ContentRouter |
 |---|---|---|---|---|---|---|---|
 | ToolOutputSamples | 8 | 79.1% | 88.3% | 79.3% | 100.0% | 78.8% | 71.5% |
-| CodeSamples | 2 | 100.0% | 100.0% | 100.0% | 100.0% | 84.8% | 86.0% |
+| CodeSamples | 2 | 100.0% | 100.0% | 100.0% | 100.0% | 84.8% | 87.4% |
 | RAGSamples | 6 | 100.0% | 100.0% | 100.0% | 100.0% | 94.9% | 54.7% |
 | MixedAgentTraces | 2 | 82.6% | 100.0% | 100.0% | 100.0% | 85.6% | 82.6% |
 
@@ -37,7 +42,7 @@ Seed: `42` | Duration: 9.7s | Datasets: ToolOutputSamples, CodeSamples, RAGSampl
 | Dataset | N | SmartCrusher | Log | Search | Diff | Kompress | ContentRouter |
 |---|---|---|---|---|---|---|---|
 | ToolOutputSamples | 8 | 0.0% | -11.6% | -0.3% | -26.4% | +0.4% | +9.6% |
-| CodeSamples | 2 | 0.0% | 0.0% | 0.0% | 0.0% | +15.2% | +14.0% |
+| CodeSamples | 2 | 0.0% | 0.0% | 0.0% | 0.0% | +15.2% | +12.6% |
 | RAGSamples | 6 | 0.0% | 0.0% | 0.0% | 0.0% | +5.1% | +45.3% |
 | MixedAgentTraces | 2 | 0.0% | -21.1% | -21.1% | -21.1% | -3.6% | 0.0% |
 
@@ -47,7 +52,7 @@ Seed: `42` | Duration: 9.7s | Datasets: ToolOutputSamples, CodeSamples, RAGSampl
 | Dataset | N | SmartCrusher | Log | Search | Diff | Kompress | ContentRouter |
 |---|---|---|---|---|---|---|---|
 | ToolOutputSamples | 8 | 1.000 | 0.882 | 0.862 | 1.000 | 0.999 | 0.945 |
-| CodeSamples | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 0.951 | 0.846 |
+| CodeSamples | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 0.951 | 0.859 |
 | RAGSamples | 6 | 1.000 | 1.000 | 1.000 | 1.000 | 0.863 | 0.695 |
 | MixedAgentTraces | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 0.982 | 1.000 |
 
@@ -56,7 +61,7 @@ Seed: `42` | Duration: 9.7s | Datasets: ToolOutputSamples, CodeSamples, RAGSampl
 | Dataset | N | SmartCrusher | Log | Search | Diff | Kompress | ContentRouter |
 |---|---|---|---|---|---|---|---|
 | ToolOutputSamples | 8 | 0.0% | -11.8% | -13.8% | 0.0% | -0.1% | -5.5% |
-| CodeSamples | 2 | 0.0% | 0.0% | 0.0% | 0.0% | -4.9% | -15.4% |
+| CodeSamples | 2 | 0.0% | 0.0% | 0.0% | 0.0% | -4.9% | -14.1% |
 | RAGSamples | 6 | 0.0% | 0.0% | 0.0% | 0.0% | -13.7% | -30.5% |
 | MixedAgentTraces | 2 | 0.0% | 0.0% | 0.0% | 0.0% | -1.8% | 0.0% |
 
@@ -66,7 +71,7 @@ Seed: `42` | Duration: 9.7s | Datasets: ToolOutputSamples, CodeSamples, RAGSampl
 | Dataset | N | SmartCrusher | Log | Search | Diff | Kompress | ContentRouter |
 |---|---|---|---|---|---|---|---|
 | ToolOutputSamples | 8 | 1.000 | 0.875 | 0.817 | 1.000 | 1.000 | 1.000 |
-| CodeSamples | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 0.800 | 0.400 |
+| CodeSamples | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 0.800 | 0.800 |
 | RAGSamples | 6 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 | MixedAgentTraces | 2 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 
@@ -75,7 +80,7 @@ Seed: `42` | Duration: 9.7s | Datasets: ToolOutputSamples, CodeSamples, RAGSampl
 | Dataset | N | SmartCrusher | Log | Search | Diff | Kompress | ContentRouter |
 |---|---|---|---|---|---|---|---|
 | ToolOutputSamples | 8 | 0.0% | -12.5% | -18.3% | 0.0% | 0.0% | 0.0% |
-| CodeSamples | 2 | 0.0% | 0.0% | 0.0% | 0.0% | -20.0% | -60.0% |
+| CodeSamples | 2 | 0.0% | 0.0% | 0.0% | 0.0% | -20.0% | -20.0% |
 | RAGSamples | 6 | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
 | MixedAgentTraces | 2 | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
 
@@ -103,19 +108,19 @@ Seed: `42` | Duration: 9.7s | Datasets: ToolOutputSamples, CodeSamples, RAGSampl
 
 | Dataset | N | SmartCrusher | Log | Search | Diff | Kompress | ContentRouter |
 |---|---|---|---|---|---|---|---|
-| ToolOutputSamples | 8 | 13,639.3 | 90,720.1 | 2,106,936.3 | 114,034.7 | 46.4 | 3,286.2 |
-| CodeSamples | 2 | 4,604,305.6 | 7,544,298.2 | 5,833,678.2 | 1,674,677.9 | 846.9 | 3,466.2 |
-| RAGSamples | 6 | 5,345,094.9 | 4,689,682.7 | 3,564,737.7 | 1,941,253.5 | 395.1 | 7,105.2 |
-| MixedAgentTraces | 2 | 5,483,280.5 | 4,104,014.2 | 3,466,732.0 | 4,137,319.5 | 913.9 | 23,540.7 |
+| ToolOutputSamples | 8 | 15,283.3 | 121,308.7 | 5,605,508.0 | 754,498.5 | 52.7 | 5,846.3 |
+| CodeSamples | 2 | 8,084,354.9 | 4,742,704.6 | 4,166,199.6 | 1,623,241.2 | 874.5 | 4,317.7 |
+| RAGSamples | 6 | 8,709,915.7 | 3,356,209.2 | 1,661,310.1 | 995,038.3 | 423.4 | 8,202.3 |
+| MixedAgentTraces | 2 | 3,018,589.0 | 3,452,865.5 | 4,364,445.6 | 2,474,172.4 | 857.0 | 23,669.8 |
 
 ## Relative Delta vs SmartCrusher for Tokens / Second
 
 | Dataset | N | SmartCrusher | Log | Search | Diff | Kompress | ContentRouter |
 |---|---|---|---|---|---|---|---|
-| ToolOutputSamples | 8 | 0.0% | +565.1% | +15347.5% | +736.1% | -99.7% | -75.9% |
-| CodeSamples | 2 | 0.0% | +63.9% | +26.7% | -63.6% | -100.0% | -99.9% |
-| RAGSamples | 6 | 0.0% | -12.3% | -33.3% | -63.7% | -100.0% | -99.9% |
-| MixedAgentTraces | 2 | 0.0% | -25.2% | -36.8% | -24.5% | -100.0% | -99.6% |
+| ToolOutputSamples | 8 | 0.0% | +693.7% | +36577.4% | +4836.8% | -99.7% | -61.7% |
+| CodeSamples | 2 | 0.0% | -41.3% | -48.5% | -79.9% | -100.0% | -99.9% |
+| RAGSamples | 6 | 0.0% | -61.5% | -80.9% | -88.6% | -100.0% | -99.9% |
+| MixedAgentTraces | 2 | 0.0% | +14.4% | +44.6% | -18.0% | -100.0% | -99.2% |
 
 
 ## Verbatim Fidelity by Dataset × Compressor

@@ -324,3 +324,28 @@ All numbers measured on macOS arm64, Python 3.11.14, this working tree.
 - **Published SLA (§4.4) — closed**: `docs/content/docs/sla.mdx` mirrors
   `SLA.md` (pinned by `tests/test_plans_docs.py`). Service-credit remedy
   percentages remain a pending business/legal decision.
+
+#### Follow-up (2026-07-18, later): code-elision quality fixes
+
+Re-diagnosis of the benchmark's ContentRouter quality cells corrected one
+interpretation and fixed two real defects:
+
+- **Corrected interpretation:** the RAG cell's F1 0.695 is query-aware
+  compression working as designed — with a query, irrelevant content is
+  dropped while information recall stays 1.000; with no query signal,
+  prose passes through unchanged (verified per-sample). The published
+  report now frames this correctly.
+- **Fixed (real defect):** `from __future__ import annotations` is a
+  distinct tree-sitter node (`future_import_statement`) the Python
+  LangConfig didn't capture, so reassembled files put it mid-file —
+  syntactically invalid Python. Compressed output is now `compile()`
+  verified in tests.
+- **Fixed (real defect):** elided function bodies dropped numeric
+  configuration constants (timeouts, backoff factors). Omission comments
+  now carry a `values:` line. Measured effect: CodeSamples
+  information_recall 0.400 → 0.800 with all other benchmark cells
+  unchanged; the remainder is raw elided-body spans recoverable via the
+  CCR retrieval hash (by design).
+
+Tests: `tests/test_code_compressor_quality.py`; report:
+`benchmark_results.md` (re-run, seed 42).
