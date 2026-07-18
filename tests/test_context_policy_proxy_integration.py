@@ -355,6 +355,9 @@ def test_session_recovery_api_rebuilds_persisted_sessions(
                 "first_event_id": 1,
                 "last_event_id": 1,
                 "compression": {"tokens_before": 10, "tokens_after": 4, "tokens_saved": 6},
+                "prompt_count": 0,
+                "input_message_count": 0,
+                "input_token_count": 0,
                 "llm_request_count": 0,
                 "response_count": 0,
             }

@@ -640,6 +640,17 @@ class OpenAIChatMixin:
 
         # Get prefix cache tracker for this session
         openai_session_id = self.session_tracker_store.compute_session_id(request, model, messages)
+        from cutctx.proxy.session_replay import record_prompt_received
+
+        record_prompt_received(
+            session_id=openai_session_id,
+            surface="openai",
+            request_id=request_id,
+            message_count=len(messages),
+            token_count=original_tokens,
+            model=model,
+            provider="openai",
+        )
 
         # WS11 Tool Memoization Recording. ``memoization_hits`` /
         # ``memoization_tokens_saved`` are threaded into whichever

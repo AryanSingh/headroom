@@ -162,6 +162,9 @@ def test_reduce_replay_events_derives_session_state() -> None:
             "future_event": 1,
         },
         "compression": {"tokens_before": 10, "tokens_after": 4, "tokens_saved": 6},
+        "prompt_count": 0,
+        "input_message_count": 0,
+        "input_token_count": 0,
         "llm_request_count": 0,
         "response_count": 1,
         "policy_block_count": 1,
@@ -203,6 +206,9 @@ def test_store_recovers_recent_session_states(tmp_path: Path) -> None:
                 "first_event_id": 1,
                 "last_event_id": 1,
                 "compression": {"tokens_before": 10, "tokens_after": 4, "tokens_saved": 6},
+                "prompt_count": 0,
+                "input_message_count": 0,
+                "input_token_count": 0,
                 "llm_request_count": 0,
                 "response_count": 0,
             }
@@ -255,3 +261,51 @@ def test_reduce_replay_events_counts_sent_requests_without_a_response() -> None:
     assert state["llm_request_count"] == 1
     assert state["latest_model"] == "gpt-test"
     assert state["response_count"] == 0
+
+
+def test_reduce_replay_events_derives_prompt_usage_without_content() -> None:
+    state = reduce_replay_events(
+        [
+            {
+                "event_id": 1,
+                "timestamp": 1.0,
+                "event_type": "prompt_received",
+                "detail": {
+                    "message_count": 3,
+                    "token_count": 42,
+                    "model": "gpt-test",
+                    "provider": "openai",
+                },
+            }
+        ]
+    )
+
+    assert state["prompt_count"] == 1
+    assert state["input_message_count"] == 3
+    assert state["input_token_count"] == 42
+    assert state["latest_model"] == "gpt-test"
+
+
+def test_store_persists_only_prompt_metadata(tmp_path: Path) -> None:
+    store = ReplayEventStore(db_path=tmp_path / "replay.sqlite3")
+
+    store.record(
+        session_id="sess-1",
+        event_type="prompt_received",
+        surface="openai",
+        detail={
+            "message_count": 3,
+            "token_count": 42,
+            "model": "gpt-test",
+            "provider": "openai",
+            "messages": [{"role": "user", "content": "must-not-persist"}],
+            "api_key": "must-not-persist",
+        },
+    )
+
+    assert store.get("sess-1")["events"][0]["detail"] == {
+        "message_count": 3,
+        "token_count": 42,
+        "model": "gpt-test",
+        "provider": "openai",
+    }

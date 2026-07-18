@@ -64,6 +64,9 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "latest_stage": None,
         "event_type_counts": {},
         "compression": {"tokens_before": 0, "tokens_after": 0, "tokens_saved": 0},
+        "prompt_count": 0,
+        "input_message_count": 0,
+        "input_token_count": 0,
         "llm_request_count": 0,
         "response_count": 0,
         "policy_block_count": 0,
@@ -93,7 +96,19 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         stage = detail.get("stage")
         if isinstance(stage, str):
             state["latest_stage"] = stage
-        if event_type == "compression":
+        if event_type == "prompt_received":
+            state["prompt_count"] += 1
+            for source, target in (
+                ("message_count", "input_message_count"),
+                ("token_count", "input_token_count"),
+            ):
+                value = detail.get(source)
+                if isinstance(value, int | float) and not isinstance(value, bool):
+                    state[target] += value
+            model = detail.get("model")
+            if isinstance(model, str) and model:
+                state["latest_model"] = model
+        elif event_type == "compression":
             for source, target in (
                 ("tokens_before", "tokens_before"),
                 ("tokens_after", "tokens_after"),
@@ -338,6 +353,9 @@ class ReplayEventStore:
                     "first_event_id": state["first_event_id"],
                     "last_event_id": state["last_event_id"],
                     "compression": state["compression"],
+                    "prompt_count": state["prompt_count"],
+                    "input_message_count": state["input_message_count"],
+                    "input_token_count": state["input_token_count"],
                     "llm_request_count": state["llm_request_count"],
                     "response_count": state["response_count"],
                 }
@@ -380,6 +398,7 @@ def _sanitize_detail(event_type: str, detail: dict[str, Any] | None) -> dict[str
         return {"matched_rules": safe_rules}
 
     allowed: dict[str, tuple[str, ...]] = {
+        "prompt_received": ("message_count", "token_count", "model", "provider"),
         "compression": ("tokens_before", "tokens_after", "savings", "stage"),
         "response_received": ("tokens_used", "model", "stage"),
         "llm_request_sent": ("model", "provider", "stage"),
@@ -389,7 +408,15 @@ def _sanitize_detail(event_type: str, detail: dict[str, Any] | None) -> dict[str
     result: dict[str, Any] = {}
     for key in allowed.get(event_type, ()):
         value = source.get(key)
-        if key in {"tokens_before", "tokens_after", "savings", "tokens_used", "cooldown_ms"}:
+        if key in {
+            "tokens_before",
+            "tokens_after",
+            "savings",
+            "tokens_used",
+            "cooldown_ms",
+            "message_count",
+            "token_count",
+        }:
             if (number := _safe_number(value)) is not None:
                 result[key] = number
         elif (text := _bounded_string(value)) is not None:
@@ -460,6 +487,32 @@ def record_replay_event(
             request_id=request_id,
             detail=detail,
         )
+
+
+def record_prompt_received(
+    *,
+    session_id: str,
+    surface: str,
+    request_id: str | None,
+    message_count: int,
+    token_count: int | float,
+    model: str,
+    provider: str,
+) -> None:
+    """Record bounded prompt metadata without retaining message content."""
+
+    record_replay_event(
+        session_id=session_id,
+        event_type="prompt_received",
+        surface=surface,
+        request_id=request_id,
+        detail={
+            "message_count": message_count,
+            "token_count": token_count,
+            "model": model,
+            "provider": provider,
+        },
+    )
 
 
 def record_for_pipeline(
