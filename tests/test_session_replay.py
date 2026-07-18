@@ -4,6 +4,7 @@ from pathlib import Path
 from cutctx.proxy.session_replay import (
     ReplayEventStore,
     record_replay_event,
+    reduce_replay_events,
     reset_replay_store,
 )
 
@@ -115,3 +116,51 @@ def test_store_uses_write_ahead_logging_for_concurrent_proxy_workers(tmp_path: P
         journal_mode = connection.execute("PRAGMA journal_mode").fetchone()[0]
 
     assert journal_mode == "wal"
+
+
+def test_reduce_replay_events_derives_session_state() -> None:
+    events = [
+        {
+            "event_id": 1,
+            "timestamp": 1.0,
+            "request_id": "req-1",
+            "event_type": "compression",
+            "detail": {
+                "tokens_before": 10,
+                "tokens_after": 4,
+                "savings": 6,
+                "stage": "input_compressed",
+            },
+        },
+        {
+            "event_id": 2,
+            "timestamp": 2.0,
+            "event_type": "response_received",
+            "detail": {"model": "gpt-test", "stage": "response_received"},
+        },
+        {"event_id": 3, "timestamp": 3.0, "event_type": "policy_blocked", "detail": {}},
+        {"event_id": 4, "timestamp": 4.0, "event_type": "future_event", "detail": None},
+    ]
+
+    state = reduce_replay_events(events)
+
+    assert state == {
+        "event_count": 4,
+        "first_event_id": 1,
+        "last_event_id": 4,
+        "first_event_timestamp": 1.0,
+        "last_event_timestamp": 4.0,
+        "latest_request_id": "req-1",
+        "latest_model": "gpt-test",
+        "latest_stage": "response_received",
+        "event_type_counts": {
+            "compression": 1,
+            "response_received": 1,
+            "policy_blocked": 1,
+            "future_event": 1,
+        },
+        "compression": {"tokens_before": 10, "tokens_after": 4, "tokens_saved": 6},
+        "response_count": 1,
+        "policy_block_count": 1,
+        "policy_redaction_count": 0,
+    }

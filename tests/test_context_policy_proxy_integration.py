@@ -268,6 +268,35 @@ def test_session_replay_api_reads_events_after_store_recreation(
     assert payload["events"][0]["event_type"] == "request"
 
 
+def test_session_state_api_reads_persisted_events(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CUTCTX_REPLAY", "1")
+    monkeypatch.setenv("CUTCTX_REPLAY_DB_PATH", str(tmp_path / "replay.sqlite3"))
+
+    from cutctx.proxy.session_replay import record_replay_event, reset_replay_store
+
+    reset_replay_store()
+    record_replay_event(
+        session_id="sess-1",
+        event_type="compression",
+        surface="pipeline",
+        detail={"tokens_before": 10, "tokens_after": 4, "savings": 6, "stage": "input_compressed"},
+    )
+    reset_replay_store()
+    app = create_app(ProxyConfig(admin_api_key="admin-secret"))
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/v1/sessions/sess-1/state",
+            headers={"x-cutctx-admin-key": "admin-secret"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["compression"]["tokens_saved"] == 6
+
+
 def test_context_policy_redacts_anthropic_messages_before_forwarding(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

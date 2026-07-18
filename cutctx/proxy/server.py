@@ -3661,6 +3661,37 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             )
         return payload
 
+    @app.get("/v1/sessions/{session_id}/state")
+    async def session_state(session_id: str, request: Request):
+        await _require_local_admin_auth(request)
+        from cutctx.proxy.session_replay import get_replay_store, reduce_replay_events
+
+        replay_store = get_replay_store()
+        if replay_store is None:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": {
+                        "type": "replay_disabled",
+                        "message": "Session replay is disabled. Set CUTCTX_REPLAY=1.",
+                    }
+                },
+            )
+        payload = replay_store.get(session_id)
+        if payload["event_count"] == 0:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": {
+                        "type": "replay_not_found",
+                        "message": f"No replay events for session {session_id!r}.",
+                    }
+                },
+            )
+        state = reduce_replay_events(payload["events"])
+        state["session_id"] = session_id
+        return state
+
     @app.post("/stats/reset")
     async def stats_reset(request: Request):
         await _runtime_require_rbac_permission("stats.reset")(request)

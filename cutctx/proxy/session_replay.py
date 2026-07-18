@@ -19,6 +19,7 @@ import os
 import sqlite3
 import threading
 import time
+from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -47,6 +48,69 @@ class ReplayEvent:
         payload = asdict(self)
         payload["detail"] = self.detail or {}
         return payload
+
+
+def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Derive deterministic operational state from sanitized replay events."""
+
+    state: dict[str, Any] = {
+        "event_count": 0,
+        "first_event_id": None,
+        "last_event_id": None,
+        "first_event_timestamp": None,
+        "last_event_timestamp": None,
+        "latest_request_id": None,
+        "latest_model": None,
+        "latest_stage": None,
+        "event_type_counts": {},
+        "compression": {"tokens_before": 0, "tokens_after": 0, "tokens_saved": 0},
+        "response_count": 0,
+        "policy_block_count": 0,
+        "policy_redaction_count": 0,
+    }
+    for event in events:
+        event_type = event.get("event_type")
+        if not isinstance(event_type, str):
+            continue
+        state["event_count"] += 1
+        state["event_type_counts"][event_type] = state["event_type_counts"].get(event_type, 0) + 1
+        for source, first_target, last_target in (
+            ("event_id", "first_event_id", "last_event_id"),
+            ("timestamp", "first_event_timestamp", "last_event_timestamp"),
+        ):
+            value = event.get(source)
+            if isinstance(value, int | float) and not isinstance(value, bool):
+                if state["event_count"] == 1:
+                    state[first_target] = value
+                state[last_target] = value
+        request_id = event.get("request_id")
+        if isinstance(request_id, str) and request_id:
+            state["latest_request_id"] = request_id
+        detail = event.get("detail")
+        if not isinstance(detail, Mapping):
+            detail = {}
+        stage = detail.get("stage")
+        if isinstance(stage, str):
+            state["latest_stage"] = stage
+        if event_type == "compression":
+            for source, target in (
+                ("tokens_before", "tokens_before"),
+                ("tokens_after", "tokens_after"),
+                ("savings", "tokens_saved"),
+            ):
+                value = detail.get(source)
+                if isinstance(value, int | float) and not isinstance(value, bool):
+                    state["compression"][target] += value
+        elif event_type == "response_received":
+            state["response_count"] += 1
+            model = detail.get("model")
+            if isinstance(model, str) and model:
+                state["latest_model"] = model
+        elif event_type == "policy_blocked":
+            state["policy_block_count"] += 1
+        elif event_type == "policy_redacted":
+            state["policy_redaction_count"] += 1
+    return state
 
 
 class ReplayEventStore:
