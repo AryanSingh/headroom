@@ -362,6 +362,8 @@ def test_session_recovery_api_rebuilds_persisted_sessions(
                 "tool_call_count": 0,
                 "tool_call_counts": {},
                 "response_count": 0,
+                "error_count": 0,
+                "error_code_counts": {},
             }
         ],
     }

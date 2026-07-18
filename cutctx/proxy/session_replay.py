@@ -71,6 +71,8 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "tool_call_count": 0,
         "tool_call_counts": {},
         "response_count": 0,
+        "error_count": 0,
+        "error_code_counts": {},
         "policy_block_count": 0,
         "policy_redaction_count": 0,
     }
@@ -136,6 +138,11 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
             model = detail.get("model")
             if isinstance(model, str) and model:
                 state["latest_model"] = model
+        elif event_type == "error":
+            state["error_count"] += 1
+            code = detail.get("code")
+            if isinstance(code, str) and code:
+                state["error_code_counts"][code] = state["error_code_counts"].get(code, 0) + 1
         elif event_type == "policy_blocked":
             state["policy_block_count"] += 1
         elif event_type == "policy_redacted":
@@ -406,6 +413,8 @@ class ReplayEventStore:
                     "tool_call_count": state["tool_call_count"],
                     "tool_call_counts": state["tool_call_counts"],
                     "response_count": state["response_count"],
+                    "error_count": state["error_count"],
+                    "error_code_counts": state["error_code_counts"],
                 }
             )
         return {"session_count": len(sessions), "sessions": sessions}
@@ -642,6 +651,15 @@ class ReplayPipelineExtension:
             )
 
         elif event.stage is PipelineStage.RESPONSE_RECEIVED:
+            status_code = metadata.get("status_code")
+            if isinstance(status_code, int) and status_code >= 400:
+                record_replay_event(
+                    session_id=session_id,
+                    event_type="error",
+                    surface="pipeline",
+                    request_id=request_id,
+                    detail={"code": f"http_{status_code}"},
+                )
             for tool_name in _tool_names_from_response(event.response, event.provider):
                 record_replay_event(
                     session_id=session_id,

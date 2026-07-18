@@ -169,6 +169,8 @@ def test_reduce_replay_events_derives_session_state() -> None:
         "tool_call_count": 0,
         "tool_call_counts": {},
         "response_count": 1,
+        "error_count": 0,
+        "error_code_counts": {},
         "policy_block_count": 1,
         "policy_redaction_count": 0,
     }
@@ -215,6 +217,8 @@ def test_store_recovers_recent_session_states(tmp_path: Path) -> None:
                 "tool_call_count": 0,
                 "tool_call_counts": {},
                 "response_count": 0,
+                "error_count": 0,
+                "error_code_counts": {},
             }
         ],
     }
@@ -361,3 +365,41 @@ def test_reduce_replay_events_counts_detected_tool_calls() -> None:
 
     assert state["tool_call_count"] == 3
     assert state["tool_call_counts"] == {"search": 2, "read_file": 1}
+
+
+def test_pipeline_extension_records_failed_response_without_error_payload(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("CUTCTX_REPLAY", "1")
+    monkeypatch.setenv("CUTCTX_REPLAY_DB_PATH", str(tmp_path / "replay.sqlite3"))
+    reset_replay_store()
+
+    ReplayPipelineExtension().on_pipeline_event(
+        PipelineEvent(
+            stage=PipelineStage.RESPONSE_RECEIVED,
+            operation="proxy.request",
+            request_id="req-1",
+            provider="openai",
+            response={"error": {"message": "must-not-persist"}},
+            metadata={"session_id": "sess-1", "status_code": 429},
+        )
+    )
+
+    events = ReplayEventStore(db_path=tmp_path / "replay.sqlite3").get("sess-1")["events"]
+
+    assert len(events) == 1
+    assert events[0]["event_type"] == "error"
+    assert events[0]["detail"] == {"code": "http_429"}
+
+
+def test_reduce_replay_events_derives_error_code_counts() -> None:
+    state = reduce_replay_events(
+        [
+            {"event_type": "error", "detail": {"code": "http_429"}},
+            {"event_type": "error", "detail": {"code": "http_429"}},
+            {"event_type": "error", "detail": {"code": "http_500"}},
+        ]
+    )
+
+    assert state["error_count"] == 3
+    assert state["error_code_counts"] == {"http_429": 2, "http_500": 1}
