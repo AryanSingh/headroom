@@ -1180,7 +1180,11 @@ class OpenAIChatMixin:
             messages=optimized_messages,
             tools=tools,
             headers=headers,
-            metadata={"path": "/v1/chat/completions", "stream": stream},
+            metadata={
+                "path": "/v1/chat/completions",
+                "stream": stream,
+                "session_id": openai_session_id,
+            },
         )
         if presend_event.messages is not None:
             optimized_messages = presend_event.messages

@@ -2494,7 +2494,7 @@ class AnthropicHandlerMixin:
                 messages=optimized_messages,
                 tools=tools,
                 headers=headers,
-                metadata={"path": pipeline_path, "stream": stream},
+                metadata={"path": pipeline_path, "stream": stream, "session_id": session_id},
             )
             previous_presend_messages = optimized_messages
             if presend_event.messages is not None:

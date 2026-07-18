@@ -1,8 +1,10 @@
 import sqlite3
 from pathlib import Path
 
+from cutctx.pipeline import PipelineEvent, PipelineStage
 from cutctx.proxy.session_replay import (
     ReplayEventStore,
+    ReplayPipelineExtension,
     record_replay_event,
     reduce_replay_events,
     reset_replay_store,
@@ -202,4 +204,34 @@ def test_store_recovers_recent_session_states(tmp_path: Path) -> None:
                 "compression": {"tokens_before": 10, "tokens_after": 4, "tokens_saved": 6},
             }
         ],
+    }
+
+
+def test_pipeline_extension_records_llm_request_sent(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("CUTCTX_REPLAY", "1")
+    monkeypatch.setenv("CUTCTX_REPLAY_DB_PATH", str(tmp_path / "replay.sqlite3"))
+    reset_replay_store()
+
+    ReplayPipelineExtension().on_pipeline_event(
+        PipelineEvent(
+            stage=PipelineStage.PRE_SEND,
+            operation="proxy.request",
+            request_id="req-1",
+            provider="openai",
+            model="gpt-test",
+            metadata={"session_id": "sess-1"},
+        )
+    )
+
+    events = ReplayEventStore(db_path=tmp_path / "replay.sqlite3").get("sess-1")["events"]
+
+    assert len(events) == 1
+    assert events[0] | {"timestamp": None} == {
+        "event_id": 1,
+        "timestamp": None,
+        "session_id": "sess-1",
+        "event_type": "llm_request_sent",
+        "surface": "pipeline",
+        "request_id": "req-1",
+        "detail": {"model": "gpt-test", "provider": "openai", "stage": "pre_send"},
     }

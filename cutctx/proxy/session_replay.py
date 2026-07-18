@@ -374,6 +374,7 @@ def _sanitize_detail(event_type: str, detail: dict[str, Any] | None) -> dict[str
     allowed: dict[str, tuple[str, ...]] = {
         "compression": ("tokens_before", "tokens_after", "savings", "stage"),
         "response_received": ("tokens_used", "model", "stage"),
+        "llm_request_sent": ("model", "provider", "stage"),
         "error": ("code",),
         "circuit_breaker_triggered": ("code", "cooldown_ms"),
     }
@@ -498,7 +499,7 @@ class ReplayPipelineExtension:
 
         metadata = event.metadata or {}
         session_id = metadata.get("session_id") or metadata.get("project_id") or "_pipeline"
-        request_id = metadata.get("request_id", "")
+        request_id = metadata.get("request_id") or event.request_id
 
         if event.stage is PipelineStage.INPUT_COMPRESSED:
             tokens_before = metadata.get("tokens_before")
@@ -516,6 +517,19 @@ class ReplayPipelineExtension:
                         "stage": event.stage.value,
                     },
                 )
+
+        elif event.stage is PipelineStage.PRE_SEND:
+            record_replay_event(
+                session_id=session_id,
+                event_type="llm_request_sent",
+                surface="pipeline",
+                request_id=request_id,
+                detail={
+                    "model": event.model,
+                    "provider": event.provider,
+                    "stage": event.stage.value,
+                },
+            )
 
         elif event.stage is PipelineStage.RESPONSE_RECEIVED:
             tokens_used = metadata.get("tokens_after") or metadata.get("output_tokens")
