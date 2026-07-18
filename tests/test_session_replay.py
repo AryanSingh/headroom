@@ -171,6 +171,8 @@ def test_reduce_replay_events_derives_session_state() -> None:
         "response_count": 1,
         "error_count": 0,
         "error_code_counts": {},
+        "stream_completion_count": 0,
+        "stream_truncation_count": 0,
         "policy_block_count": 1,
         "policy_redaction_count": 0,
     }
@@ -219,6 +221,8 @@ def test_store_recovers_recent_session_states(tmp_path: Path) -> None:
                 "response_count": 0,
                 "error_count": 0,
                 "error_code_counts": {},
+                "stream_completion_count": 0,
+                "stream_truncation_count": 0,
             }
         ],
     }

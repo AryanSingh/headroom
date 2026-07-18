@@ -73,6 +73,8 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "response_count": 0,
         "error_count": 0,
         "error_code_counts": {},
+        "stream_completion_count": 0,
+        "stream_truncation_count": 0,
         "policy_block_count": 0,
         "policy_redaction_count": 0,
     }
@@ -143,6 +145,10 @@ def reduce_replay_events(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
             code = detail.get("code")
             if isinstance(code, str) and code:
                 state["error_code_counts"][code] = state["error_code_counts"].get(code, 0) + 1
+        elif event_type == "stream_completed":
+            state["stream_completion_count"] += 1
+        elif event_type == "stream_truncated":
+            state["stream_truncation_count"] += 1
         elif event_type == "policy_blocked":
             state["policy_block_count"] += 1
         elif event_type == "policy_redacted":
@@ -415,6 +421,8 @@ class ReplayEventStore:
                     "response_count": state["response_count"],
                     "error_count": state["error_count"],
                     "error_code_counts": state["error_code_counts"],
+                    "stream_completion_count": state["stream_completion_count"],
+                    "stream_truncation_count": state["stream_truncation_count"],
                 }
             )
         return {"session_count": len(sessions), "sessions": sessions}
