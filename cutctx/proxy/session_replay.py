@@ -209,7 +209,9 @@ class ReplayEventStore:
                 "SELECT session_id FROM replay_events GROUP BY session_id ORDER BY MIN(event_id) ASC"
             ).fetchall()
             for (expired_session_id,) in sessions[: -self.max_sessions]:
-                connection.execute("DELETE FROM replay_events WHERE session_id = ?", (expired_session_id,))
+                connection.execute(
+                    "DELETE FROM replay_events WHERE session_id = ?", (expired_session_id,)
+                )
 
     def record(
         self,
@@ -232,7 +234,9 @@ class ReplayEventStore:
                     surface=surface,
                     request_id=request_id,
                     detail_json=json.dumps(
-                        _sanitize_detail(event_type, detail), ensure_ascii=False, separators=(",", ":")
+                        _sanitize_detail(event_type, detail),
+                        ensure_ascii=False,
+                        separators=(",", ":"),
                     ),
                 )
                 self._enforce_bounds(connection, session_id)
