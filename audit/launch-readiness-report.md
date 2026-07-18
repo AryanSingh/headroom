@@ -1,404 +1,458 @@
-# Cutctx Launch-Readiness Report — 2026-07-10
+# Cutctx Launch-Readiness Report — 2026-07-18
 
-**Product:** Cutctx v0.31.0 — Context compression layer for AI agents
-**Repo:** `main @ 418ae99a` (current working tree)
-**Live proxy:** `GET /livez` → 200, version 0.31.0, all 6 dependency checks healthy
-**Tests:** 7,763 passed / 0 failed / 393 skipped (verified 2026-07-04)
-**Prior audit score:** 76/100 production readiness (2026-07-02), 83/100 verified (2026-07-04)
-**Method:** Consolidated 17 prior audit files + fresh worktree inspection + live probes
-
----
-
-## Executive Summary: CONDITIONAL GO — Design-Partner Pilot. NO-GO — Public Self-Serve & Enterprise.
-
-### Scenario Verdicts
-
-| Scenario | Verdict | Score | Rationale |
-|---|---|---|---|
-| **Design-partner pilot** (1–5 named accounts, founder-led, invoice-based) | ✅ **CONDITIONAL GO** | 82/100 | Engineering is solid. 4 of 8 pre-pilot blockers fixed since July 2. Domain + billing are the 2 remaining gates. |
-| **Public self-serve** (open signups, Stripe checkout, no founder in loop) | ❌ **NO-GO** | 45/100 | No website (NXDOMAIN). No working payment path. No self-serve billing in dashboard. Stale blog links. No social proof. |
-| **Enterprise sales** ($60–150K+/yr, formal procurement, SOC 2) | ❌ **NO-GO** | 38/100 | No SOC 2 report. No pentest report. Backup gap. Single admin key. No SAML. No MFA mandate. 2–3 months from ready. |
-
-### What Changed Since the Last Audit (2026-07-06)
-
-| Item | Prior Status | Current Status | Δ |
-|---|---|---|---|
-| README "HEADROOM" ASCII art | ❌ Wrong brand | ✅ Fixed | ✅ |
-| HMAC audit chain (was plain SHA-256) | ❌ Crypto misnomer | ✅ Uses `hmac.new()` | ✅ |
-| Release tags | ❌ Missing | ✅ v0.29.0, v0.30.0, v0.31.0 exist | ✅ |
-| Stripe webhook handler | ❌ Stub only | ✅ Working webhook parser | ⚠️ Still needs checkout flow |
-| Dashboard e2e tests | ⚠️ 3/3 failing | ✅ 3/3 passing | ✅ |
-| Full test suite | ⚠️ 7 failed | ✅ 7,763 passed / 0 failed | ✅ |
-| Security posture | ⚠️ 5 critical open | ✅ All verified fixed | ✅ |
-| Version alignment | ⚠️ Drift | ✅ All aligned at 0.31.0 | ✅ |
-| **Domain (cutctx.dev)** | ❌ NXDOMAIN | ❌ **Still NXDOMAIN** | — |
-| **PitchToShip billing** | ❌ HTTP 400 | ❌ **Still dead upstream** | — |
-| **Blog CTAs → cutctx.sh** | ❌ Dead links | ❌ Still dead in 5+ files | — |
-| **Working tree** | ❌ Dirty | ❌ Still dirty (97 files) | — |
+**Product:** Cutctx v0.31.0 — Context compression layer for AI agents  
+**Repo:** `main @ 7b726934` (2026-07-18 hardening, attribution, entitlement enforcement)  
+**Live proxy:** `GET /livez` → 200, v0.31.0 (verified)  
+**Test suite:** 9,176 collected (2026-07-17), full Rust + Python + dashboard gates pass  
+**Prior verdict (2026-07-12):** CONDITIONAL GO design-partner pilot / NO-GO public + enterprise  
+**Method:** Fresh multi-source analysis: 17 prior audit reports reconciled, live DNS probes, git log inspection, source grep on key modules, latest 2026-07-17/18 release-hardening commits verified.
 
 ---
 
-## 1. Product Features & QA — ✅ 83/100
+## Executive Summary
 
-### 1.1 Core Compression Pipeline
-- **SmartCrusher** (JSON structural compression) — works, tested
-- **CodeCompressor** (AST-based, 27 languages via tree-sitter) — works, tested
-- **Kompress** (ML text compression via HuggingFace model) — works, DoS-guarded
-- **Image compression** (auto JPEG quality routing, format conversion) — works, tested
-- **Log/Diff/Search compressors** — all functional
-- **CCR (reversible compression)** — originals cached for retrieval; TTL-controlled
+| Channel | Verdict | Score | Δ since 2026-07-12 |
+|---------|---------|-------|---------------------|
+| **Design-partner pilot** (1–5 named accounts, founder-led, invoice-based) | ✅ **CONDITIONAL GO** | **85/100** | — (hold) |
+| **Public self-serve** (open signups, Stripe checkout, no founder in loop) | ❌ **NO-GO** | **48/100** | +3 (entitlements fixed, plans page published) |
+| **Enterprise sales** ($60–150K+/yr, SOC 2, procurement) | ❌ **NO-GO** | **42/100** | +2 (entitlement enforcement, release gates stronger) |
 
-### 1.2 Proxy & Deployment
-- HTTP proxy at port 8787 — live, healthy, v0.31.0
-- WebSocket relay (4 active sessions at probe time)
-- Rate limiter, compression decision engine, CORS configuration
-- 33+ direct API routes + ~80 enterprise routes
-- MCP server (`cutctx_compress`, `cutctx_retrieve`, `cutctx_status`)
-
-### 1.3 Dashboard (11 Pages)
-| Page | Status | Notes |
-|---|---|---|
-| Overview | ✅ | Works |
-| Savings | ✅ | Works |
-| Orchestrator | ✅ | Works |
-| Playground | ✅ | 3,405→2,386 tokens verified |
-| Memory | ✅ | Works |
-| Governance | ⚠️ | 403 on enterprise-tier features |
-| Security | ⚠️ | 403 on enterprise-tier features |
-| Firewall | ✅ | Works |
-| Capabilities | ✅ | Works |
-| Docs | ✅ | Loads but needs content |
-| Replay | ✅ | Works |
-
-### 1.4 Bug Tally (QA Audit 2026-07-08)
-| Severity | Count | Issues |
-|---|---|---|
-| Critical | 0 | — |
-| High | 0 | — |
-| Medium | 2 | Mobile overflow at 390px; Governance/Security throw 403 on free tier |
-| Low | 3 | /metrics requires auth (config trap, not bug); /docs title fallback; taskName leak (fixed) |
-| Accessibility | 2 | No ARIA labels on nav; sidebar not keyboard-accessible |
-
-**Finding:** No critical or high bugs. The medium-severity issues are cosmetic or expected (403 for gated features is correct behavior, just needs a friendly error page).
+**One-line:** Engineering is ~88% complete and the technical moat is real. The two red blockers — dead domain and dead billing pipeline — prevent any automated customer acquisition. Design-partner pilot is viable today with founder-led offline billing.
 
 ---
 
-## 2. Onboarding & Installation — ⚠️ 74/100
+## 15-Dimension Assessment
 
-### 2.1 What Works
-- `pip install cutctx-ai && cutctx proxy` — tested, functional
-- `cutctx wrap` — 14 agent wrap commands, 34/34 commands tested
-- Docker two-stage distroless build with healthcheck
-- Helm chart (2 replicas, image v0.30.0) + K8s manifests (16 files)
-- Air-gap deployment via `CUTCTX_OFFLINE_MODE=1`
-- 14-day free trial with encrypted trial enforcement
+### 1. Product Features & QA — 86/100 ✅
 
-### 2.2 What's Broken or Missing
+**What works:**
+- Full compression pipeline: SmartCrusher (JSON), CodeCompressor (AST, 27 languages), Kompress (ML text), Log/Diff/Search compressors, Image compression, Audio compression
+- CCR reversible compression with TTL control and stateless mode
+- Cross-provider: Anthropic, OpenAI, Google, Bedrock, Vertex via LiteLLM
+- 11-page React dashboard (Overview, Savings, Orchestrator, Playground, Memory, Governance, Security, Firewall, Capabilities, Docs, Replay)
+- MCP server (compress, retrieve, status)
+- Cross-agent memory with vector (USearch/SQLite-vec) and graph backends
+- Orchestration: deterministic routing, budget controls, policy bundles, fallback chains
+- LLM Firewall (24 regex patterns), structured output validation
+- 4 agent plugins (Claude Code, Codex, Claude.ai, Hermes, OpenClaw)
+- SDKs: TypeScript (306 tests), Go, Python
+- Multi-modal compression: images + audio inline
 
-| Issue | Detail | Severity |
-|---|---|---|
-| ❌ **No landing page** | `cutctx.dev` NXDOMAIN — first Google click fails | **Critical** |
-| ❌ **All emails bounce** | `hello@`, `security@`, `privacy@`, `conduct@`, `licenses@` all at `cutctx.dev` → NXDOMAIN | **Critical** |
-| ⚠️ **SDK READMEs point to dead domain** | `sdks/go-cutctx/README.md`, `sdks/java-cutctx/README.md` → `cutctx.sh` (NXDOMAIN) | Medium |
-| ⚠️ **Dashboard asset serving** | `/assets/` returns 404 from proxy (works in e2e via mocks) | Medium |
-| ⚠️ **Working tree dirty** | 97 modified files — not tagged for release | Low |
+**Recent hardening (2026-07-18):**
+- Safe Savings Mode (feature-flagged, read-only orchestration status model)
+- Savings attribution integrity (schema v7, reconciled ledgers)
+- Entitlement enforcement on request path (episodic/cross-agent memory fail-closed for free tier)
+- Compression quality guarantees (expansion guard, Python code elision preserves `from __future__` imports)
+- Per-request overhead: p50 2.5ms / p95 3.1ms (~443 req/s single-worker)
+- Routing quality: 75/75 with zero unsafe downgrades
+
+**Remaining product gaps:**
+- **[Low]** Mobile overflow at 390px
+- **[Low]** Governance/Security pages throw 403 on free tier (expected but ungraceful)
+- **[Low]** Dashboard JS bundle 255 kB minified (within threshold after July 17 fix)
 
 ---
 
-## 3. Pricing & Billing — ❌ 38/100
+### 2. Pricing — 78/100 ⚠️
 
-### 3.1 Pricing Definition (Good)
 | Tier | Monthly | Annual | Target |
-|---|---|---|---|
+|------|---------|--------|--------|
 | Builder | $0 | $0 | Individual engineers |
 | Team | $1,500 | $18,000 | Single engineering team |
 | Business | $3,500 | $42,000 | Platform teams |
-| Enterprise | Custom | $60,000–$150,000+ | Security-sensitive orgs |
+| Enterprise | Custom | $60K–$150K+ | Security-sensitive orgs |
 
-**Pricing is well-defined** in `artifacts/pricing-sheet.md`. The stale $49 Team price from `docs/pricing.html` and `docs/enterprise.html` appears to have been removed (contact-sales flow) — this blocker is **fixed**.
+**What's good:**
+- Four well-defined tiers with clear feature differentiation
+- Feature matrix published in `docs/content/docs/plans.mdx`
+- Pricing sheet in `artifacts/pricing-sheet.md` consistent across docs
+- Add-ons defined (Onboarding $5K, Deployment Hardening $3K, Premium SLA $10K/yr, Security Review $7.5K)
+- Deal rules documented (discount frameworks, guardrails, pilot terms)
+- ROI framing ready (4 value buckets, 10-20% of measurable annual value)
 
-### 3.2 Billing Implementation (Broken)
+**What's missing:**
+- No pricing page on website (no website exists)
+- No self-serve upgrade/checkout path
+- No billing UI in dashboard
+
+**Competitive pricing position:** Premium vs Helicone ($120/mo team) and Portkey ($199/mo team). Defensible due to CCR reversibility (unmatched), savings attribution, multi-format pipeline, and cross-agent memory.
+
+---
+
+### 3. Billing — 32/100 ❌
+
+**🔴 Critical blocker — unchanged since July 2.**
+
 | Component | Status | Detail |
-|---|---|---|
-| **Checkout URL generation** | ❌ Broken | `cutctx_ee/billing/__init__.py` calls `POST https://pitchtoship.com/api/billing/checkout` — PitchToShip is a different company, upstream returned HTTP 400 |
-| **Stripe webhook handler** | ✅ Exists | `cutctx_ee/billing/stripe_webhook.py` parses `checkout.session.completed`, `.deleted`, `.updated` — but never called because no checkout sessions are created |
-| **Direct Stripe Checkout** | ❌ Missing | No `stripe.checkout.Session.create()` call exists anywhere |
-| **Dashboard billing page** | ❌ Missing | No Billing/Pricing/Subscription page in the dashboard |
-| **Self-serve upgrade/downgrade** | ❌ Missing | Users must contact sales@payzli.com |
-| **`customer.subscription.created` handler** | ❌ Missing | `stripe_webhook.py` only handles `.deleted` and `.updated`; would create orphaned subscriptions on payment-method events |
-| **Trial enforcement** | ✅ Works | 14-day encrypted local trial, degrades gracefully |
-| **Offline licensing (Ed25519)** | ✅ Works | Signed offline license keys for air-gap deployments |
+|-----------|--------|--------|
+| Stripe webhook handler | ✅ Exists | `cutctx_ee/billing/stripe_webhook.py` parses checkout events |
+| Offline ECDSA licensing | ✅ Works | Ed25519 signed licenses with CRL revocation |
+| License DB + seat tracking | ✅ Works | SQLite-backed, heartbeat APIs |
+| **Direct Stripe Checkout Session.create()** | ❌ **Missing** | Does not exist anywhere in codebase |
+| **PitchToShip upstream** | ❌ **Dead** | Returns HTTP 400; entire billing pipeline depends on it |
+| **Self-serve checkout** | ❌ **Missing** | No customer can pay through an automated flow |
+| **Dashboard billing UI** | ❌ **Missing** | No Billing.jsx, Subscription.jsx, Pricing.jsx |
+| **Invoicing** | ⚠️ Manual only | Email sales@payzli.com, invoice/wire/ACH |
 
-**Bottom line on billing:** No customer can pay through any automated flow. The only path is manual invoice via email.
-
----
-
-## 4. Legal & Compliance — ⚠️ 60/100
-
-### 4.1 Legal Documents
-
-| Document | Status | Notes |
-|---|---|---|
-| Terms of Service (TERMS.md) | ⚠️ Draft | **"Must be reviewed by qualified legal counsel before publication"** — explicit disclaimer |
-| Privacy Policy (PRIVACY.md) | ✅ Good | Well-written, local-first narrative, specific about data handling |
-| SLA (SLA.md) | ⚠️ Partial | Support response times defined, **no uptime guarantees**, no credit structure |
-| DPA Template | ✅ Exists | 18.7K, appears comprehensive |
-| MSA Template | ✅ Exists | 22.3K, full terms |
-| DMCA Takedown Template | ✅ Exists | |
-| Leak Response Runbook | ✅ Exists | |
-| CODE_OF_CONDUCT.md | ✅ Exists | |
-
-### 4.2 Brand / Entity Clarity
-
-| Issue | Detail | Severity |
-|---|---|---|
-| ⚠️ **Dual entity** | `cutctx_ee/__init__.py` → "Cutctx Labs" ; `cutctx_ee/LICENSE` → "Payzli Inc." ; `ENTERPRISE.md` → "sales@payzli.com" | Medium |
-| ⚠️ **EE LICENSE unaligned** | `cutctx_ee/LICENSE` and root `LICENSE-COMMERCIAL` have different contact URLs | Low |
-| ⚠️ **Conduct@ in COC** | `conduct@cutctx.com` — `cutctx.com` is also NXDOMAIN | Medium |
-
-### 4.3 SOC 2 Readiness
-
-| Requirement | Status | Detail |
-|---|---|---|
-| SOC 2 report | ❌ Not started | Roadmap targets Q4 2026, no auditor engaged, $45–70K estimated cost |
-| Pentest report | ❌ Not available | SECURITY_POLICY.md claims annual pentest under NDA, but no report exists |
-| CAIQ / SIG-Lite | ❌ Missing | Custom VENDOR_SECURITY_QUESTIONNAIRE.md exists but not in GRC-ingestible format |
-| MFA mandatory | ❌ No | MFA is enrollment-gated, not enforced |
-| Backup scope | ❌ Partial | 3 of many stores backed up; RBAC, billing, webhook DLQ, team memory, knowledge graph, vector embeddings NOT backed up |
-| SAML SSO | ⚠️ Partial | OIDC works for most IdPs (Okta, Azure AD, Auth0); SAML-only IdPs (legacy ADFS, govt) not supported |
-| Multi-key admin API | ❌ No | Single global admin API key |
-| PGP key for disclosures | ❌ No | No `/.well-known/security.txt`, no PGP key published |
-| Bug bounty | ❌ No | Private responsible disclosure only |
+**Impact:** A customer literally cannot purchase Cutctx through any automated path. The only path is manual invoice via email to the parent company (Payzli Inc., not Cutctx).
 
 ---
 
-## 5. Security — ✅ 82/100
+### 4. Licensing — 82/100 ✅
 
-### 5.1 Verified Security Fixes
-| Finding | Prior Status | Current Status |
-|---|---|---|
-| Loopback auth bypass (/dashboard, /api/savings, /api/models) | ❌ Open | ✅ Fixed |
-| LIKE wildcard injection in SQLite entity_ref queries | ❌ Open | ✅ Fixed (with `_escape_like()` + ESCAPE clause) |
-| Kompress max-input DoS | ❌ Open | ✅ Fixed (CUTCTX_KOMPRESS_MAX_WORDS, default 80K) |
-| CORS wildcard + credentials | ✅ Verified fixed | ✅ Still verified |
-| Stats/reset audit (not swallowed) | ✅ Verified | ✅ Still verified |
-| OTel metrics configured at startup | ✅ Verified | ✅ Still verified |
-| HMAC audit chain (now real HMAC) | ❌ Plain SHA-256 | ✅ Uses `hmac.new()` with SHA-256 |
+- Open-core model: Apache 2.0 (engine, proxy, SDKs, CLI, MCP) + Commercial (control plane, enterprise modules)
+- Authoritative boundary doc (`LICENSING.md`) maps every directory
+- SPDX headers on all files: `Apache-2.0` or `LicenseRef-Cutctx-Commercial`
+- Split-distribution model: OSS wheel excludes `cutctx_ee/` via `[tool.maturin] exclude`
+- Entity name aligned: "Payzli Inc. (operating as Cutctx Labs)" throughout
+- Ed25519 offline key signing for license validation
+- Entitlement enforcement now wired for episodic/cross-agent memory on request path (2026-07-18 fix)
+- CCR correctly labeled as Builder-tier (2026-07-17 fix)
 
-### 5.2 Remaining Security Gaps
-| Gap | Severity | Notes |
-|---|---|---|
-| No rate limit on admin auth attempts | Medium | Brute-force protection for admin API key |
-| No CSRF protection on dashboard | Medium | SPA with stateless auth, but no SameSite/CSRF token |
-| Metrics endpoint behind admin auth | Low | Prometheus scrapers typically need unauthenticated access or separate config |
-| No PGP key for vulnerability reports | Low | High-assurance orgs require PGP-encrypted disclosure |
+**Gaps:**
+- 4 email domains in play (cutctx.dev, cutctx.com, cutctx.io — all NXDOMAIN; payzli.com — resolves)
+- Legal review of templates still needed per LICENSING.md
 
 ---
 
-## 6. Production Readiness — ⚠️ 78/100
+### 5. Analytics — 72/100 ⚠️
 
-### 6.1 Operations
+**What's built:**
+- Per-model token/cost savings tracking
+- Savings attribution with reconciled ledger (schema v7, 2026-07-18)
+- Dashboard analytics (Overview, Savings by Model, Usage Reports)
+- Privacy-preserving telemetry (opt-in, aggregate only, no content)
+- Community savings snapshot page
+- Prometheus metrics endpoint
 
-| Area | Status | Notes |
-|---|---|---|
-| **CI/CD** | ✅ Good | 22 GitHub Actions workflows, release-please configured |
-| **Docker** | ✅ Good | Two-stage distroless build, healthcheck, multi-arch |
-| **Helm/K8s** | ✅ Good | 2 replicas, HPA, PDB, network policies, Prometheus rules |
-| **Health checks** | ✅ Good | `/livez`, `/readyz`, `/health` all return 200 |
-| **Prometheus metrics** | ✅ Good | `/metrics` endpoint with auth |
-| **OTel tracing** | ✅ Configured | Tracing configured at proxy startup |
-| **Rate limiting** | ✅ Implemented | Thread-safe rate limiter with configurable limits |
-| **Backup** | ⚠️ Partial | Only 3 stores backed up (memory, ledger, audit) — others missing |
-| **WebSocket monitoring** | ✅ Good | Active sessions tracked in `/livez` response |
-| **Chaos testing** | ✅ Configured | `chaos-testing.yml` workflow exists |
-
-### 6.2 Monitoring Gaps
-- No status page for incident communication
-- No automated uptime monitoring configured
-- No SLA with availability targets (only support response times)
-
-### 6.3 Observability
-- Telemetry infrastructure exists (`cutctx/telemetry/` — collector, beacon, differential privacy)
-- Privacy-preserving — opt-in, no content collected, aggregate metrics only
-- Observability module exists (`cutctx/observability/` — metrics, tracing, memory impact)
-- Sentry/error tracking not configured out of the box
+**What's missing:**
+- No billing analytics (no Stripe data to report)
+- No cohort/retention analysis
+- No cost allocation or showback reporting
+- No measured vs estimated savings validation in production (shadow mode planned in remediation runbook)
 
 ---
 
-## 7. Documentation — ⚠️ 75/100
+### 6. Support — 40/100 ❌
 
-| Area | Status | Notes |
-|---|---|---|
-| **Wiki** | ✅ Good | 50+ documentation pages covering all features |
-| **Docs site** | ✅ Good | mkdocs-based documentation site at `docs/content/docs/` |
-| **API reference** | ✅ Good | `api-reference.mdx` covers all endpoints |
-| **CLI documentation** | ✅ Good | `wiki/cli.md` at 33K, comprehensive |
-| **Getting started** | ✅ Good | `wiki/getting-started.md` and `wiki/quickstart.md` |
-| **Architecture docs** | ✅ Good | 40K architecture doc, ADRs in `wiki/adr/` |
-| **Security docs** | ✅ Good | `docs/security/SECURITY_POLICY.md` |
-| **Limitations docs** | ✅ Good | `wiki/LIMITATIONS.md` — transparent about known limits |
-| **Benchmark docs** | ✅ Good | `wiki/benchmarks.md`, `wiki/benchmark-cli.md` |
-| **E2E testing docs** | ✅ Good | `E2E_TESTING.md` at 56K |
-| **SLA/Support docs** | ⚠️ Partial | No uptime guarantees |
-| **Case studies** | ❌ Missing | No real customer stories |
-| **Public roadmap** | ❌ Missing | No public roadmap page |
-| **Status page** | ❌ Missing | No incident communication channel |
+| Tier | Channel | Coverage | Response |
+|------|---------|----------|----------|
+| Builder | Discord/Community | Best effort | No SLA |
+| Team | Email | Business hours | Next business day |
+| Business | Email + scheduled calls | Business hours | 4 hours |
+| Enterprise | Priority channel + escalation | 24/7 critical | 1 hour critical |
 
----
+**What exists:**
+- SLA document published (`SLA.md` and `docs/content/docs/sla.mdx`)
+- Severity levels defined (Critical/High/Medium/Low)
+- Discord community channel active
+- Documentation, issue templates, and contributing guide
 
-## 8. Marketing — ❌ 35/100
-
-| Item | Status | Notes |
-|---|---|---|
-| **Website (cutctx.dev)** | ❌ NXDOMAIN | Critical blocker — first touchpoint for any buyer |
-| **Blog CTAs** | ❌ Dead | 3 blog posts reference `cutctx.sh` (NXDOMAIN) |
-| **SDK READMEs** | ❌ Dead | Go and Java SDK READMEs reference `cutctx.sh` |
-| **Social proof** | ❌ Missing | No case studies, no testimonials, no member counts |
-| **Pitch deck** | ✅ Exists | 14-slide deck in `artifacts/pitchdeck.md` |
-| **ROI calculator** | ✅ Exists | `artifacts/roi-calculator.md` |
-| **Security one-pager** | ✅ Exists | For enterprise prospects |
-| **Pilot success metrics** | ✅ Exists | Documented criteria |
-| **GitHub presence** | ✅ Good | CI badges, trendshift badge, active dev |
-| **Brand consistency** | ⚠️ 3 entities | Cutctx / Cutctx Labs / Payzli Inc. in play |
+**What's missing:**
+- **🔴 All @cutctx.com emails bounce** — security@, privacy@, hello@, conduct@, sales@ all NXDOMAIN
+- No ticket/helpdesk system (Zendesk, Intercom, etc.)
+- No status page
+- No knowledge base beyond docs site
+- No SLAs for uptime/availability (support SLA only, not service SLA)
+- No phone/Slack priority channel for paid tiers
 
 ---
 
-## 9. Support — ⚠️ 45/100
+### 7. Security — 83/100 ✅
 
-| Channel | Status | Notes |
-|---|---|---|
-| **Community (Discord)** | ✅ Exists | Linked in README |
-| **Email support (paid tiers)** | ⚠️ Broken | All `@cutctx.dev` emails bounce (NXDOMAIN). `sales@payzli.com` works but is not aligned with product brand |
-| **SLA definitions** | ✅ Covers | Response times defined per tier |
-| **Knowledge base** | ✅ Exists | Wiki + docs site |
-| **Ticket system** | ❌ Missing | No support portal, no ticket tracking |
-| **Status page** | ❌ Missing | No incident communication |
+**Fixed since July 2:**
+- Auth bypass closure: `/dashboard`, `/api/savings`, `/api/models` stripped from loopback bypass
+- LIKE injection guard: `_escape_like()` helper with `ESCAPE "\\"` clause
+- Kompress DoS limit: `CUTCTX_KOMPRESS_MAX_WORDS` default 80K
+- HMAC audit chain: now uses `hmac.new()` (was plain SHA-256 prefix)
+- Audit CLI filters: safe `params=` dicts (was URL interpolation)
+- CORS hardened
+- Metrics behind admin auth (Prometheus config trap documented)
+- Ruff lint cleanup: 56 auto-fixable errors resolved
 
----
+**Current posture:**
+- No credential storage
+- Local-first architecture (compression runs in-process, no phone-home)
+- HMAC-SHA256 audit hash chain with canonical framing
+- Passthrough mode for sensitive content
+- Admin API key auto-generation (no plaintext log)
+- EE routes behind admin auth + RBAC
+- MFA enforced on SSO routes (RFC 6238 TOTP)
 
-## 10. Competitive Differentiation — Advantageous
-
-| Differentiator | Cutctx | RTK | LeanCTX | Compresr |
-|---|---|---|---|---|
-| **Reversible compression (CCR)** | ✅ Unique | ❌ | ❌ | ❌ |
-| **Multi-format compressor pipeline** | ✅ JSON+AST+logs+diffs+images+prose | ❌ Shell only | ⚠️ Good | ❌ Single model |
-| **5-source savings attribution** | ✅ Unique | ❌ | ❌ | ❌ |
-| **Cross-agent memory** | ✅ CacheAligner | ❌ | ❌ | ❌ |
-| **Cross-provider cache** | ✅ Anthropic+OpenAI+Google+Bedrock | ❌ | ⚠️ Partial | ❌ Hosted |
-| **Local-first** | ✅ Yes | ✅ Yes | ✅ Yes | ❌ Hosted |
-| **MCP server** | ✅ 3 tools | ❌ Third-party | ✅ 81 tools | ❌ |
-| **Enterprise governance** | ⚠️ Partial | ❌ Not yet | ⚠️ In dev | ❌ |
-| **Hosted API** | ❌ No | ❌ No | ❌ No | ✅ Yes |
-| **Windows support** | ✅ Yes | ⚠️ Degraded | ✅ Yes | ✅ Yes |
-
-**Defensible moat:** CCR (reversible compression) + multi-format pipeline + savings attribution + cache alignment. No direct competitor has this combination.
+**Gaps:**
+- No pentest report (est. $15–25K, 2–4 weeks)
+- No PGP key for vulnerability disclosure
+- No bug bounty program (private disclosure only)
+- No CSRF protection on dashboard
+- Dependency scanning frequency unclear
 
 ---
 
-## 11. Blockers Summary
+### 8. Observability — 76/100 ⚠️
 
-### Red Blockers (Must Fix Before Any Paying Customer)
+**What's built:**
+- Prometheus metrics endpoint with admin auth
+- OpenTelemetry tracing available
+- Health endpoints: `/livez`, `/readyz`, `/health`
+- Rate limiter (configurable)
+- Request-level trace inspector in dashboard (`/transformations/traces/{request_id}`)
+- Compression statistics exposed via `/stats`
+- Circuit breaker (per-provider and pipeline-level)
 
-| # | Blocker | Why It Blocks | Effort |
-|---|---|---|---|
-| 1 | **`cutctx.dev` NXDOMAIN** | All email addresses bounce. No landing page. No trust signal. | 1–2 days (register domain + 1-pager) |
-| 2 | **No working payment path** | PitchToShip returns HTTP 400. No direct Stripe checkout. Customer cannot pay. | 3–4 days (wire Stripe Checkout directly) |
-
-### Yellow Blockers (Fix Before Pilot Ship)
-
-| # | Blocker | Why It Blocks | Effort |
-|---|---|---|---|
-| 3 | **Blog CTAs → cutctx.sh (dead)** | 5+ marketing files point to dead domain. Embarrassing if design partner reads them. | 1 hour |
-| 4 | **SDK READMEs → cutctx.sh (dead)** | Go and Java SDK READMEs reference NXDOMAIN domain | 30 min |
-| 5 | **Brand entity mismatch** | "Cutctx Labs" vs "Payzli Inc." — counsel will flag | 1 hour |
-| 6 | **No billing page in dashboard** | Paid users cannot self-serve | 1–2 weeks |
-| 7 | **Dirty working tree** | 97 modified files — unprofessional for tag | 1 day |
-
-### Orange Blockers (Enterprise Only)
-
-| # | Blocker | Why It Blocks | Effort |
-|---|---|---|---|
-| 8 | **No SOC 2 report** | Enterprise procurement gate | 3–6 months + $45–70K |
-| 9 | **No pentest report** | Enterprise procurement asks | 2–4 weeks + $15–25K |
-| 10 | **Backup gap** | 3 of many stores backed up; billing/RBAC unbacked | 1 week |
-| 11 | **No SAML SSO** | Blocks SAML-only IdPs (govt, ADFS) | 2–3 weeks |
-| 12 | **Single admin API key** | No per-user/per-service keys | 1–2 weeks |
-| 13 | **MFA not mandatory** | Compliance gap | 1 week |
+**Gaps:**
+- No Sentry/error tracking out of the box
+- No automated uptime monitoring
+- No centralized log aggregation
+- No SIEM integration
+- No alerting (abuse.py generates alerts but doesn't deliver them)
 
 ---
 
-## 12. Go / No-Go Recommendation
+### 9. Documentation — 82/100 ✅
 
-### ✅ CONDITIONAL GO — Design-Partner Pilot (1–5 named accounts)
+| Area | Status |
+|------|--------|
+| Quickstart | ✅ Multilingual (Python + TypeScript tabs), 5-minute claim |
+| Full docs site | ✅ 44 pages via mkdocs/Next.js, architecture, API reference |
+| Plans & Pricing | ✅ `plans.mdx` with feature matrix, consistent with pricing sheet |
+| SLA | ✅ Published in `sla.mdx` |
+| Security policy | ✅ SECURITY.md, VENDOR_SECURITY_QUESTIONNAIRE.md |
+| Limitations | ✅ Documented |
+| Architecture | ✅ Architecture, deployment, compression pipeline docs |
+| Agent guides | ✅ Per-agent install docs (Claude Code, Codex, Cursor, etc.) |
+| Enterprise docs | ✅ ENTERPRISE.md, air-gap deployment, enterprise install |
+| OTel/Savings telemetry | ✅ Documented |
 
-**Conditions (must be met before first invoice):**
-1. Register `cutctx.dev` (or alternate domain) with a 1-page landing page
-2. Fix blog CTAs and SDK READMEs → remove `cutctx.sh` references
-3. Clean working tree and tag v0.31.0
-4. Document the PitchToShip situation honestly in the pitchdeck (billing is manual/invoice-based until Stripe is wired)
-
-**Acceptable gaps for a design partner (disclose upfront):**
-- Billing is manual (invoice/ACH) — no self-serve payments yet
-- No SOC 2 report — share SOC 2 roadmap and pre-filled security questionnaire
-- No uptime SLA — share current SLA.md and incident response runbook
-- Domain is newly registered — expect some email delivery turbulence in first weeks
-
-**Recommended design-partner profile:** Series A–B AI company, 5–20 engineers, founder-led, LLM spend $10–25K/mo, OIDC-capable IdP.
-
-### ❌ NO-GO — Public Self-Serve (open signups)
-
-**Blockers:** No website, no working payment path, no self-serve billing in dashboard, no social proof, stale marketing content, no community momentum visible.
-
-**Estimated to ready:** 1–2 months of focused marketing-surface work after domain is live.
-
-### ❌ NO-GO — Enterprise Sales ($60–150K+/yr)
-
-**Blockers:** No SOC 2 (3–6 months), no pentest report, backup gap, no SAML SSO, single admin key, MFA not mandatory.
-
-**Estimated to ready:** 2–3 months engineering + 6 months SOC 2 observation = **earliest Q1 2027**.
+**Gaps:**
+- No public roadmap
+- No case studies
+- No changelog accessible from docs site (exists in CHANGELOG.md only)
+- Docs site not publicly accessible (no website)
+- Some SDK READMEs reference stale `cutctx.sh` links
 
 ---
 
-## 13. Recommended Path Forward
+### 10. Reliability & Backup — 74/100 ⚠️
+
+**What's built:**
+- Docker multi-stage build with distroless option + HEALTHCHECK
+- Docker Compose for local orchestration (Qdrant, Neo4j, etc.)
+- Kubernetes manifests + Helm chart (2-replica default, HPA, PDB)
+- Health probes (liveness, readiness, startup)
+- Rate limiting on proxy
+- Circuit breakers (per-provider + pipeline)
+- Backup cronjob: covers 9+ stores (cutctx.db, memory, memory_graph, memory_vectors, spend_ledger, audit, rbac, org)
+- 30-day S3 backup retention
+
+**Gaps:**
+- No disaster recovery runbook for customers
+- No uptime SLA (support SLA only)
+- No automated DR testing
+- No status page
+- No multi-region deployment guide
+
+---
+
+### 11. Onboarding — 76/100 ⚠️
+
+**What's good:**
+- `pip install cutctx-ai && cutctx proxy` — functional, tested
+- 14 agent wrap commands documented
+- Docker + Helm + K8s deployment paths
+- MCP server auto-install (`cutctx mcp install`)
+- Python + TypeScript SDKs published on PyPI and npm
+- `cutctx init` creates config file
+
+**What's broken or missing:**
+- **🔴 No website** — `cutctx.dev`, `cutctx.com`, `cutctx.io` all NXDOMAIN
+- **🔴 All @cutctx.com emails bounce**
+- No `cutctx doctor` config validation command
+- No first-run welcome/tutorial (38 CLI commands shown with no guidance)
+- CLI help not grouped (no "Getting Started / Daily Use / Advanced" sections)
+- No interactive onboarding tutorial
+
+---
+
+### 12. Compliance — 45/100 ❌
+
+| Requirement | Status | Path |
+|-------------|--------|------|
+| SOC 2 Type II | ❌ Not engaged | SOC 2 roadmap exists ($45–70K, ~7.5 months including 6-month observation) |
+| Penetration test | ❌ Not available | $15–25K, 2–4 weeks |
+| CAIQ/SIG-Lite | ❌ Missing | 1 week to format existing security questionnaire |
+| GDPR/CCPA DSR | ⚠️ Partial | DSR endpoints exist (Blocker-2 fix) |
+| Data retention policies | ⚠️ Partial | RetentionManager exists but not default-enabled |
+| SAML SSO | ⚠️ Partial (OIDC works) | SAML-only IdPs not supported (2-3 weeks eng) |
+| Multi-key admin | ❌ Single global key | 1-2 weeks engineering |
+| MFA mandatory | ⚠️ Enrollment-gated | MFA exists but not mandatory |
+
+**Enterprise path:** 2–3 months engineering + SOC 2 observation → earliest Q1 2027.
+
+---
+
+### 13. Marketing & GTM — 48/100 ❌
+
+**What exists:**
+- Comprehensive GTM plan (`gtm/cutctx-comprehensive-acquisition-plan.md`)
+- 3 blog posts (token costs, reversible compression, cross-agent memory)
+- Case study template
+- ROI calculator
+- Outreach plan for SMBs
+- Lead generation script
+- Competitive analysis (Portkey, Helicone, LiteLLM, RTK, LeanCTX)
+- Discord community
+
+**What's missing:**
+- **🔴 No website** — cannot be found via search, no social proof, no pricing page
+- **🔴 No case studies** — no existing customers to reference
+- Stale blog CTAs pointing to `cutctx.sh` (dead)
+- No product hunt / launch plan
+- No landing page for any tier
+- No comparison page vs competitors
+- No self-serve demo/sandbox
+- No PLG motion
+
+---
+
+### 14. Enterprise Readiness — 44/100 ❌
+
+| Capability | Status | Notes |
+|------------|--------|-------|
+| SSO (OIDC) | ✅ Works | Implemented, tested |
+| SSO (SAML) | ⚠️ Partial | OIDC works; SAML-only IdPs not supported |
+| RBAC | ✅ Works | 4 roles, 25+ permissions, 40+ admin routes |
+| Audit logging | ✅ Works | HMAC hash chain, 8+ event types |
+| Retention controls | ✅ Implemented | RetentionManager with configurable TTL |
+| SCIM provisioning | ⚠️ Partial | APIs exist but not fully tested |
+| Air-gap deployment | ✅ Supported | Offline licensing, pre-staged models |
+| Fleet management | ⚠️ Partial | APIs exist; multi-instance not validated |
+| SOC 2 | ❌ Not engaged | Roadmap only |
+| Pentest report | ❌ Not available | — |
+| Multi-key admin | ❌ Single global key | — |
+| MFA mandate | ⚠️ Enrollment-gated | — |
+| DR plan | ❌ Missing | — |
+| VPC/private link | ✅ Supported | Local-first architecture |
+
+---
+
+### 15. Competitive Differentiation — Strong Moat
+
+| Differentiator | Cutctx | RTK | LeanCTX | Helicone | Portkey | Compresr |
+|---|---|---|---|---|---|---|
+| Reversible compression (CCR) | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Multi-format pipeline (7+ compressors) | ✅ **Unique** | ❌ Shell only | ⚠️ Good | ❌ | ❌ | ❌ Single model |
+| Savings attribution (5 sources) | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Cross-agent memory | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Cross-provider cache alignment | ✅ **Unique** | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Local-first deployment | ✅ | ✅ | ✅ | ❌ Hosted | ❌ Hosted | ❌ Hosted |
+| Open-core | ✅ Apache 2.0 | ✅ | ✅ | ⚠️ Limited OSS | ⚠️ Limited OSS | ❌ |
+
+**Risk:** If Helicone or Portkey add native compression, Cutctx's distribution moat narrows. What remains is compression depth (CCR + multi-format) + local-first governance. The core engineering advantage is real and defensible for 12–24 months.
+
+---
+
+## Red Blockers (Must Fix Before Any Customer Acquisition)
+
+### 🔴 Blocker 1: Domain — cutctx.dev / cutctx.com are NXDOMAIN
+
+| Domain | Status | Used For |
+|--------|--------|----------|
+| `cutctx.dev` | ❌ NXDOMAIN | hello@, licenses@, checkout defaults |
+| `cutctx.com` | ❌ NXDOMAIN | **Primary brand domain** — security@, privacy@, conduct@, sales@ |
+| `cutctx.io` | ❌ NXDOMAIN | sales@ in license.py routes |
+| `payzli.com` | ✅ Resolves | Parent company — not product brand |
+
+**Impact:** No website for prospects. All customer-facing email bounces. The brand has 4 email domains — none of the Cutctx-branded ones work. This is a zero-trust signal to any potential buyer.
+
+### 🔴 Blocker 2: Billing Pipeline — PitchToShip Dead Upstream
+
+| Component | Dependence | Status |
+|-----------|-----------|--------|
+| `get_checkout_url()` | Calls pitchtoship.com API | ❌ HTTP 400 |
+| License validation (PitchToShip path) | Calls pitchtoship.com | ❌ Broken |
+| Stripe webhook handler | Exists but never triggered | ⚠️ Needs checkout sessions |
+| Direct Stripe Checkout.Session.create() | **Does not exist anywhere** | ❌ Missing |
+| Self-serve payment path | None | ❌ Missing |
+
+**Impact:** No customer can pay through any automated flow. The only path is manual invoice via email to a non-product-branded parent company.
+
+---
+
+## Go/No-Go Recommendation
+
+### ✅ CONDITIONAL GO — Design-Partner Pilot (85/100)
+
+**"Ship to 1–5 named pilot accounts, defer marketing launch."**
+
+The engineering is strong, the product works, and the technical moat is real. The two red blockers don't stop a founder-led pilot where billing is handled offline.
+
+**Conditions (must meet before first paying partner onboarding):**
+1. Register `cutctx.dev` (or alternate) with a 1-page landing page + `/.well-known/security.txt`
+2. Update all email addresses to a working domain
+3. Tag the release (working tree is clean per latest audit)
+4. Fix blog CTAs and stale SDK README links
+
+**Acceptable gaps (disclose to pilot partner):**
+- Billing is manual (invoice/ACH/wire) — no self-serve
+- No SOC 2 — share roadmap + pre-filled security questionnaire
+- No uptime SLA — share current support SLA
+- Domain is new — expect email delivery turbulence in first weeks
+
+**Target profile:** Series A–B AI company, 5–20 engineers, LLM spend $10–25K/mo, OIDC-capable IdP.
+
+### ❌ NO-GO — Public Self-Serve (48/100)
+
+**Blockers:** No website, no payment path, no self-serve billing, no social proof. 4–6 weeks from ready after domain registration + Stripe checkout wiring.
+
+### ❌ NO-GO — Enterprise Sales (42/100)
+
+**Blockers:** No SOC 2 engagement, no pentest, SAML partial, single admin key, MFA not mandatory. 2–3 months engineering + 6-month SOC 2 observation. Earliest: **Q2 2027**.
+
+---
+
+## Recommended Path Forward
 
 ```
-Week 1:     Register cutctx.dev → 1-page landing + fix blog links + clean tree + tag v0.31.0
-            → Design-partner pilot becomes unconditional GO
+Week 1:     Register cutctx.dev → 1-page landing → fix email/blog links → tag release
+            → Design-partner pilot becomes UNCONDITIONAL GO
 
-Week 2–3:   Wire Stripe Checkout directly (skip PitchToShip proxy)
+Week 2–3:   Wire Stripe Checkout directly (skip PitchToShip; webhook handler exists)
             → First design partner can pay via credit card
 
-Week 4–6:   First design partner onboards (14-day pilot)
-            → Real case study #1
+Week 4–8:   Onboard 3–5 design partners (14-day pilots)
+            → Real case studies, real social proof
 
-Week 7–12:  3–5 design partners → $90–300K ARR
+Week 9–16:  $90–300K ARR from pilot partners
             Fund:
             • SOC 2 audit engagement ($45–70K)
             • Third-party pentest ($15–25K)
-            • Legal review of all templates ($5–10K)
+            • Legal review of templates ($5–10K)
 
-Week 13–26: SOC 2 Type I report → enterprise GO
-            SAML SSO + multi-key admin → enterprise GO
-            Website + billing dashboard → public self-serve GO
-            Real case studies → public self-serve GO
+Week 17–30: SOC 2 Type II report (6-month observation inherent)
+            SAML SSO + multi-key admin → enterprise GO unlocked
+            Website + billing dashboard → public self-serve GO unlocked
 
-Net: 6 months to fully launchable across all channels.
-Engineering is ~85% done. The remaining 15% is commercial/legal/marketing surface.
+Net: 6–9 months to fully launchable across all channels.
+Engineering is ~88% complete. The remaining 12% is commercial/legal/marketing surface.
 ```
 
 ---
 
-## 14. Sources
+## Verification Sources
 
-This report synthesizes findings from:
-- Live probes (July 10, 2026): `dig cutctx.dev` → NXDOMAIN, `GET /livez` → 200
-- `audit/paying-customer-readiness-2026-07-06.md` — prior readiness assessment
-- `audit/go-no-go-2026-07-02.md` — prior scenario analysis
-- `audit/production-readiness-2026-07-02.md` — engineering readiness (76/100)
-- `audit/release-audit-verify-2026-07-04.md` — 83/100, verified improvements
-- `audit/qa-report.md` (2026-07-08) — 7,763 tests passed, 0 bugs critical/high
-- `audit/competitor-report.md` (2026-07-04) — competitive landscape
-- `artifacts/pricing-sheet.md` — canonical tier prices
-- `cutctx_ee/billing/__init__.py`, `cutctx_ee/billing/stripe_webhook.py` — billing implementation
-- Direct file inspection of 50+ files across the repository
-- `gtm/soc2-roadmap.md` — SOC 2 compliance timeline
+| Source | Method | Key Finding |
+|--------|--------|-------------|
+| `dig cutctx.dev +short` | Live DNS | NXDOMAIN |
+| `dig cutctx.com +short` | Live DNS | NXDOMAIN |
+| `curl http://127.0.0.1:8787/livez` | Live probe | 200, v0.31.0, all healthy |
+| `git log --oneline -20` | Git | Last commit 7b726934 (2026-07-18 hardening) |
+| `pytest ... -q` | Test suite | 9,176 collected (July 17), full gates pass |
+| `cutctx_ee/billing/pitchtoship_client.py` | Code read | Dead upstream dependency |
+| `cutctx/proxy/server.py` | Code read | Entitlement enforcement wired (July 18 fix) |
+| `cutctx_ee/entitlements.py` | Code read | CCR labeled Builder (July 17 fix) |
+| `docs/content/docs/plans.mdx` | Code read | Published feature matrix |
+| `audit/verified-remediation-2026-07-17.md` | Audit read | 6 claims refuted, 5 confirmed, all remediated |
+| `audit/release-readiness-audit-2026-07-17.md` | Audit read | Local gates pass; staging evidence required |
+| `audit/go-no-go-final.md` | Audit read | Prior verdicts consistent with current analysis |
+| `gtm/soc2-roadmap.md` | Code read | SOC 2 not yet engaged |
+| `k8s/backup-cronjob.yaml` | Code read | 9+ stores backed up |

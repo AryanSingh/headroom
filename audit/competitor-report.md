@@ -1,203 +1,217 @@
-# Cutctx — Competitive Landscape Report
+# Competitive Analysis: Cutctx / Headroom
 
-**Date:** July 4, 2026  
-**Product:** Cutctx — The context compression layer for AI agents  
-**Scope:** All segments (developer tooling, enterprise, hosted API, OSS)
-
----
-
-## Executive Summary
-
-Cutctx operates in a rapidly bifurcating market. The "context compression" space has exploded in 2026, with YC W26 alone producing 3+ startups (Compresr, Token Co., Codag). Competitors cluster into four tiers:
-
-| Tier | Players | Threat to Cutctx |
-|---|---|---|
-| **Local-first OSS analogs** | LeanCTX, Clean-CTX, ContextCutter, AgentCTX, CTX | **High** — same thesis, same local-first architecture |
-| **Hosted compression APIs** | Compresr, Token Co., Morph Compact, OpenCompress, Eyelid AI, Hypernym | **Medium** — different deployment model but same buyer |
-| **Gateway feature absorption** | Helicone (Context Editing), Portkey/Palo Alto, LiteLLM | **High** — if they add native compression, Cutctx's distribution erodes |
-| **Narrow CLI wrappers** | RTK (67.5k ★), lean-ctx (3.1k ★) | **Low** — narrower scope, but form the "compression" category in users' minds |
-
-**Key insight:** Cutctx's defensible moat is the combination of (a) **reversible compression (CCR)** — no competitor has this, (b) **5-source savings attribution** — the CFO-grade answer, (c) **multi-format compressor pipeline** — JSON + AST code + logs + diffs + images + prose, (d) **cross-agent memory + cross-provider cache alignment** — unique combination.
+**Date:** 2026-07-18  
+**Analyst:** Product Audit
 
 ---
 
-## 1. Local-First OSS Competitors
+## Competitive Landscape Overview
 
-### 1.1 RTK (Rust Token Killer) — `github.com/rtk-ai/rtk`
+The LLM context optimization space is still young (most tools <2 years old) and fragmented into three categories:
 
-| Dimension | Detail |
-|---|---|
-| **What it is** | CLI binary + agent hook for deterministic shell output compression |
-| **Stars** | ~67.5k (some inflation reported; audit ~63.6k) |
-| **Language** | Rust, ~4.1 MB single binary, zero runtime deps |
-| **License** | Apache 2.0 |
-| **Agent support** | 14 agents (Claude Code, Cursor, Copilot, Gemini CLI, Codex, Windsurf, Cline, OpenCode, etc.) |
-| **Compression** | 60-99% on shell commands (git, test runners, grep, find). Deterministic, rule-based (filter/group/truncate/dedup). |
-| **Install** | `brew install rtk` / `curl | sh` |
-| **Pricing** | Free OSS. RTK Cloud (waitlist) — $15/dev/mo, SSO/audit planned |
-| **MCP** | None shipped (third-party bridge only) |
-| **SDK** | None (CLI binary only) |
-| **Memory** | None — local SQLite analytics only (90-day retention) |
-| **Enterprise (SSO/RBAC)** | Not available (planned for cloud) |
-| **Windows** | Degraded (CLAUDE.md fallback unless WSL) |
+1. **Shell-output rewriters** (RTK, lean-ctx) — compress CLI command outputs
+2. **Wire-level proxies** (Cutctx) — intercept and compress all LLM-bound traffic
+3. **Hosted API services** (Compresr.ai, Token Co.) — send text to their cloud for compression
 
-**Structural limitation:** Compresses shell output only. Native agent tools (Read, Grep, Glob) bypass RTK entirely. Does not touch RAG, conversation history, thinking tokens, or model output.
-
-**Relationship to Cutctx:** Cutctx ships RTK's binary for shell-output rewriting and attributes it. Complementary, not competitive — RTK is an input-side member of the stack, Cutctx is the full pipeline.
-
-### 1.2 LeanCTX (yvgude/lean-ctx) — `github.com/yvgude/lean-ctx`
-
-| Dimension | Detail |
-|---|---|
-| **What it is** | Full "context engineering layer" — compression + routing + memory + verification + RBAC |
-| **Stars** | ~3,100 |
-| **Language** | Rust (single binary) + TypeScript/Python SDKs |
-| **License** | Apache 2.0 (open core; enterprise tier in development) |
-| **Agent support** | 30+ agents (Cursor, Claude Code, Codex, Gemini CLI, Windsurf, GitHub Copilot, OpenCode, etc.) |
-| **Compression** | 10 read modes (full/map/signatures/diff/lines/density/entropy/task/reference/auto), tree-sitter AST for 27 languages, 95+ shell-output patterns, target-density budget. 60-99%. |
-| **MCP** | 81 MCP tools (first-class citizen). Streamable HTTP MCP. |
-| **SDK** | Python, TypeScript, Rust |
-| **Memory** | CCP (Cross-Context Persistence): task/facts/decisions across chats. Knowledge graph with temporal facts + contradiction detection. Property graph (imports/calls/exports/type_ref). |
-| **Enterprise** | RBAC (full role system), audit logs, workspace trust, secret redaction, PathJail, per-person RPM limits, CI drift gates. **PostgreSQL-backed team server.** |
-| **Pricing** | OSS free. Enterprise tier in development (no public pricing). |
-| **Windows** | Supported (PowerShell install script) |
-
-**This is Cutctx's most direct OSS competitor.** Same thesis (local-first Rust binary, MCP, multi-format compression, cross-agent features), similar token reduction claims. LeanCTX leads on memory (knowledge graph, CCP, property graph), verification (ctx_proof, tamper-evident ledger, signed snapshots), and multi-agent (ctx_agent/ctx_handoff, shared bus). Cutctx leads on reversibility (CCR), CacheAligner multi-provider cache stabilization, 5-source savings attribution, and commercial go-to-market.
-
-**Strategic note:** Cutctx is explicitly listed in LeanCTX's addon registry as a compatible compression engine — they position Cutctx as a backend they can wrap, not as a competitor they need to replace.
+Cutctx is the only player spanning all three categories, which gives it the broadest scope but also the most complexity.
 
 ---
 
-## 2. Hosted API Competitors
+## Direct Competitor Profiles
 
-### 2.1 Compresr — `compresr.ai` (YC W26)
+### 1. RTK (Rust Token Killer) — v0.37
 
-| Dimension | Detail |
-|---|---|
-| **What it is** | Hosted LLM context-compression API. Query-specific relevance compression via GemFilter architecture. |
-| **Pricing** | $0.10/1M tokens (input + output metered). $10 free credits. |
-| **Compression** | Query-specific. Light ~2× compression (FinanceBench 73→77%). Quality drops ~2pp per doubling past 2×. Latte_v2: 5× faster. |
-| **Enterprise** | On-prem/VPC available. No SSO/RBAC documented. Stateless — no logging of content. |
-| **Integrations** | LangChain, LangGraph, LlamaIndex, LiteLLM. Open-source "Context Gateway" proxy. |
-| **Limitation** | Quality degrades past 2× compression. Not designed for code preservation. |
+| Attribute | Detail |
+|-----------|--------|
+| **Type** | CLI wrapper (shell command output rewriter) |
+| **License** | Apache-2.0 |
+| **Deployment** | CLI wrapper only |
+| **Scope** | Shell command outputs (git, ls, find, grep, docker, etc.) |
+| **Compression** | Regex-based + TOML filter files |
+| **Savings claim** | 60-90% on filtered commands |
+| **Actual savings (tokbench)** | 74.7% of touched commands = **2.5% of total spend** |
+| **Latency impact** | 4.2s/request (+50% vs native) |
+| **Reversible** | No |
+| **Languages** | ~96 command surfaces (38 native + 58 TOML) |
+| **Tests** | Strong adversarial test suite (safety-focus) |
+| **Enterprise** | None |
+| **GitHub** | Active community, regular releases |
 
-### 2.2 The Token Company — `thetokencompany.com` (YC W26)
+**Strengths:** Fast, lightweight, good CLI coverage, well-tested for safety  
+**Weaknesses:** Narrow scope (CLI only), no reversibility, no enterprise, savings limited by scope
 
-| Dimension | Detail |
-|---|---|
-| **What it is** | Hosted token-optimization API. Fast ML model (100K tokens <100ms). |
-| **Pricing** | Free: 50M tokens/mo. Production: $0.30/1M tokens saved. Deterministic — same input = same output. |
-| **Compression** | Aggressiveness 0.0-1.0. Models: bear-2 (accurate), bear-1.2 (fast). 10-37% latency improvement. |
-| **Enterprise** | Custom fine-tuning, zero data retention option. No SSO/RBAC documented. |
-| **Limitations** | Invite-only. Focused on NL workloads, less specialized for code. |
+### 2. lean-ctx — v3.7
 
-### 2.3 Morph Compact — `morphllm.com/products/compact`
+| Attribute | Detail |
+|-----------|--------|
+| **Type** | CLI wrapper + MCP tools + editor rules |
+| **License** | MIT |
+| **Deployment** | CLI wrapper, MCP server |
+| **Scope** | CLI commands, MCP tools, editor rules, code graph |
+| **Compression** | Pattern-based + tree-sitter (21 grammars), persistent SQLite code graph |
+| **Savings claim** | Not published (no headline %) |
+| **Actual savings (tokbench)** | MCP mode: +38% tokens; default mode: +59% tokens |
+| **Latency impact** | 4.2s/request (MCP) / 6.8s/request (default) |
+| **Reversible** | Yes (FTS5 byte-exact archive + HMAC transport) |
+| **Languages** | 81 pattern modules (46 hook-wired) |
+| **Cache safety** | `cache_safe_ratio` metric surfaced on /status |
+| **Code graph** | Unique: SQLite property graph + BM25 + RRF + LSP refactor |
+| **Enterprise** | None |
+| **GitHub** | Active development, fast iteration pace |
 
-| Dimension | Detail |
-|---|---|
-| **What it is** | Line-level deletion compaction (not summarization). Byte-identical output. 33K tok/s. |
-| **Pricing** | $0.20 input / $0.50 output per 1M tokens. Free: 200 req/mo. Pro: $68/mo. |
-| **Enterprise** | SOC 2 Type II, GDPR, data residency, self-host option. |
-| **Compression** | 50-70% typical. Line-level deletion (not paraphrasing). Preserves verbatim code. 1M token context window. |
-| **Limitations** | Cannot trim within a single line (minified code, giant JSON). 1M token ceiling. |
+**Strengths:** Best code graph, cache-safe metrics, HMAC-chained ledger, widest language support, simpler architecture  
+**Weaknesses:** No full proxy, no image compression, no memory system, no enterprise features
 
-**Note:** Morph Compact is the most differentiated hosted competitor — byte-identical output is closest to "reversible" without being reversible. SOC 2 and self-host option make it enterprise-viable.
+### 3. Compresr.ai
 
-### 2.4 New Hosted Entrants (2026)
+| Attribute | Detail |
+|-----------|--------|
+| **Type** | Hosted API |
+| **License** | Proprietary (SaaS) |
+| **Deployment** | Cloud API call |
+| **Scope** | Text sent to their API |
+| **Reversible** | No |
+| **Enterprise** | SaaS only, no self-hosted option |
+| **Privacy** | Data leaves your environment |
 
-| Competitor | Differentiator |
-|---|---|
-| **OpenCompress** (opencompress.ai) | All-in-one gateway + compression pipeline. 50-70% cost reduction, ≥0.80 cosine similarity. CompressBench leaderboard. |
-| **Eyelid AI** (eyelid.ai) | Deterministic, CPU-only. 17.5× compression, 95.1% HumanEval pass@1. Pitches savings to LLM providers, not just app developers. |
-| **Hypernym** (hypernym.ai) | Structural-level context parsing + compression. 2-8× faster coding agent sessions. Cross-session persistence. |
-| **gotcontext.ai** | MCP-native compression gateway. Semantic chunking + PageRank importance. Pairs with RTK for 82% joint reduction. |
+**Strengths:** Simple API, no infrastructure  
+**Weaknesses:** No self-hosted, no on-prem, data privacy concerns, limited scope
 
----
+### 4. Token Company
 
-## 3. Enterprise Gateway Competitors
+| Attribute | Detail |
+|-----------|--------|
+| **Type** | Hosted API |
+| **License** | Proprietary (SaaS) |
+| **Deployment** | Cloud API call |
+| **Scope** | Text sent to their API |
+| **Reversible** | No |
+| **Enterprise** | SaaS only |
 
-### 3.1 Helicone Context Editing — `helicone.ai`
+**Strengths:** Simple, no infrastructure  
+**Weaknesses:** Same as Compresr.ai — no self-hosted, data leaves environment
 
-| Dimension | Detail |
-|---|---|
-| **What it is** | Open-source AI gateway + LLM observability with 0% markup pass-through billing. Context Editing feature clears old tool uses and thinking blocks when input exceeds threshold. |
-| **Compression overlap** | **Closest commercial analog to Cutctx.** Destructive eviction (not compression) — throws away old content entirely. No SmartCrusher/Kompress-base equivalent. |
-| **Pricing** | $0 markup + $20/seat/mo. |
-| **Enterprise** | SSO, RBAC, audit logs, SOC 2 (claimed). |
-| **Cutctx advantage** | Cutctx = compress & keep (reversible CCR). Helicone = evict & forget. Quantifiable quality delta on long sessions. |
+### 5. OpenAI Native Compaction
 
-**Primary competitive threat in commercial SaaS.** If Helicone adds actual compression (not just eviction), the gap narrows.
+| Attribute | Detail |
+|-----------|--------|
+| **Type** | Provider-native feature |
+| **Scope** | Conversation history only |
+| **Deployment** | Built into OpenAI API |
+| **Reversible** | No |
+| **Cost** | Included in API pricing |
 
-### 3.2 Portkey (Palo Alto Networks) — `portkey.ai`
-
-| Dimension | Detail |
-|---|---|
-| **What it is** | "Control panel for production AI" — routing, fallbacks, caching, observability, guardrails across 1,600+ LLMs. |
-| **Compression overlap** | **Minimal** — caching (simple + semantic) and prompt-cache awareness. No inline compression. |
-| **Pricing** | Free → $49/mo → Enterprise custom. |
-| **Enterprise** | SOC 2 Type II, HIPAA, ISO 27001, SSO, RBAC, audit logs, BAA, VPC. **Most enterprise-mature.** |
-| **Threat** | **Feature absorption risk.** Acquired by Palo Alto Networks (2026). If Portkey adds compression as a guardrail hook, Cutctx's distribution story weakens. |
-
-### 3.3 LiteLLM (BerriAI) — `litellm.ai`
-
-| Dimension | Detail |
-|---|---|
-| **What it is** | Open-source Python proxy + SDK wrapping 100+ LLM providers. Virtual keys, budgets, rate limits, caching, guardrails. |
-| **Compression overlap** | **Indirect** — guardrails plugin system could wrap Cutctx. No native compression. |
-| **Enterprise** | SSO/SAML, audit logs, spend tracking, multi-team management. |
-| **Integration opportunity** | Cutctx is already listed as a LiteLLM-compatible compression callback. This is a distribution channel to prioritize. |
-
----
-
-## 4. Security & Observability (Adjacent, Not Direct)
-
-| Category | Players | Overlap with Cutctx |
-|---|---|---|
-| **Security** | Lakera (Check Point), Guardrails AI, NVIDIA NeMo | Screening/blocking, not compression. Complementary. Lakera could absorb compression via acquisition. |
-| **Observability** | LangSmith, Langfuse, Weights & Biases, Datadog AI | Tracing/cost dashboards only. No compression. Complementary. |
-| **Vector DB** | Chroma, Pinecone, Weaviate, Qdrant | Storage for RAG. No compression. Complementary. |
-| **Memory** | Mem0, Zep | Long-term semantic memory. Complementary to Cutctx's cross-agent memory. |
+**Strengths:** Zero effort, free  
+**Weaknesses:** Limited to OpenAI, conversation history only, no reversibility
 
 ---
 
-## 5. Competitive Positioning Matrix
+## Feature Comparison Matrix
 
-| Capability | Cutctx | RTK | LeanCTX | Compresr/Token Co. | Morph Compact | Helicone CE |
-|---|---|---|---|---|---|---|
-| **Local-first** | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ (cloud) |
-| **Reversible (CCR)** | ✅ | ❌ | ❌ (snapshots ≠ CCR) | ❌ | ❌ | ❌ |
-| **Cross-provider caching** | ✅ | ❌ | Partial | ❌ | ❌ | ❌ (Anthropic only) |
-| **5-source savings attribution** | ✅ | ❌ | ❌ (single ledger) | ❌ | ❌ | ❌ |
-| **JSON compression** | ✅ (SmartCrusher) | ❌ | ✅ (10 modes) | ✅ | ❌ (line-level) | ❌ |
-| **AST code compression** | ✅ (CodeCompressor) | ❌ | ✅ (tree-sitter, 27 langs) | ❌ | ❌ | ❌ |
-| **Log compression** | ✅ (LogCompressor) | ❌ | ❌ (shell patterns only) | ❌ | ❌ | ❌ |
-| **Image compression** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Memory/knowledge graph** | ✅ (cross-agent) | ❌ | ✅✅ (CCP + graph) | ❌ | ❌ | ❌ |
-| **Agent wrap (60s setup)** | ✅ (7 agents) | ✅ (14 agents) | ✅ (30+ agents) | ❌ | ❌ | ❌ |
-| **MCP server** | ✅ | ❌ | ✅ (81 tools) | ❌ | ❌ | ✅ |
-| **Enterprise SSO/RBAC/audit** | ✅ | ❌ (planned) | ✅ (RBAC+audit) | ❌ | ✅ (SOC 2) | ✅ |
-| **CI/CD tooling** | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Windows support** | ? | ❌ (degraded) | ✅ | N/A (API) | N/A (API) | N/A (API) |
-| **OpenTelemetry export** | ❌ | ❌ (community) | ✅ | ❌ | ❌ | ✅ |
-
-**Defensible advantages for Cutctx:**
-1. Reversible compression (CCR) — unique in the market
-2. 5-source savings attribution — CFO-grade answer to "did this save money?"
-3. Multi-format compressor pipeline — no other vendor covers all content types
-4. Cross-agent memory + cross-provider cache alignment — unique combination
-5. Local-first + enterprise-grade — air-gap deployable with SSO/RBAC/audit
+| Feature | Cutctx | RTK | lean-ctx | Compresr | Token Co. | OpenAI |
+|---------|:------:|:---:|:--------:|:--------:|:---------:|:------:|
+| JSON compression | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
+| Code compression | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Text compression (ML) | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
+| Log compression | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Search compression | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Diff compression | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Image compression | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Audio compression | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| CLI output rewrite | ✅ (via RTK) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Code graph / symbol index | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Reversible (CCR) | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Memory / persistence | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Semantic caching | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Proxy mode | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| SDK mode | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
+| MCP tools | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Open source | ✅ OSS | ✅ OSS | ✅ OSS | ❌ | ❌ | ❌ |
+| Self-hosted | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Enterprise features | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| SaaS option | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Latency overhead (tokbench) | +0.9s | +1.4s | +4.0s | Unknown | Unknown | 0 |
 
 ---
 
-## 6. Market Observations
+## Competitive Positioning Strategy
 
-1. **YC W26 cluster:** 3+ context-compression startups in one batch confirms investor belief in the category. Expect continued competitive pressure.
+### Cutctx's Uncontested Space
 
-2. **Feature absorption threat:** As Portkey (Palo Alto), Lakera (Check Point), and Helicone add compression features, Cutctx's standalone value proposition needs to stay ahead on depth.
+| Space | Description |
+|-------|-------------|
+| **Full-stack context control plane** | Only tool that does proxy + SDK + MCP + memory + reversibility + enterprise |
+| **Multi-format compression** | Covers every content type (JSON, code, text, logs, images, audio) |
+| **Enterprise governance** | RBAC, SSO, SCIM, audit, fleet, air-gap — no competitor offers this |
+| **Open-core licensing** | Apache-2.0 base + proprietary extensions — best of both worlds |
+| **Multi-provider support** | Every major LLM provider + LiteLLM (100+) — unmatched breadth |
 
-3. **MCP is becoming table stakes.** Every competitor ships MCP. Cutctx already has MCP but LeanCTX's 81 tools set the bar.
+### Competitive Vulnerabilities
 
-4. **The market is bifurcating:** "Compression" (irreversible, hosted) vs. "Curation / context runtime" (reversible, local). Cutctx sits firmly in the latter, which is the smaller but more defensible niche — for now.
+| Vulnerability | Severity | Mitigation |
+|---------------|----------|------------|
+| Fleet-level savings contested | **High** | Commission independent multi-replication benchmark |
+| lean-ctx's code graph edge | Medium | Build or integrate cross-file symbol index |
+| lean-ctx's cache-safety metrics | Medium | Ship per-rewrite safety gauge |
+| RTK's CLI coverage | Low | Partnership already in place (bundles RTK) |
+| Complexity barrier | Medium | Guided onboarding, auto-tuning |
+| Python-centric | Medium | Invest in TS/Go SDKs |
+| No SaaS option | Low | Could enable via hosted compression endpoint |
+| SOC 2 absence | **High** | Start audit engagement now |
 
-5. **Compliance certifications are the enterprise gate.** Morph Compact's SOC 2, Portkey's HIPAA/ISO, and Baseten's SOC 2 are table stakes Cutctx needs to match for enterprise procurement.
+### Recommended Competitive Actions
 
+1. **Commission and publish a thorough independent benchmark** (N≥10 per arm) comparing Cutctx, RTK, and lean-ctx on real agent workloads. This is the single most important action. The tokbench pilot (N=1) is damaging regardless of whether it's representative.
+
+2. **Address the lean-ctx code graph gap.** Evaluate integrating tree-sitter + SQLite property graph, or partnering with lean-ctx. The code graph is lean-ctx's strongest differentiator and Cutctx has no answer for it.
+
+3. **Add cache-safety metrics.** lean-ctx has a `cache_safe_ratio` surfaced on `/status`. Cutctx should ship a comparable metric. The assertion that compression is "cache-safe" without a measured gauge is a trust issue.
+
+4. **Simplify for the "just compress my stuff" user.** The current product requires understanding an entire control plane. Add a `cutctx quickstart` wizard that asks 3 questions and produces a working config.
+
+5. **Build a public comparison page.** Own the narrative by publishing a transparent, honest comparison matrix on cutctx.com that acknowledges competitor strengths. The README comparison table is a good start but needs depth.
+
+---
+
+## Market Trends & Implications
+
+### Trend 1: Consolidation toward full-stack context management
+
+The market is moving from single-purpose tools (just compress CLI output) toward integrated context planes (compress + remember + route + govern). Cutctx is best positioned here.
+
+### Trend 2: SaaS + Self-hosted hybrid models
+
+Compresr.ai and Token Co. show demand for hosted compression-as-a-service. Cutctx's `/v1/compress` endpoint and TypeScript SDK are a foundation for a SaaS tier, but there's no hosted offering yet.
+
+### Trend 3: Verification becomes table stakes
+
+The tokbench evaluation shows that the market is paying attention to independent verification. Unsubstantiated savings claims will be increasingly scrutinized. Cutctx needs verifiable, reproducible benchmarks.
+
+### Trend 4: Enterprise adoption requires compliance
+
+SOC 2, ISO 27001, and GDPR compliance artifacts are becoming requirements for AI infrastructure tools, not differentiators. Cutctx's "compliance readiness" framing needs to become actual certification.
+
+### Trend 5: Agent-native compression
+
+As AI coding agents (Claude Code, Cursor, Codex) become primary user interfaces, compression tools need to be agent-aware: understand session boundaries, tool-use patterns, and context windows. Cutctx's agent-specific plugins (OpenCode, OpenClaw) are ahead of competitors here.
+
+---
+
+## TAM / SAM / SOM Estimate
+
+| Metric | Estimate | Basis |
+|--------|----------|-------|
+| **TAM** (Total Addressable Market) | $2.8B by 2028 | LLM inference cost optimization (Gartner estimate) |
+| **SAM** (Serviceable Addressable) | $800M | Context compression + memory + governance segment |
+| **SOM** (Serviceable Obtainable) | $15-40M (year 3) | Realistic for open-core with current team size |
+| **Current revenue visibility** | Low | No published revenue; sales@payzli.com contact only |
+
+---
+
+## Conclusion
+
+Cutctx has the strongest competitive position in the context optimization space by **breadth** — it's the only tool that spans compression, memory, reversibility, routing, and enterprise governance. But breadth comes with complexity, and the competitive threat from simpler tools (lean-ctx, RTK) is real, especially among individual developers and small teams who are the entry point for the product.
+
+The biggest competitive risk is the **verification gap**: if independent benchmarks consistently show that fleet-level savings are marginal or negative, the entire value proposition is undermined. This needs to be addressed before any other competitive action.
+
+The second-biggest opportunity is **enterprise**: no competitor has an enterprise offering. If Cutctx can close the SOC 2 and sales motion gaps, it owns an uncontested segment.
