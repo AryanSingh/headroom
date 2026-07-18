@@ -178,3 +178,28 @@ def test_store_lists_recent_sessions_by_latest_event(tmp_path: Path) -> None:
         "session_count": 1,
         "sessions": [{"session_id": "older", "event_count": 2, "last_event_id": 3}],
     }
+
+
+def test_store_recovers_recent_session_states(tmp_path: Path) -> None:
+    store = ReplayEventStore(db_path=tmp_path / "replay.sqlite3")
+    store.record(
+        session_id="sess-1",
+        event_type="compression",
+        surface="test",
+        detail={"tokens_before": 10, "tokens_after": 4, "savings": 6, "stage": "input_compressed"},
+    )
+
+    recovered = store.recover_recent_session_states(limit=1)
+
+    assert recovered == {
+        "session_count": 1,
+        "sessions": [
+            {
+                "session_id": "sess-1",
+                "event_count": 1,
+                "first_event_id": 1,
+                "last_event_id": 1,
+                "compression": {"tokens_before": 10, "tokens_after": 4, "tokens_saved": 6},
+            }
+        ],
+    }

@@ -314,6 +314,28 @@ class ReplayEventStore:
         ]
         return {"session_count": len(sessions), "sessions": sessions}
 
+    def recover_recent_session_states(self, *, limit: int = 50) -> dict[str, Any]:
+        """Rebuild bounded operational state for the most recently active sessions.
+
+        The journal remains the source of truth: this intentionally derives
+        each state afresh instead of persisting another mutable projection.
+        """
+
+        sessions: list[dict[str, Any]] = []
+        for summary in self.list_recent_sessions(limit=limit)["sessions"]:
+            session_id = summary["session_id"]
+            state = reduce_replay_events(self.get(session_id)["events"])
+            sessions.append(
+                {
+                    "session_id": session_id,
+                    "event_count": state["event_count"],
+                    "first_event_id": state["first_event_id"],
+                    "last_event_id": state["last_event_id"],
+                    "compression": state["compression"],
+                }
+            )
+        return {"session_count": len(sessions), "sessions": sessions}
+
 
 _STORE: ReplayEventStore | None = None
 

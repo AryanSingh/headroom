@@ -3650,6 +3650,26 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             )
         return replay_store.list_recent_sessions(limit=min(max(limit, 1), 200))
 
+    @app.get("/v1/sessions/recover")
+    async def recover_sessions(request: Request, limit: int = 50):
+        """Rebuild bounded recent-session state from the replay journal."""
+
+        await _require_local_admin_auth(request)
+        from cutctx.proxy.session_replay import get_replay_store
+
+        replay_store = get_replay_store()
+        if replay_store is None:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": {
+                        "type": "replay_disabled",
+                        "message": "Session replay is disabled. Set CUTCTX_REPLAY=1.",
+                    }
+                },
+            )
+        return replay_store.recover_recent_session_states(limit=min(max(limit, 1), 200))
+
     @app.get("/v1/sessions/{session_id}/replay")
     async def session_replay(session_id: str, request: Request):
         await _require_local_admin_auth(request)
