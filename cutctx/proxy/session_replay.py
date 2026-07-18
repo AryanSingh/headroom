@@ -12,21 +12,30 @@ calls in handler code.
 
 from __future__ import annotations
 
+import json
 import logging
+import math
 import os
+import sqlite3
 import threading
 import time
-from collections import deque
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from cutctx.pipeline import PipelineEvent, PipelineStage
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_REPLAY_RETENTION_DAYS = 7
+RETENTION_CLEANUP_INTERVAL = 100
+MAX_DETAIL_STRING_LENGTH = 200
+MAX_MATCHED_RULES = 50
+
 
 @dataclass(frozen=True)
 class ReplayEvent:
+    event_id: int
     timestamp: float
     session_id: str
     event_type: str
@@ -41,14 +50,102 @@ class ReplayEvent:
 
 
 class ReplayEventStore:
-    """Bounded in-memory event store keyed by session id."""
+    """Append-only SQLite event store keyed by session id."""
 
-    def __init__(self, *, max_sessions: int = 256, max_events_per_session: int = 200) -> None:
+    def __init__(
+        self,
+        *,
+        db_path: Path | str | None = None,
+        max_sessions: int = 256,
+        max_events_per_session: int = 200,
+        retention_days: int = DEFAULT_REPLAY_RETENTION_DAYS,
+    ) -> None:
+        self.db_path = Path(db_path) if db_path is not None else _default_replay_path()
         self.max_sessions = max_sessions
         self.max_events_per_session = max_events_per_session
-        self._events: dict[str, deque[ReplayEvent]] = {}
-        self._order: deque[str] = deque()
+        self.retention_days = retention_days
+        self._appends_since_cleanup = 0
         self._lock = threading.Lock()
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        with self._connect() as connection:
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS replay_events (
+                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp_ms INTEGER NOT NULL,
+                    session_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    surface TEXT NOT NULL,
+                    request_id TEXT,
+                    detail_json TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_replay_events_session_order
+                    ON replay_events(session_id, event_id);
+                CREATE INDEX IF NOT EXISTS idx_replay_events_timestamp
+                    ON replay_events(timestamp_ms);
+                """
+            )
+            self._prune_expired(connection)
+
+    def _connect(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(self.db_path, timeout=0.1)
+        connection.execute("PRAGMA busy_timeout = 100")
+        connection.execute("PRAGMA journal_mode = WAL")
+        return connection
+
+    def close(self) -> None:
+        """Keep a compatibility close hook for callers owning a store."""
+
+        return None
+
+    def _prune_expired(self, connection: sqlite3.Connection) -> None:
+        if self.retention_days <= 0:
+            return
+        cutoff_ms = int(time.time() * 1000) - self.retention_days * 86_400_000
+        connection.execute("DELETE FROM replay_events WHERE timestamp_ms < ?", (cutoff_ms,))
+
+    def _append(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        timestamp_ms: int,
+        session_id: str,
+        event_type: str,
+        surface: str,
+        request_id: str | None,
+        detail_json: str,
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO replay_events (
+                timestamp_ms, session_id, event_type, surface, request_id, detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (timestamp_ms, session_id, event_type, surface, request_id, detail_json),
+        )
+
+    def _enforce_bounds(self, connection: sqlite3.Connection, session_id: str) -> None:
+        if self.max_events_per_session > 0:
+            connection.execute(
+                """
+                DELETE FROM replay_events
+                WHERE session_id = ?
+                  AND event_id NOT IN (
+                      SELECT event_id
+                      FROM replay_events
+                      WHERE session_id = ?
+                      ORDER BY event_id DESC
+                      LIMIT ?
+                  )
+                """,
+                (session_id, session_id, self.max_events_per_session),
+            )
+        if self.max_sessions > 0:
+            sessions = connection.execute(
+                "SELECT session_id FROM replay_events GROUP BY session_id ORDER BY MIN(event_id) ASC"
+            ).fetchall()
+            for (expired_session_id,) in sessions[: -self.max_sessions]:
+                connection.execute("DELETE FROM replay_events WHERE session_id = ?", (expired_session_id,))
 
     def record(
         self,
@@ -61,27 +158,63 @@ class ReplayEventStore:
     ) -> None:
         if not session_id:
             return
-        with self._lock:
-            if session_id not in self._events:
-                self._events[session_id] = deque(maxlen=self.max_events_per_session)
-                self._order.append(session_id)
-                while len(self._order) > self.max_sessions:
-                    evicted = self._order.popleft()
-                    self._events.pop(evicted, None)
-            self._events[session_id].append(
-                ReplayEvent(
-                    timestamp=time.time(),
+        try:
+            with self._lock, self._connect() as connection:
+                self._append(
+                    connection,
+                    timestamp_ms=int(time.time() * 1000),
                     session_id=session_id,
                     event_type=event_type,
                     surface=surface,
                     request_id=request_id,
-                    detail=detail or {},
+                    detail_json=json.dumps(
+                        _sanitize_detail(event_type, detail), ensure_ascii=False, separators=(",", ":")
+                    ),
                 )
-            )
+                self._enforce_bounds(connection, session_id)
+                self._appends_since_cleanup += 1
+                if self._appends_since_cleanup >= RETENTION_CLEANUP_INTERVAL:
+                    self._prune_expired(connection)
+                    self._appends_since_cleanup = 0
+        except (OSError, sqlite3.Error, TypeError, ValueError) as exc:
+            logger.warning("event=replay_record_failed reason=%s", type(exc).__name__)
 
     def get(self, session_id: str) -> dict[str, Any]:
-        with self._lock:
-            events = list(self._events.get(session_id, ()))
+        try:
+            with self._lock, self._connect() as connection:
+                rows = connection.execute(
+                    """
+                    SELECT event_id, timestamp_ms, session_id, event_type, surface, request_id, detail_json
+                    FROM replay_events
+                    WHERE session_id = ?
+                    ORDER BY event_id ASC
+                    """,
+                    (session_id,),
+                ).fetchall()
+        except (OSError, sqlite3.Error) as exc:
+            logger.warning("event=replay_read_failed reason=%s", type(exc).__name__)
+            rows = []
+        events: list[ReplayEvent] = []
+        for row in rows:
+            try:
+                detail = json.loads(row[6])
+            except (TypeError, json.JSONDecodeError):
+                logger.warning("event=replay_row_skipped reason=invalid_detail_json")
+                continue
+            if not isinstance(detail, dict):
+                logger.warning("event=replay_row_skipped reason=invalid_detail_shape")
+                continue
+            events.append(
+                ReplayEvent(
+                    event_id=row[0],
+                    timestamp=row[1] / 1000,
+                    session_id=row[2],
+                    event_type=row[3],
+                    surface=row[4],
+                    request_id=row[5],
+                    detail=detail,
+                )
+            )
         return {
             "session_id": session_id,
             "event_count": len(events),
@@ -90,6 +223,70 @@ class ReplayEventStore:
 
 
 _STORE: ReplayEventStore | None = None
+
+
+def _default_replay_path() -> Path:
+    return Path.home() / ".cutctx" / "replay.sqlite3"
+
+
+def _bounded_string(value: Any) -> str | None:
+    if not isinstance(value, str) or len(value) > MAX_DETAIL_STRING_LENGTH:
+        return None
+    return value
+
+
+def _safe_number(value: Any) -> int | float | None:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return value if math.isfinite(value) else None
+
+
+def _sanitize_detail(event_type: str, detail: dict[str, Any] | None) -> dict[str, Any]:
+    """Keep only structural fields that are safe to persist in replay data."""
+
+    source = detail if isinstance(detail, dict) else {}
+    if event_type in {"policy_blocked", "policy_redacted"}:
+        rules = source.get("matched_rules")
+        if not isinstance(rules, list):
+            return {}
+        safe_rules = [
+            rule
+            for raw_rule in rules[:MAX_MATCHED_RULES]
+            if (rule := _bounded_string(raw_rule)) is not None
+        ]
+        return {"matched_rules": safe_rules}
+
+    allowed: dict[str, tuple[str, ...]] = {
+        "compression": ("tokens_before", "tokens_after", "savings", "stage"),
+        "response_received": ("tokens_used", "model", "stage"),
+        "error": ("code",),
+        "circuit_breaker_triggered": ("code", "cooldown_ms"),
+    }
+    result: dict[str, Any] = {}
+    for key in allowed.get(event_type, ()):
+        value = source.get(key)
+        if key in {"tokens_before", "tokens_after", "savings", "tokens_used", "cooldown_ms"}:
+            if (number := _safe_number(value)) is not None:
+                result[key] = number
+        elif (text := _bounded_string(value)) is not None:
+            result[key] = text
+    return result
+
+
+def _replay_db_path_from_env() -> Path:
+    configured = os.environ.get("CUTCTX_REPLAY_DB_PATH", "").strip()
+    return Path(configured).expanduser() if configured else _default_replay_path()
+
+
+def _replay_retention_days_from_env() -> int:
+    value = os.environ.get("CUTCTX_REPLAY_RETENTION_DAYS", "").strip()
+    if not value:
+        return DEFAULT_REPLAY_RETENTION_DAYS
+    try:
+        return int(value)
+    except ValueError:
+        logger.warning("event=replay_config_invalid setting=CUTCTX_REPLAY_RETENTION_DAYS")
+        return DEFAULT_REPLAY_RETENTION_DAYS
 
 
 def is_replay_enabled() -> bool:
@@ -101,7 +298,14 @@ def get_replay_store() -> ReplayEventStore | None:
     if not is_replay_enabled():
         return None
     if _STORE is None:
-        _STORE = ReplayEventStore()
+        try:
+            _STORE = ReplayEventStore(
+                db_path=_replay_db_path_from_env(),
+                retention_days=_replay_retention_days_from_env(),
+            )
+        except (OSError, sqlite3.Error) as exc:
+            logger.warning("event=replay_init_failed reason=%s", type(exc).__name__)
+            return None
     return _STORE
 
 

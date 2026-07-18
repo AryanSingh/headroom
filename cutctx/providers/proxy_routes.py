@@ -184,7 +184,6 @@ async def _enforce_context_policy(
                 surface=surface,
                 request_id=request.headers.get("x-request-id"),
                 detail={
-                    "message": result.block_reason or result.budget_reason,
                     "matched_rules": result.matched_block_rules,
                 },
             )

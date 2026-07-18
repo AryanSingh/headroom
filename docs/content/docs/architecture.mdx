@@ -116,6 +116,12 @@ Cache:     Hash-indexed local store (SQLite)
 Retrieve:  LLM calls ccr_retrieve("abc123")  ->  original 1000 items
 ```
 
+## Session Replay Journal
+
+Set `CUTCTX_REPLAY=1` to record compact proxy lifecycle events in a local SQLite journal. The journal keeps compression, response, policy, and failure metadata so you can inspect a session through the local-admin-protected `GET /v1/sessions/{session_id}/replay` endpoint after the proxy restarts.
+
+`CUTCTX_REPLAY_DB_PATH` selects the SQLite file. Without it, CutCtx stores the journal at `~/.cutctx/replay.sqlite3`. `CUTCTX_REPLAY_RETENTION_DAYS` sets retention and defaults to seven days; use `0` to disable time-based deletion. The journal stores identifiers, event types, token metrics, strategy names, and policy rule names. It does not store message text, model output, tool payloads, request headers, or API keys.
+
 ## TOIN: Tool Output Intelligence Network
 
 TOIN learns compression patterns across sessions and users. When a tool is used repeatedly, TOIN builds up statistics about which fields matter, which items get retrieved, and what compression strategies work best. These learned patterns feed back into SmartCrusher and Intelligent Context scoring.
