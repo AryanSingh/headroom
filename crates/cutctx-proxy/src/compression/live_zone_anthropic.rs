@@ -504,6 +504,10 @@ pub fn compress_anthropic_request_with_ccr(
                         // rejection in the dedicated counter.
                         crate::observability::record_compression_rejected_by_token_check(strategy);
                     }
+                    BlockAction::RejectedTooLossy { strategy, .. } => {
+                        // SmartCompact policy-enforcement rejection: lossy ratio exceeded.
+                        crate::observability::record_compression_rejected_by_token_check(strategy);
+                    }
                     _ => {}
                 }
             }

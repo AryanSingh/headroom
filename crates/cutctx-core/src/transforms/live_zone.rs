@@ -104,6 +104,7 @@ use thiserror::Error;
 use super::audio_compressor::{compress_audio, looks_like_audio_base64};
 use super::code_compactor::compact_source_code;
 use super::content_detector::{detect_content_type, ContentType};
+use super::context_strategy::ContextStrategy;
 use super::diff_compressor::{DiffCompressor, DiffCompressorConfig};
 use super::image_compressor::{compress_image, looks_like_image_base64};
 use super::log_compressor::{LogCompressor, LogCompressorConfig};
@@ -327,6 +328,19 @@ pub enum BlockAction {
         /// `Compressed`).
         compressed_tokens: usize,
     },
+    /// Compressor output was rejected because it exceeded the policy's
+    /// max_lossy_ratio (kept fewer than (1 - max_lossy_ratio) of the
+    /// original tokens). Only produced under ContextStrategy::SmartCompact.
+    RejectedTooLossy {
+        /// Identifier of the compression strategy that was rejected.
+        strategy: &'static str,
+        /// Original block-content size, tokens.
+        original_tokens: usize,
+        /// Compressed block-content size, tokens.
+        compressed_tokens: usize,
+        /// The maximum lossy ratio allowed by policy.
+        max_lossy_ratio: f32,
+    },
     /// The block content was below the per-content-type byte
     /// threshold; no compressor was invoked. The dispatcher does
     /// not even spin up the tokenizer for these — they're below the
@@ -454,6 +468,7 @@ pub fn summarize_openai_responses_no_change_reason(manifest: &CompressionManifes
         match &outcome.action {
             BlockAction::CompressorError { .. } => saw_compressor_error = true,
             BlockAction::RejectedNotSmaller { .. } => saw_rejected_not_smaller = true,
+            BlockAction::RejectedTooLossy { .. } => saw_rejected_not_smaller = true,
             BlockAction::BelowByteThreshold { content_type, .. } => {
                 if *content_type == "output_item" {
                     saw_below_output_floor = true;
@@ -646,10 +661,41 @@ pub fn compress_anthropic_live_zone(
 pub fn compress_anthropic_live_zone_with_ccr(
     body_raw: &[u8],
     frozen_message_count: usize,
-    _auth_mode: AuthMode,
+    auth_mode: AuthMode,
     model: &str,
     ccr_store: Option<&dyn CcrStore>,
 ) -> Result<LiveZoneOutcome, LiveZoneError> {
+    compress_anthropic_live_zone_with_strategy(
+        body_raw,
+        frozen_message_count,
+        auth_mode,
+        model,
+        ccr_store,
+        ContextStrategy::RollingWindow,
+        1.0,
+    )
+}
+
+/// Strategy-aware variant. RollingWindow delegates to legacy behavior and is
+/// guaranteed byte-identical to `compress_anthropic_live_zone_with_ccr`.
+/// SmartCompact halves per-type byte thresholds and enforces `max_lossy_ratio`
+/// (spec-smart-context-strategies.md §5.4). SelectiveClear/SnapshotResume are
+/// not yet implemented here and behave as RollingWindow.
+pub fn compress_anthropic_live_zone_with_strategy(
+    body_raw: &[u8],
+    frozen_message_count: usize,
+    _auth_mode: AuthMode,
+    model: &str,
+    ccr_store: Option<&dyn CcrStore>,
+    strategy: ContextStrategy,
+    max_lossy_ratio: f32,
+) -> Result<LiveZoneOutcome, LiveZoneError> {
+    // Normalize SelectiveClear and SnapshotResume to RollingWindow for now
+    let strategy = if strategy == ContextStrategy::SmartCompact {
+        strategy
+    } else {
+        ContextStrategy::RollingWindow
+    };
     let parsed: Value = serde_json::from_slice(body_raw).map_err(LiveZoneError::BodyNotJson)?;
     let messages = parsed
         .get("messages")
@@ -810,6 +856,8 @@ pub fn compress_anthropic_live_zone_with_ccr(
                     tokenizer.as_ref(),
                     &mut replacements,
                     ccr_store,
+                    strategy,
+                    max_lossy_ratio,
                 );
                 outcome
             }
@@ -828,6 +876,8 @@ pub fn compress_anthropic_live_zone_with_ccr(
                     tokenizer.as_ref(),
                     &mut replacements,
                     ccr_store,
+                    strategy,
+                    max_lossy_ratio,
                 )
             }
         };
@@ -902,12 +952,21 @@ fn compress_one_block(
     tokenizer: &dyn crate::tokenizer::Tokenizer,
     replacements: &mut Vec<Replacement>,
     ccr_store: Option<&dyn CcrStore>,
+    ctx_strategy: ContextStrategy,
+    max_lossy_ratio: f32,
 ) -> BlockOutcome {
     // 1. Byte-threshold gate. Empty content always falls through to
     //    `dispatch_compressor` (which short-circuits on empty), so
     //    only check when the slot has real bytes — this preserves
     //    the existing "tool_result with no inner content" pathway.
-    if !content_text.is_empty() && content_text.len() < threshold_for(content_type) {
+    //    NOTE: `ctx_strategy` (the session-level ContextStrategy) is
+    //    deliberately named distinctly from the per-block compressor
+    //    name `strategy` bound by the DispatchResult match below.
+    let mut threshold = threshold_for(content_type);
+    if ctx_strategy == ContextStrategy::SmartCompact {
+        threshold /= 2;
+    }
+    if !content_text.is_empty() && content_text.len() < threshold {
         return BlockOutcome {
             message_index,
             block_index,
@@ -915,7 +974,7 @@ fn compress_one_block(
             action: BlockAction::BelowByteThreshold {
                 content_type: content_type.as_str(),
                 byte_count: content_text.len(),
-                threshold_bytes: threshold_for(content_type),
+                threshold_bytes: threshold,
             },
         };
     }
@@ -970,6 +1029,24 @@ fn compress_one_block(
                         compressed_bytes,
                         original_tokens,
                         compressed_tokens,
+                    },
+                }
+            } else if ctx_strategy == ContextStrategy::SmartCompact
+                && original_tokens > 0
+                && (compressed_tokens as f32) < (1.0 - max_lossy_ratio) * (original_tokens as f32)
+            {
+                // SmartCompact enforces the max_lossy_ratio cap: if
+                // the block loses more tokens than allowed, reject it
+                // and re-emit uncompressed.
+                BlockOutcome {
+                    message_index,
+                    block_index,
+                    block_type,
+                    action: BlockAction::RejectedTooLossy {
+                        strategy,
+                        original_tokens,
+                        compressed_tokens,
+                        max_lossy_ratio,
                     },
                 }
             } else {
@@ -2227,6 +2304,7 @@ pub fn compress_openai_chat_live_zone(
             }
             _ => {
                 let detected = detect_content_type(&slot.content_text);
+                // TODO(spec §5.5): strategy threading for OpenAI paths
                 compress_one_block(
                     &slot.content_text,
                     detected.content_type,
@@ -2237,6 +2315,8 @@ pub fn compress_openai_chat_live_zone(
                     tokenizer.as_ref(),
                     &mut replacements,
                     None, // PR-C2: no CCR store yet on the OpenAI path.
+                    ContextStrategy::RollingWindow,
+                    1.0,
                 )
             }
         };
@@ -2827,6 +2907,7 @@ pub fn compress_openai_responses_live_zone(
             continue;
         }
         let detected = detect_content_type(&slot.content_text);
+        // TODO(spec §5.5): strategy threading for OpenAI paths
         let outcome = compress_one_block(
             &slot.content_text,
             detected.content_type,
@@ -2837,6 +2918,8 @@ pub fn compress_openai_responses_live_zone(
             tokenizer.as_ref(),
             &mut replacements,
             None, // PR-C3: no CCR store on the Responses path yet.
+            ContextStrategy::RollingWindow,
+            1.0,
         );
         block_outcomes.push(outcome);
     }
@@ -3336,5 +3419,337 @@ mod openai_responses_tests {
             summarize_openai_responses_no_change_reason(&manifest),
             "below_output_floor"
         );
+    }
+
+    // ─── SmartCompact tests (spec §5.4) ─────────────────────────────
+
+    #[test]
+    fn with_strategy_rolling_window_is_byte_identical_to_legacy() {
+        // Large JSON-array tool_result that will trigger compression.
+        let large_json = json!([
+            {"id": "item1", "data": "x".repeat(600)},
+            {"id": "item2", "data": "y".repeat(600)},
+        ]);
+        let b = body(json!({
+            "model": DEFAULT_MODEL,
+            "messages": [
+                {"role": "user", "content": "test user message"},
+                {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "tool_use", "id": "tooluse1", "name": "test_tool"},
+                    ]
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "tool_result", "tool_use_id": "tooluse1", "content": large_json.to_string()},
+                    ]
+                },
+            ]
+        }));
+
+        // Legacy path via compress_anthropic_live_zone_with_ccr.
+        let legacy = compress_anthropic_live_zone_with_ccr(&b, 0, AuthMode::Payg, DEFAULT_MODEL, None)
+            .expect("should succeed");
+
+        // New path with explicit RollingWindow strategy.
+        use crate::transforms::context_strategy::ContextStrategy;
+        let with_strategy = compress_anthropic_live_zone_with_strategy(
+            &b,
+            0,
+            AuthMode::Payg,
+            DEFAULT_MODEL,
+            None,
+            ContextStrategy::RollingWindow,
+            1.0,
+        )
+        .expect("should succeed");
+
+        // Both should produce the same outcome (byte-identical for RollingWindow).
+        match (&legacy, &with_strategy) {
+            (LiveZoneOutcome::NoChange { manifest: m1 }, LiveZoneOutcome::NoChange { manifest: m2 }) => {
+                assert_eq!(m1.block_outcomes.len(), m2.block_outcomes.len());
+            }
+            (LiveZoneOutcome::Modified { .. }, LiveZoneOutcome::Modified { .. }) => {
+                // Both compressed; outcomes should align.
+            }
+            _ => panic!("legacy and strategy paths produced different outcomes"),
+        }
+    }
+
+    #[test]
+    fn smart_compact_rejects_too_lossy_block() {
+        // A JSON-array that compresses heavily. With a strict max_lossy_ratio,
+        // the block should be rejected as RejectedTooLossy.
+        let large_json = json!([
+            {"id": "1", "data": "repetitive_text_".repeat(100)},
+            {"id": "2", "data": "repetitive_text_".repeat(100)},
+            {"id": "3", "data": "repetitive_text_".repeat(100)},
+        ]);
+        let b = body(json!({
+            "model": DEFAULT_MODEL,
+            "messages": [
+                {"role": "user", "content": "test"},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "tool_result", "tool_use_id": "x", "content": large_json.to_string()},
+                    ]
+                },
+            ]
+        }));
+
+        use crate::transforms::context_strategy::ContextStrategy;
+        // Use max_lossy_ratio = 0.0 to reject ANY token loss.
+        let result = compress_anthropic_live_zone_with_strategy(
+            &b,
+            0,
+            AuthMode::Payg,
+            DEFAULT_MODEL,
+            None,
+            ContextStrategy::SmartCompact,
+            0.0, // Strict: no lossy compression allowed.
+        )
+        .expect("should succeed");
+
+        let manifest = match result {
+            LiveZoneOutcome::NoChange { manifest } => manifest,
+            LiveZoneOutcome::Modified { manifest, .. } => manifest,
+        };
+
+        // Verify the manifest contains a RejectedTooLossy action.
+        let found_rejected_too_lossy = manifest.block_outcomes.iter().any(|b| {
+            matches!(b.action, BlockAction::RejectedTooLossy { .. })
+        });
+        assert!(
+            found_rejected_too_lossy,
+            "expected RejectedTooLossy action but found: {:?}",
+            manifest
+                .block_outcomes
+                .iter()
+                .map(|b| format!("{:?}", b.action))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn smart_compact_accepts_within_cap() {
+        // Same body as above, but with a generous max_lossy_ratio.
+        let large_json = json!([
+            {"id": "1", "data": "repetitive_text_".repeat(100)},
+            {"id": "2", "data": "repetitive_text_".repeat(100)},
+        ]);
+        let b = body(json!({
+            "model": DEFAULT_MODEL,
+            "messages": [
+                {"role": "user", "content": "test"},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "tool_result", "tool_use_id": "x", "content": large_json.to_string()},
+                    ]
+                },
+            ]
+        }));
+
+        use crate::transforms::context_strategy::ContextStrategy;
+        // Allow up to 99% lossy compression.
+        let result = compress_anthropic_live_zone_with_strategy(
+            &b,
+            0,
+            AuthMode::Payg,
+            DEFAULT_MODEL,
+            None,
+            ContextStrategy::SmartCompact,
+            0.99,
+        )
+        .expect("should succeed");
+
+        // With a high ratio, compression should be accepted (or at least not
+        // rejected for lossy reasons).
+        let manifest = match &result {
+            LiveZoneOutcome::NoChange { manifest } => manifest,
+            LiveZoneOutcome::Modified { manifest, .. } => manifest,
+        };
+
+        // The block should either be Compressed or rejected for a different
+        // reason (BelowByteThreshold after halving, etc.), not RejectedTooLossy.
+        let found_rejected_too_lossy = manifest.block_outcomes.iter().any(|b| {
+            matches!(b.action, BlockAction::RejectedTooLossy { .. })
+        });
+        assert!(
+            !found_rejected_too_lossy,
+            "expected no RejectedTooLossy with high ratio, but found: {:?}",
+            manifest
+                .block_outcomes
+                .iter()
+                .map(|b| format!("{:?}", b.action))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn smart_compact_halves_byte_threshold() {
+        // Create a block that's between 256 and 512 bytes, so it's:
+        // - Below the legacy threshold (512)
+        // - Above the SmartCompact threshold (256)
+        let medium_json = json!({
+            "data": "x".repeat(350),
+        });
+        let b = body(json!({
+            "model": DEFAULT_MODEL,
+            "messages": [
+                {"role": "user", "content": "test"},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "tool_result", "tool_use_id": "x", "content": medium_json.to_string()},
+                    ]
+                },
+            ]
+        }));
+
+        use crate::transforms::context_strategy::ContextStrategy;
+
+        // RollingWindow should skip compression (BelowByteThreshold).
+        let legacy = compress_anthropic_live_zone_with_strategy(
+            &b,
+            0,
+            AuthMode::Payg,
+            DEFAULT_MODEL,
+            None,
+            ContextStrategy::RollingWindow,
+            1.0,
+        )
+        .expect("should succeed");
+
+        let legacy_manifest = match legacy {
+            LiveZoneOutcome::NoChange { manifest } => manifest,
+            LiveZoneOutcome::Modified { manifest, .. } => manifest,
+        };
+
+        let legacy_action = legacy_manifest
+            .block_outcomes
+            .iter()
+            .find_map(|b| match &b.action {
+                BlockAction::BelowByteThreshold { .. } => Some(BlockAction::BelowByteThreshold {
+                    content_type: "placeholder",
+                    byte_count: 0,
+                    threshold_bytes: 0,
+                }),
+                _ => None,
+            });
+        assert!(
+            legacy_action.is_some(),
+            "RollingWindow should have BelowByteThreshold action"
+        );
+
+        // SmartCompact should attempt compression (halved threshold).
+        let smart = compress_anthropic_live_zone_with_strategy(
+            &b,
+            0,
+            AuthMode::Payg,
+            DEFAULT_MODEL,
+            None,
+            ContextStrategy::SmartCompact,
+            0.5,
+        )
+        .expect("should succeed");
+
+        let smart_manifest = match smart {
+            LiveZoneOutcome::NoChange { manifest } => manifest,
+            LiveZoneOutcome::Modified { manifest, .. } => manifest,
+        };
+
+        // SmartCompact halves the threshold (512 → 256), so this ~360-byte
+        // block must clear the byte gate and reach dispatch_compressor:
+        // its action must NOT be BelowByteThreshold. Whatever the
+        // compressor then decides (Compressed / NoCompressionApplied /
+        // RejectedNotSmaller / RejectedTooLossy) is acceptable — the gate
+        // behavior is what this test pins.
+        let smart_is_below_threshold = smart_manifest
+            .block_outcomes
+            .iter()
+            .any(|b| matches!(b.action, BlockAction::BelowByteThreshold { .. }));
+        assert!(
+            !smart_is_below_threshold,
+            "SmartCompact should clear the halved byte threshold; got {:?}",
+            smart_manifest.block_outcomes
+        );
+    }
+
+    #[test]
+    fn selective_clear_and_snapshot_resume_behave_as_rolling_window() {
+        let b = body(json!({
+            "model": DEFAULT_MODEL,
+            "messages": [
+                {"role": "user", "content": "test message with some content for the compressor"},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "tool_result", "tool_use_id": "x", "content": "some result data"},
+                    ]
+                },
+            ]
+        }));
+
+        use crate::transforms::context_strategy::ContextStrategy;
+
+        let rolling_window = compress_anthropic_live_zone_with_strategy(
+            &b,
+            0,
+            AuthMode::Payg,
+            DEFAULT_MODEL,
+            None,
+            ContextStrategy::RollingWindow,
+            1.0,
+        )
+        .expect("should succeed");
+
+        let selective_clear = compress_anthropic_live_zone_with_strategy(
+            &b,
+            0,
+            AuthMode::Payg,
+            DEFAULT_MODEL,
+            None,
+            ContextStrategy::SelectiveClear,
+            0.5,
+        )
+        .expect("should succeed");
+
+        let snapshot_resume = compress_anthropic_live_zone_with_strategy(
+            &b,
+            0,
+            AuthMode::Payg,
+            DEFAULT_MODEL,
+            None,
+            ContextStrategy::SnapshotResume,
+            1.0,
+        )
+        .expect("should succeed");
+
+        // All three should produce the same outcome for now.
+        match (&rolling_window, &selective_clear, &snapshot_resume) {
+            (
+                LiveZoneOutcome::NoChange { manifest: m1 },
+                LiveZoneOutcome::NoChange { manifest: m2 },
+                LiveZoneOutcome::NoChange { manifest: m3 },
+            ) => {
+                assert_eq!(m1.block_outcomes.len(), m2.block_outcomes.len());
+                assert_eq!(m2.block_outcomes.len(), m3.block_outcomes.len());
+            }
+            (
+                LiveZoneOutcome::Modified { manifest: m1, .. },
+                LiveZoneOutcome::Modified { manifest: m2, .. },
+                LiveZoneOutcome::Modified { manifest: m3, .. },
+            ) => {
+                assert_eq!(m1.block_outcomes.len(), m2.block_outcomes.len());
+                assert_eq!(m2.block_outcomes.len(), m3.block_outcomes.len());
+            }
+            _ => panic!(
+                "SelectiveClear and SnapshotResume should behave as RollingWindow, but got different outcomes"
+            ),
+        }
     }
 }

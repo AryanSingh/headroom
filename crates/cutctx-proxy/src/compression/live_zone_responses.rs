@@ -221,6 +221,9 @@ pub fn compress_openai_responses_request(
                     BlockAction::RejectedNotSmaller { strategy, .. } => {
                         crate::observability::record_compression_rejected_by_token_check(strategy);
                     }
+                    BlockAction::RejectedTooLossy { strategy, .. } => {
+                        crate::observability::record_compression_rejected_by_token_check(strategy);
+                    }
                     BlockAction::CompressorError {
                         strategy,
                         ref error,
