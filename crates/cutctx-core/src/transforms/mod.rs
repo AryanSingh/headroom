@@ -20,6 +20,7 @@ pub mod anchor_selector;
 pub mod audio_compressor;
 pub mod code_compactor;
 pub mod content_detector;
+pub mod context_strategy;
 pub mod deletion_compaction;
 pub mod detection;
 pub mod diff_compressor;
