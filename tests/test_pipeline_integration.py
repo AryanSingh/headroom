@@ -398,7 +398,7 @@ class TestFeatureFlagWiring:
         """Verify CCR store is passed through to compression."""
         source = (PROJECT_ROOT / "crates/cutctx-proxy/src/proxy.rs").read_text()
         assert "ccr_store" in source
-        assert "compress_anthropic_request_with_ccr" in source
+        assert "compress_anthropic_request_with_strategy" in source
 
     def test_config_fields_all_present(self):
         """Verify all new config fields in models.py."""
