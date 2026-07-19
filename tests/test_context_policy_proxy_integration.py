@@ -364,6 +364,8 @@ def test_session_recovery_api_rebuilds_persisted_sessions(
                 "response_count": 0,
                 "error_count": 0,
                 "error_code_counts": {},
+                "stream_completion_count": 0,
+                "stream_truncation_count": 0,
             }
         ],
     }
