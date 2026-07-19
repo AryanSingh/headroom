@@ -238,6 +238,33 @@ cutctx proxy --memory
 cutctx proxy --learn --min-evidence 3
 ```
 
+### Rust adaptive context strategies
+
+The Rust proxy can opt into adaptive long-session handling with
+`--context-strategies`. It selects among the existing rolling window,
+more aggressive smart compaction, reversible selective turn clearing,
+and CCR-backed session snapshots. The feature is off by default.
+
+Structural strategies require a configured CCR backend and a license tier
+that permits CCR. If storage is unavailable, the proxy emits a warning and
+uses the rolling window; it never silently drops unrecoverable context.
+
+| CLI flag | Environment variable | Default |
+|----------|----------------------|---------|
+| `--context-strategies` | `CUTCTX_PROXY_CONTEXT_STRATEGIES` | `false` |
+| `--strategy-snapshot-threshold` | `CUTCTX_PROXY_STRATEGY_SNAPSHOT_THRESHOLD` | `0.85` |
+| `--strategy-compact-threshold` | `CUTCTX_PROXY_STRATEGY_COMPACT_THRESHOLD` | `0.50` |
+| `--strategy-low-value-ratio` | `CUTCTX_PROXY_STRATEGY_LOW_VALUE_RATIO` | `0.40` |
+| `--strategy-low-value-score` | `CUTCTX_PROXY_STRATEGY_LOW_VALUE_SCORE` | `0.15` |
+| `--strategy-keep-tail-turns` | `CUTCTX_PROXY_STRATEGY_KEEP_TAIL_TURNS` | `4` |
+| `--strategy-max-clear-ratio` | `CUTCTX_PROXY_STRATEGY_MAX_CLEAR_RATIO` | `0.50` |
+
+For a single request, set `x-cutctx-strategy` to `auto`,
+`rolling_window`, `smart_compact`, `selective_clear`, or
+`snapshot_resume`. Invalid values are ignored with a warning. Subscription
+policy still prevents structural overrides that would mutate protected
+conversation state.
+
 ## Environment Variables
 
 | Variable | Description | Default |

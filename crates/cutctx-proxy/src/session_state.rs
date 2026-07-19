@@ -84,9 +84,9 @@ pub fn resolve_session_key(headers: &HeaderMap, request_id: &str) -> SessionKey 
     let user = get_header("x-cutctx-user-id").or_else(|| get_header("x-user-id"));
     let project = get_header("x-cutctx-project").or_else(|| get_header("x-project-id"));
 
-    if auth.is_some() {
+    if let Some(auth) = auth {
         // Build material: join present values with '\n'.
-        let mut material_parts = vec![auth.unwrap()];
+        let mut material_parts = vec![auth];
         if let Some(u) = user {
             material_parts.push(u);
         }
@@ -202,6 +202,7 @@ impl SessionStateStore {
             if frozen_count > e.last_frozen_count {
                 e.last_frozen_count = frozen_count;
                 e.turns_since_frozen_advance = 0;
+                e.last_snapshot_key = None;
             } else {
                 e.turns_since_frozen_advance += 1;
             }
@@ -296,7 +297,7 @@ mod tests {
 
         let key = resolve_session_key(&headers, "req-123");
         assert_eq!(key.value, "explicit-1");
-        assert_eq!(key.sticky, true);
+        assert!(key.sticky);
     }
 
     #[test]
@@ -308,7 +309,7 @@ mod tests {
 
         let key = resolve_session_key(&headers, "req-123");
         assert_eq!(key.value, "explicit-2");
-        assert_eq!(key.sticky, true);
+        assert!(key.sticky);
     }
 
     #[test]
@@ -319,7 +320,7 @@ mod tests {
 
         let key = resolve_session_key(&headers, "req-123");
         assert_eq!(key.value, "explicit-3");
-        assert_eq!(key.sticky, true);
+        assert!(key.sticky);
     }
 
     #[test]
@@ -328,7 +329,7 @@ mod tests {
         insert_header(&mut headers, "authorization", "Bearer sk-secret-auth");
 
         let key = resolve_session_key(&headers, "req-123");
-        assert_eq!(key.sticky, true);
+        assert!(key.sticky);
         // Shared compute_key: 16-hex BLAKE3 prefix.
         assert_eq!(key.value.len(), 16);
         assert!(key.value.chars().all(|c| c.is_ascii_hexdigit()));
@@ -343,7 +344,7 @@ mod tests {
         insert_header(&mut headers, "x-api-key", "sk-secret-key");
 
         let key = resolve_session_key(&headers, "req-123");
-        assert_eq!(key.sticky, true);
+        assert!(key.sticky);
         assert_eq!(key.value.len(), 16);
         assert!(key.value.chars().all(|c| c.is_ascii_hexdigit()));
     }
@@ -355,7 +356,7 @@ mod tests {
         insert_header(&mut headers, "x-api-key", "key-value");
 
         let key = resolve_session_key(&headers, "req-123");
-        assert_eq!(key.sticky, true);
+        assert!(key.sticky);
 
         // Different auth values should produce different hashes.
         let mut headers2 = test_headers();
@@ -373,7 +374,7 @@ mod tests {
         insert_header(&mut headers, "x-cutctx-user-id", "user-123");
 
         let key = resolve_session_key(&headers, "req-123");
-        assert_eq!(key.sticky, true);
+        assert!(key.sticky);
 
         // Same auth but different user should produce different hash.
         let mut headers2 = test_headers();
@@ -411,7 +412,7 @@ mod tests {
         insert_header(&mut headers, "x-cutctx-project", "project-123");
 
         let key = resolve_session_key(&headers, "req-123");
-        assert_eq!(key.sticky, true);
+        assert!(key.sticky);
 
         // Same auth but different project should produce different hash.
         let mut headers2 = test_headers();
@@ -444,7 +445,7 @@ mod tests {
         let headers = test_headers();
         let key = resolve_session_key(&headers, "req-fallback-123");
         assert_eq!(key.value, "req-fallback-123");
-        assert_eq!(key.sticky, false);
+        assert!(!key.sticky);
     }
 
     #[test]
@@ -455,7 +456,7 @@ mod tests {
 
         let key = resolve_session_key(&headers, "req-123");
         // Empty x-cutctx-session-id is skipped; falls through to derived identity.
-        assert_eq!(key.sticky, true);
+        assert!(key.sticky);
         assert_eq!(key.value.len(), 16); // Derived hash, not the empty string.
     }
 
@@ -554,7 +555,25 @@ mod tests {
         store.set_snapshot_key(&key, "snapshot-hash-abc123".to_string());
 
         let entry = store.get(&key).unwrap();
-        assert_eq!(entry.last_snapshot_key, Some("snapshot-hash-abc123".to_string()));
+        assert_eq!(
+            entry.last_snapshot_key,
+            Some("snapshot-hash-abc123".to_string())
+        );
+    }
+
+    #[test]
+    fn frozen_floor_advance_clears_stale_snapshot_key() {
+        let store = SessionStateStore::new(10);
+        let key = SessionKey {
+            value: "session-snapshot-floor".to_string(),
+            sticky: true,
+        };
+
+        store.observe(&key, 1);
+        store.set_snapshot_key(&key, "stale-snapshot".to_string());
+        let entry = store.observe(&key, 2);
+
+        assert_eq!(entry.last_snapshot_key, None);
     }
 
     #[test]

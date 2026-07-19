@@ -61,6 +61,7 @@ impl ContextSignals {
     /// Utilization is always computed as `total_tokens_est / model_context_limit`,
     /// clamped to [0.0, 1.0] and clamping on 0 denominator (if
     /// `model_context_limit` is 0, utilization is 1.0, the conservative worst-case).
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         total_tokens_est: usize,
         model_context_limit: usize,
@@ -210,7 +211,7 @@ pub struct StrategyDecision {
 /// strategy is `SelectiveClear` or `SnapshotResume`, replace with:
 /// - `SmartCompact` if `utilization >= cfg.compact_threshold`
 /// - `RollingWindow` otherwise
-/// with rationale `"policy_read_only"`.
+///   with rationale `"policy_read_only"`.
 ///
 /// This function is **pure**: it depends only on its inputs and produces
 /// no side effects (no I/O, no logging, no randomness).
@@ -310,9 +311,9 @@ mod tests {
             total_tokens_est,
             model_context_limit,
             message_count,
-            5,                   // frozen_message_count (arbitrary default)
+            5,                // frozen_message_count (arbitrary default)
             total_tokens_est, // live_zone_tokens_est (assume all in live zone)
-            10,                  // turns_since_frozen_advance (arbitrary)
+            10,               // turns_since_frozen_advance (arbitrary)
             low_value_turn_ratio,
             session_request_count,
         )
@@ -322,11 +323,11 @@ mod tests {
     #[test]
     fn rule_1_low_utilization_rolling_window() {
         let signals = build_signals(
-            500,   // total_tokens_est
-            2000,  // model_context_limit → utilization = 0.25 < 0.50
-            10,    // message_count
-            0.10,  // low_value_turn_ratio
-            5,     // session_request_count
+            500,  // total_tokens_est
+            2000, // model_context_limit → utilization = 0.25 < 0.50
+            10,   // message_count
+            0.10, // low_value_turn_ratio
+            5,    // session_request_count
         );
         let policy = CompressionPolicy::for_mode(AuthMode::Payg);
         let cfg = StrategyConfig::default();
@@ -341,11 +342,11 @@ mod tests {
     #[test]
     fn rule_2_near_limit_snapshot_resume() {
         let signals = build_signals(
-            1700,  // total_tokens_est
-            2000,  // model_context_limit → utilization = 0.85
-            20,    // message_count
-            0.10,  // low_value_turn_ratio
-            5,     // session_request_count ≥ 3
+            1700, // total_tokens_est
+            2000, // model_context_limit → utilization = 0.85
+            20,   // message_count
+            0.10, // low_value_turn_ratio
+            5,    // session_request_count ≥ 3
         );
         let policy = CompressionPolicy::for_mode(AuthMode::Payg);
         let cfg = StrategyConfig::default();
@@ -360,11 +361,11 @@ mod tests {
     #[test]
     fn rule_3_session_drift_selective_clear() {
         let signals = build_signals(
-            1000,  // total_tokens_est
-            2000,  // model_context_limit → utilization = 0.50 (not < 0.50, not ≥ 0.85)
-            15,    // message_count ≥ 12
-            0.45,  // low_value_turn_ratio ≥ 0.40
-            2,     // session_request_count < 3
+            1000, // total_tokens_est
+            2000, // model_context_limit → utilization = 0.50 (not < 0.50, not ≥ 0.85)
+            15,   // message_count ≥ 12
+            0.45, // low_value_turn_ratio ≥ 0.40
+            2,    // session_request_count < 3
         );
         let policy = CompressionPolicy::for_mode(AuthMode::Payg);
         let cfg = StrategyConfig::default();
@@ -379,11 +380,11 @@ mod tests {
     #[test]
     fn rule_4_high_utilization_smart_compact() {
         let signals = build_signals(
-            1300,  // total_tokens_est
-            2000,  // model_context_limit → utilization = 0.65 (≥ 0.50, < 0.85)
-            20,    // message_count
-            0.15,  // low_value_turn_ratio < 0.40
-            2,     // session_request_count < 3
+            1300, // total_tokens_est
+            2000, // model_context_limit → utilization = 0.65 (≥ 0.50, < 0.85)
+            20,   // message_count
+            0.15, // low_value_turn_ratio < 0.40
+            2,    // session_request_count < 3
         );
         let policy = CompressionPolicy::for_mode(AuthMode::Payg);
         let cfg = StrategyConfig::default();
@@ -400,11 +401,11 @@ mod tests {
     #[test]
     fn rule_5_default_rolling_window() {
         let signals = build_signals(
-            900,   // total_tokens_est
-            2000,  // model_context_limit → utilization = 0.45 < 0.50
-            8,     // message_count < 12
-            0.15,  // low_value_turn_ratio < 0.40
-            2,     // session_request_count < 3
+            900,  // total_tokens_est
+            2000, // model_context_limit → utilization = 0.45 < 0.50
+            8,    // message_count < 12
+            0.15, // low_value_turn_ratio < 0.40
+            2,    // session_request_count < 3
         );
         let policy = CompressionPolicy::for_mode(AuthMode::Payg);
         let cfg = StrategyConfig::default();

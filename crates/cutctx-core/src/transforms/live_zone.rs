@@ -2162,8 +2162,26 @@ mod tests {
 /// equality on the prefix and suffix.
 pub fn compress_openai_chat_live_zone(
     body_raw: &[u8],
+    auth_mode: AuthMode,
+    model: &str,
+) -> Result<LiveZoneOutcome, LiveZoneError> {
+    compress_openai_chat_live_zone_with_strategy(
+        body_raw,
+        auth_mode,
+        model,
+        None,
+        ContextStrategy::RollingWindow,
+        1.0,
+    )
+}
+
+pub fn compress_openai_chat_live_zone_with_strategy(
+    body_raw: &[u8],
     _auth_mode: AuthMode,
     model: &str,
+    ccr_store: Option<&dyn CcrStore>,
+    strategy: ContextStrategy,
+    max_lossy_ratio: f32,
 ) -> Result<LiveZoneOutcome, LiveZoneError> {
     let parsed: Value = serde_json::from_slice(body_raw).map_err(LiveZoneError::BodyNotJson)?;
     let messages = parsed
@@ -2304,7 +2322,6 @@ pub fn compress_openai_chat_live_zone(
             }
             _ => {
                 let detected = detect_content_type(&slot.content_text);
-                // TODO(spec §5.5): strategy threading for OpenAI paths
                 compress_one_block(
                     &slot.content_text,
                     detected.content_type,
@@ -2314,9 +2331,9 @@ pub fn compress_openai_chat_live_zone(
                     slot.block_type,
                     tokenizer.as_ref(),
                     &mut replacements,
-                    None, // PR-C2: no CCR store yet on the OpenAI path.
-                    ContextStrategy::RollingWindow,
-                    1.0,
+                    ccr_store,
+                    strategy,
+                    max_lossy_ratio,
                 )
             }
         };
@@ -2784,8 +2801,26 @@ const RESPONSES_OUTPUT_MIN_BYTES: usize = 512;
 /// input, never re-serialized.
 pub fn compress_openai_responses_live_zone(
     body_raw: &[u8],
+    auth_mode: AuthMode,
+    model: &str,
+) -> Result<LiveZoneOutcome, LiveZoneError> {
+    compress_openai_responses_live_zone_with_strategy(
+        body_raw,
+        auth_mode,
+        model,
+        None,
+        ContextStrategy::RollingWindow,
+        1.0,
+    )
+}
+
+pub fn compress_openai_responses_live_zone_with_strategy(
+    body_raw: &[u8],
     _auth_mode: AuthMode,
     model: &str,
+    ccr_store: Option<&dyn CcrStore>,
+    strategy: ContextStrategy,
+    max_lossy_ratio: f32,
 ) -> Result<LiveZoneOutcome, LiveZoneError> {
     let parsed: Value = serde_json::from_slice(body_raw).map_err(LiveZoneError::BodyNotJson)?;
 
@@ -2907,7 +2942,6 @@ pub fn compress_openai_responses_live_zone(
             continue;
         }
         let detected = detect_content_type(&slot.content_text);
-        // TODO(spec §5.5): strategy threading for OpenAI paths
         let outcome = compress_one_block(
             &slot.content_text,
             detected.content_type,
@@ -2917,9 +2951,9 @@ pub fn compress_openai_responses_live_zone(
             slot.block_type,
             tokenizer.as_ref(),
             &mut replacements,
-            None, // PR-C3: no CCR store on the Responses path yet.
-            ContextStrategy::RollingWindow,
-            1.0,
+            ccr_store,
+            strategy,
+            max_lossy_ratio,
         );
         block_outcomes.push(outcome);
     }
@@ -3450,8 +3484,9 @@ mod openai_responses_tests {
         }));
 
         // Legacy path via compress_anthropic_live_zone_with_ccr.
-        let legacy = compress_anthropic_live_zone_with_ccr(&b, 0, AuthMode::Payg, DEFAULT_MODEL, None)
-            .expect("should succeed");
+        let legacy =
+            compress_anthropic_live_zone_with_ccr(&b, 0, AuthMode::Payg, DEFAULT_MODEL, None)
+                .expect("should succeed");
 
         // New path with explicit RollingWindow strategy.
         use crate::transforms::context_strategy::ContextStrategy;
@@ -3468,7 +3503,10 @@ mod openai_responses_tests {
 
         // Both should produce the same outcome (byte-identical for RollingWindow).
         match (&legacy, &with_strategy) {
-            (LiveZoneOutcome::NoChange { manifest: m1 }, LiveZoneOutcome::NoChange { manifest: m2 }) => {
+            (
+                LiveZoneOutcome::NoChange { manifest: m1 },
+                LiveZoneOutcome::NoChange { manifest: m2 },
+            ) => {
                 assert_eq!(m1.block_outcomes.len(), m2.block_outcomes.len());
             }
             (LiveZoneOutcome::Modified { .. }, LiveZoneOutcome::Modified { .. }) => {
@@ -3519,9 +3557,10 @@ mod openai_responses_tests {
         };
 
         // Verify the manifest contains a RejectedTooLossy action.
-        let found_rejected_too_lossy = manifest.block_outcomes.iter().any(|b| {
-            matches!(b.action, BlockAction::RejectedTooLossy { .. })
-        });
+        let found_rejected_too_lossy = manifest
+            .block_outcomes
+            .iter()
+            .any(|b| matches!(b.action, BlockAction::RejectedTooLossy { .. }));
         assert!(
             found_rejected_too_lossy,
             "expected RejectedTooLossy action but found: {:?}",
@@ -3575,9 +3614,10 @@ mod openai_responses_tests {
 
         // The block should either be Compressed or rejected for a different
         // reason (BelowByteThreshold after halving, etc.), not RejectedTooLossy.
-        let found_rejected_too_lossy = manifest.block_outcomes.iter().any(|b| {
-            matches!(b.action, BlockAction::RejectedTooLossy { .. })
-        });
+        let found_rejected_too_lossy = manifest
+            .block_outcomes
+            .iter()
+            .any(|b| matches!(b.action, BlockAction::RejectedTooLossy { .. }));
         assert!(
             !found_rejected_too_lossy,
             "expected no RejectedTooLossy with high ratio, but found: {:?}",
@@ -3751,5 +3791,77 @@ mod openai_responses_tests {
                 "SelectiveClear and SnapshotResume should behave as RollingWindow, but got different outcomes"
             ),
         }
+    }
+
+    #[test]
+    fn smart_compact_loss_cap_is_enforced_for_openai_chat() {
+        let content = serde_json::to_string(
+            &(0..400)
+                .map(|index| json!({"id": index, "status": "complete"}))
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        let request = body(json!({
+            "model": "gpt-4o",
+            "messages": [{"role": "user", "content": content}]
+        }));
+
+        let outcome = compress_openai_chat_live_zone_with_strategy(
+            &request,
+            AuthMode::Payg,
+            "gpt-4o",
+            None,
+            ContextStrategy::SmartCompact,
+            0.0,
+        )
+        .unwrap();
+        let manifest = match outcome {
+            LiveZoneOutcome::NoChange { manifest } | LiveZoneOutcome::Modified { manifest, .. } => {
+                manifest
+            }
+        };
+
+        assert!(manifest
+            .block_outcomes
+            .iter()
+            .any(|block| matches!(block.action, BlockAction::RejectedTooLossy { .. })));
+    }
+
+    #[test]
+    fn smart_compact_loss_cap_is_enforced_for_openai_responses() {
+        let output = serde_json::to_string(
+            &(0..400)
+                .map(|index| json!({"id": index, "status": "complete"}))
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        let request = body(json!({
+            "model": "gpt-4o",
+            "input": [{
+                "type": "function_call_output",
+                "call_id": "call-1",
+                "output": output
+            }]
+        }));
+
+        let outcome = compress_openai_responses_live_zone_with_strategy(
+            &request,
+            AuthMode::Payg,
+            "gpt-4o",
+            None,
+            ContextStrategy::SmartCompact,
+            0.0,
+        )
+        .unwrap();
+        let manifest = match outcome {
+            LiveZoneOutcome::NoChange { manifest } | LiveZoneOutcome::Modified { manifest, .. } => {
+                manifest
+            }
+        };
+
+        assert!(manifest
+            .block_outcomes
+            .iter()
+            .any(|block| matches!(block.action, BlockAction::RejectedTooLossy { .. })));
     }
 }

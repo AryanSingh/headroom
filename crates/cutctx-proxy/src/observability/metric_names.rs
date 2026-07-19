@@ -96,10 +96,11 @@ pub const METRIC_PROXY_RESPONSE_STATUS_COUNT_TOTAL_HELP: &str =
 
 // ---------- proxy_context_strategy_selected_total ----------
 
-pub const METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL: &str = "proxy_context_strategy_selected_total";
+pub const METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL: &str =
+    "proxy_context_strategy_selected_total";
 pub const METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL_HELP: &str =
-    "Shadow-mode context strategy decisions by strategy and rationale. \
-     Counts when --context-strategies is enabled; observational only.";
+    "Adaptive context strategy selections by strategy and rationale. \
+     Counts when --context-strategies is enabled.";
 
 pub const LABEL_RATIONALE: &str = "rationale";
 

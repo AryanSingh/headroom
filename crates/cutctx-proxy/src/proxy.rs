@@ -10,7 +10,6 @@ use axum::http::{HeaderMap, HeaderName, Request, Response, StatusCode, Uri};
 use axum::response::IntoResponse;
 use axum::routing::{any, get, post};
 use axum::Router;
-#[cfg(test)]
 use bytes::Bytes;
 use futures_util::{StreamExt as _, TryStreamExt};
 #[cfg(test)]
@@ -32,6 +31,7 @@ use crate::websocket::ws_handler;
 // `req.extensions()` (Phase F PR-F2/F3/F4).
 use cutctx_core::auth_mode::{classify as classify_auth_mode, AuthMode};
 use cutctx_core::compression_policy::CompressionPolicy;
+use cutctx_core::tokenizer::Tokenizer;
 use cutctx_core::transforms::context_strategy::ContextStrategy;
 
 /// Shared state passed to every handler.
@@ -854,19 +854,18 @@ pub(crate) async fn forward_http(
             }
         }
 
-        // Compute context strategy decision for potential active use.
-        // When `--context-strategies` is on, shadow_select runs in all modes
-        // but only SmartCompact has active effect (when CCR available).
-        // SelectiveClear/SnapshotResume remain shadow-only (spec §5.5).
+        // Compute the active context strategy decision. The feature remains
+        // opt-in; CCR-backed strategies degrade loudly when storage is absent.
         let strategy_decision = if state.config.context_strategies {
             if let Some(headers) = headers_snapshot.as_ref() {
-                crate::strategy_shadow::shadow_select(
+                crate::strategy_shadow::shadow_select_with_config(
                     &buffered,
                     None, // model_hint: not available without re-parsing; extracted from body by shadow_select
                     headers,
                     &request_id,
                     state.config.cache_control_auto_frozen,
                     &policy,
+                    &state.config.strategy_config,
                     &state.session_state,
                 )
             } else {
@@ -876,6 +875,90 @@ pub(crate) async fn forward_http(
             None
         };
 
+        // Structural strategies require CCR and are provider-neutral over
+        // materialized `messages` / `input` arrays. Apply them before the
+        // endpoint-specific live-zone compressor so every buffered provider
+        // sees the same reversible conversation mutation.
+        let ccr_for_request = if tier.allows_ccr() {
+            state.ccr_store.as_deref()
+        } else {
+            None
+        };
+        let structural_mutation = match (&strategy_decision, ccr_for_request) {
+            (Some(decision), Some(store))
+                if decision.strategy == ContextStrategy::SelectiveClear =>
+            {
+                crate::strategy_apply::apply_selective_clear(
+                    &buffered,
+                    decision.signals.frozen_message_count,
+                    &policy,
+                    &state.config.strategy_config,
+                    store,
+                )
+            }
+            (Some(decision), Some(store))
+                if decision.strategy == ContextStrategy::SnapshotResume =>
+            {
+                let headers = headers_snapshot
+                    .as_ref()
+                    .expect("strategy selection requires captured headers");
+                let session_key = crate::session_state::resolve_session_key(headers, &request_id);
+                let last_snapshot_key = state
+                    .session_state
+                    .get(&session_key)
+                    .and_then(|entry| entry.last_snapshot_key);
+                let mutation = crate::strategy_apply::apply_snapshot_resume(
+                    &buffered,
+                    decision.signals.frozen_message_count,
+                    &session_key.value,
+                    last_snapshot_key.as_deref(),
+                    &state.config.strategy_config,
+                    store,
+                );
+                if let Some(snapshot_key) = mutation
+                    .as_ref()
+                    .and_then(|result| result.snapshot_key.as_ref())
+                {
+                    state
+                        .session_state
+                        .set_snapshot_key(&session_key, snapshot_key.clone());
+                }
+                mutation
+            }
+            (Some(decision), None) if decision.strategy != ContextStrategy::RollingWindow => {
+                tracing::warn!(
+                    event = "context_strategy_degraded",
+                    request_id = %request_id,
+                    from = decision.strategy.as_str(),
+                    to = "rolling_window",
+                    reason = "no_ccr",
+                    "context strategy selected but CCR unavailable; degrading loudly"
+                );
+                crate::observability::record_context_strategy("rolling_window", "no_ccr");
+                None
+            }
+            _ => None,
+        };
+        if let Some(mutation) = structural_mutation.as_ref() {
+            let tokenizer = cutctx_core::tokenizer::EstimatingCounter::default();
+            let before = tokenizer.count_text(std::str::from_utf8(&buffered).unwrap_or(""));
+            let after = tokenizer.count_text(std::str::from_utf8(&mutation.body).unwrap_or(""));
+            captured_tokens_saved += before.saturating_sub(after) as u64;
+            tracing::info!(
+                event = "context_strategy_applied",
+                request_id = %request_id,
+                strategy = strategy_decision
+                    .as_ref()
+                    .map(|decision| decision.strategy.as_str())
+                    .unwrap_or("rolling_window"),
+                markers = mutation.markers_inserted.len(),
+                "active structural context strategy applied"
+            );
+        }
+        let buffered = structural_mutation
+            .map(|mutation| Bytes::from(mutation.body))
+            .unwrap_or(buffered);
+
         let outcome = match endpoint {
             compression::CompressibleEndpoint::AnthropicMessages => {
                 // PR-E3: thread the F1-classified auth_mode into the
@@ -884,29 +967,13 @@ pub(crate) async fn forward_http(
                 // was stashed at request entry (line ~325 above).
                 // HARD LICENSE ENFORCEMENT: CCR requires Team+ tier.
                 // OpenSource tier passes None to disable cache reversibility.
-                let ccr_for_request = if tier.allows_ccr() {
-                    state.ccr_store.as_deref()
-                } else {
-                    None
-                };
-
-                // Active strategy: SmartCompact fires only when selected AND CCR is
-                // available (spec §5.4); everything else stays legacy RollingWindow.
-                // SelectiveClear/SnapshotResume remain shadow-only for now.
+                // SmartCompact threads its loss cap into the Anthropic live-zone
+                // dispatcher. Structural strategies were already applied above.
                 let (active_strategy, max_lossy_ratio) = match &strategy_decision {
                     Some(d) if d.strategy == ContextStrategy::SmartCompact => {
                         if ccr_for_request.is_some() {
                             (ContextStrategy::SmartCompact, policy.max_lossy_ratio)
                         } else {
-                            tracing::warn!(
-                                event = "context_strategy_degraded",
-                                request_id = %request_id,
-                                from = "smart_compact",
-                                to = "rolling_window",
-                                reason = "no_ccr",
-                                "SmartCompact selected but CCR unavailable; degrading loudly"
-                            );
-                            crate::observability::record_context_strategy("rolling_window", "no_ccr");
                             (ContextStrategy::RollingWindow, 1.0)
                         }
                     }
@@ -940,11 +1007,23 @@ pub(crate) async fn forward_http(
                     );
                     compression::Outcome::NoCompression
                 } else {
-                    compression::compress_openai_chat_request(
+                    let (active_strategy, max_lossy_ratio) = match &strategy_decision {
+                        Some(decision)
+                            if decision.strategy == ContextStrategy::SmartCompact
+                                && ccr_for_request.is_some() =>
+                        {
+                            (ContextStrategy::SmartCompact, policy.max_lossy_ratio)
+                        }
+                        _ => (ContextStrategy::RollingWindow, 1.0),
+                    };
+                    compression::compress_openai_chat_request_with_strategy(
                         &buffered,
                         state.config.compression_mode,
                         auth_mode,
                         &request_id,
+                        ccr_for_request,
+                        active_strategy,
+                        max_lossy_ratio,
                     )
                 }
             }
@@ -954,11 +1033,23 @@ pub(crate) async fn forward_http(
             // kind plus the latest `message` text. Cache hot zone is
             // every other item type (passthrough verbatim).
             compression::CompressibleEndpoint::OpenAiResponses => {
-                compression::compress_openai_responses_request(
+                let (active_strategy, max_lossy_ratio) = match &strategy_decision {
+                    Some(decision)
+                        if decision.strategy == ContextStrategy::SmartCompact
+                            && ccr_for_request.is_some() =>
+                    {
+                        (ContextStrategy::SmartCompact, policy.max_lossy_ratio)
+                    }
+                    _ => (ContextStrategy::RollingWindow, 1.0),
+                };
+                compression::compress_openai_responses_request_with_strategy(
                     &buffered,
                     state.config.compression_mode,
                     auth_mode,
                     &request_id,
+                    ccr_for_request,
+                    active_strategy,
+                    max_lossy_ratio,
                 )
             }
         };
@@ -977,7 +1068,7 @@ pub(crate) async fn forward_http(
                 tokens_after,
                 ..
             } => {
-                captured_tokens_saved = tokens_before.saturating_sub(*tokens_after) as u64;
+                captured_tokens_saved += tokens_before.saturating_sub(*tokens_after) as u64;
                 false
             }
         };

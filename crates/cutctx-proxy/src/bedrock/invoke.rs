@@ -52,7 +52,7 @@ use url::Url;
 use crate::bedrock::envelope::BedrockEnvelope;
 use crate::bedrock::sigv4::{sign_request, SigningInputs};
 use crate::compression::{
-    compress_anthropic_request, Outcome as AnthropicOutcome, PassthroughReason,
+    compress_anthropic_request_with_strategy, Outcome as AnthropicOutcome, PassthroughReason,
 };
 use crate::headers::filter_response_headers;
 use crate::observability::{observe_bedrock_invoke_latency, record_bedrock_invoke};
@@ -64,6 +64,7 @@ use crate::proxy::AppState;
 // single source of truth — handler does NOT re-classify; that
 // would risk drift from the middleware's resolution + WARN log.
 use cutctx_core::auth_mode::AuthMode;
+use cutctx_core::transforms::context_strategy::ContextStrategy;
 
 /// Anthropic vendor prefix as encoded in Bedrock model ids
 /// (`anthropic.claude-3-haiku-...`). Literal-match per project rule
@@ -157,7 +158,7 @@ pub async fn handle_invoke(
 
     let is_anthropic = model_id.starts_with(ANTHROPIC_VENDOR_PREFIX);
     let outbound_body: Bytes = if is_anthropic {
-        run_anthropic_compression(&body, &state, auth_mode, &request_id)
+        run_anthropic_compression(&body, &state, auth_mode, &headers, &request_id, &model_id)
     } else {
         tracing::info!(
             event = "bedrock_compression_skipped",
@@ -360,8 +361,10 @@ pub async fn handle_invoke(
 fn run_anthropic_compression(
     body: &Bytes,
     state: &AppState,
-    _auth_mode: AuthMode,
+    auth_mode: AuthMode,
+    headers: &HeaderMap,
     request_id: &str,
+    model_id: &str,
 ) -> Bytes {
     // Validate envelope shape. If the body isn't a valid Bedrock
     // envelope we still forward verbatim — the compressor would have
@@ -382,21 +385,82 @@ fn run_anthropic_compression(
         "bedrock invoke: envelope validated; dispatching to live-zone compressor"
     );
 
+    let policy = cutctx_core::compression_policy::CompressionPolicy::for_mode(auth_mode);
+    let strategy_decision =
+        if state.config.context_strategies && state.config.license_tier.allows_live_zone() {
+            crate::strategy_shadow::shadow_select_with_config(
+                body,
+                Some(model_id),
+                headers,
+                request_id,
+                state.config.cache_control_auto_frozen,
+                &policy,
+                &state.config.strategy_config,
+                &state.session_state,
+            )
+        } else {
+            None
+        };
+    let ccr_for_request = if state.config.license_tier.allows_ccr() {
+        state.ccr_store.as_deref()
+    } else {
+        None
+    };
+    if let (Some(decision), None) = (&strategy_decision, ccr_for_request) {
+        if decision.strategy != ContextStrategy::RollingWindow {
+            tracing::warn!(
+                event = "context_strategy_degraded",
+                request_id = %request_id,
+                provider = "bedrock",
+                from = decision.strategy.as_str(),
+                to = "rolling_window",
+                reason = "no_ccr",
+                "Bedrock context strategy requires CCR; degrading loudly"
+            );
+            crate::observability::record_context_strategy("rolling_window", "no_ccr");
+        }
+    }
+    let session_key = crate::session_state::resolve_session_key(headers, request_id);
+    let mutation = match (&strategy_decision, ccr_for_request) {
+        (Some(decision), Some(store)) => crate::strategy_apply::apply_selected_structural_strategy(
+            body,
+            decision,
+            &policy,
+            &state.config.strategy_config,
+            store,
+            &session_key,
+            &state.session_state,
+        ),
+        _ => None,
+    };
+    let active_body = mutation
+        .map(|result| Bytes::from(result.body))
+        .unwrap_or_else(|| body.clone());
+    let (active_strategy, max_lossy_ratio) = match (&strategy_decision, ccr_for_request) {
+        (Some(decision), Some(_)) if decision.strategy == ContextStrategy::SmartCompact => {
+            (ContextStrategy::SmartCompact, policy.max_lossy_ratio)
+        }
+        _ => (ContextStrategy::RollingWindow, 1.0),
+    };
+
     // PR-E3: Bedrock uses IAM-signed AWS SigV4 downstream. Inbound
     // requests to the proxy may or may not carry their own auth, but
     // Bedrock itself is a subscription/IAM channel — never PAYG —
     // so we hard-code `RequestAuthMode::OAuth` to skip E3
     // cache_control auto-placement. This keeps the Bedrock byte
     // contract stable; live-zone compression continues to run.
-    let outcome = compress_anthropic_request(
-        body,
+    let outcome = compress_anthropic_request_with_strategy(
+        &active_body,
         state.config.compression_mode,
         state.config.cache_control_auto_frozen,
         cutctx_core::auth_mode::AuthMode::OAuth,
         request_id,
+        ccr_for_request,
+        active_strategy,
+        max_lossy_ratio,
     );
     match outcome {
-        AnthropicOutcome::NoCompression => body.clone(),
+        AnthropicOutcome::NoCompression => active_body,
         AnthropicOutcome::Passthrough { reason } => {
             tracing::info!(
                 event = "bedrock_compression_passthrough",
@@ -407,7 +471,7 @@ fn run_anthropic_compression(
             // The compressor's passthrough variants all leave bytes
             // unchanged. Forward the original.
             let _ = (PassthroughReason::ModeOff, PassthroughReason::NoMessages); // pin types
-            body.clone()
+            active_body
         }
         AnthropicOutcome::Compressed { body: new_body, .. } => {
             // Defence-in-depth: re-emit so anthropic_version is the

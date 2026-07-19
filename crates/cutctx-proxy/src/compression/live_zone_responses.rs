@@ -33,10 +33,11 @@
 
 use bytes::Bytes;
 use cutctx_core::auth_mode::AuthMode as RequestAuthMode;
+use cutctx_core::transforms::context_strategy::ContextStrategy;
 use cutctx_core::transforms::live_zone::DEFAULT_MODEL;
 use cutctx_core::transforms::{
-    compress_openai_responses_live_zone, summarize_openai_responses_no_change_reason, BlockAction,
-    LiveZoneError, LiveZoneOutcome,
+    compress_openai_responses_live_zone_with_strategy, summarize_openai_responses_no_change_reason,
+    BlockAction, LiveZoneError, LiveZoneOutcome,
 };
 use serde_json::Value;
 
@@ -61,6 +62,27 @@ pub fn compress_openai_responses_request(
     mode: CompressionMode,
     auth_mode: RequestAuthMode,
     request_id: &str,
+) -> Outcome {
+    compress_openai_responses_request_with_strategy(
+        body,
+        mode,
+        auth_mode,
+        request_id,
+        None,
+        ContextStrategy::RollingWindow,
+        1.0,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn compress_openai_responses_request_with_strategy(
+    body: &Bytes,
+    mode: CompressionMode,
+    auth_mode: RequestAuthMode,
+    request_id: &str,
+    ccr_store: Option<&dyn cutctx_core::ccr::CcrStore>,
+    strategy: ContextStrategy,
+    max_lossy_ratio: f32,
 ) -> Outcome {
     if matches!(mode, CompressionMode::Off) {
         tracing::info!(
@@ -145,7 +167,14 @@ pub fn compress_openai_responses_request(
     // F2.1 c2/6: forward F1's classified auth_mode into the dispatcher
     // instead of the hard-coded `Payg`. See live_zone_anthropic.rs for
     // the rationale — same wiring on the OpenAI Responses path.
-    match compress_openai_responses_live_zone(&dispatch_body, auth_mode.into(), model) {
+    match compress_openai_responses_live_zone_with_strategy(
+        &dispatch_body,
+        auth_mode.into(),
+        model,
+        ccr_store,
+        strategy,
+        max_lossy_ratio,
+    ) {
         Ok(LiveZoneOutcome::NoChange { manifest }) => {
             let reason = summarize_openai_responses_no_change_reason(&manifest);
             tracing::info!(

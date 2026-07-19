@@ -200,6 +200,7 @@ pub fn compress_anthropic_request_with_ccr(
 ///
 /// When the strategy is SmartCompact but CCR is unavailable, automatically
 /// degrades to RollingWindow with a loud warning (spec §5.4).
+#[allow(clippy::too_many_arguments)]
 pub fn compress_anthropic_request_with_strategy(
     body: &Bytes,
     mode: CompressionMode,
@@ -227,6 +228,7 @@ pub fn compress_anthropic_request_with_strategy(
 /// Contains the full live-zone compression pipeline logic and is called
 /// by both `compress_anthropic_request_with_ccr` (legacy, RollingWindow)
 /// and `compress_anthropic_request_with_strategy` (strategy-parameterized).
+#[allow(clippy::too_many_arguments)]
 fn compress_anthropic_request_impl(
     body: &Bytes,
     mode: CompressionMode,
@@ -1444,8 +1446,7 @@ mod tests {
             (Outcome::NoCompression, Outcome::NoCompression) => {}
             (
                 Outcome::Compressed {
-                    body: body_legacy,
-                    ..
+                    body: body_legacy, ..
                 },
                 Outcome::Compressed {
                     body: body_strategy,

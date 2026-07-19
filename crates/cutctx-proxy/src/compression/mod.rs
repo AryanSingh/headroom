@@ -50,9 +50,12 @@ pub use live_zone_anthropic::{
     compress_anthropic_request_with_strategy, Outcome, PassthroughReason, PerStrategyTokens,
 };
 pub use live_zone_openai::{
-    compress_openai_chat_request, should_skip_compression, SkipCompressionReason,
+    compress_openai_chat_request, compress_openai_chat_request_with_strategy,
+    should_skip_compression, SkipCompressionReason,
 };
-pub use live_zone_responses::compress_openai_responses_request;
+pub use live_zone_responses::{
+    compress_openai_responses_request, compress_openai_responses_request_with_strategy,
+};
 
 /// Which provider's compression dispatcher should run for a request
 /// path. PR-C2 wired `/v1/chat/completions`; PR-C3 adds
