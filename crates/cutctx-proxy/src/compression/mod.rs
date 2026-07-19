@@ -46,8 +46,8 @@ pub mod provider_native;
 // `compress_anthropic_request` is sourced from the live-zone module.
 pub use anthropic::resolve_frozen_count;
 pub use live_zone_anthropic::{
-    compress_anthropic_request, compress_anthropic_request_with_ccr, Outcome, PassthroughReason,
-    PerStrategyTokens,
+    compress_anthropic_request, compress_anthropic_request_with_ccr,
+    compress_anthropic_request_with_strategy, Outcome, PassthroughReason, PerStrategyTokens,
 };
 pub use live_zone_openai::{
     compress_openai_chat_request, should_skip_compression, SkipCompressionReason,

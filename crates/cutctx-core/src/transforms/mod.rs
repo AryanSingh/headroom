@@ -54,7 +54,8 @@ pub use image_compressor::{
 };
 pub use live_zone::{
     compress_anthropic_live_zone, compress_anthropic_live_zone_with_ccr,
-    compress_openai_chat_live_zone, compress_openai_responses_live_zone,
+    compress_anthropic_live_zone_with_strategy, compress_openai_chat_live_zone,
+    compress_openai_responses_live_zone,
     summarize_openai_responses_no_change_reason, AuthMode, BlockAction, BlockOutcome,
     CompressionManifest, ExclusionReason, LiveZoneError, LiveZoneOutcome,
 };

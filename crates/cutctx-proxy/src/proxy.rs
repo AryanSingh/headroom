@@ -32,6 +32,7 @@ use crate::websocket::ws_handler;
 // `req.extensions()` (Phase F PR-F2/F3/F4).
 use cutctx_core::auth_mode::{classify as classify_auth_mode, AuthMode};
 use cutctx_core::compression_policy::CompressionPolicy;
+use cutctx_core::transforms::context_strategy::ContextStrategy;
 
 /// Shared state passed to every handler.
 ///
@@ -853,11 +854,13 @@ pub(crate) async fn forward_http(
             }
         }
 
-        // Shadow-mode context strategy selection (spec-smart-context-strategies.md).
-        // Observational only: no effect on the compression dispatch below.
-        if state.config.context_strategies {
+        // Compute context strategy decision for potential active use.
+        // When `--context-strategies` is on, shadow_select runs in all modes
+        // but only SmartCompact has active effect (when CCR available).
+        // SelectiveClear/SnapshotResume remain shadow-only (spec §5.5).
+        let strategy_decision = if state.config.context_strategies {
             if let Some(headers) = headers_snapshot.as_ref() {
-                let _ = crate::strategy_shadow::shadow_select(
+                crate::strategy_shadow::shadow_select(
                     &buffered,
                     None, // model_hint: not available without re-parsing; extracted from body by shadow_select
                     headers,
@@ -865,9 +868,13 @@ pub(crate) async fn forward_http(
                     state.config.cache_control_auto_frozen,
                     &policy,
                     &state.session_state,
-                );
+                )
+            } else {
+                None
             }
-        }
+        } else {
+            None
+        };
 
         let outcome = match endpoint {
             compression::CompressibleEndpoint::AnthropicMessages => {
@@ -882,13 +889,39 @@ pub(crate) async fn forward_http(
                 } else {
                     None
                 };
-                compression::compress_anthropic_request_with_ccr(
+
+                // Active strategy: SmartCompact fires only when selected AND CCR is
+                // available (spec §5.4); everything else stays legacy RollingWindow.
+                // SelectiveClear/SnapshotResume remain shadow-only for now.
+                let (active_strategy, max_lossy_ratio) = match &strategy_decision {
+                    Some(d) if d.strategy == ContextStrategy::SmartCompact => {
+                        if ccr_for_request.is_some() {
+                            (ContextStrategy::SmartCompact, policy.max_lossy_ratio)
+                        } else {
+                            tracing::warn!(
+                                event = "context_strategy_degraded",
+                                request_id = %request_id,
+                                from = "smart_compact",
+                                to = "rolling_window",
+                                reason = "no_ccr",
+                                "SmartCompact selected but CCR unavailable; degrading loudly"
+                            );
+                            crate::observability::record_context_strategy("rolling_window", "no_ccr");
+                            (ContextStrategy::RollingWindow, 1.0)
+                        }
+                    }
+                    _ => (ContextStrategy::RollingWindow, 1.0),
+                };
+
+                compression::compress_anthropic_request_with_strategy(
                     &buffered,
                     state.config.compression_mode,
                     state.config.cache_control_auto_frozen,
                     auth_mode,
                     &request_id,
                     ccr_for_request,
+                    active_strategy,
+                    max_lossy_ratio,
                 )
             }
             compression::CompressibleEndpoint::OpenAiChatCompletions => {

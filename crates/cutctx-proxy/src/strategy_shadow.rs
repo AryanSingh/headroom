@@ -1,17 +1,20 @@
-//! Shadow-mode context strategy selection (spec-smart-context-strategies.md).
+//! Context strategy selection (spec-smart-context-strategies.md).
 //!
-//! This module observes and logs adaptive context strategy decisions without
-//! affecting compression behavior. Every request triggers (when enabled):
+//! This module computes and selects an adaptive context strategy for each request:
+//! - SmartCompact: ACTIVE when selected and CCR available (spec §5.4)
+//! - SelectiveClear/SnapshotResume: shadow-only (observed, logged, no effect)
+//! - RollingWindow: default fallback for all other cases
+//!
+//! Every request triggers (when `--context-strategies` enabled):
 //! - Computation of observable ContextSignals from body + session state
 //! - Deterministic strategy selection based on utilization and policy
 //! - Structured logging and metric emission for observability
-//! - Zero effect on the actual compression dispatch or request body
+//!
+//! SmartCompact decisions: when returned from `shadow_select`, the proxy's
+//! `forward_http` handler threads the strategy into the compression dispatch.
+//! If CCR is unavailable, SmartCompact degrades to RollingWindow (loud warning).
 //!
 //! When the `--context-strategies` flag is off (default), no computation occurs.
-//! When on, the `shadow_select` function is called once per buffered request,
-//! computes ContextSignals, calls `select_strategy`, and logs the decision.
-//! The returned `StrategyDecision` is NOT threaded into the compression path
-//! (that comes in Step 4+); it exists purely for logging and metrics.
 
 use cutctx_core::tokenizer::Tokenizer;
 use cutctx_core::transforms::context_strategy::{ContextSignals, StrategyDecision};
