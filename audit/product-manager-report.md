@@ -475,3 +475,8 @@ Cutctx is positioned as the **enterprise-grade context control plane** — the m
 | Vercel AI SDK | ✅ Integration |
 | Agno | ✅ Integration |
 | Strands | ✅ Integration |
+# 2026-07-19 merged-main product addendum
+
+The replay journal materially improves durable-agent observability and restart
+recovery. Highest remaining product risks are output-token steering, explicit
+Graphify dependency behavior, and an honest fast-vs-quality Kompress choice.

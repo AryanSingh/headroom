@@ -302,3 +302,9 @@ This assessment is based on direct codebase exploration of 573+ Python files, 19
 - `.github/workflows/` — ci.yml, docker.yml, release.yml, rust.yml
 - `Dockerfile`, `Makefile`, `pyproject.toml`, `Cargo.toml`, `deny.toml`
 - `.pre-commit-config.yaml`, `.gitguardian.yaml`
+# 2026-07-19 merged-main production-readiness addendum
+
+Score: **78/100 — pilot-ready, not GA-ready.** Main passed the local core gate,
+lint, and diff integrity checks. Fresh Docker-native and browser release
+evidence are still required because their recorded failures were against an
+older feature SHA.

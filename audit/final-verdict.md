@@ -1,5 +1,17 @@
 # Cutctx Final Verdict — v0.29.0 ship-it
 
+> **2026-07-19 merged-main addendum:** `codex/event-journal-foundation` is an
+> ancestor of `main`; `main` is at `885cc6f9`. The local core pytest gate
+> (`tests -k 'not slow and not real_llm and not live and not e2e'`) completed
+> successfully, as did `ruff check cutctx tests` and `git diff --check`.
+> Feature completeness for the opt-in replay journal is high: durable SQLite
+> replay, bounded recovery, sanitized prompt/send/tool/response/error/stream
+> lifecycle events, and local-admin inspection are implemented. Do **not**
+> claim a broad public launch yet: the most recent historic PR run contains
+> failed Docker-native, Playwright evidence, and one pytest-shard jobs that
+> must be rerun against this merged SHA before release. **Launch
+> recommendation: pilot-ready pending fresh CI evidence; not yet public-GA.**
+
 **Date:** 2026-07-01
 **Branch:** main @ `f8384d56`
 **Audits:** qa, security, production-readiness, product-manager (parallel, read-only)

@@ -26,3 +26,8 @@ No critical vulnerabilities found. Enterprise-grade security controls in place.
 - Audit: Structured events with actor, IP, user-agent
 
 ## Score: 8.5/10
+# 2026-07-19 merged-main security addendum
+
+The replay journal remains default-off, metadata-only, local-admin protected,
+and bounded. No fresh Critical or High finding was identified in the merged
+event-journal diff. Full CI security-audit should be rerun on `main` before GA.
