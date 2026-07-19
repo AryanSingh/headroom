@@ -81,6 +81,33 @@ def test_stats_surface_truthful_knowledge_graph_status(monkeypatch: pytest.Monke
     assert knowledge_graph["interceptor_registered"] is False
 
 
+def test_requested_knowledge_graph_fails_with_install_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicit graph request must not silently leave the proxy inactive."""
+    pytest.importorskip("fastapi")
+    import cutctx.graph.graphify as graphify
+    from cutctx.proxy.server import CutctxProxy, ProxyConfig
+
+    monkeypatch.setattr(graphify, "graphify_available", lambda: False)
+    monkeypatch.setattr(graphify, "networkx_available", lambda: True)
+
+    with pytest.raises(RuntimeError, match=r"graphify.*cutctx-ai\[knowledge-graph\]"):
+        CutctxProxy(
+            ProxyConfig(
+                optimize=False,
+                cache_enabled=False,
+                rate_limit_enabled=False,
+                cost_tracking_enabled=False,
+                log_requests=False,
+                ccr_inject_tool=False,
+                ccr_handle_responses=False,
+                ccr_context_tracking=False,
+                knowledge_graph_enabled=True,
+            )
+        )
+
+
 def test_stats_do_not_claim_active_graph_without_live_index(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

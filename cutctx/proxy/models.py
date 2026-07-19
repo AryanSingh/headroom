@@ -233,11 +233,10 @@ class ProxyConfig:
     # proxy, not just a savings knob — must stay opt-in.
     model_routing_preset: str | None = None
 
-    # WS10: Output-side optimization. Left off by default: its max_tokens
-    # auto-cap lever silently truncates legitimate long output (e.g. a
-    # large generated file) once a session's rolling p95 estimate is
-    # exceeded, with no user consent and no quality/correctness testing.
-    output_optimization: bool = False
+    # Output-side optimization enables only low-risk terse style steering by
+    # default. Max-token caps and code-edit steering remain opt-in in the
+    # runtime configuration, so normal requests never lose output capacity.
+    output_optimization: bool = True
 
     # WS11: Tool-result memoization. Left off by default: cached tool
     # results can go stale if the underlying file/resource changes outside

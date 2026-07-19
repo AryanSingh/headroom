@@ -65,15 +65,29 @@ By default, the proxy uses the shared **ContentRouter** pipeline. It routes text
 
 ### Compression policy
 
-Use `safe` for the default, quality-first behaviour. `aggressive` is an
-explicit opt-in that asks the ML compressor for a 40% target ratio on plain
-prose; it keeps the specialised code, JSON, log, diff, and search routes so
-their format-aware safeguards remain in effect. `off` bypasses the complete
-router stage, including normalization and lifecycle filtering, and forwards
-the original request bytes unchanged. If the optional ML runtime is not
-installed or declines to reduce a prose block, aggressive mode falls back to a
-deterministic sentence selector that keeps headings, identifiers, numerical
-constraints, and a representative sentence.
+Use `safe` for the default, low-latency behaviour. It uses deterministic prose
+compression for ordinary text and keeps specialised code, JSON, log, diff, and
+search routes. `aggressive` is an explicit quality/ratio opt-in that asks the
+Kompress ML compressor for a 40% target ratio on prose; it keeps the same
+format-aware safeguards for specialised content. If the optional ML runtime is
+not installed or declines to reduce a prose block, aggressive mode falls back
+to a deterministic sentence selector that keeps headings, identifiers,
+numerical constraints, and a representative sentence. `off` bypasses the
+complete router stage, including normalization and lifecycle filtering, and
+forwards the original request bytes unchanged.
+
+Kompress trades latency for learned compression quality. It is selected only
+by `aggressive` mode or an explicit per-request Kompress option, never by the
+default safe route. This keeps latency-sensitive interactive sessions on the
+deterministic path while preserving the higher-compression option when its
+tradeoff is worthwhile.
+
+### Output verbosity steering
+
+The proxy adds a short, guarded terse-output instruction for search, list, and
+summary requests. It never applies that instruction to code-edit or debugging
+tasks, and it does not set or lower `max_tokens`; explicit client output limits
+always remain authoritative.
 
 ```bash
 # Quality-first default

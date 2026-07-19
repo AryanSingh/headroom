@@ -591,7 +591,10 @@ class CutctxProxy(
         # Initialize restored features WS10, WS11, WS13
         self.batch_router = BatchRouter(BatchRouterConfig(enabled=config.batch_routing))
         self.output_optimizer = OutputOptimizer(
-            OutputOptimizeConfig(enabled=config.output_optimization)
+            OutputOptimizeConfig(
+                enabled=config.output_optimization,
+                enable_style=config.output_optimization,
+            )
         )
         self.memoizer = ToolMemoizer(MemoizeConfig(enabled=config.memoization))
         self.memoize_interceptor = MemoizeInterceptor(memoizer=self.memoizer)
@@ -1144,16 +1147,18 @@ class CutctxProxy(
                         status="unavailable",
                         reason="graphify_not_installed",
                     )
-                    logger.warning(
-                        "Knowledge graph engine requested (--knowledge-graph) but not installed. Install: pip install cutctx-ai[knowledge-graph]"
+                    raise RuntimeError(
+                        "Knowledge graph engine requested (--knowledge-graph) but graphify is not installed. "
+                        "Install: pip install cutctx-ai[knowledge-graph]"
                     )
                 elif not networkx_available():
                     self.knowledge_graph_status.update(
                         status="unavailable",
                         reason="networkx_not_installed",
                     )
-                    logger.warning(
-                        "Graph utilities required for knowledge graph not installed. Install: pip install cutctx-ai[knowledge-graph]"
+                    raise RuntimeError(
+                        "Knowledge graph engine requested (--knowledge-graph) but networkx is not installed. "
+                        "Install: pip install cutctx-ai[knowledge-graph]"
                     )
                 else:
                     indexer = GraphifyIndexer(
@@ -1182,6 +1187,8 @@ class CutctxProxy(
                         config.knowledge_graph_bfs_depth,
                         config.knowledge_graph_max_nodes,
                     )
+            except RuntimeError:
+                raise
             except Exception as exc:
                 self.knowledge_graph_status.update(
                     status="degraded",

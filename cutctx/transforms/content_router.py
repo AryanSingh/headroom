@@ -485,7 +485,9 @@ class ContentRouterConfig:
     # Enable/disable specific compressors
     compression_mode: CompressionMode | str = CompressionMode.SAFE
     enable_code_aware: bool = True  # Enabled for code compression
-    enable_kompress: bool = True  # Kompress: ModernBERT token compressor
+    # Kompress is quality-first but substantially slower than the deterministic
+    # prose route. It is opt-in through aggressive mode or force_kompress.
+    enable_kompress: bool = False
     enable_smart_crusher: bool = True
     enable_search_compressor: bool = True
     enable_log_compressor: bool = True
@@ -497,8 +499,9 @@ class ContentRouterConfig:
     mixed_content_threshold: int = 2  # Min types to consider mixed
     min_section_tokens: int = 20  # Min tokens to compress a section
 
-    # Fallback: Kompress handles unknown/mixed content instead of passing through
-    fallback_strategy: CompressionStrategy = CompressionStrategy.KOMPRESS
+    # Unknown content is passed through unless callers explicitly select a
+    # quality/ML path. Known text still uses the fast prose compressor.
+    fallback_strategy: CompressionStrategy = CompressionStrategy.PASSTHROUGH
 
     # Protection: Don't compress content that's likely the subject of analysis
     skip_user_messages: bool = True  # User messages contain what they want analyzed
@@ -1126,7 +1129,10 @@ class ContentRouter(Transform):
             # It deliberately does *not* replace code, JSON, log, diff, or
             # search routes: those carry syntax and recovery guarantees that a
             # generic token selector cannot provide.
-            if mode is CompressionMode.AGGRESSIVE and strategy is CompressionStrategy.TEXT:
+            if mode is CompressionMode.AGGRESSIVE and strategy in {
+                CompressionStrategy.TEXT,
+                CompressionStrategy.PASSTHROUGH,
+            }:
                 strategy = CompressionStrategy.KOMPRESS
             # Apply per-type overrides from profile recommendations
             if (
@@ -1958,7 +1964,11 @@ class ContentRouter(Transform):
         # Primary: Kompress — downloads from chopratejas/kompress-v2-base on first use.
         # Production pipelines can disable opportunistic ML fallback for latency
         # while still allowing explicit per-request opt-ins.
-        if compressed is None and (self.config.enable_kompress or runtime_kompress_requested):
+        if compressed is None and (
+            self.config.enable_kompress
+            or runtime_kompress_requested
+            or self._compression_mode() is CompressionMode.AGGRESSIVE
+        ):
             compressor = self._get_kompress()
             if compressor:
                 try:
