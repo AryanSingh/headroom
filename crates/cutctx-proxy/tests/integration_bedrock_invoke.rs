@@ -37,6 +37,7 @@ mod common;
 
 use aws_credential_types::Credentials;
 use common::start_proxy_with_state;
+use cutctx_core::ccr::InMemoryCcrStore;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::sync::{Arc, Mutex};
@@ -160,6 +161,90 @@ async fn bedrock_proxy(
         |s| s.with_bedrock_credentials(test_credentials()),
     )
     .await
+}
+
+#[tokio::test]
+async fn context_strategies_off_does_not_enable_bedrock_ccr() {
+    let upstream = MockServer::start().await;
+    let captured = mount_capture_invoke(&upstream, r#"{"id":"msg_x","content":[]}"#).await;
+    let endpoint: Url = upstream.uri().parse().unwrap();
+    let proxy = start_proxy_with_state(
+        &upstream.uri(),
+        |config| {
+            config.bedrock_endpoint = Some(endpoint);
+            config.compression = true;
+            config.compression_mode = cutctx_proxy::config::CompressionMode::LiveZone;
+            config.context_strategies = false;
+        },
+        |state| {
+            state
+                .with_bedrock_credentials(test_credentials())
+                .with_ccr_store(Arc::new(InMemoryCcrStore::new()))
+        },
+    )
+    .await;
+    let baseline_upstream = MockServer::start().await;
+    let baseline_captured =
+        mount_capture_invoke(&baseline_upstream, r#"{"id":"msg_x","content":[]}"#).await;
+    let baseline_endpoint: Url = baseline_upstream.uri().parse().unwrap();
+    let baseline_proxy = start_proxy_with_state(
+        &baseline_upstream.uri(),
+        |config| {
+            config.bedrock_endpoint = Some(baseline_endpoint);
+            config.compression = true;
+            config.compression_mode = cutctx_proxy::config::CompressionMode::LiveZone;
+            config.context_strategies = false;
+        },
+        |state| state.with_bedrock_credentials(test_credentials()),
+    )
+    .await;
+    let log_output = (0..400)
+        .map(|index| {
+            format!("[2024-01-01 00:00:00] INFO compile.rs:42 building module foo_{index}\n")
+        })
+        .collect::<String>();
+    let body = serde_json::to_vec(&json!({
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 64,
+        "messages": [
+            {"role": "assistant", "content": "diagnostic output"},
+            {"role": "user", "content": log_output}
+        ]
+    }))
+    .unwrap();
+
+    for target in [&proxy, &baseline_proxy] {
+        let response = reqwest::Client::new()
+            .post(format!("{}/model/{TEST_MODEL}/invoke", target.url()))
+            .header("content-type", "application/json")
+            .body(body.clone())
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+    }
+    let upstream_body = captured
+        .lock()
+        .unwrap()
+        .body
+        .clone()
+        .expect("upstream body");
+    assert!(
+        !upstream_body.windows(6).any(|window| window == b"<<ccr:"),
+        "feature-off Bedrock invoke must not gain CCR markers"
+    );
+    let baseline_body = baseline_captured
+        .lock()
+        .unwrap()
+        .body
+        .clone()
+        .expect("baseline upstream body");
+    assert_eq!(
+        upstream_body, baseline_body,
+        "feature-off Bedrock invoke bytes must not depend on CCR availability"
+    );
+    proxy.shutdown().await;
+    baseline_proxy.shutdown().await;
 }
 
 #[tokio::test]

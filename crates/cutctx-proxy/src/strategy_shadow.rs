@@ -120,6 +120,7 @@ pub(crate) fn low_value_turn_indices(
         .filter_map(|(index, message)| {
             let text = message_text(message);
             (tokenizer.count_text(&text) >= compression_policy.volatile_token_threshold as usize
+                && !crate::tool_integrity::contains_tool_protocol(message)
                 && !has_protected_importance(&text, &importance_detector)
                 && scorer.score(&text, &context).score < config.low_value_score)
                 .then_some(index)
@@ -271,6 +272,7 @@ pub(crate) fn shadow_select_with_config(
                     decision.rationale = "header_override";
                 }
             } else {
+                crate::observability::record_context_strategy_invalid_override();
                 tracing::warn!(
                     event = "context_strategy_override_invalid",
                     request_id = %request_id,
@@ -279,10 +281,19 @@ pub(crate) fn shadow_select_with_config(
                 );
             }
         }
+    } else if headers.contains_key("x-cutctx-strategy") {
+        crate::observability::record_context_strategy_invalid_override();
+        tracing::warn!(
+            event = "context_strategy_override_invalid",
+            request_id = %request_id,
+            reason = "non_utf8",
+            "ignoring non-UTF-8 x-cutctx-strategy override"
+        );
     }
 
     // Emit observability: metric + structured log.
     crate::observability::record_context_strategy(decision.strategy.as_str(), decision.rationale);
+    crate::observability::record_context_strategy_utilization(decision.signals.utilization);
     tracing::info!(
         event = "context_strategy_selected",
         request_id = %request_id,
@@ -502,5 +513,53 @@ mod tests {
             cutctx_core::transforms::context_strategy::ContextStrategy::SelectiveClear
         );
         assert_eq!(decision.rationale, "header_override");
+    }
+
+    #[test]
+    fn invalid_strategy_headers_are_counted_and_utilization_is_observed() {
+        let body = json!({
+            "model": "claude-3-5-sonnet",
+            "messages": [{"role": "user", "content": "hello"}]
+        })
+        .to_string();
+        let before_invalid =
+            crate::observability::proxy_metrics::context_strategy_invalid_override_value();
+        let before_samples =
+            crate::observability::proxy_metrics::context_strategy_utilization_sample_count();
+
+        let mut invalid_text = HeaderMap::new();
+        invalid_text.insert(
+            "x-cutctx-strategy",
+            http::HeaderValue::from_static("definitely-invalid"),
+        );
+        let mut invalid_bytes = HeaderMap::new();
+        invalid_bytes.insert(
+            "x-cutctx-strategy",
+            http::HeaderValue::from_bytes(&[0xff]).unwrap(),
+        );
+        for (request_id, headers) in [
+            ("req-invalid-text", &invalid_text),
+            ("req-invalid-bytes", &invalid_bytes),
+        ] {
+            assert!(shadow_select(
+                body.as_bytes(),
+                None,
+                headers,
+                request_id,
+                crate::config::CacheControlAutoFrozen::Enabled,
+                &CompressionPolicy::for_mode(AuthMode::Payg),
+                &crate::session_state::SessionStateStore::default(),
+            )
+            .is_some());
+        }
+
+        assert!(
+            crate::observability::proxy_metrics::context_strategy_invalid_override_value()
+                >= before_invalid + 2
+        );
+        assert!(
+            crate::observability::proxy_metrics::context_strategy_utilization_sample_count()
+                >= before_samples + 2
+        );
     }
 }

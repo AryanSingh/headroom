@@ -879,51 +879,27 @@ pub(crate) async fn forward_http(
         // materialized `messages` / `input` arrays. Apply them before the
         // endpoint-specific live-zone compressor so every buffered provider
         // sees the same reversible conversation mutation.
-        let ccr_for_request = if tier.allows_ccr() {
+        let licensed_ccr_for_request = if tier.allows_ccr() {
             state.ccr_store.as_deref()
         } else {
             None
         };
-        let structural_mutation = match (&strategy_decision, ccr_for_request) {
-            (Some(decision), Some(store))
-                if decision.strategy == ContextStrategy::SelectiveClear =>
-            {
-                crate::strategy_apply::apply_selective_clear(
-                    &buffered,
-                    decision.signals.frozen_message_count,
-                    &policy,
-                    &state.config.strategy_config,
-                    store,
-                )
-            }
-            (Some(decision), Some(store))
-                if decision.strategy == ContextStrategy::SnapshotResume =>
-            {
+        let ccr_for_request = strategy_decision.as_ref().and(licensed_ccr_for_request);
+        let structural_result = match (&strategy_decision, ccr_for_request) {
+            (Some(decision), Some(store)) => {
                 let headers = headers_snapshot
                     .as_ref()
                     .expect("strategy selection requires captured headers");
                 let session_key = crate::session_state::resolve_session_key(headers, &request_id);
-                let last_snapshot_key = state
-                    .session_state
-                    .get(&session_key)
-                    .and_then(|entry| entry.last_snapshot_key);
-                let mutation = crate::strategy_apply::apply_snapshot_resume(
+                crate::strategy_apply::apply_selected_structural_strategy(
                     &buffered,
-                    decision.signals.frozen_message_count,
-                    &session_key.value,
-                    last_snapshot_key.as_deref(),
+                    decision,
+                    &policy,
                     &state.config.strategy_config,
                     store,
-                );
-                if let Some(snapshot_key) = mutation
-                    .as_ref()
-                    .and_then(|result| result.snapshot_key.as_ref())
-                {
-                    state
-                        .session_state
-                        .set_snapshot_key(&session_key, snapshot_key.clone());
-                }
-                mutation
+                    &session_key,
+                    &state.session_state,
+                )
             }
             (Some(decision), None) if decision.strategy != ContextStrategy::RollingWindow => {
                 tracing::warn!(
@@ -935,9 +911,52 @@ pub(crate) async fn forward_http(
                     "context strategy selected but CCR unavailable; degrading loudly"
                 );
                 crate::observability::record_context_strategy("rolling_window", "no_ccr");
+                Ok(None)
+            }
+            _ => Ok(None),
+        };
+        let structural_strategy = strategy_decision.as_ref().and_then(|decision| {
+            matches!(
+                decision.strategy,
+                ContextStrategy::SelectiveClear | ContextStrategy::SnapshotResume
+            )
+            .then_some(decision.strategy.as_str())
+        });
+        let structural_mutation = match structural_result {
+            Ok(mutation) => {
+                if let Some(strategy) = structural_strategy {
+                    crate::observability::record_context_strategy_application(
+                        strategy,
+                        if mutation.is_some() {
+                            "applied"
+                        } else {
+                            "ineligible"
+                        },
+                    );
+                }
+                mutation
+            }
+            Err(error) => {
+                if let Some(strategy) = structural_strategy {
+                    crate::observability::record_context_strategy_application(strategy, "error");
+                }
+                tracing::warn!(
+                    event = "context_strategy_application_failed",
+                    request_id = %request_id,
+                    provider = match endpoint {
+                        compression::CompressibleEndpoint::AnthropicMessages => "anthropic",
+                        compression::CompressibleEndpoint::OpenAiChatCompletions => "openai_chat",
+                        compression::CompressibleEndpoint::OpenAiResponses => "openai_responses",
+                    },
+                    strategy = strategy_decision
+                        .as_ref()
+                        .map(|decision| decision.strategy.as_str())
+                        .unwrap_or("rolling_window"),
+                    error = error.as_str(),
+                    "context strategy application failed; forwarding original bytes"
+                );
                 None
             }
-            _ => None,
         };
         if let Some(mutation) = structural_mutation.as_ref() {
             let tokenizer = cutctx_core::tokenizer::EstimatingCounter::default();
@@ -971,7 +990,7 @@ pub(crate) async fn forward_http(
                 // dispatcher. Structural strategies were already applied above.
                 let (active_strategy, max_lossy_ratio) = match &strategy_decision {
                     Some(d) if d.strategy == ContextStrategy::SmartCompact => {
-                        if ccr_for_request.is_some() {
+                        if licensed_ccr_for_request.is_some() {
                             (ContextStrategy::SmartCompact, policy.max_lossy_ratio)
                         } else {
                             (ContextStrategy::RollingWindow, 1.0)
@@ -986,7 +1005,7 @@ pub(crate) async fn forward_http(
                     state.config.cache_control_auto_frozen,
                     auth_mode,
                     &request_id,
-                    ccr_for_request,
+                    licensed_ccr_for_request,
                     active_strategy,
                     max_lossy_ratio,
                 )

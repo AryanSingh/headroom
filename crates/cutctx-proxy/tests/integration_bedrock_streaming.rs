@@ -25,11 +25,13 @@ mod common;
 use aws_credential_types::Credentials;
 use bytes::{Bytes, BytesMut};
 use common::start_proxy_with_state;
+use cutctx_core::ccr::InMemoryCcrStore;
 use cutctx_proxy::bedrock::{
     parse_eventstream, CrcValidation, EventStreamParser, HeaderValue, MessageBuilder, ParseError,
 };
 use proptest::prelude::*;
 use serde_json::json;
+use std::sync::{Arc, Mutex};
 use url::Url;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -115,6 +117,112 @@ async fn bedrock_proxy(
         |s| s.with_bedrock_credentials(test_credentials()),
     )
     .await
+}
+
+#[tokio::test]
+async fn context_strategies_off_does_not_enable_streaming_bedrock_ccr() {
+    let upstream = MockServer::start().await;
+    let captured = Arc::new(Mutex::new(Vec::<u8>::new()));
+    let captured_for_mock = captured.clone();
+    let response_body = synthesize_bedrock_stream();
+    Mock::given(method("POST"))
+        .and(path(format!(
+            "/model/{TEST_MODEL}/invoke-with-response-stream"
+        )))
+        .respond_with(move |request: &wiremock::Request| {
+            *captured_for_mock.lock().unwrap() = request.body.clone();
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/vnd.amazon.eventstream")
+                .set_body_bytes(response_body.to_vec())
+        })
+        .mount(&upstream)
+        .await;
+
+    let endpoint: Url = upstream.uri().parse().unwrap();
+    let proxy = start_proxy_with_state(
+        &upstream.uri(),
+        |config| {
+            config.bedrock_endpoint = Some(endpoint);
+            config.compression = true;
+            config.compression_mode = cutctx_proxy::config::CompressionMode::LiveZone;
+            config.context_strategies = false;
+        },
+        |state| {
+            state
+                .with_bedrock_credentials(test_credentials())
+                .with_ccr_store(Arc::new(InMemoryCcrStore::new()))
+        },
+    )
+    .await;
+    let baseline_upstream = MockServer::start().await;
+    let baseline_captured = Arc::new(Mutex::new(Vec::<u8>::new()));
+    let baseline_captured_for_mock = baseline_captured.clone();
+    let baseline_response_body = synthesize_bedrock_stream();
+    Mock::given(method("POST"))
+        .and(path(format!(
+            "/model/{TEST_MODEL}/invoke-with-response-stream"
+        )))
+        .respond_with(move |request: &wiremock::Request| {
+            *baseline_captured_for_mock.lock().unwrap() = request.body.clone();
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/vnd.amazon.eventstream")
+                .set_body_bytes(baseline_response_body.to_vec())
+        })
+        .mount(&baseline_upstream)
+        .await;
+    let baseline_endpoint: Url = baseline_upstream.uri().parse().unwrap();
+    let baseline_proxy = start_proxy_with_state(
+        &baseline_upstream.uri(),
+        |config| {
+            config.bedrock_endpoint = Some(baseline_endpoint);
+            config.compression = true;
+            config.compression_mode = cutctx_proxy::config::CompressionMode::LiveZone;
+            config.context_strategies = false;
+        },
+        |state| state.with_bedrock_credentials(test_credentials()),
+    )
+    .await;
+    let log_output = (0..400)
+        .map(|index| {
+            format!("[2024-01-01 00:00:00] INFO compile.rs:42 building module foo_{index}\n")
+        })
+        .collect::<String>();
+    let body = serde_json::to_vec(&json!({
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 64,
+        "messages": [
+            {"role": "assistant", "content": "diagnostic output"},
+            {"role": "user", "content": log_output}
+        ]
+    }))
+    .unwrap();
+
+    for target in [&proxy, &baseline_proxy] {
+        let response = reqwest::Client::new()
+            .post(format!(
+                "{}/model/{TEST_MODEL}/invoke-with-response-stream",
+                target.url()
+            ))
+            .header("content-type", "application/json")
+            .header("accept", "application/vnd.amazon.eventstream")
+            .body(body.clone())
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+    }
+    let upstream_body = captured.lock().unwrap().clone();
+    assert!(
+        !upstream_body.windows(6).any(|window| window == b"<<ccr:"),
+        "feature-off Bedrock streaming must not gain CCR markers"
+    );
+    assert_eq!(
+        upstream_body,
+        baseline_captured.lock().unwrap().clone(),
+        "feature-off Bedrock streaming bytes must not depend on CCR availability"
+    );
+    proxy.shutdown().await;
+    baseline_proxy.shutdown().await;
 }
 
 // ─── Test 1: Parser unit-style integration ─────────────────────────

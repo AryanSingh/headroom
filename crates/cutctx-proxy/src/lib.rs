@@ -19,6 +19,7 @@ pub mod session_state;
 pub mod sse;
 pub mod strategy_apply;
 pub mod strategy_shadow;
+pub(crate) mod tool_integrity;
 pub mod vertex;
 pub mod websocket;
 

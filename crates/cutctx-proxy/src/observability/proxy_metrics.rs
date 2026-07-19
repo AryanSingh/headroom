@@ -10,12 +10,20 @@
 
 use std::sync::OnceLock;
 
-use prometheus::{IntCounterVec, IntGaugeVec, Opts, Registry};
+use prometheus::{
+    Histogram, HistogramOpts, IntCounter, IntCounterVec, IntGaugeVec, Opts, Registry,
+};
 
 use super::metric_names::{
-    LABEL_PATH, LABEL_PROVIDER, LABEL_RATIONALE, LABEL_STATUS, LABEL_STRATEGY, LABEL_TIER,
+    LABEL_OUTCOME, LABEL_PATH, LABEL_PROVIDER, LABEL_RATIONALE, LABEL_STATUS, LABEL_STRATEGY,
+    LABEL_TIER, METRIC_PROXY_CONTEXT_STRATEGY_APPLICATION_TOTAL,
+    METRIC_PROXY_CONTEXT_STRATEGY_APPLICATION_TOTAL_HELP,
+    METRIC_PROXY_CONTEXT_STRATEGY_OVERRIDE_INVALID_TOTAL,
+    METRIC_PROXY_CONTEXT_STRATEGY_OVERRIDE_INVALID_TOTAL_HELP,
     METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL,
     METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL_HELP,
+    METRIC_PROXY_CONTEXT_STRATEGY_SIGNAL_UTILIZATION,
+    METRIC_PROXY_CONTEXT_STRATEGY_SIGNAL_UTILIZATION_HELP,
     METRIC_PROXY_PASSTHROUGH_BYTES_MODIFIED_TOTAL,
     METRIC_PROXY_PASSTHROUGH_BYTES_MODIFIED_TOTAL_HELP,
     METRIC_PROXY_RATE_LIMIT_REMAINING_INPUT_TOKENS,
@@ -313,6 +321,92 @@ pub fn record_context_strategy(strategy: &str, rationale: &str) {
     );
 }
 
+pub fn context_strategy_utilization_histogram(registry: &Registry) -> &'static Histogram {
+    static HISTOGRAM: OnceLock<Histogram> = OnceLock::new();
+    HISTOGRAM.get_or_init(|| {
+        let opts = HistogramOpts::new(
+            METRIC_PROXY_CONTEXT_STRATEGY_SIGNAL_UTILIZATION,
+            METRIC_PROXY_CONTEXT_STRATEGY_SIGNAL_UTILIZATION_HELP,
+        )
+        .buckets((1..=10).map(|n| f64::from(n) / 10.0).collect());
+        let histogram = Histogram::with_opts(opts)
+            .expect("context strategy utilization descriptor is well-formed");
+        registry
+            .register(Box::new(histogram.clone()))
+            .expect("context strategy utilization registers exactly once");
+        histogram
+    })
+}
+
+pub fn record_context_strategy_utilization(utilization: f32) {
+    context_strategy_utilization_histogram(super::prometheus::registry())
+        .observe(f64::from(utilization.clamp(0.0, 1.0)));
+}
+
+pub fn context_strategy_invalid_override_counter(registry: &Registry) -> &'static IntCounter {
+    static COUNTER: OnceLock<IntCounter> = OnceLock::new();
+    COUNTER.get_or_init(|| {
+        let counter = IntCounter::new(
+            METRIC_PROXY_CONTEXT_STRATEGY_OVERRIDE_INVALID_TOTAL,
+            METRIC_PROXY_CONTEXT_STRATEGY_OVERRIDE_INVALID_TOTAL_HELP,
+        )
+        .expect("invalid context strategy override descriptor is well-formed");
+        registry
+            .register(Box::new(counter.clone()))
+            .expect("invalid context strategy override registers exactly once");
+        counter
+    })
+}
+
+pub fn record_context_strategy_invalid_override() {
+    context_strategy_invalid_override_counter(super::prometheus::registry()).inc();
+}
+
+pub fn context_strategy_application_counter(registry: &Registry) -> &'static IntCounterVec {
+    static COUNTER: OnceLock<IntCounterVec> = OnceLock::new();
+    COUNTER.get_or_init(|| {
+        let opts = Opts::new(
+            METRIC_PROXY_CONTEXT_STRATEGY_APPLICATION_TOTAL,
+            METRIC_PROXY_CONTEXT_STRATEGY_APPLICATION_TOTAL_HELP,
+        );
+        let counter = IntCounterVec::new(opts, &[LABEL_STRATEGY, LABEL_OUTCOME])
+            .expect("context strategy application descriptor is well-formed");
+        registry
+            .register(Box::new(counter.clone()))
+            .expect("context strategy application registers exactly once");
+        counter
+    })
+}
+
+pub fn record_context_strategy_application(strategy: &str, outcome: &str) {
+    let strategy = match strategy {
+        "rolling_window" => "rolling_window",
+        "smart_compact" => "smart_compact",
+        "selective_clear" => "selective_clear",
+        "snapshot_resume" => "snapshot_resume",
+        _ => "other",
+    };
+    let outcome = match outcome {
+        "applied" => "applied",
+        "ineligible" => "ineligible",
+        "error" => "error",
+        _ => "other",
+    };
+    context_strategy_application_counter(super::prometheus::registry())
+        .with_label_values(&[strategy, outcome])
+        .inc();
+}
+
+#[cfg(test)]
+pub(crate) fn context_strategy_invalid_override_value() -> u64 {
+    context_strategy_invalid_override_counter(super::prometheus::registry()).get()
+}
+
+#[cfg(test)]
+pub(crate) fn context_strategy_utilization_sample_count() -> u64 {
+    context_strategy_utilization_histogram(super::prometheus::registry()).get_sample_count()
+}
+
 // Phase G PR-G3 remediation (C3 + C4): the image-redacted counter
 // and the wrap_rtk_invocations counter were originally registered
 // here but neither had a production emit site that crossed the
@@ -330,6 +424,7 @@ pub fn record_context_strategy(strategy: &str, rationale: &str) {
 mod tests {
     use super::*;
     use http::{HeaderMap, HeaderValue};
+    use prometheus::{core::Collector, Encoder, TextEncoder};
 
     #[test]
     fn extract_rate_limit_snapshot_anthropic() {
@@ -397,5 +492,52 @@ mod tests {
         );
         let snap = extract_rate_limit_snapshot(&h);
         assert_eq!(snap.remaining_requests, None);
+    }
+
+    #[test]
+    fn context_strategy_integrity_metrics_record_observations() {
+        let registry = crate::observability::prometheus::registry();
+        let histogram = context_strategy_utilization_histogram(registry);
+        let invalid = context_strategy_invalid_override_counter(registry);
+        let applications = context_strategy_application_counter(registry);
+        let before_samples = histogram.get_sample_count();
+        let before_invalid = invalid.get();
+        let before_applied = applications
+            .with_label_values(&["selective_clear", "applied"])
+            .get();
+
+        record_context_strategy_utilization(0.72);
+        record_context_strategy_invalid_override();
+        record_context_strategy_application("selective_clear", "applied");
+
+        assert_eq!(histogram.get_sample_count(), before_samples + 1);
+        assert_eq!(invalid.get(), before_invalid + 1);
+        assert_eq!(
+            applications
+                .with_label_values(&["selective_clear", "applied"])
+                .get(),
+            before_applied + 1
+        );
+        let bounds = histogram.collect()[0].get_metric()[0]
+            .get_histogram()
+            .get_bucket()
+            .iter()
+            .map(|bucket| bucket.get_upper_bound())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            bounds,
+            (1..=10).map(|n| f64::from(n) / 10.0).collect::<Vec<_>>()
+        );
+
+        let mut scrape = Vec::new();
+        TextEncoder::new()
+            .encode(&registry.gather(), &mut scrape)
+            .unwrap();
+        let scrape = String::from_utf8(scrape).unwrap();
+        assert!(scrape.contains("proxy_context_strategy_signal_utilization"));
+        assert!(scrape.contains("proxy_context_strategy_override_invalid_total"));
+        assert!(scrape.contains("proxy_context_strategy_application_total"));
+        assert!(scrape.contains("outcome=\"applied\""));
+        assert!(scrape.contains("strategy=\"selective_clear\""));
     }
 }

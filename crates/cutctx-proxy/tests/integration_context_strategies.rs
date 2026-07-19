@@ -179,3 +179,121 @@ async fn snapshot_resume_reuses_session_snapshot_on_repeat_request() {
     assert!(store.get(&first_key).is_some());
     proxy.shutdown().await;
 }
+
+#[tokio::test]
+async fn context_strategies_off_keeps_openai_wire_bytes_independent_of_ccr_store() {
+    let upstream = MockServer::start().await;
+    let captured = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
+    let captured_for_mock = captured.clone();
+    Mock::given(method("POST"))
+        .respond_with(move |request: &wiremock::Request| {
+            captured_for_mock.lock().unwrap().push(request.body.clone());
+            ResponseTemplate::new(200).set_body_json(json!({"ok": true}))
+        })
+        .mount(&upstream)
+        .await;
+
+    let with_store = start_proxy_with_state(
+        &upstream.uri(),
+        |config| {
+            config.compression = true;
+            config.compression_mode = CompressionMode::LiveZone;
+            config.context_strategies = false;
+        },
+        |state| state.with_ccr_store(Arc::new(InMemoryCcrStore::new())),
+    )
+    .await;
+    let without_store = start_proxy_with_state(
+        &upstream.uri(),
+        |config| {
+            config.compression = true;
+            config.compression_mode = CompressionMode::LiveZone;
+            config.context_strategies = false;
+        },
+        |state| state,
+    )
+    .await;
+    let log_output = (0..400)
+        .map(|index| {
+            format!("[2024-01-01 00:00:00] INFO compile.rs:42 building module foo_{index}\n")
+        })
+        .collect::<String>();
+
+    let requests = [
+        (
+            "/v1/chat/completions",
+            json!({
+                "model": "gpt-4o",
+                "messages": [
+                    {"role": "assistant", "content": "diagnostic output"},
+                    {"role": "user", "content": log_output}
+                ]
+            }),
+        ),
+        (
+            "/v1/responses",
+            json!({
+                "model": "gpt-4o",
+                "input": [{
+                    "type": "local_shell_call_output",
+                    "call_id": "call_1",
+                    "output": log_output
+                }]
+            }),
+        ),
+    ];
+
+    for (path, request) in requests {
+        let bytes = serde_json::to_vec(&request).unwrap();
+        for proxy in [&with_store, &without_store] {
+            let response = reqwest::Client::new()
+                .post(format!("{}{path}", proxy.url()))
+                .header("content-type", "application/json")
+                .header("x-api-key", "test-payg-key")
+                .body(bytes.clone())
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(response.status(), 200);
+        }
+    }
+
+    let anthropic = json!({
+        "model": "claude-3-5-sonnet-20241022",
+        "max_tokens": 128,
+        "messages": [
+            {"role": "assistant", "content": "diagnostic output"},
+            {"role": "user", "content": log_output}
+        ]
+    });
+    let response = reqwest::Client::new()
+        .post(format!("{}/v1/messages", with_store.url()))
+        .header("content-type", "application/json")
+        .header("x-api-key", "test-payg-key")
+        .json(&anthropic)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+
+    let captured = captured.lock().unwrap().clone();
+    assert_eq!(captured.len(), 5);
+    assert_eq!(
+        captured[0], captured[1],
+        "Chat bytes changed because CCR existed"
+    );
+    assert_eq!(
+        captured[2], captured[3],
+        "Responses bytes changed because CCR existed"
+    );
+    assert!(captured[..4]
+        .iter()
+        .all(|body| !body.windows(6).any(|w| w == b"<<ccr:")));
+    assert!(
+        captured[4].windows(6).any(|window| window == b"<<ccr:"),
+        "Anthropic must retain its licensed pre-feature CCR behavior"
+    );
+
+    with_store.shutdown().await;
+    without_store.shutdown().await;
+}
