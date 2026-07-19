@@ -502,20 +502,12 @@ def _sanitize_detail(event_type: str, detail: dict[str, Any] | None) -> dict[str
 
 
 def _replay_db_path_from_env() -> Path:
+    # CUTCTX_REPLAY_DB_PATH is operator-supplied config (same trust boundary
+    # as the admin key / license), not untrusted request input — operators
+    # legitimately relocate the journal to another volume (/var/lib/...), so
+    # the value is honored as given rather than confined to ~/.cutctx.
     configured = os.environ.get("CUTCTX_REPLAY_DB_PATH", "").strip()
-    if not configured:
-        return _default_replay_path()
-    # Operator-supplied; the store creates parent dirs, so an unbounded value
-    # (e.g. "../../etc/…") would be a path-traversal write primitive. Confine
-    # it to the workspace root and fall back to the safe default on violation.
-    workspace = (Path.home() / ".cutctx").resolve()
-    candidate = Path(configured).expanduser().resolve()
-    if candidate == workspace or workspace in candidate.parents:
-        return candidate
-    logger.warning(
-        "event=replay_db_path_rejected reason=outside_workspace falling_back_to_default"
-    )
-    return _default_replay_path()
+    return Path(configured).expanduser() if configured else _default_replay_path()
 
 
 def _replay_retention_days_from_env() -> int:
