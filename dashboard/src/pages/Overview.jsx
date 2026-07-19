@@ -2076,7 +2076,7 @@ const ROUTING_REASON_LABELS = {
   calibrated_scorer_required: 'Calibration required',
   confidence_below_threshold: 'Confidence protected the request',
   cost_lookup_failed: 'Cost proof unavailable',
-  downgrade_applied: 'Safe route applied',
+  downgrade_applied: 'downgrade_applied — Safe route applied',
   downgrade_blocked_unproven_transport: 'Transport proof blocked routing',
   low_complexity: 'Safe route applied',
   no_route_for_model: 'No exact route configured',
