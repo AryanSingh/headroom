@@ -65,6 +65,9 @@ jobs:
     name: coverage (rust)
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -84,6 +87,7 @@ jobs:
           files: coverage-rust.lcov
           flags: rust
           fail_ci_if_error: true
+          use_oidc: true
 
   wheels:
     name: wheels (${{ matrix.target }})
