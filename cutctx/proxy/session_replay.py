@@ -8,6 +8,15 @@ Extended replay coverage (compression, retrieval, injection, CCR lifecycle,
 and error/fallback states) is added through a ``ReplayPipelineExtension``
 registered with the pipeline extension manager, and through direct helper
 calls in handler code.
+
+Alpha limitation (tracked): journal writes are synchronous SQLite (WAL,
+100ms busy-timeout, single-INSERT + periodic bounded prune) executed inline
+on the request path when replay is enabled. Writes are fail-open and tiny,
+but under high concurrency with replay ON they add per-request latency on
+the event loop. Default-off keeps the normal path unaffected. Remediation
+before promoting replay out of alpha: drain writes through a bounded
+background queue (or ``asyncio.to_thread`` at the extension boundary) so the
+request path never touches disk.
 """
 
 from __future__ import annotations
@@ -494,7 +503,19 @@ def _sanitize_detail(event_type: str, detail: dict[str, Any] | None) -> dict[str
 
 def _replay_db_path_from_env() -> Path:
     configured = os.environ.get("CUTCTX_REPLAY_DB_PATH", "").strip()
-    return Path(configured).expanduser() if configured else _default_replay_path()
+    if not configured:
+        return _default_replay_path()
+    # Operator-supplied; the store creates parent dirs, so an unbounded value
+    # (e.g. "../../etc/…") would be a path-traversal write primitive. Confine
+    # it to the workspace root and fall back to the safe default on violation.
+    workspace = (Path.home() / ".cutctx").resolve()
+    candidate = Path(configured).expanduser().resolve()
+    if candidate == workspace or workspace in candidate.parents:
+        return candidate
+    logger.warning(
+        "event=replay_db_path_rejected reason=outside_workspace falling_back_to_default"
+    )
+    return _default_replay_path()
 
 
 def _replay_retention_days_from_env() -> int:
