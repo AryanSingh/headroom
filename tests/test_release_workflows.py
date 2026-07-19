@@ -185,14 +185,16 @@ def test_ci_enforces_and_uploads_python_coverage() -> None:
     assert codecov.count("target: 70%") == 2
 
 
-def test_rust_ci_generates_and_uploads_llvm_coverage() -> None:
+def test_rust_ci_generates_and_retains_llvm_coverage_artifact() -> None:
     workflow = (ROOT / ".github" / "workflows" / "rust.yml").read_text(encoding="utf-8")
 
     assert "components: llvm-tools-preview" in workflow
     assert "tool: cargo-llvm-cov" in workflow
     assert "cargo llvm-cov --workspace --lcov" in workflow
-    assert "coverage-rust.lcov" in workflow
-    assert "flags: rust" in workflow
+    assert "uses: actions/upload-artifact@v7" in workflow
+    assert "name: coverage-rust" in workflow
+    assert "path: coverage-rust.lcov" in workflow
+    assert "if-no-files-found: error" in workflow
 
 
 def test_workspace_pins_reachable_security_fixed_pyo3_release() -> None:
