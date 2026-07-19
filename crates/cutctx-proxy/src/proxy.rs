@@ -884,8 +884,24 @@ pub(crate) async fn forward_http(
         } else {
             None
         };
-        let ccr_for_request = strategy_decision.as_ref().and(licensed_ccr_for_request);
-        let structural_result = match (&strategy_decision, ccr_for_request) {
+        let structural_ccr = match strategy_decision.as_ref() {
+            Some(decision)
+                if matches!(
+                    decision.strategy,
+                    ContextStrategy::SelectiveClear | ContextStrategy::SnapshotResume
+                ) =>
+            {
+                licensed_ccr_for_request
+            }
+            _ => None,
+        };
+        let live_zone_ccr = match strategy_decision.as_ref() {
+            Some(decision) if decision.strategy == ContextStrategy::SmartCompact => {
+                licensed_ccr_for_request
+            }
+            _ => None,
+        };
+        let structural_result = match (&strategy_decision, structural_ccr) {
             (Some(decision), Some(store)) => {
                 let headers = headers_snapshot
                     .as_ref()
@@ -1029,7 +1045,7 @@ pub(crate) async fn forward_http(
                     let (active_strategy, max_lossy_ratio) = match &strategy_decision {
                         Some(decision)
                             if decision.strategy == ContextStrategy::SmartCompact
-                                && ccr_for_request.is_some() =>
+                                && live_zone_ccr.is_some() =>
                         {
                             (ContextStrategy::SmartCompact, policy.max_lossy_ratio)
                         }
@@ -1040,7 +1056,7 @@ pub(crate) async fn forward_http(
                         state.config.compression_mode,
                         auth_mode,
                         &request_id,
-                        ccr_for_request,
+                        live_zone_ccr,
                         active_strategy,
                         max_lossy_ratio,
                     )
@@ -1055,7 +1071,7 @@ pub(crate) async fn forward_http(
                 let (active_strategy, max_lossy_ratio) = match &strategy_decision {
                     Some(decision)
                         if decision.strategy == ContextStrategy::SmartCompact
-                            && ccr_for_request.is_some() =>
+                            && live_zone_ccr.is_some() =>
                     {
                         (ContextStrategy::SmartCompact, policy.max_lossy_ratio)
                     }
@@ -1066,7 +1082,7 @@ pub(crate) async fn forward_http(
                     state.config.compression_mode,
                     auth_mode,
                     &request_id,
-                    ccr_for_request,
+                    live_zone_ccr,
                     active_strategy,
                     max_lossy_ratio,
                 )
