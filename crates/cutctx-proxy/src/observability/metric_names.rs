@@ -104,6 +104,25 @@ pub const METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL_HELP: &str =
 
 pub const LABEL_RATIONALE: &str = "rationale";
 
+// ---------- context strategy integrity ----------
+
+pub const METRIC_PROXY_CONTEXT_STRATEGY_SIGNAL_UTILIZATION: &str =
+    "proxy_context_strategy_signal_utilization";
+pub const METRIC_PROXY_CONTEXT_STRATEGY_SIGNAL_UTILIZATION_HELP: &str =
+    "Observed request-context utilization when adaptive context strategies are enabled.";
+
+pub const METRIC_PROXY_CONTEXT_STRATEGY_OVERRIDE_INVALID_TOTAL: &str =
+    "proxy_context_strategy_override_invalid_total";
+pub const METRIC_PROXY_CONTEXT_STRATEGY_OVERRIDE_INVALID_TOTAL_HELP: &str =
+    "Invalid x-cutctx-strategy overrides ignored by the proxy.";
+
+pub const METRIC_PROXY_CONTEXT_STRATEGY_APPLICATION_TOTAL: &str =
+    "proxy_context_strategy_application_total";
+pub const METRIC_PROXY_CONTEXT_STRATEGY_APPLICATION_TOTAL_HELP: &str =
+    "Structural context strategy application outcomes by strategy.";
+
+pub const LABEL_OUTCOME: &str = "outcome";
+
 // Phase G PR-G3 remediation (C3 + C4): the metric-name constants
 // for `proxy_image_generation_call_log_redacted_total`,
 // `wrap_rtk_invocations_total`, and `wrap_rtk_tokens_saved_per_session`

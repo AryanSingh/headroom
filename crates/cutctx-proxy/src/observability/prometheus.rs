@@ -247,6 +247,10 @@ pub async fn handle_metrics() -> Response {
     let rl_output_gauge = super::proxy_metrics::rate_limit_remaining_output_tokens_gauge(reg);
     let tier_counter = super::proxy_metrics::service_tier_counter(reg);
     let status_counter = super::proxy_metrics::response_status_counter(reg);
+    let strategy_counter = super::proxy_metrics::context_strategy_counter(reg);
+    let _ = super::proxy_metrics::context_strategy_utilization_histogram(reg);
+    let invalid_override = super::proxy_metrics::context_strategy_invalid_override_counter(reg);
+    let application_counter = super::proxy_metrics::context_strategy_application_counter(reg);
 
     const INIT_SENTINEL: &str = "__init__";
     rejected_counter
@@ -261,6 +265,13 @@ pub async fn handle_metrics() -> Response {
     rl_output_gauge.with_label_values(&[INIT_SENTINEL]).set(0);
     tier_counter.with_label_values(&[INIT_SENTINEL]).inc_by(0);
     status_counter.with_label_values(&[INIT_SENTINEL]).inc_by(0);
+    strategy_counter
+        .with_label_values(&[INIT_SENTINEL, INIT_SENTINEL])
+        .inc_by(0);
+    invalid_override.inc_by(0);
+    application_counter
+        .with_label_values(&[INIT_SENTINEL, INIT_SENTINEL])
+        .inc_by(0);
 
     let metric_families = registry().gather();
     let mut buffer = Vec::with_capacity(2048);

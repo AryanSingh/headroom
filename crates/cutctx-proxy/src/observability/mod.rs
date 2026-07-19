@@ -65,6 +65,8 @@ pub use compression_ratio::{
     record_rejected_by_token_check as record_compression_rejected_by_token_check,
 };
 pub use proxy_metrics::{
-    extract_rate_limit_snapshot, record_context_strategy, record_passthrough_bytes_modified,
-    record_rate_limit_snapshot, record_response_status, record_service_tier, RateLimitSnapshot,
+    extract_rate_limit_snapshot, record_context_strategy, record_context_strategy_application,
+    record_context_strategy_invalid_override, record_context_strategy_utilization,
+    record_passthrough_bytes_modified, record_rate_limit_snapshot, record_response_status,
+    record_service_tier, RateLimitSnapshot,
 };

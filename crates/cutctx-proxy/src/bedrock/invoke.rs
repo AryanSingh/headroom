@@ -401,7 +401,7 @@ fn run_anthropic_compression(
         } else {
             None
         };
-    let ccr_for_request = if state.config.license_tier.allows_ccr() {
+    let ccr_for_request = if strategy_decision.is_some() && state.config.license_tier.allows_ccr() {
         state.ccr_store.as_deref()
     } else {
         None
@@ -431,7 +431,42 @@ fn run_anthropic_compression(
             &session_key,
             &state.session_state,
         ),
-        _ => None,
+        _ => Ok(None),
+    };
+    let structural_strategy = strategy_decision.as_ref().and_then(|decision| {
+        matches!(
+            decision.strategy,
+            ContextStrategy::SelectiveClear | ContextStrategy::SnapshotResume
+        )
+        .then_some(decision.strategy.as_str())
+    });
+    let mutation = match mutation {
+        Ok(mutation) => {
+            if let Some(strategy) = structural_strategy {
+                crate::observability::record_context_strategy_application(
+                    strategy,
+                    if mutation.is_some() {
+                        "applied"
+                    } else {
+                        "ineligible"
+                    },
+                );
+            }
+            mutation
+        }
+        Err(error) => {
+            if let Some(strategy) = structural_strategy {
+                crate::observability::record_context_strategy_application(strategy, "error");
+            }
+            tracing::warn!(
+                event = "context_strategy_apply_failed",
+                request_id = %request_id,
+                provider = "bedrock",
+                error = error.as_str(),
+                "Bedrock context strategy application failed; forwarding original bytes"
+            );
+            None
+        }
     };
     let active_body = mutation
         .map(|result| Bytes::from(result.body))
