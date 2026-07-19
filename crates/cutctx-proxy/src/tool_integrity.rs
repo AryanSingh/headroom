@@ -124,7 +124,13 @@ pub(crate) fn snapshot_range_preserves_tool_pairs(
     let crosses = |first: &ToolLinks, second: &ToolLinks| {
         intersects(&first.calls, &second.results) || intersects(&first.results, &second.calls)
     };
-    if crosses(&left, &inside) || crosses(&inside, &right) || crosses(&left, &right) {
+    if left.has_unlinked
+        || inside.has_unlinked
+        || right.has_unlinked
+        || crosses(&left, &inside)
+        || crosses(&inside, &right)
+        || crosses(&left, &right)
+    {
         return false;
     }
 
@@ -251,5 +257,20 @@ mod tests {
             json!({"role": "user", "content": "tail"}),
         ];
         assert!(!snapshot_range_preserves_tool_pairs(&unlinked, 0, 2));
+
+        let unlinked_away_from_boundary = vec![
+            json!({"role": "user", "content": "snapshot start"}),
+            json!({"role": "assistant", "content": [
+                {"type": "future_tool_protocol", "payload": {}}
+            ]}),
+            json!({"role": "assistant", "content": "middle"}),
+            json!({"role": "user", "content": "snapshot end"}),
+            json!({"role": "user", "content": "tail"}),
+        ];
+        assert!(!snapshot_range_preserves_tool_pairs(
+            &unlinked_away_from_boundary,
+            0,
+            4
+        ));
     }
 }

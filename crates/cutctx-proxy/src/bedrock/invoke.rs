@@ -459,7 +459,7 @@ fn run_anthropic_compression(
                 crate::observability::record_context_strategy_application(strategy, "error");
             }
             tracing::warn!(
-                event = "context_strategy_apply_failed",
+                event = "context_strategy_application_failed",
                 request_id = %request_id,
                 provider = "bedrock",
                 error = error.as_str(),

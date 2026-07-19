@@ -941,8 +941,13 @@ pub(crate) async fn forward_http(
                     crate::observability::record_context_strategy_application(strategy, "error");
                 }
                 tracing::warn!(
-                    event = "context_strategy_apply_failed",
+                    event = "context_strategy_application_failed",
                     request_id = %request_id,
+                    provider = match endpoint {
+                        compression::CompressibleEndpoint::AnthropicMessages => "anthropic",
+                        compression::CompressibleEndpoint::OpenAiChatCompletions => "openai_chat",
+                        compression::CompressibleEndpoint::OpenAiResponses => "openai_responses",
+                    },
                     strategy = strategy_decision
                         .as_ref()
                         .map(|decision| decision.strategy.as_str())

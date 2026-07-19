@@ -379,6 +379,19 @@ pub fn context_strategy_application_counter(registry: &Registry) -> &'static Int
 }
 
 pub fn record_context_strategy_application(strategy: &str, outcome: &str) {
+    let strategy = match strategy {
+        "rolling_window" => "rolling_window",
+        "smart_compact" => "smart_compact",
+        "selective_clear" => "selective_clear",
+        "snapshot_resume" => "snapshot_resume",
+        _ => "other",
+    };
+    let outcome = match outcome {
+        "applied" => "applied",
+        "ineligible" => "ineligible",
+        "error" => "error",
+        _ => "other",
+    };
     context_strategy_application_counter(super::prometheus::registry())
         .with_label_values(&[strategy, outcome])
         .inc();

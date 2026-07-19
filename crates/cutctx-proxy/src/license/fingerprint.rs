@@ -147,9 +147,11 @@ fn get_os_info() -> String {
 ///
 /// Stored at `~/.cutctx/install-uuid`. Created on first run.
 fn get_or_create_install_uuid() -> String {
-    let uuid_path = install_uuid_path();
+    get_or_create_install_uuid_at(&install_uuid_path())
+}
 
-    if let Ok(uuid) = std::fs::read_to_string(&uuid_path) {
+fn get_or_create_install_uuid_at(uuid_path: &std::path::Path) -> String {
+    if let Ok(uuid) = std::fs::read_to_string(uuid_path) {
         let uuid = uuid.trim().to_string();
         if !uuid.is_empty() {
             return uuid;
@@ -158,7 +160,7 @@ fn get_or_create_install_uuid() -> String {
 
     let uuid = uuid::Uuid::new_v4().to_string();
     let _ = std::fs::create_dir_all(uuid_path.parent().unwrap_or(std::path::Path::new(".")));
-    let _ = std::fs::write(&uuid_path, &uuid);
+    let _ = std::fs::write(uuid_path, &uuid);
     uuid
 }
 
@@ -238,12 +240,14 @@ mod tests {
 
     #[test]
     fn install_uuid_persists() {
-        let path = install_uuid_path();
-        let _ = std::fs::remove_file(&path);
-        let uuid1 = get_or_create_install_uuid();
-        let uuid2 = get_or_create_install_uuid();
+        let directory =
+            std::env::temp_dir().join(format!("cutctx-install-uuid-test-{}", uuid::Uuid::new_v4()));
+        let path = directory.join("install-uuid");
+        let uuid1 = get_or_create_install_uuid_at(&path);
+        let uuid2 = get_or_create_install_uuid_at(&path);
         assert_eq!(uuid1, uuid2);
         let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir(&directory);
     }
 
     #[test]
