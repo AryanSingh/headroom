@@ -567,6 +567,7 @@ mod tests {
             )),
             ccr_store: None,
             spend_emitter: None,
+            session_state: crate::session_state::SessionStateStore::default(),
         };
         let uri: Uri = "/model/anthropic.claude-3-haiku-20240307-v1:0/invoke"
             .parse()
@@ -604,6 +605,7 @@ mod tests {
             )),
             ccr_store: None,
             spend_emitter: None,
+            session_state: crate::session_state::SessionStateStore::default(),
         };
         let uri: Uri = "/model/anthropic.claude-3-haiku-20240307-v1:0/invoke"
             .parse()

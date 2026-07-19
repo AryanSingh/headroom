@@ -83,6 +83,10 @@ pub struct AppState {
     /// Phase 2 Spend Emitter: emits spend events asynchronously to the
     /// configured proprietary ledger url. Default: `None`.
     pub spend_emitter: Option<Arc<crate::observability::spend_emitter::SpendEmitter>>,
+    /// Per-session state tracker for smart context strategies. Shadow-mode
+    /// strategy selection reads session identity + request count + frozen-floor
+    /// stability from this store. Thread-safe LRU, bounded capacity.
+    pub session_state: crate::session_state::SessionStateStore,
 }
 
 /// PR-E6: maximum number of sessions tracked by the drift detector
@@ -125,6 +129,7 @@ impl AppState {
                     url.clone(),
                 ))
             }),
+            session_state: crate::session_state::SessionStateStore::default(),
         };
 
         // Log license tier on startup.
@@ -847,6 +852,23 @@ pub(crate) async fn forward_http(
                 observe_drift(&state.drift_state, &session_key, hash);
             }
         }
+
+        // Shadow-mode context strategy selection (spec-smart-context-strategies.md).
+        // Observational only: no effect on the compression dispatch below.
+        if state.config.context_strategies {
+            if let Some(headers) = headers_snapshot.as_ref() {
+                let _ = crate::strategy_shadow::shadow_select(
+                    &buffered,
+                    None, // model_hint: not available without re-parsing; extracted from body by shadow_select
+                    headers,
+                    &request_id,
+                    state.config.cache_control_auto_frozen,
+                    &policy,
+                    &state.session_state,
+                );
+            }
+        }
+
         let outcome = match endpoint {
             compression::CompressibleEndpoint::AnthropicMessages => {
                 // PR-E3: thread the F1-classified auth_mode into the

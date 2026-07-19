@@ -398,6 +398,21 @@ pub struct CliArgs {
     )]
     pub enable_bedrock_native: bool,
 
+    /// Shadow-mode adaptive context strategy selection (spec-smart-context-strategies.md).
+    /// When enabled, the proxy observes and logs strategy decisions per request:
+    /// ContextSignals are computed, select_strategy is called, and the decision
+    /// is metered + structured-logged. Currently observational only — no effect on
+    /// compression dispatch or request body mutation. Opt-in (default: off) for the
+    /// first release; flips to on in a later minor version.
+    ///
+    /// Source priority: CLI flag → `CUTCTX_PROXY_CONTEXT_STRATEGIES` env var → off.
+    #[arg(
+        long = "context-strategies",
+        env = "CUTCTX_PROXY_CONTEXT_STRATEGIES",
+        default_value_t = false
+    )]
+    pub context_strategies: bool,
+
     /// AWS region to use when signing Bedrock requests. Default
     /// `us-east-1`. The Bedrock endpoint URL derived from this
     /// region is `https://bedrock-runtime.{region}.amazonaws.com`
@@ -771,6 +786,10 @@ pub struct Config {
     /// mounted; operators relying on the Python LiteLLM converter
     /// keep their existing path.
     pub enable_bedrock_native: bool,
+    /// Shadow-mode context strategy selection enabled. When true,
+    /// ContextSignals are computed and logged per request; strategy
+    /// decisions are metered. Currently observational only.
+    pub context_strategies: bool,
     /// PR-D1: AWS region used to sign Bedrock requests + (when no
     /// explicit endpoint is set) derive the Bedrock endpoint URL.
     pub bedrock_region: String,
@@ -845,6 +864,7 @@ impl Config {
             enable_responses_streaming: args.enable_responses_streaming,
             enable_conversations_passthrough: args.enable_conversations_passthrough,
             enable_bedrock_native: args.enable_bedrock_native,
+            context_strategies: args.context_strategies,
             bedrock_region: args.bedrock_region,
             bedrock_endpoint: args.bedrock_endpoint,
             aws_profile: args.aws_profile,
@@ -910,6 +930,7 @@ impl Config {
             // `bedrock_endpoint` to a wiremock URL get the full
             // sign-and-forward path.
             enable_bedrock_native: true,
+            context_strategies: false,
             bedrock_region: "us-east-1".to_string(),
             bedrock_endpoint: None,
             aws_profile: None,
