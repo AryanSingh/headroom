@@ -13,7 +13,9 @@ use std::sync::OnceLock;
 use prometheus::{IntCounterVec, IntGaugeVec, Opts, Registry};
 
 use super::metric_names::{
-    LABEL_PATH, LABEL_PROVIDER, LABEL_STATUS, LABEL_TIER,
+    LABEL_PATH, LABEL_PROVIDER, LABEL_RATIONALE, LABEL_STATUS, LABEL_STRATEGY, LABEL_TIER,
+    METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL,
+    METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL_HELP,
     METRIC_PROXY_PASSTHROUGH_BYTES_MODIFIED_TOTAL,
     METRIC_PROXY_PASSTHROUGH_BYTES_MODIFIED_TOTAL_HELP,
     METRIC_PROXY_RATE_LIMIT_REMAINING_INPUT_TOKENS,
@@ -277,6 +279,37 @@ pub fn record_response_status(status: &str, reason: Option<&str>, request_id: &s
         reason = reason.unwrap_or(""),
         request_id = %request_id,
         "incremented proxy_response_status_count_total"
+    );
+}
+
+// ---------- proxy_context_strategy_selected_total{strategy, rationale} ----------
+
+pub fn context_strategy_counter(registry: &Registry) -> &'static IntCounterVec {
+    static COUNTER: OnceLock<IntCounterVec> = OnceLock::new();
+    COUNTER.get_or_init(|| {
+        let opts = Opts::new(
+            METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL,
+            METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL_HELP,
+        );
+        let counter = IntCounterVec::new(opts, &[LABEL_STRATEGY, LABEL_RATIONALE])
+            .expect("proxy_context_strategy_selected_total descriptor is well-formed");
+        registry
+            .register(Box::new(counter.clone()))
+            .expect("proxy_context_strategy_selected_total registers exactly once");
+        counter
+    })
+}
+
+pub fn record_context_strategy(strategy: &str, rationale: &str) {
+    context_strategy_counter(super::prometheus::registry())
+        .with_label_values(&[strategy, rationale])
+        .inc();
+    tracing::debug!(
+        event = "metric_recorded",
+        metric = METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL,
+        strategy = %strategy,
+        rationale = %rationale,
+        "incremented proxy_context_strategy_selected_total"
     );
 }
 

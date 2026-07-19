@@ -94,6 +94,16 @@ pub const METRIC_PROXY_RESPONSE_STATUS_COUNT_TOTAL_HELP: &str =
      'incomplete' detail lands in the structured log paired with each \
      increment.";
 
+// ---------- proxy_context_strategy_selected_total ----------
+
+pub const METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL: &str =
+    "proxy_context_strategy_selected_total";
+pub const METRIC_PROXY_CONTEXT_STRATEGY_SELECTED_TOTAL_HELP: &str =
+    "Adaptive context strategy selections by strategy and rationale. \
+     Counts when --context-strategies is enabled.";
+
+pub const LABEL_RATIONALE: &str = "rationale";
+
 // Phase G PR-G3 remediation (C3 + C4): the metric-name constants
 // for `proxy_image_generation_call_log_redacted_total`,
 // `wrap_rtk_invocations_total`, and `wrap_rtk_tokens_saved_per_session`

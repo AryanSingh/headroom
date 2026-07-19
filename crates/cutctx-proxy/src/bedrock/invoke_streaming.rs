@@ -62,7 +62,7 @@ use crate::bedrock::eventstream_to_sse::{
 };
 use crate::bedrock::sigv4::{sign_request, SigningInputs};
 use crate::compression::{
-    compress_anthropic_request, Outcome as AnthropicOutcome, PassthroughReason,
+    compress_anthropic_request_with_strategy, Outcome as AnthropicOutcome, PassthroughReason,
 };
 use crate::headers::filter_response_headers;
 use crate::observability::{
@@ -73,6 +73,7 @@ use crate::proxy::AppState;
 // middleware on the bedrock router; we read it back via the
 // `Extension<AuthMode>` extractor.
 use cutctx_core::auth_mode::AuthMode;
+use cutctx_core::transforms::context_strategy::ContextStrategy;
 
 /// Anthropic vendor prefix as encoded in Bedrock model ids.
 const ANTHROPIC_VENDOR_PREFIX: &str = "anthropic.";
@@ -154,7 +155,7 @@ pub async fn handle_invoke_streaming(
     // 1. Live-zone compression for Anthropic-shape bodies (same as D1).
     let is_anthropic = model_id.starts_with(ANTHROPIC_VENDOR_PREFIX);
     let outbound_body: Bytes = if is_anthropic {
-        run_anthropic_compression(&body, &state, auth_mode, &request_id)
+        run_anthropic_compression(&body, &state, auth_mode, &headers, &request_id, &model_id)
     } else {
         tracing::info!(
             event = "bedrock_compression_skipped",
@@ -831,8 +832,10 @@ fn error_response(status: StatusCode, event: &str, msg: &str) -> Response {
 fn run_anthropic_compression(
     body: &Bytes,
     state: &AppState,
-    _auth_mode: AuthMode,
+    auth_mode: AuthMode,
+    headers: &HeaderMap,
     request_id: &str,
+    model_id: &str,
 ) -> Bytes {
     use crate::bedrock::envelope::BedrockEnvelope;
 
@@ -846,17 +849,78 @@ fn run_anthropic_compression(
         return body.clone();
     }
 
+    let policy = cutctx_core::compression_policy::CompressionPolicy::for_mode(auth_mode);
+    let strategy_decision =
+        if state.config.context_strategies && state.config.license_tier.allows_live_zone() {
+            crate::strategy_shadow::shadow_select_with_config(
+                body,
+                Some(model_id),
+                headers,
+                request_id,
+                state.config.cache_control_auto_frozen,
+                &policy,
+                &state.config.strategy_config,
+                &state.session_state,
+            )
+        } else {
+            None
+        };
+    let ccr_for_request = if state.config.license_tier.allows_ccr() {
+        state.ccr_store.as_deref()
+    } else {
+        None
+    };
+    if let (Some(decision), None) = (&strategy_decision, ccr_for_request) {
+        if decision.strategy != ContextStrategy::RollingWindow {
+            tracing::warn!(
+                event = "context_strategy_degraded",
+                request_id = %request_id,
+                provider = "bedrock",
+                from = decision.strategy.as_str(),
+                to = "rolling_window",
+                reason = "no_ccr",
+                "Bedrock streaming context strategy requires CCR; degrading loudly"
+            );
+            crate::observability::record_context_strategy("rolling_window", "no_ccr");
+        }
+    }
+    let session_key = crate::session_state::resolve_session_key(headers, request_id);
+    let mutation = match (&strategy_decision, ccr_for_request) {
+        (Some(decision), Some(store)) => crate::strategy_apply::apply_selected_structural_strategy(
+            body,
+            decision,
+            &policy,
+            &state.config.strategy_config,
+            store,
+            &session_key,
+            &state.session_state,
+        ),
+        _ => None,
+    };
+    let active_body = mutation
+        .map(|result| Bytes::from(result.body))
+        .unwrap_or_else(|| body.clone());
+    let (active_strategy, max_lossy_ratio) = match (&strategy_decision, ccr_for_request) {
+        (Some(decision), Some(_)) if decision.strategy == ContextStrategy::SmartCompact => {
+            (ContextStrategy::SmartCompact, policy.max_lossy_ratio)
+        }
+        _ => (ContextStrategy::RollingWindow, 1.0),
+    };
+
     // PR-E3: Bedrock channel hard-codes OAuth so cache_control
     // auto-placement is skipped (see invoke.rs for rationale).
-    let outcome = compress_anthropic_request(
-        body,
+    let outcome = compress_anthropic_request_with_strategy(
+        &active_body,
         state.config.compression_mode,
         state.config.cache_control_auto_frozen,
         cutctx_core::auth_mode::AuthMode::OAuth,
         request_id,
+        ccr_for_request,
+        active_strategy,
+        max_lossy_ratio,
     );
     match outcome {
-        AnthropicOutcome::NoCompression => body.clone(),
+        AnthropicOutcome::NoCompression => active_body,
         AnthropicOutcome::Passthrough { reason } => {
             tracing::info!(
                 event = "bedrock_compression_passthrough",
@@ -865,7 +929,7 @@ fn run_anthropic_compression(
                 "bedrock invoke-streaming: passthrough"
             );
             let _ = (PassthroughReason::ModeOff, PassthroughReason::NoMessages);
-            body.clone()
+            active_body
         }
         AnthropicOutcome::Compressed { body: new_body, .. } => {
             match BedrockEnvelope::ensure_anthropic_version_first(&new_body) {
@@ -990,6 +1054,7 @@ mod tests {
             )),
             ccr_store: None,
             spend_emitter: None,
+            session_state: crate::session_state::SessionStateStore::default(),
         };
         let uri: Uri = "/model/anthropic.claude-3-haiku-20240307-v1:0/invoke-with-response-stream"
             .parse()

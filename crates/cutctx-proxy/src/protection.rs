@@ -37,32 +37,32 @@ pub fn check_debugger() -> DebuggerStatus {
     }
 }
 
-/// Linux: ptrace self-attach check. If a debugger is already attached,
-/// PTRACE_TRACEME fails with EPERM.
+/// Linux: read the kernel-reported tracer PID without changing process state.
+///
+/// `PTRACE_TRACEME` must not be used as a probe here: a successful call makes
+/// the parent process our tracer, and the tracee cannot undo that relationship
+/// with `PTRACE_DETACH`. In test runners this leaves the process stopped during
+/// exit even though every test assertion has completed.
 #[cfg(target_os = "linux")]
 fn check_ptrace_linux() -> DebuggerStatus {
-    // SAFETY: ptrace is a safe syscall wrapper. PTRACE_TRACEME = 0.
-    // If it succeeds, we're being traced → detach immediately.
-    // If it fails with EPERM, a debugger is already attached.
-    unsafe {
-        let ret = libc::ptrace(libc::PTRACE_TRACEME, 0, 0, 0);
-        if ret == 0 {
-            // We were successfully traced — detach to avoid影响
-            libc::ptrace(libc::PTRACE_DETACH, 0, 0, 0);
-            DebuggerStatus::Detected {
-                method: "ptrace_traceme",
-            }
-        } else {
-            // EPERM = debugger already attached
-            let errno = *libc::__errno_location();
-            if errno == libc::EPERM {
-                DebuggerStatus::Detected {
-                    method: "ptrace_eperm",
-                }
-            } else {
-                DebuggerStatus::None
-            }
+    std::fs::read_to_string("/proc/self/status")
+        .map(|status| debugger_status_from_proc_status(&status))
+        .unwrap_or(DebuggerStatus::None)
+}
+
+#[cfg(target_os = "linux")]
+fn debugger_status_from_proc_status(status: &str) -> DebuggerStatus {
+    let tracer_pid = status.lines().find_map(|line| {
+        line.strip_prefix("TracerPid:")
+            .and_then(|value| value.trim().parse::<u32>().ok())
+    });
+
+    if tracer_pid.is_some_and(|pid| pid != 0) {
+        DebuggerStatus::Detected {
+            method: "proc_status_tracer_pid",
         }
+    } else {
+        DebuggerStatus::None
     }
 }
 
@@ -302,6 +302,41 @@ mod tests {
     fn anti_debug_never_panics() {
         // Must always return a valid status, never panic
         let _status = check_debugger();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_tracer_pid_parser_reports_no_debugger() {
+        let status = "Name:\tcutctx\nState:\tR (running)\nTracerPid:\t0\n";
+        assert_eq!(
+            debugger_status_from_proc_status(status),
+            DebuggerStatus::None
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_tracer_pid_parser_reports_attached_debugger() {
+        let status = "Name:\tcutctx\nTracerPid:\t4242\n";
+        assert_eq!(
+            debugger_status_from_proc_status(status),
+            DebuggerStatus::Detected {
+                method: "proc_status_tracer_pid"
+            }
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_tracer_pid_parser_degrades_safely_for_malformed_status() {
+        assert_eq!(
+            debugger_status_from_proc_status("TracerPid:\tnot-a-pid\n"),
+            DebuggerStatus::None
+        );
+        assert_eq!(
+            debugger_status_from_proc_status("Name:\tcutctx\n"),
+            DebuggerStatus::None
+        );
     }
 
     #[test]

@@ -32,6 +32,41 @@ pub enum CompressionMode {
     LiveZone,
 }
 
+#[cfg(test)]
+mod context_strategy_config_tests {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn strategy_cli_flags_populate_runtime_config() {
+        let args = CliArgs::parse_from([
+            "cutctx-proxy",
+            "--upstream",
+            "http://127.0.0.1:4000",
+            "--strategy-snapshot-threshold",
+            "0.91",
+            "--strategy-compact-threshold",
+            "0.61",
+            "--strategy-low-value-ratio",
+            "0.35",
+            "--strategy-low-value-score",
+            "0.12",
+            "--strategy-keep-tail-turns",
+            "6",
+            "--strategy-max-clear-ratio",
+            "0.25",
+        ]);
+        let config = Config::from_cli(args);
+
+        assert_eq!(config.strategy_config.snapshot_threshold, 0.91);
+        assert_eq!(config.strategy_config.compact_threshold, 0.61);
+        assert_eq!(config.strategy_config.low_value_ratio, 0.35);
+        assert_eq!(config.strategy_config.low_value_score, 0.12);
+        assert_eq!(config.strategy_config.keep_tail_turns, 6);
+        assert_eq!(config.strategy_config.max_clear_ratio, 0.25);
+    }
+}
+
 /// Policy for stripping internal `x-cutctx-*` headers from upstream-bound
 /// requests (PR-A5, fixes P5-49).
 ///
@@ -397,6 +432,66 @@ pub struct CliArgs {
         action = clap::ArgAction::Set,
     )]
     pub enable_bedrock_native: bool,
+
+    /// Adaptive context strategy selection (spec-smart-context-strategies.md).
+    /// When enabled, the proxy computes, meters, logs, and applies a strategy
+    /// per request. Opt-in (default: off) for the first release.
+    ///
+    /// Source priority: CLI flag → `CUTCTX_PROXY_CONTEXT_STRATEGIES` env var → off.
+    #[arg(
+        long = "context-strategies",
+        env = "CUTCTX_PROXY_CONTEXT_STRATEGIES",
+        default_value_t = false
+    )]
+    pub context_strategies: bool,
+
+    /// Context utilization at which SnapshotResume becomes eligible.
+    #[arg(
+        long = "strategy-snapshot-threshold",
+        env = "CUTCTX_PROXY_STRATEGY_SNAPSHOT_THRESHOLD",
+        default_value_t = 0.85
+    )]
+    pub strategy_snapshot_threshold: f32,
+
+    /// Context utilization at which SmartCompact becomes eligible.
+    #[arg(
+        long = "strategy-compact-threshold",
+        env = "CUTCTX_PROXY_STRATEGY_COMPACT_THRESHOLD",
+        default_value_t = 0.50
+    )]
+    pub strategy_compact_threshold: f32,
+
+    /// Minimum low-value live-turn ratio for SelectiveClear.
+    #[arg(
+        long = "strategy-low-value-ratio",
+        env = "CUTCTX_PROXY_STRATEGY_LOW_VALUE_RATIO",
+        default_value_t = 0.40
+    )]
+    pub strategy_low_value_ratio: f32,
+
+    /// BM25 score below which a sufficiently large turn is low-value.
+    #[arg(
+        long = "strategy-low-value-score",
+        env = "CUTCTX_PROXY_STRATEGY_LOW_VALUE_SCORE",
+        default_value_t = 0.15
+    )]
+    pub strategy_low_value_score: f64,
+
+    /// Number of live tail turns retained by SnapshotResume.
+    #[arg(
+        long = "strategy-keep-tail-turns",
+        env = "CUTCTX_PROXY_STRATEGY_KEEP_TAIL_TURNS",
+        default_value_t = 4
+    )]
+    pub strategy_keep_tail_turns: usize,
+
+    /// Maximum fraction of live turns elided by SelectiveClear.
+    #[arg(
+        long = "strategy-max-clear-ratio",
+        env = "CUTCTX_PROXY_STRATEGY_MAX_CLEAR_RATIO",
+        default_value_t = 0.5
+    )]
+    pub strategy_max_clear_ratio: f32,
 
     /// AWS region to use when signing Bedrock requests. Default
     /// `us-east-1`. The Bedrock endpoint URL derived from this
@@ -771,6 +866,10 @@ pub struct Config {
     /// mounted; operators relying on the Python LiteLLM converter
     /// keep their existing path.
     pub enable_bedrock_native: bool,
+    /// Active context strategy selection. Defaults off.
+    pub context_strategies: bool,
+    /// Thresholds controlling adaptive context strategy selection/application.
+    pub strategy_config: cutctx_core::transforms::context_strategy::StrategyConfig,
     /// PR-D1: AWS region used to sign Bedrock requests + (when no
     /// explicit endpoint is set) derive the Bedrock endpoint URL.
     pub bedrock_region: String,
@@ -845,6 +944,16 @@ impl Config {
             enable_responses_streaming: args.enable_responses_streaming,
             enable_conversations_passthrough: args.enable_conversations_passthrough,
             enable_bedrock_native: args.enable_bedrock_native,
+            context_strategies: args.context_strategies,
+            strategy_config: cutctx_core::transforms::context_strategy::StrategyConfig {
+                snapshot_threshold: args.strategy_snapshot_threshold,
+                compact_threshold: args.strategy_compact_threshold,
+                low_value_ratio: args.strategy_low_value_ratio,
+                low_value_score: args.strategy_low_value_score,
+                keep_tail_turns: args.strategy_keep_tail_turns,
+                max_clear_ratio: args.strategy_max_clear_ratio,
+                ..Default::default()
+            },
             bedrock_region: args.bedrock_region,
             bedrock_endpoint: args.bedrock_endpoint,
             aws_profile: args.aws_profile,
@@ -910,6 +1019,8 @@ impl Config {
             // `bedrock_endpoint` to a wiremock URL get the full
             // sign-and-forward path.
             enable_bedrock_native: true,
+            context_strategies: false,
+            strategy_config: cutctx_core::transforms::context_strategy::StrategyConfig::default(),
             bedrock_region: "us-east-1".to_string(),
             bedrock_endpoint: None,
             aws_profile: None,

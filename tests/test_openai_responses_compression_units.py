@@ -231,7 +231,7 @@ def test_openai_responses_adapter_compresses_custom_tool_call_output():
 
 
 def test_openai_responses_large_plain_tool_output_avoids_ml_latency_and_preserves_envelope():
-    router = ContentRouter()
+    router = ContentRouter(ContentRouterConfig(enable_kompress=True))
     calls = {"count": 0}
 
     def compress(self, content: str, **_kwargs):

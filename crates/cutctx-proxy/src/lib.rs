@@ -15,7 +15,10 @@ pub mod policy;
 pub mod protection;
 pub mod proxy;
 pub mod responses_items;
+pub mod session_state;
 pub mod sse;
+pub mod strategy_apply;
+pub mod strategy_shadow;
 pub mod vertex;
 pub mod websocket;
 
