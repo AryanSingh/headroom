@@ -27,6 +27,7 @@ def test_docker_compose_keeps_local_first_proxy_configuration_explicit() -> None
 
     assert 'entrypoint: ["cutctx", "proxy"]' in compose
     assert "CUTCTX_HOST: 0.0.0.0" in compose
+    assert "CUTCTX_PROXY_API_KEY: ${CUTCTX_PROXY_API_KEY" in compose
     assert '"${CUTCTX_PORT:-8787}:${CUTCTX_PORT:-8787}"' in compose
     assert "CUTCTX_WORKSPACE_DIR" in compose
     assert "CUTCTX_CONFIG_DIR" in compose
