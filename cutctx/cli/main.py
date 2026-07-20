@@ -15,6 +15,7 @@ sys.modules.setdefault("cutctx.cli.main", sys.modules[__name__])
 
 _SIDE_EFFECT_COMMAND_MODULES: dict[str, str] = {
     "agent-savings": "agent_savings",
+    "auth": "auth",
     "benchmark": "evals",
     "billing": "billing",
     "capabilities": "capabilities",
@@ -62,7 +63,7 @@ _LOAD_FAILURES: dict[str, str] = {}
 # than exposing the implementation's alphabetical module layout. Commands
 # remain addressable exactly as before; this only changes help presentation.
 _COMMAND_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Getting Started", ("setup", "init", "install", "integrations", "wrap")),
+    ("Getting Started", ("setup", "auth", "init", "install", "integrations", "wrap")),
     (
         "Daily Use",
         ("proxy", "memory", "capture", "learn", "report", "savings", "perf"),

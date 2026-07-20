@@ -3992,8 +3992,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         "/v1/auth/client/status",
         dependencies=[Depends(_require_agent_client_auth)],
     )
-    async def client_auth_status_endpoint():
-        return {"status": "valid", "scope": "agent", "expires_at": None}
+    async def client_auth_status_endpoint(request: Request):
+        return {
+            "status": "valid",
+            "scope": "agent",
+            "credential_kind": request.state.cutctx_agent_auth,
+            "expires_at": None,
+        }
 
     hosted_compression_enabled = bool(getattr(config, "hosted_compression_enabled", False)) or (
         os.environ.get("CUTCTX_HOSTED_COMPRESSION_ENABLED", "").strip().lower()

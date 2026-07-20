@@ -177,7 +177,24 @@ def test_apply_client_auth_mutates_only_supplied_child_environment() -> None:
 @pytest.mark.parametrize(
     ("status_code", "payload", "expected"),
     [
-        (200, {"status": "valid", "expires_at": None}, "valid"),
+        (
+            200,
+            {
+                "status": "valid",
+                "credential_kind": "client",
+                "expires_at": None,
+            },
+            "valid",
+        ),
+        (
+            200,
+            {
+                "status": "valid",
+                "credential_kind": "admin_compat",
+                "expires_at": None,
+            },
+            "invalid",
+        ),
         (401, {"error": {"code": "invalid_client_key"}}, "invalid"),
         (401, {"error": {"code": "expired_client_key"}}, "expired"),
         (401, {"error": {"code": "revoked_client_key"}}, "expired"),

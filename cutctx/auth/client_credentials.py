@@ -305,6 +305,11 @@ def validate_client_credential(
         payload = {}
 
     if response.status_code == 200:
+        credential_kind = (
+            payload.get("credential_kind") if isinstance(payload, dict) else None
+        )
+        if credential_kind == "admin_compat":
+            return ClientCredentialStatus("invalid")
         expires_at = payload.get("expires_at") if isinstance(payload, dict) else None
         return ClientCredentialStatus(
             "valid",

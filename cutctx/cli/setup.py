@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
 import time
 
 import click
+
+from cutctx.auth.client_credentials import (
+    ClientCredentialError,
+    ensure_local_client_credential,
+)
 
 
 def _check_cutctx_installed() -> bool:
@@ -63,11 +69,15 @@ def _register_mcp(agent_id: str) -> bool:
     return False
 
 
-def _start_proxy(port: int) -> bool:
+def _start_proxy(port: int, client_api_key: str) -> bool:
     """Start the proxy in the background."""
     try:
+        proxy_env = dict(os.environ)
+        proxy_env.pop("CUTCTX_API_KEY", None)
+        proxy_env["CUTCTX_CLIENT_API_KEY"] = client_api_key
         subprocess.Popen(
             [sys.executable, "-m", "cutctx.cli", "proxy", "--port", str(port)],
+            env=proxy_env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True,
@@ -122,7 +132,7 @@ def setup(port: int, auto_detect: bool, start: bool, do_register_mcp: bool) -> N
     click.echo("=" * 40)
 
     # Step 1: Verify installation
-    click.echo("\n[1/5] Checking installation...", nl=False)
+    click.echo("\n[1/6] Checking installation...", nl=False)
     if _check_cutctx_installed():
         click.echo(click.style(" OK", fg="green"))
     else:
@@ -132,7 +142,7 @@ def setup(port: int, auto_detect: bool, start: bool, do_register_mcp: bool) -> N
     # Step 2: Detect agents
     agents = []
     if auto_detect:
-        click.echo("[2/5] Detecting agents...", nl=False)
+        click.echo("[2/6] Detecting agents...", nl=False)
         agents = _detect_agents()
         if agents:
             click.echo(click.style(f" Found {len(agents)}", fg="green"))
@@ -141,12 +151,29 @@ def setup(port: int, auto_detect: bool, start: bool, do_register_mcp: bool) -> N
         else:
             click.echo(click.style(" None found", fg="yellow"))
     else:
-        click.echo("[2/5] Agent detection skipped")
+        click.echo("[2/6] Agent detection skipped")
 
-    # Step 3: Register MCP
+    # Step 3: Configure least-privilege client authentication
+    click.echo("[3/6] Configuring client authentication...", nl=False)
+    proxy_origin = f"http://127.0.0.1:{port}"
+    try:
+        client_credential = ensure_local_client_credential(proxy_origin)
+    except ClientCredentialError:
+        click.echo(click.style(" FAILED", fg="red"))
+        click.echo("Secure credential storage is unavailable.")
+        click.echo(
+            "Install/configure an OS keyring backend, or set CUTCTX_API_KEY and"
+        )
+        click.echo(
+            "CUTCTX_CLIENT_API_KEY through your CI/container secret manager."
+        )
+        raise click.exceptions.Exit(1) from None
+    click.echo(click.style(" Configured", fg="green"))
+
+    # Step 4: Register MCP
     mcp_registered = []
     if do_register_mcp and agents:
-        click.echo("[3/5] Registering MCP...")
+        click.echo("[4/6] Registering MCP...")
         for a in agents:
             if _register_mcp(a["agent_id"]):
                 mcp_registered.append(a["name"])
@@ -154,25 +181,25 @@ def setup(port: int, auto_detect: bool, start: bool, do_register_mcp: bool) -> N
             else:
                 click.echo(f"  - {a['name']}: skipped")
     else:
-        click.echo("[3/5] MCP registration skipped")
+        click.echo("[4/6] MCP registration skipped")
 
-    # Step 4: Start proxy
+    # Step 5: Start proxy
     if start:
-        click.echo(f"[4/5] Starting proxy on port {port}...", nl=False)
+        click.echo(f"[5/6] Starting proxy on port {port}...", nl=False)
         health = _check_health(port)
         if health["running"]:
             click.echo(click.style(" Already running", fg="green"))
         else:
-            if _start_proxy(port):
+            if _start_proxy(port, client_credential.value):
                 click.echo(click.style(" Started", fg="green"))
             else:
                 click.echo(click.style(" FAILED", fg="red"))
                 click.echo("  Start manually: cutctx proxy")
     else:
-        click.echo("[4/5] Proxy start skipped")
+        click.echo("[5/6] Proxy start skipped")
 
-    # Step 5: Verify
-    click.echo("[5/5] Verifying...", nl=False)
+    # Step 6: Verify
+    click.echo("[6/6] Verifying...", nl=False)
     health = _check_health(port)
     if health["running"]:
         click.echo(click.style(" OK", fg="green"))

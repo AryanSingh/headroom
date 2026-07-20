@@ -80,6 +80,7 @@ def test_explicit_client_header_authenticates_agent_routes(
     assert response.json() == {
         "status": "valid",
         "scope": "agent",
+        "credential_kind": "client",
         "expires_at": None,
     }
 
