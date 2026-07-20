@@ -8,11 +8,14 @@ These are real tests that:
 
 import json
 import sys
-from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
 
+from cutctx.auth.client_credentials import ClientCredential
+from cutctx.cli import mcp as mcp_cli
 from cutctx.cli.main import main
 from cutctx.cli.mcp import (
     get_cutctx_command,
@@ -260,6 +263,32 @@ class TestMCPServeCommand:
         assert "proxy-url" in result.output
         assert "debug" in result.output
 
+    def test_serve_resolves_origin_scoped_client_key(self, monkeypatch):
+        factory_kwargs = {}
+        fake_server = SimpleNamespace(
+            run_stdio=AsyncMock(),
+            cleanup=AsyncMock(),
+        )
+        monkeypatch.setattr(
+            mcp_cli,
+            "resolve_client_credential",
+            lambda url: ClientCredential(url, "client-secret", "keyring"),
+            raising=False,
+        )
+        monkeypatch.setattr(
+            "cutctx.mcp_server.create_ccr_mcp_server",
+            lambda **kwargs: factory_kwargs.update(kwargs) or fake_server,
+        )
+
+        result = CliRunner().invoke(
+            main,
+            ["mcp", "serve", "--proxy-url", "https://proxy.example"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert factory_kwargs["api_key"] == "client-secret"
+        assert "client-secret" not in result.output
+
 
 @pytest.mark.skipif(not MCP_AVAILABLE, reason="MCP SDK not installed")
 class TestMCPServerInitialization:
@@ -282,6 +311,13 @@ class TestMCPServerInitialization:
 
         server = create_ccr_mcp_server(proxy_url="http://custom:9000")
         assert server.proxy_url == "http://custom:9000"
+
+    def test_mcp_server_accepts_in_memory_client_key(self):
+        from cutctx.ccr.mcp_server import create_ccr_mcp_server
+
+        server = create_ccr_mcp_server(api_key="client-secret")
+
+        assert server.api_key == "client-secret"
 
     def test_mcp_server_has_correct_tool_name(self):
         """MCP server is configured for cutctx_retrieve."""

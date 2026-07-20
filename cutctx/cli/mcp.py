@@ -8,6 +8,11 @@ from typing import Any
 
 import click
 
+from cutctx.auth.client_credentials import (
+    ClientCredentialError,
+    resolve_client_credential,
+)
+
 from .main import main
 
 # Default paths
@@ -351,6 +356,10 @@ def mcp_serve(proxy_url: str | None, direct: bool, debug: bool) -> None:
 
     # Use default if not specified
     effective_proxy_url = proxy_url or DEFAULT_PROXY_URL
+    try:
+        credential = resolve_client_credential(effective_proxy_url)
+    except ClientCredentialError as exc:
+        raise click.ClickException(str(exc)) from None
 
     if direct:
         click.echo(
@@ -358,7 +367,10 @@ def mcp_serve(proxy_url: str | None, direct: bool, debug: bool) -> None:
             err=True,
         )
 
-    server = create_ccr_mcp_server(proxy_url=effective_proxy_url)
+    server = create_ccr_mcp_server(
+        proxy_url=effective_proxy_url,
+        api_key=credential.value if credential is not None else None,
+    )
 
     async def run() -> None:
         try:

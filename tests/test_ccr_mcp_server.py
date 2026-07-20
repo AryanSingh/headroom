@@ -4,6 +4,7 @@ import asyncio
 import importlib
 import json
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -97,3 +98,52 @@ def test_mcp_compress_reports_zero_savings_for_noop_ratio_mismatch(
     assert result["tokens_saved"] == 0
     assert result["savings_percent"] == 0
     assert result["transforms"] == ["router:noop"]
+
+
+def test_proxy_retrieve_uses_client_not_admin_header() -> None:
+    pytest.importorskip("mcp", reason="MCP SDK required")
+    response = SimpleNamespace(
+        status_code=200,
+        raise_for_status=lambda: None,
+        json=lambda: {"hash": "abc", "original_content": "content"},
+    )
+    server = mcp_server.CutctxMCPServer(
+        proxy_url="http://127.0.0.1:8787",
+        api_key="client-secret",
+    )
+    server._http_client = SimpleNamespace(
+        post=AsyncMock(return_value=response),
+    )
+
+    result = asyncio.run(server._retrieve_via_proxy("abc", None))
+
+    assert result["hash"] == "abc"
+    request = server._http_client.post.await_args
+    assert request.kwargs["headers"] == {
+        "Authorization": "Bearer client-secret"
+    }
+    assert "x-cutctx-admin-key" not in request.kwargs["headers"]
+
+
+def test_proxy_stats_uses_agent_scoped_endpoint_and_header() -> None:
+    pytest.importorskip("mcp", reason="MCP SDK required")
+    response = SimpleNamespace(
+        status_code=200,
+        json=lambda: {"store": {"entry_count": 1}},
+    )
+    server = mcp_server.CutctxMCPServer(
+        proxy_url="http://127.0.0.1:8787",
+        api_key="client-secret",
+    )
+    server._http_client = SimpleNamespace(
+        get=AsyncMock(return_value=response),
+    )
+
+    result = asyncio.run(server._fetch_full_proxy_stats())
+
+    assert result == {"store": {"entry_count": 1}}
+    request = server._http_client.get.await_args
+    assert request.args[0].endswith("/v1/retrieve/stats")
+    assert request.kwargs["headers"] == {
+        "Authorization": "Bearer client-secret"
+    }

@@ -64,6 +64,15 @@ def test_build_spec_custom_proxy_sets_env() -> None:
     assert spec.env == {"CUTCTX_PROXY_URL": "http://127.0.0.1:9999"}
 
 
+def test_build_spec_never_persists_client_key(monkeypatch) -> None:
+    monkeypatch.setenv("CUTCTX_API_KEY", "client-secret")
+
+    spec = build_cutctx_spec("https://proxy.example")
+
+    assert spec.env == {"CUTCTX_PROXY_URL": "https://proxy.example"}
+    assert "client-secret" not in repr(spec)
+
+
 def test_build_spec_default_url_omits_env() -> None:
     spec = build_cutctx_spec(DEFAULT_PROXY_URL)
     assert spec.env == {}

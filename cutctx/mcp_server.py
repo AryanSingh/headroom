@@ -90,7 +90,7 @@ _READ_ENABLED = os.environ.get("CUTCTX_MCP_READ", "off").lower().strip() in (
     "enabled",
 )
 
-DEFAULT_PROXY_URL = os.environ.get("CUTCTX_PROXY_URL") or os.environ.get(
+DEFAULT_PROXY_URL: str = os.environ.get(
     "CUTCTX_PROXY_URL",
     "http://127.0.0.1:8787",
 )
@@ -390,9 +390,11 @@ class CutctxMCPServer:
         self,
         proxy_url: str = DEFAULT_PROXY_URL,
         check_proxy: bool = True,
+        api_key: str | None = None,
     ):
         self.proxy_url = proxy_url
         self.check_proxy = check_proxy
+        self.api_key = api_key or os.getenv("CUTCTX_API_KEY") or None
         self._http_client: httpx.AsyncClient | None = None  # type: ignore[assignment]
         self._stats = SessionStats()
         self._local_store: Any = None  # Lazy-initialized CompressionStore
@@ -533,7 +535,11 @@ class CutctxMCPServer:
         if query:
             payload["query"] = query
 
-        response = await self._http_client.post(url, json=payload)
+        response = await self._http_client.post(
+            url,
+            json=payload,
+            headers=self._agent_headers(),
+        )
 
         if response.status_code == 404:
             return {"error": "Not found in proxy store", "hash": hash_key}
@@ -541,6 +547,13 @@ class CutctxMCPServer:
         response.raise_for_status()
         result: dict[str, Any] = response.json()
         return result
+
+    def _agent_headers(self) -> dict[str, str]:
+        """Build least-privilege auth headers for SDK/MCP proxy routes."""
+
+        if not self.api_key:
+            return {}
+        return {"Authorization": f"Bearer {self.api_key}"}
 
     def _setup_handlers(self) -> None:
         """Register all MCP tool handlers."""
@@ -883,7 +896,10 @@ class CutctxMCPServer:
         try:
             if self._http_client is None:
                 self._http_client = httpx.AsyncClient(timeout=15.0)
-            response = await self._http_client.get(f"{self.proxy_url}/stats")
+            response = await self._http_client.get(
+                f"{self.proxy_url}/v1/retrieve/stats",
+                headers=self._agent_headers(),
+            )
             if response.status_code != 200:
                 return None
             result: dict[str, Any] = response.json()
@@ -1198,17 +1214,19 @@ class CutctxMCPServer:
 def create_ccr_mcp_server(
     proxy_url: str = DEFAULT_PROXY_URL,
     direct_mode: bool = False,
+    api_key: str | None = None,
 ) -> CutctxMCPServer:
     """Create a Cutctx MCP server instance.
 
     Args:
         proxy_url: URL of the Cutctx proxy server (for retrieval fallback).
         direct_mode: Ignored (kept for backward compatibility).
+        api_key: In-memory least-privilege client credential.
 
     Returns:
         CutctxMCPServer instance.
     """
-    return CutctxMCPServer(proxy_url=proxy_url)
+    return CutctxMCPServer(proxy_url=proxy_url, api_key=api_key)
 
 
 async def main() -> None:
@@ -1237,7 +1255,19 @@ async def main() -> None:
     else:
         logging.basicConfig(level=logging.WARNING)
 
-    server = CutctxMCPServer(proxy_url=args.proxy_url)
+    from cutctx.auth.client_credentials import (
+        ClientCredentialError,
+        resolve_client_credential,
+    )
+
+    try:
+        credential = resolve_client_credential(args.proxy_url)
+    except ClientCredentialError:
+        credential = None
+    server = CutctxMCPServer(
+        proxy_url=args.proxy_url,
+        api_key=credential.value if credential is not None else None,
+    )
 
     try:
         await server.run_stdio()
