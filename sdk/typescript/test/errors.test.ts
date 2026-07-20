@@ -122,9 +122,16 @@ describe("TransformError", () => {
 
 describe("mapProxyError", () => {
   it("maps 401 to CutctxAuthError", () => {
-    const err = mapProxyError(401, "auth_error", "unauthorized");
+    const err = mapProxyError(401, "auth_error", "unauthorized", {
+      code: "invalid_client_key",
+      remediation: "Run cutctx auth login.",
+    });
     expect(err).toBeInstanceOf(CutctxAuthError);
     expect(err.message).toBe("unauthorized");
+    expect(err.details).toEqual({
+      code: "invalid_client_key",
+      remediation: "Run cutctx auth login.",
+    });
   });
 
   it("maps configuration_error type", () => {

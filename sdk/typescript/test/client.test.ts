@@ -136,6 +136,30 @@ describe("CutctxClient", () => {
     ).rejects.toThrow(CutctxAuthError);
   });
 
+  it("preserves client auth code and remediation from a 401", async () => {
+    mockFetch.mockResolvedValueOnce(
+      errorResponse(401, {
+        error: {
+          type: "client_authentication_error",
+          code: "invalid_or_expired_client_key",
+          message: "Invalid or expired Cutctx client credential.",
+          remediation: "Run cutctx auth login.",
+        },
+      }),
+    );
+    const client = new CutctxClient({ baseUrl: "http://localhost:8787" });
+
+    await expect(
+      client.compress(sampleMessages, { model: "gpt-4o" }),
+    ).rejects.toMatchObject({
+      name: "CutctxAuthError",
+      details: {
+        code: "invalid_or_expired_client_key",
+        remediation: "Run cutctx auth login.",
+      },
+    });
+  });
+
   it("throws CutctxCompressError on 400 (always, even with fallback)", async () => {
     mockFetch.mockResolvedValueOnce(
       errorResponse(400, {

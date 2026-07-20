@@ -92,4 +92,23 @@ describe("experimental.chat.messages.transform", () => {
     await handlers["experimental.chat.messages.transform"]?.({} as any, output as any)
     expect(vi.mocked(compress)).not.toHaveBeenCalled()
   })
+
+  it("warns once for repeated authentication failures", async () => {
+    const authError = new Error("Invalid or expired Cutctx client credential.")
+    authError.name = "CutctxAuthError"
+    vi.mocked(compress).mockRejectedValue(authError)
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const handlers = await plugin(fakeInput())
+
+    const first = { messages: longMessages(200) }
+    const second = { messages: longMessages(200) }
+    await handlers["experimental.chat.messages.transform"]?.({} as any, first as any)
+    await handlers["experimental.chat.messages.transform"]?.({} as any, second as any)
+
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toContain("cutctx auth login")
+    expect(first.messages).toHaveLength(200)
+    expect(second.messages).toHaveLength(200)
+    warn.mockRestore()
+  })
 })

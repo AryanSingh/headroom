@@ -135,5 +135,7 @@ export interface ProxyErrorResponse {
   error: {
     type: string;
     message: string;
+    code?: string;
+    remediation?: string;
   };
 }

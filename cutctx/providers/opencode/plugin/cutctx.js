@@ -1,4 +1,4 @@
-// ../../sdk/typescript/dist/chunk-WWXAQHDK.js
+// ../../sdk/typescript/dist/chunk-KIYIB2SF.js
 var CutctxError = class extends Error {
   details;
   constructor(message, details) {
@@ -80,8 +80,18 @@ var ERROR_TYPE_MAP = {
   validation_error: ValidationError,
   transform_error: TransformError
 };
-function mapProxyError(status, type, message) {
-  if (status === 401) return new CutctxAuthError(message);
+function mapProxyError(status, type, message, details) {
+  if (status === 401) {
+    const safeDetails = {};
+    if (typeof details?.code === "string") safeDetails.code = details.code;
+    if (typeof details?.remediation === "string") {
+      safeDetails.remediation = details.remediation;
+    }
+    return new CutctxAuthError(
+      message,
+      Object.keys(safeDetails).length > 0 ? safeDetails : void 0
+    );
+  }
   const ErrorClass = ERROR_TYPE_MAP[type];
   if (ErrorClass) return new ErrorClass(message, { statusCode: status, errorType: type });
   return new CutctxCompressError(status, type, message);
@@ -534,7 +544,8 @@ var CutctxClient = class {
       throw mapProxyError(
         response.status,
         errorBody?.error?.type ?? "unknown",
-        errorBody?.error?.message ?? `HTTP ${response.status}`
+        errorBody?.error?.message ?? `HTTP ${response.status}`,
+        errorBody?.error
       );
     }
     return response;
@@ -574,7 +585,8 @@ var CutctxClient = class {
       throw mapProxyError(
         response.status,
         errorBody?.error?.type ?? "unknown",
-        errorBody?.error?.message ?? `HTTP ${response.status}`
+        errorBody?.error?.message ?? `HTTP ${response.status}`,
+        errorBody?.error
       );
     }
     return response;
@@ -1063,6 +1075,19 @@ var COMPRESS_THRESHOLD_BYTES = Number(
 );
 var DEFAULT_MODEL = process.env.CUTCTX_MODEL ?? "claude-sonnet-4-5";
 var lastKnownModel;
+var authWarningEmitted = false;
+function warnCompressionFailure(message, err) {
+  if (err instanceof Error && err.name === "CutctxAuthError") {
+    if (authWarningEmitted) return;
+    authWarningEmitted = true;
+    console.warn(
+      "cutctx: client authentication failed; run `cutctx auth login` and relaunch opencode",
+      err.message
+    );
+    return;
+  }
+  console.warn(message, err instanceof Error ? err.message : err);
+}
 var plugin = async () => {
   return {
     "chat.params": async (input) => {
@@ -1086,9 +1111,9 @@ var plugin = async () => {
         output.output = `${header}
 ${body}`;
       } catch (err) {
-        console.warn(
+        warnCompressionFailure(
           "cutctx: compress failed, falling back to original",
-          err instanceof Error ? err.message : err
+          err
         );
       }
       void input.tool;
@@ -1132,9 +1157,9 @@ ${body}`;
           ...recent
         ];
       } catch (err) {
-        console.warn(
+        warnCompressionFailure(
           "cutctx: history compress failed, passing through",
-          err instanceof Error ? err.message : err
+          err
         );
       }
     },

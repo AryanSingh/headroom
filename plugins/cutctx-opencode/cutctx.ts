@@ -15,6 +15,20 @@ const DEFAULT_MODEL = process.env.CUTCTX_MODEL ?? "claude-sonnet-4-5"
 // context in its input, so a best-effort last-seen-model global (updated
 // on every real LLM call via chat.params) is the closest we can get.
 let lastKnownModel: string | undefined
+let authWarningEmitted = false
+
+function warnCompressionFailure(message: string, err: unknown): void {
+  if (err instanceof Error && err.name === "CutctxAuthError") {
+    if (authWarningEmitted) return
+    authWarningEmitted = true
+    console.warn(
+      "cutctx: client authentication failed; run `cutctx auth login` and relaunch opencode",
+      err.message
+    )
+    return
+  }
+  console.warn(message, err instanceof Error ? err.message : err)
+}
 
 const plugin: Plugin = async () => {
   return {
@@ -47,9 +61,9 @@ const plugin: Plugin = async () => {
 
         output.output = `${header}\n${body}`
       } catch (err) {
-        console.warn(
+        warnCompressionFailure(
           "cutctx: compress failed, falling back to original",
-          err instanceof Error ? err.message : err
+          err
         )
       }
 
@@ -114,9 +128,9 @@ const plugin: Plugin = async () => {
           ...recent,
         ] as typeof items
       } catch (err) {
-        console.warn(
+        warnCompressionFailure(
           "cutctx: history compress failed, passing through",
-          err instanceof Error ? err.message : err
+          err
         )
       }
     },

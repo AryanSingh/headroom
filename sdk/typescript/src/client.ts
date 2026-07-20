@@ -544,6 +544,7 @@ export class CutctxClient implements CutctxClientInterface {
         response.status,
         errorBody?.error?.type ?? "unknown",
         errorBody?.error?.message ?? `HTTP ${response.status}`,
+        errorBody?.error,
       );
     }
 
@@ -592,6 +593,7 @@ export class CutctxClient implements CutctxClientInterface {
         response.status,
         errorBody?.error?.type ?? "unknown",
         errorBody?.error?.message ?? `HTTP ${response.status}`,
+        errorBody?.error,
       );
     }
 

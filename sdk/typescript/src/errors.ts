@@ -106,8 +106,19 @@ export function mapProxyError(
   status: number,
   type: string,
   message: string,
+  details?: { code?: string; remediation?: string },
 ): CutctxError {
-  if (status === 401) return new CutctxAuthError(message);
+  if (status === 401) {
+    const safeDetails: Record<string, string> = {};
+    if (typeof details?.code === "string") safeDetails.code = details.code;
+    if (typeof details?.remediation === "string") {
+      safeDetails.remediation = details.remediation;
+    }
+    return new CutctxAuthError(
+      message,
+      Object.keys(safeDetails).length > 0 ? safeDetails : undefined,
+    );
+  }
   const ErrorClass = ERROR_TYPE_MAP[type];
   if (ErrorClass) return new ErrorClass(message, { statusCode: status, errorType: type });
   return new CutctxCompressError(status, type, message);
