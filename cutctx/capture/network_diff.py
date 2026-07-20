@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from cutctx.capture.fixture_safety import sanitize_capture_record
+
 SENSITIVE_HEADER_PARTS = ("authorization", "api-key", "apikey", "token", "secret", "cookie")
 SENSITIVE_QUERY_PARTS = ("key", "token", "secret", "signature", "code")
 MAX_BODY_PREVIEW_CHARS = 1200
@@ -143,6 +145,8 @@ def exchange_from_record(
     request_json = record.get("request_json")
     if request_json is None:
         request_json = _parse_json_body(body)
+    if request_json is not None:
+        request_json = sanitize_capture_record(request_json)
     body_sha = record.get("request_body_sha256")
     if body_sha is None and body:
         body_sha = hashlib.sha256(body).hexdigest()
@@ -159,7 +163,10 @@ def exchange_from_record(
         request_body_sha256=str(body_sha) if body_sha else None,
         request_body_size=int(record.get("request_body_size") or len(body)),
         request_json=request_json,
-        request_body_preview=_preview_body(body),
+        # Raw body previews can expose prompts and tool output in uploaded
+        # artifacts. Structural JSON is sanitized above; opaque bodies retain
+        # only their size and hash.
+        request_body_preview=None,
     )
 
 

@@ -1,0 +1,17 @@
+{
+  "type": "response.create",
+  "response": {
+    "model": "gpt-5.4",
+    "input": [
+      {
+        "type": "message",
+        "role": "user",
+        "content": [{"type": "input_text", "text": "<synthetic:text:bd0ea963af01>"}]
+      }
+    ],
+    "tools": [],
+    "client_metadata": {"thread_id": "thread_fixture_713f09b80e62"},
+    "stream": false,
+    "store": true
+  }
+}

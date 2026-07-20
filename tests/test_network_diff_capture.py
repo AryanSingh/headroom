@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import base64
+import importlib.util
 import json
+import sys
+import types
 from pathlib import Path
 
 from click.testing import CliRunner
 
 from cutctx.capture.network_diff import (
     compare_captures,
+    exchange_from_record,
     load_capture_file,
     render_markdown_report,
 )
@@ -128,3 +132,79 @@ def test_network_diff_cli_writes_markdown_and_json(tmp_path: Path) -> None:
     payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert payload["direct_count"] == 1
     assert payload["cutctx_count"] == 1
+
+
+def test_exchange_from_record_never_exposes_raw_request_content() -> None:
+    record = {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "request_headers": {"x-api-key": "sk-ant-secret"},
+        "request_json": {
+            "model": "claude-test",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "private prompt from person@example.com at /Users/alice/repo",
+                }
+            ],
+            "metadata": {"user_id": "person@example.com"},
+        },
+        "request_body": '{"messages":[{"content":"private prompt"}]}',
+    }
+
+    exchange = exchange_from_record(record, fallback_lane="direct", sequence=1)
+
+    serialized = json.dumps(exchange.request_json, sort_keys=True)
+    assert "private prompt" not in serialized
+    assert "person@example.com" not in serialized
+    assert "/Users/alice" not in serialized
+    assert exchange.request_headers["x-api-key"] == "<redacted>"
+    assert exchange.request_body_preview is None
+
+
+def test_mitm_addon_sanitizes_json_and_never_persists_raw_body() -> None:
+    addon_path = (
+        Path(__file__).parents[1] / "docker" / "differential-network-capture" / "mitm_capture.py"
+    )
+    source = addon_path.read_text(encoding="utf-8")
+    assert '"request_body_b64"' not in source
+
+    fake_http = types.SimpleNamespace(Headers=object, HTTPFlow=object)
+    fake_mitm = types.ModuleType("mitmproxy")
+    fake_mitm.http = fake_http
+    previous = sys.modules.get("mitmproxy")
+    sys.modules["mitmproxy"] = fake_mitm
+    try:
+        spec = importlib.util.spec_from_file_location("test_mitm_capture", addon_path)
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        private_image = base64.b64encode(b"private image bytes").decode()
+        sanitized = module._sanitize_json(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "private prompt at person@example.com in /Users/alice/repo",
+                    }
+                ],
+                "metadata": {"user_id": "person@example.com"},
+                "tools": [{"name": "fixture_tool", "description": "private description"}],
+                "image": {
+                    "source": {"type": "base64", "data": private_image},
+                    "image_url": f"data:image/png;base64,{private_image}",
+                },
+            }
+        )
+    finally:
+        if previous is None:
+            sys.modules.pop("mitmproxy", None)
+        else:
+            sys.modules["mitmproxy"] = previous
+
+    serialized = json.dumps(sanitized, sort_keys=True)
+    assert "private prompt" not in serialized
+    assert "person@example.com" not in serialized
+    assert "/Users/alice" not in serialized
+    assert private_image not in serialized
+    assert sanitized["tools"][0]["name"] == "fixture_tool"

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "codex-subscription-http-resume",
+  "client": "codex",
+  "client_version": "0.145.0-alpha.18",
+  "tags": [
+    "oauth-auth",
+    "account-id",
+    "http-sse",
+    "multi-turn",
+    "tool-continuation",
+    "resume",
+    "proxy-restart",
+    "store-false",
+    "stream-true",
+    "field-preservation",
+    "encrypted-continuation"
+  ],
+  "runtimes": ["python"],
+  "unsupported_runtimes": [
+    {
+      "runtime": "native",
+      "reason": "Native ChatGPT subscription routing is not implemented.",
+      "tracking_issue": "CUTCTX-NATIVE-RESPONSES-SUBSCRIPTION"
+    }
+  ],
+  "steps": [
+    {
+      "action": "request",
+      "transport": "http-sse",
+      "method": "POST",
+      "path": "/v1/responses",
+      "headers_fixture": "headers.json",
+      "body_fixture": "request.json",
+      "upstream_script": "success-sse.json"
+    },
+    {"action": "restart_proxy"},
+    {
+      "action": "request",
+      "transport": "http-sse",
+      "method": "POST",
+      "path": "/v1/responses",
+      "headers_fixture": "resume-headers.json",
+      "body_fixture": "resume-request.json",
+      "upstream_script": "resume-success-sse.json"
+    }
+  ],
+  "assertions": {
+    "required_body_values": {"$.store": false, "$.stream": true},
+    "preserved_paths": ["$.model", "$.input", "$.tools"],
+    "terminal_event": "response.completed"
+  }
+}

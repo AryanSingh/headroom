@@ -2,6 +2,8 @@ name: Network Diff Capture
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "47 2 * * *"
 
 permissions:
   contents: read
@@ -76,11 +78,12 @@ jobs:
 
   live-anthropic:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 20
     needs: offline
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_PROMPT: "Summarize this repository in one sentence. Keep the answer under 30 words."
+      CUTCTX_BUDGET: "2.50"
     steps:
       - uses: actions/checkout@v6
 
@@ -112,6 +115,12 @@ jobs:
             'watchdog>=4.0.0' \
             'sqlite-vec>=0.1.6'
 
+      - name: Require scheduled differential credential
+        if: env.ANTHROPIC_API_KEY == '' && github.event_name == 'schedule'
+        run: |
+          echo "::error::ANTHROPIC_API_KEY is required for scheduled differential capture"
+          exit 1
+
       - name: Run live Claude Code differential capture
         if: env.ANTHROPIC_API_KEY != ''
         working-directory: docker/differential-network-capture
@@ -136,7 +145,7 @@ jobs:
           docker compose --profile run run --rm claude-cutctx
 
       - name: Report skipped live capture
-        if: env.ANTHROPIC_API_KEY == ''
+        if: env.ANTHROPIC_API_KEY == '' && github.event_name != 'schedule'
         run: |
           echo "::warning title=Live network diff skipped::ANTHROPIC_API_KEY is not configured for this repository; offline harness checks ran, but live Claude Code capture was skipped."
           mkdir -p docker/differential-network-capture/captures

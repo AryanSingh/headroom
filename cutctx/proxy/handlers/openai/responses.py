@@ -22,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 from cutctx.proxy.helpers import (
     COMPRESSION_TIMEOUT_SECONDS,
@@ -55,9 +56,39 @@ from cutctx.proxy.tool_surface import (
 )
 
 logger = logging.getLogger("cutctx.proxy")
+_CHATGPT_RESPONSES_HTTP_URL = "https://chatgpt.com/backend-api/codex/responses"
+_CHATGPT_RESPONSES_WS_URL = "wss://chatgpt.com/backend-api/codex/responses"
+_TEST_CHATGPT_RESPONSES_HTTP_URL: str | None = None
+_TEST_CHATGPT_RESPONSES_WS_URL: str | None = None
 _MISSING_ROUTING_FIELD = object()
 _RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES_ENV = "CUTCTX_RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES"
 _RESPONSES_ML_TOOL_OUTPUT_MAX_BYTES_DEFAULT = 4 * 1024
+
+
+def _validate_loopback_test_url(url: str, *, schemes: set[str]) -> None:
+    parsed = urlsplit(url)
+    if parsed.scheme not in schemes or parsed.hostname not in {"127.0.0.1", "::1", "localhost"}:
+        raise ValueError("test upstream override must use an allowed loopback URL")
+
+
+def _set_test_chatgpt_responses_endpoints(*, http_url: str | None, ws_url: str | None) -> None:
+    """Set private, process-local endpoints used by hermetic protocol tests."""
+
+    if http_url is not None:
+        _validate_loopback_test_url(http_url, schemes={"http", "https"})
+    if ws_url is not None:
+        _validate_loopback_test_url(ws_url, schemes={"ws", "wss"})
+    global _TEST_CHATGPT_RESPONSES_HTTP_URL, _TEST_CHATGPT_RESPONSES_WS_URL
+    _TEST_CHATGPT_RESPONSES_HTTP_URL = http_url
+    _TEST_CHATGPT_RESPONSES_WS_URL = ws_url
+
+
+def _get_chatgpt_responses_http_url() -> str:
+    return _TEST_CHATGPT_RESPONSES_HTTP_URL or _CHATGPT_RESPONSES_HTTP_URL
+
+
+def _get_chatgpt_responses_ws_url() -> str:
+    return _TEST_CHATGPT_RESPONSES_WS_URL or _CHATGPT_RESPONSES_WS_URL
 
 
 def _responses_ml_tool_output_max_bytes() -> int:
@@ -139,17 +170,12 @@ def _summarize_upstream_ws_error(
 
 _CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS = frozenset(
     # Fields the chatgpt.com/backend-api/codex/responses endpoint rejects.
-    # "stream" is included because the subscription HTTP path has historically
-    # rejected ``stream: true`` with a bare 400. We keep the safer non-streaming
-    # path unless and until that endpoint is re-verified live.
-    #
     # Additional extended OpenAI API fields are stripped conservatively because
     # chatgpt.com is stricter than api.openai.com and tends to respond with a
     # plain 400 when it dislikes request-shape fields.
     #   reasoning          — o-series extended thinking ({"effort": "medium"})
     #   include            — encrypted reasoning retrieval (["reasoning.encrypted_content"])
     #   text               — response verbosity control ({"verbosity": "low"})
-    #   store              — request storage flag (false)
     #   stream_options     — streaming-only delivery controls
     #   parallel_tool_calls — tool parallelism flag
     #   client_metadata, generate, prompt_cache_key — internal/legacy fields
@@ -160,8 +186,6 @@ _CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS = frozenset(
         "parallel_tool_calls",
         "prompt_cache_key",
         "reasoning",
-        "store",
-        "stream",
         "stream_options",
         "text",
     }
@@ -548,6 +572,12 @@ def _sanitize_chatgpt_subscription_responses_body(
         if key in sanitized:
             sanitized.pop(key, None)
             stripped.append(key)
+    # The ChatGPT Codex backend now requires these for resumed conversations.
+    # Subscription traffic must neither create a stored Responses resource nor
+    # use the non-streaming HTTP response mode. Omitting either field is
+    # rejected upstream.
+    sanitized["store"] = False
+    sanitized["stream"] = True
     cleaned_input, input_changed = _strip_namespace_from_custom_tool_call_input_items(
         sanitized.get("input")
     )
@@ -2869,7 +2899,7 @@ class OpenAIResponsesMixin:
         # Route to correct endpoint based on auth mode.
         # ChatGPT session auth (codex login) uses chatgpt.com, not api.openai.com.
         if is_chatgpt_auth:
-            url = "https://chatgpt.com/backend-api/codex/responses"
+            url = _get_chatgpt_responses_http_url()
             stripped_fields = []
             if not is_remote_compaction:
                 body, stripped_fields = _sanitize_chatgpt_subscription_responses_body(body)
@@ -3077,8 +3107,7 @@ class OpenAIResponsesMixin:
 
         # Request transforms can add API fields after the initial routing
         # sanitizer runs. Keep the ChatGPT subscription boundary strict so a
-        # reconnect after a proxy restart cannot forward a stale streaming
-        # field and receive an opaque upstream 400.
+        # reconnect after a proxy restart retains its required transport shape.
         if is_chatgpt_auth and not is_remote_compaction:
             body, final_stripped_fields = _sanitize_chatgpt_subscription_responses_body(body)
             if final_stripped_fields:
@@ -3087,7 +3116,7 @@ class OpenAIResponsesMixin:
                     request_id,
                     ", ".join(final_stripped_fields),
                 )
-            stream = False
+            stream = True
         elif codex_responses_lite:
             body, final_migrated_fields = _sanitize_codex_responses_lite_model(body)
             if final_migrated_fields:
@@ -3843,7 +3872,7 @@ class OpenAIResponsesMixin:
         # Build upstream WebSocket URL based on auth mode
         if is_chatgpt_auth:
             # ChatGPT session auth → route to chatgpt.com backend
-            upstream_url = "wss://chatgpt.com/backend-api/codex/responses"
+            upstream_url = _get_chatgpt_responses_ws_url()
             logger.debug(
                 f"[{request_id}] WS: ChatGPT session auth detected, routing to chatgpt.com"
             )
@@ -4336,9 +4365,17 @@ class OpenAIResponsesMixin:
                 # leak upstream. The sanitizer deliberately preserves the
                 # requested model.
                 if is_chatgpt_auth:
-                    body, _ws_stripped_fields = _sanitize_chatgpt_subscription_responses_body(body)
-                    if isinstance(body.get("response"), dict):
-                        body["response"]["model"] = body.get("model", ws_model)
+                    wrapped_response = body.get("response")
+                    if isinstance(wrapped_response, dict):
+                        sanitized_response, _ws_stripped_fields = (
+                            _sanitize_chatgpt_subscription_responses_body(wrapped_response)
+                        )
+                        sanitized_response["model"] = ws_model
+                        body["response"] = sanitized_response
+                    else:
+                        body, _ws_stripped_fields = _sanitize_chatgpt_subscription_responses_body(
+                            body
+                        )
                     if _ws_stripped_fields:
                         logger.info(
                             "[%s] WS /v1/responses stripped unsupported subscription fields: %s",
@@ -5085,12 +5122,54 @@ class OpenAIResponsesMixin:
                             )
                             return raw_msg, False, "bypass_header"
                         if not self.config.optimize:
+                            sanitized_raw = raw_msg
+                            subscription_shape_changed = False
+                            if is_chatgpt_auth:
+                                try:
+                                    passthrough_frame = json.loads(raw_msg)
+                                except json.JSONDecodeError:
+                                    passthrough_frame = None
+                                if (
+                                    isinstance(passthrough_frame, dict)
+                                    and passthrough_frame.get("type") == "response.create"
+                                ):
+                                    wrapped_passthrough = isinstance(
+                                        passthrough_frame.get("response"), dict
+                                    )
+                                    passthrough_inner = (
+                                        passthrough_frame["response"]
+                                        if wrapped_passthrough
+                                        else passthrough_frame
+                                    )
+                                    sanitized_inner, _passthrough_stripped = (
+                                        _sanitize_chatgpt_subscription_responses_body(
+                                            passthrough_inner
+                                        )
+                                    )
+                                    if wrapped_passthrough:
+                                        passthrough_frame["response"] = sanitized_inner
+                                    else:
+                                        passthrough_frame = sanitized_inner
+                                    sanitized_raw = json.dumps(passthrough_frame)
+                                    subscription_shape_changed = sanitized_raw != raw_msg
                             _log_ws_passthrough(
-                                "optimize_disabled",
+                                (
+                                    "subscription_sanitized_optimize_disabled"
+                                    if subscription_shape_changed
+                                    else "optimize_disabled"
+                                ),
                                 frame_index=frame_index,
                                 raw_bytes=len(raw_msg.encode("utf-8", errors="replace")),
                             )
-                            return raw_msg, False, "optimize_disabled"
+                            return (
+                                sanitized_raw,
+                                subscription_shape_changed,
+                                (
+                                    "subscription_sanitized_optimize_disabled"
+                                    if subscription_shape_changed
+                                    else "optimize_disabled"
+                                ),
+                            )
                         _preflight_started = time.perf_counter()
                         try:
                             parsed_frame = json.loads(raw_msg)
@@ -6766,7 +6845,7 @@ class OpenAIResponsesMixin:
         # Route to correct endpoint based on auth mode
         _lower = {k.lower() for k in upstream_headers}
         if "chatgpt-account-id" in _lower:
-            http_url = "https://chatgpt.com/backend-api/codex/responses"
+            http_url = _get_chatgpt_responses_http_url()
         else:
             http_url = build_copilot_upstream_url(self.OPENAI_API_URL, "/v1/responses")
 

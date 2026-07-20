@@ -1,0 +1,7 @@
+{
+  "status": 200,
+  "events": [
+    {"type": "response.created", "response": {"id": "response_fixture_0cb1bdef63e8"}},
+    {"type": "response.completed", "response": {"id": "response_fixture_0cb1bdef63e8", "status": "completed"}}
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "model": "gpt-5.4",
+  "input": [
+    {
+      "type": "message",
+      "role": "user",
+      "content": [{"type": "input_text", "text": "<synthetic:text:3f6b66a9d844>"}]
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "name": "read_fixture",
+      "description": "<synthetic:description:6d0f40e8538d>",
+      "parameters": {"type": "object", "properties": {}}
+    }
+  ],
+  "client_metadata": {"thread_id": "thread_fixture_713f09b80e62"},
+  "prompt_cache_key": "request_fixture_ae9c3b18bf21",
+  "reasoning": {"effort": "high"},
+  "store": true,
+  "stream": false
+}

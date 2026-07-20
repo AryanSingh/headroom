@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "headers": {"content-type": "text/event-stream", "x-request-id": "request_fixture_44b9c29ac3af"},
+  "events": [
+    {"type": "response.created", "response": {"id": "response_fixture_c376148323b7"}},
+    {"type": "response.output_text.delta", "delta": "<synthetic:text:808bb39b9827>"},
+    {"type": "response.completed", "response": {"id": "response_fixture_c376148323b7", "status": "completed"}}
+  ]
+}

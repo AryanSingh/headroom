@@ -42,6 +42,7 @@ def test_chatgpt_subscription_sanitizer_strips_backend_rejected_fields():
         "client_metadata": {"thread_id": "t_123"},
         "prompt_cache_key": "pk_123",
         "generate": {"foo": "bar"},
+        "store": True,
         "stream": True,
         "stream_options": {"reasoning_summary_delivery": "sequential_cutoff"},
         "text": {"verbosity": "low"},
@@ -52,15 +53,28 @@ def test_chatgpt_subscription_sanitizer_strips_backend_rejected_fields():
     assert sanitized == {
         "model": "gpt-5.4",
         "input": "hi",
+        "store": False,
+        "stream": True,
     }
     assert stripped == [
         "client_metadata",
         "generate",
         "prompt_cache_key",
-        "stream",
         "stream_options",
         "text",
     ]
+
+
+def test_chatgpt_subscription_sanitizer_requires_resume_transport_flags():
+    """Codex resumes must reach chatgpt.com with required transport flags."""
+    sanitized, stripped = _sanitize_chatgpt_subscription_responses_body(
+        {"model": "gpt-5.6-terra", "input": "continue"}
+    )
+
+    assert sanitized["store"] is False
+    assert sanitized["stream"] is True
+    assert "store" not in stripped
+    assert "stream" not in stripped
 
 
 def test_strip_namespace_from_upstream_event_text_fixes_dispatcher_collision():
@@ -273,7 +287,7 @@ def test_ws_http_fallback_normalization_unwraps_and_sanitizes_subscription_body(
         strip_chatgpt_subscription_fields=True,
     )
 
-    assert normalized == {"model": "gpt-5.4", "input": "hi"}
+    assert normalized == {"model": "gpt-5.4", "input": "hi", "store": False, "stream": True}
     assert stripped == [
         "client_metadata",
         "generate",
@@ -299,6 +313,8 @@ def test_chatgpt_subscription_sanitizer_preserves_supported_request_fields():
         "tools": [{"type": "function", "name": "lookup", "parameters": {}}],
         "tool_choice": "auto",
         "instructions": "be concise",
+        "store": False,
+        "stream": True,
     }
 
 
@@ -312,8 +328,13 @@ def test_chatgpt_subscription_sanitizer_is_safe_to_apply_at_final_boundary():
 
     final_body, stripped = _sanitize_chatgpt_subscription_responses_body(body)
 
-    assert final_body == {"model": "gpt-5.4", "input": "continue"}
-    assert stripped == ["stream", "stream_options"]
+    assert final_body == {
+        "model": "gpt-5.4",
+        "input": "continue",
+        "store": False,
+        "stream": True,
+    }
+    assert stripped == ["stream_options"]
 
 
 def test_apply_model_routing_request_overrides_sets_high_reasoning():
