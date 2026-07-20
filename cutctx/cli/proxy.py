@@ -4,12 +4,18 @@ import logging
 import os
 import sys
 import warnings
+from collections.abc import Mapping
 from typing import Any, Literal, cast
 
 import click
 
 from cutctx import paths as _paths
+from cutctx.auth.client_credentials import (
+    ClientCredentialStoreError,
+    resolve_client_credential,
+)
 from cutctx.providers.registry import resolve_api_overrides, resolve_api_targets
+from cutctx.proxy.deployment_security import is_loopback_host
 from cutctx.proxy.modes import PROXY_MODE_TOKEN, normalize_proxy_mode
 
 from .main import main
@@ -52,6 +58,42 @@ _CONTEXT_TOOL_ENV = "CUTCTX_CONTEXT_TOOL"
 _CONTEXT_TOOL_RTK = "rtk"
 _CONTEXT_TOOL_LEAN_CTX = "lean-ctx"
 _VALID_CONTEXT_TOOLS = {_CONTEXT_TOOL_RTK, _CONTEXT_TOOL_LEAN_CTX}
+
+
+def _resolve_client_api_key_for_bind(
+    *,
+    host: str,
+    port: int,
+    tls_enabled: bool,
+    environ: Mapping[str, str] | None = None,
+) -> str | None:
+    """Resolve a verifier without guessing a public listener's origin."""
+
+    source_env = os.environ if environ is None else environ
+    server_value = source_env.get("CUTCTX_CLIENT_API_KEY", "")
+    if server_value and server_value.strip():
+        return server_value
+    client_value = source_env.get("CUTCTX_API_KEY", "")
+    if client_value and client_value.strip():
+        return client_value
+
+    if is_loopback_host(host):
+        scheme = "https" if tls_enabled else "http"
+        normalized_host = f"[{host.strip('[]')}]" if ":" in host else host
+        credential_origin = f"{scheme}://{normalized_host}:{port}"
+    else:
+        credential_origin = source_env.get("CUTCTX_PUBLIC_URL", "").strip()
+        if not credential_origin:
+            return None
+
+    try:
+        credential = resolve_client_credential(
+            credential_origin,
+            environ=source_env,
+        )
+    except ClientCredentialStoreError:
+        return None
+    return credential.value if credential is not None else None
 
 
 def _get_env_bool(name: str, default: bool) -> bool:
@@ -1111,6 +1153,11 @@ def proxy(
     config = ProxyConfig(
         host=host,
         port=port,
+        client_api_key=_resolve_client_api_key_for_bind(
+            host=host,
+            port=port,
+            tls_enabled=bool(tls_cert),
+        ),
         proxy_api_key=os.environ.get("CUTCTX_PROXY_API_KEY"),
         tls_cert=tls_cert,
         tls_key=tls_key,

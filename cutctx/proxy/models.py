@@ -459,6 +459,12 @@ class ProxyConfig:
     # Env: CUTCTX_ADMIN_API_KEY.
     admin_api_key: str | None = None
 
+    # Least-privilege credential for SDK compression and MCP CCR operations.
+    # Client processes receive the same value as CUTCTX_API_KEY. This key does
+    # not authorize admin or provider-proxy routes.
+    # Env: CUTCTX_CLIENT_API_KEY.
+    client_api_key: str | None = None
+
     # Dedicated client credential for provider-facing proxy routes. This is
     # intentionally separate from the root admin key and from upstream
     # provider Authorization headers. Env: CUTCTX_PROXY_API_KEY.

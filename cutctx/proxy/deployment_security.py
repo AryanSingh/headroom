@@ -56,6 +56,14 @@ def effective_proxy_key(config: Any) -> str | None:
     return getattr(config, "proxy_api_key", None) or os.environ.get("CUTCTX_PROXY_API_KEY")
 
 
+def effective_agent_client_key(config: Any) -> str | None:
+    """Resolve the least-privilege SDK/MCP client verifier."""
+
+    return getattr(config, "client_api_key", None) or os.environ.get(
+        "CUTCTX_CLIENT_API_KEY"
+    )
+
+
 def _is_private_literal_upstream(url: str | None) -> bool:
     """Return whether an upstream URL uses a non-public literal IP address."""
     if not url:
@@ -96,6 +104,18 @@ def deployment_security_issues(config: Any) -> list[DeploymentSecurityIssue]:
                 remediation=(
                     "Set CUTCTX_PROXY_API_KEY and pass X-Cutctx-Proxy-Key on provider "
                     "HTTP and WebSocket requests. Do not reuse the admin or upstream key."
+                ),
+            )
+        )
+
+    if not effective_agent_client_key(config):
+        issues.append(
+            DeploymentSecurityIssue(
+                code="agent_client_auth_required",
+                message="A non-loopback proxy requires agent client authentication.",
+                remediation=(
+                    "Set CUTCTX_CLIENT_API_KEY for compression and CCR clients. "
+                    "Do not reuse the admin or provider-route key."
                 ),
             )
         )

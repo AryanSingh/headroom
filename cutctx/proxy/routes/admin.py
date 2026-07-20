@@ -228,6 +228,7 @@ def create_admin_router(
     config: Any,
     *,
     require_admin_auth: Any,
+    require_agent_auth: Any | None = None,
     require_rbac_permission: Any,
     require_entitlement: Any,
     firewall_scanner: Any = None,
@@ -240,7 +241,7 @@ def create_admin_router(
         The main proxy instance holding metrics, stores, etc.
     config : ProxyConfig
         The proxy configuration.
-    require_admin_auth, require_rbac_permission, require_entitlement
+    require_admin_auth, require_agent_auth, require_rbac_permission, require_entitlement
         FastAPI dependency callables (from server.py).
     firewall_scanner : FirewallScanner | None
         Optional initialised firewall scanner instance.
@@ -252,6 +253,7 @@ def create_admin_router(
     _config = config
     _firewall_scanner = firewall_scanner
     _Dep = Depends
+    _agent_auth = require_agent_auth or require_admin_auth
 
     # ── Enterprise Admin Dashboard ────────────────────────────────────
     from pathlib import Path as _Path
@@ -2414,7 +2416,7 @@ def create_admin_router(
 
     @router.get(
         "/v1/retrieve/{hash_key}",
-        dependencies=[_Dep(require_admin_auth), _Dep(require_entitlement("ccr"))],
+        dependencies=[_Dep(_agent_auth), _Dep(require_entitlement("ccr"))],
     )
     async def ccr_retrieve_get(hash_key: str, query: str | None = None):
         """GET version of CCR retrieve for easier testing."""
@@ -2461,7 +2463,7 @@ def create_admin_router(
 
     @router.post(
         "/v1/retrieve/tool_call",
-        dependencies=[_Dep(require_admin_auth), _Dep(require_entitlement("ccr"))],
+        dependencies=[_Dep(_agent_auth), _Dep(require_entitlement("ccr"))],
     )
     async def ccr_handle_tool_call(request: Request):
         """Handle a CCR tool call from an LLM response."""

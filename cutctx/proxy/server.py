@@ -2334,6 +2334,8 @@ def _proxy_config_from_env() -> ProxyConfig:
         max_keepalive_connections=_get_env_int("CUTCTX_MAX_KEEPALIVE", 100),
         http2=_get_env_bool("CUTCTX_HTTP2", True),
         mode=normalize_proxy_mode(_get_env_str("CUTCTX_MODE", PROXY_MODE_TOKEN)),
+        admin_api_key=os.environ.get("CUTCTX_ADMIN_API_KEY"),
+        client_api_key=os.environ.get("CUTCTX_CLIENT_API_KEY"),
         proxy_api_key=os.environ.get("CUTCTX_PROXY_API_KEY"),
     )
 
@@ -2429,6 +2431,25 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     app.state.rust_core_status = _rust_core_status
     app.state.rust_core_error = _rust_core_error
     app.state.retention_manager = None
+
+    from cutctx.proxy.agent_auth import AgentClientAuthError
+
+    @app.exception_handler(AgentClientAuthError)
+    async def _agent_client_auth_error_handler(
+        request: Request,
+        exc: AgentClientAuthError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": {
+                    "type": "client_authentication_error",
+                    "code": exc.code,
+                    "message": str(exc),
+                    "remediation": "Run `cutctx auth login --proxy-url <origin>`.",
+                }
+            },
+        )
 
     # Register error handlers with remediation hints
     @app.exception_handler(json.JSONDecodeError)
@@ -3552,6 +3573,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             }
         )
 
+    async def _require_agent_client_auth(request: Request) -> None:
+        from cutctx.proxy.agent_auth import require_agent_client
+
+        identity = require_agent_client(request, config)
+        request.state.cutctx_agent_auth = identity.kind
+
     async def _require_hosted_compression_auth(request: Request) -> None:
         expected_key = getattr(config, "hosted_compression_api_key", None) or os.environ.get(
             "CUTCTX_HOSTED_COMPRESSION_API_KEY"
@@ -3957,9 +3984,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         return {"transformations": transformations, "log_full_messages": log_full_messages}
 
-    @app.post("/v1/compress", dependencies=[Depends(_require_local_admin_auth)])
+    @app.post("/v1/compress", dependencies=[Depends(_require_agent_client_auth)])
     async def compress_endpoint(request: Request):
         return await proxy.handle_compress(request)
+
+    @app.get(
+        "/v1/auth/client/status",
+        dependencies=[Depends(_require_agent_client_auth)],
+    )
+    async def client_auth_status_endpoint():
+        return {"status": "valid", "scope": "agent", "expires_at": None}
 
     hosted_compression_enabled = bool(getattr(config, "hosted_compression_enabled", False)) or (
         os.environ.get("CUTCTX_HOSTED_COMPRESSION_ENABLED", "").strip().lower()
@@ -4139,7 +4173,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 },
             )
 
-    @app.get("/v1/retrieve/stats", dependencies=[Depends(_require_local_admin_auth)])
+    @app.get("/v1/retrieve/stats", dependencies=[Depends(_require_agent_client_auth)])
     async def retrieve_stats_endpoint():
         store = get_compression_store()
         stats = store.get_stats()
@@ -4186,7 +4220,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         status = store.get_entry_status(hash_key, clean_expired=False)
         raise HTTPException(status_code=404, detail=format_retrieval_miss_detail(status))
 
-    @app.post("/v1/retrieve", dependencies=[Depends(_require_local_admin_auth)])
+    @app.post("/v1/retrieve", dependencies=[Depends(_require_agent_client_auth)])
     async def retrieve_endpoint(request: Request):
         payload = await request.json()
         hash_key = str(payload.get("hash", "") or "").strip()
@@ -4226,7 +4260,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             },
         )
 
-    @app.get("/v1/retrieve/{hash_key}", dependencies=[Depends(_require_local_admin_auth)])
+    @app.get("/v1/retrieve/{hash_key}", dependencies=[Depends(_require_agent_client_auth)])
     async def retrieve_by_hash_endpoint(hash_key: str, query: str | None = None):
         store = get_compression_store()
         entry = _retrieve_entry(hash_key, query=query)
@@ -4454,6 +4488,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 proxy,
                 config,
                 require_admin_auth=admin_dep,
+                require_agent_auth=_require_agent_client_auth,
                 require_rbac_permission=rbac_dep,
                 require_entitlement=entitlement_dep,
                 firewall_scanner=_firewall_scanner,
@@ -5314,6 +5349,7 @@ if __name__ == "__main__":
         or _get_env_bool("CUTCTX_COMPRESS_USER_MESSAGES", False),
         # Security
         admin_api_key=args.admin_api_key or os.environ.get("CUTCTX_ADMIN_API_KEY"),
+        client_api_key=os.environ.get("CUTCTX_CLIENT_API_KEY"),
         proxy_api_key=args.proxy_api_key or os.environ.get("CUTCTX_PROXY_API_KEY"),
         cors_origins=_cors_origins_list,
         max_body_mb=_get_env_int("CUTCTX_MAX_BODY_MB", args.max_body_mb),

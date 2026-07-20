@@ -41,6 +41,7 @@ def test_non_loopback_accepts_separate_admin_and_proxy_keys(monkeypatch) -> None
         ProxyConfig(
             host="0.0.0.0",
             admin_api_key="admin-key",
+            client_api_key="client-key",
             proxy_api_key="proxy-key",
         )
     )
@@ -55,6 +56,7 @@ def test_non_loopback_accepts_complete_sso(monkeypatch) -> None:
             sso_jwks_uri="https://idp.example.test/jwks",
             sso_issuer="https://idp.example.test/",
             sso_audience="cutctx",
+            client_api_key="client-key",
             proxy_api_key="proxy-key",
         )
     )
@@ -68,6 +70,7 @@ def test_non_loopback_accepts_complete_sso_without_redundant_enabled_flag(monkey
             sso_jwks_uri="https://idp.example.test/jwks",
             sso_issuer="https://idp.example.test/",
             sso_audience="cutctx",
+            client_api_key="client-key",
             proxy_api_key="proxy-key",
         )
     )
@@ -105,6 +108,7 @@ def test_network_deployment_allows_explicit_private_upstream(monkeypatch) -> Non
         ProxyConfig(
             host="0.0.0.0",
             admin_api_key="test-key",
+            client_api_key="client-key",
             proxy_api_key="proxy-key",
             openai_api_url="http://10.0.0.5:9000/v1",
         )

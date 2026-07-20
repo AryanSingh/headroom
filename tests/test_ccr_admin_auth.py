@@ -1,4 +1,4 @@
-"""Admin-auth regressions for CCR retrieve and feedback routes."""
+"""Privilege-boundary regressions for CCR retrieve and feedback routes."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ def _app_with_admin_key(monkeypatch: pytest.MonkeyPatch):
     return create_app(
         ProxyConfig(
             admin_api_key="route-auth-key",
+            client_api_key="route-client-key",
             optimize=False,
             cache_enabled=False,
             rate_limit_enabled=False,
@@ -25,7 +26,7 @@ def _app_with_admin_key(monkeypatch: pytest.MonkeyPatch):
     )
 
 
-def test_v1_retrieve_post_requires_admin_key(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_v1_retrieve_post_requires_client_key(monkeypatch: pytest.MonkeyPatch) -> None:
     app = _app_with_admin_key(monkeypatch)
 
     with TestClient(app) as client:
@@ -35,7 +36,7 @@ def test_v1_retrieve_post_requires_admin_key(monkeypatch: pytest.MonkeyPatch) ->
         allowed = client.post(
             "/v1/retrieve",
             json={},
-            headers={"x-cutctx-admin-key": "route-auth-key"},
+            headers={"x-cutctx-api-key": "route-client-key"},
         )
         assert allowed.status_code == 400
         assert "hash required" in allowed.text
