@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from .base import MCPRegistrar, RegisterResult, RegisterStatus, ServerSpec
 from .claude import ClaudeRegistrar
+from .claude_desktop import ClaudeDesktopRegistrar
 from .codex import CodexRegistrar
 from .display import any_succeeded, format_result, format_results
 from .install import (
@@ -27,6 +28,7 @@ from .install import (
 
 __all__ = [
     "DEFAULT_PROXY_URL",
+    "ClaudeDesktopRegistrar",
     "ClaudeRegistrar",
     "CodexRegistrar",
     "MCPRegistrar",

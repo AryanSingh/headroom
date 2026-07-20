@@ -9,7 +9,8 @@ Cutctx's MCP server exposes **compression, retrieval, and observability** as too
 pip install "cutctx-ai[proxy]"    # Proxy + MCP tools
 pip install "cutctx-ai[mcp]"      # MCP tools only (lightweight)
 
-# Register with Claude Code (one-time)
+# Register with every detected agent (one-time):
+# Claude Code, Claude Desktop app, Codex
 cutctx mcp install
 
 # Start Claude Code — it now has cutctx tools!
@@ -17,6 +18,81 @@ claude
 ```
 
 That's it. Claude Code can now compress content on demand, retrieve originals, and check session stats — **no proxy required**.
+
+## Claude Desktop app
+
+`cutctx mcp install` also detects the Claude Desktop app and writes the server
+into `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`,
+Windows: `%APPDATA%\Claude\`, Linux: `~/.config/Claude/`). Restrict to Desktop
+only with:
+
+```bash
+cutctx mcp install --agent claude-desktop
+```
+
+Two Desktop-specific notes:
+
+- **Absolute command path.** Desktop launches MCP servers with a minimal GUI
+  PATH, so the installer resolves `cutctx` to its absolute path (Homebrew,
+  pipx, venv) at registration time. If you edit the config by hand, use the
+  full path from `which cutctx`.
+- **Restart to load.** Desktop reads the config only at launch — restart the
+  app after installing.
+
+In Desktop, the cutctx server itself provides **on-demand tools**
+(`cutctx_compress`, `cutctx_retrieve`, `cutctx_stats`). The transparent proxy
+pipeline doesn't apply because the app's model endpoint isn't repointable —
+for automatic compression, use the gateway below.
+
+### Automatic compression via the MCP gateway
+
+Desktop's model traffic can't be proxied, but its MCP servers are launched
+from config entries cutctx controls. `cutctx mcp gateway` is a transparent
+stdio proxy that interposes at the **MCP layer**: it spawns the real server,
+relays JSON-RPC verbatim, and compresses large `tools/call` results before
+they reach model context — which is where most agent tokens go.
+
+```bash
+# Wrap every stdio server in claude_desktop_config.json (idempotent, reversible):
+cutctx mcp install --gateway
+
+# Or wrap one server manually:
+cutctx mcp gateway --name slack -- npx -y slack-mcp-server
+```
+
+Wrapping rewrites entries like:
+
+```json
+"slack": { "command": "npx", "args": ["-y", "slack-mcp-server"] }
+```
+
+to:
+
+```json
+"slack": {
+  "command": "/opt/homebrew/bin/cutctx",
+  "args": ["mcp", "gateway", "--name", "slack", "--", "npx", "-y", "slack-mcp-server"]
+}
+```
+
+The original invocation is preserved after `--`, so `cutctx mcp uninstall`
+restores every entry exactly. Compressed results carry a
+`cutctx_retrieve hash=...` marker; with the cutctx MCP server installed
+alongside, the model can recover any original in full. Results below the
+size threshold (default 2000 chars, `--min-chars`) and non-text content pass
+through untouched, and any compression failure forwards the original — the
+gateway never breaks a session it can't improve.
+
+### Privacy
+
+Compression runs fully on-machine by default (local Rust transforms, no external model call). The only exception is setting `CUTCTX_ENABLE_KOMPRESS=1`, which downloads an ML model from HuggingFace on first use.
+
+### Known limitations
+
+- Only wraps stdio MCP servers — remote/URL servers pass through uncompressed
+- JSON-RPC batch-array frames pass through uncompressed
+- Retrieval requires the cutctx MCP server installed alongside, the default on-disk SQLite store (not `CUTCTX_STATELESS`/memory), and the ~1h TTL not yet expired
+- Config wrap edits `claude_desktop_config.json` in place but writes a timestamped `.bak-<timestamp>` backup first and is fully reversible via `cutctx mcp uninstall`
 
 For automatic compression of ALL traffic, also run the proxy:
 

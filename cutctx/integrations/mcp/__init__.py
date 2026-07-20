@@ -12,18 +12,14 @@ Example:
         result=large_json_result,
         max_chars=5000,
     )
+
+Imports are lazy (PEP 562): the compressor stack pulls in providers and
+telemetry, but lightweight consumers — notably ``cutctx mcp gateway``,
+which starts once per wrapped MCP server — must not pay that cost just
+for importing the package.
 """
 
-from .server import (
-    DEFAULT_MCP_PROFILES,
-    CutctxMCPClientWrapper,
-    CutctxMCPCompressor,
-    MCPCompressionResult,
-    MCPToolProfile,
-    compress_tool_result,
-    compress_tool_result_with_metrics,
-    create_cutctx_mcp_proxy,
-)
+from typing import Any
 
 __all__ = [
     "CutctxMCPCompressor",
@@ -36,6 +32,10 @@ __all__ = [
     "DEFAULT_MCP_PROFILES",
 ]
 
-CutctxMCPClientWrapper = CutctxMCPClientWrapper
 
-CutctxMCPCompressor = CutctxMCPCompressor
+def __getattr__(name: str) -> Any:
+    if name in __all__:
+        from . import server
+
+        return getattr(server, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

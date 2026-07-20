@@ -318,6 +318,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integrated LiteLLM's open-source core as the default orchestration execution substrate while retaining Cutctx-owned routing and account policy. OpenAI-compatible sidecars such as Bifrost, Portkey, and Envoy can be registered without replacing Cutctx's control plane.
 - Hardened orchestration configuration updates with merged-candidate validation, atomic in-process routing swaps, removal of stale configured models, and rejection of plaintext authentication headers outside the encrypted credential store.
 - Added exact deployment keys (`provider:account:model`) for multi-account assignments and an explicit, default-off `CUTCTX_ORCHESTRATION_DIRECT_EXECUTION` development switch.
+- Added Claude Desktop app support to `cutctx mcp install` (new `claude-desktop` registrar), and a transparent MCP compression gateway (`cutctx mcp gateway`) with `cutctx mcp install --gateway` to auto-compress Desktop MCP tool outputs; compression stays on-machine by default; config wrapping backs up and is reversible.
 
 ### Security
 
