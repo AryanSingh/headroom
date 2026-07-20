@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "codex-protocol-matrix",
+  "client": "codex",
+  "client_version": "captured-structural-v1",
+  "tags": [
+    "api-key-auth",
+    "invalid-auth",
+    "http-json",
+    "websocket",
+    "ws-reconnect",
+    "ws-http-fallback",
+    "cancellation",
+    "first-turn",
+    "fork",
+    "remote-compaction",
+    "nested-routes",
+    "tools",
+    "parallel-tools",
+    "large-tool-output",
+    "reasoning",
+    "prompt-cache",
+    "images",
+    "unicode",
+    "zstd",
+    "compression-boundaries",
+    "900-kib",
+    "one-mib",
+    "timeouts",
+    "fail-open",
+    "malformed-sse",
+    "partial-stream",
+    "dropped-socket",
+    "http-errors"
+  ],
+  "runtimes": ["python", "native"],
+  "unsupported_runtimes": [],
+  "steps": [
+    {
+      "action": "request",
+      "transport": "http-json",
+      "method": "POST",
+      "path": "/v1/responses",
+      "headers_fixture": "headers.json",
+      "body_fixture": "request.json",
+      "upstream_script": "success.json",
+      "content_encoding": "zstd"
+    },
+    {"action": "disconnect"},
+    {"action": "reconnect"},
+    {"action": "cancel"}
+  ],
+  "assertions": {
+    "preserved_paths": ["$.model", "$.input", "$.tools"],
+    "terminal_event": "response.completed"
+  }
+}

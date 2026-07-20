@@ -1,0 +1,18 @@
+{
+  "status": 200,
+  "headers": {"content-type": "text/event-stream", "request-id": "request_fixture_af41c4dd10e7"},
+  "events": [
+    {
+      "type": "message_start",
+      "message": {
+        "id": "response_fixture_e41ab98a1b01",
+        "type": "message",
+        "role": "assistant",
+        "content": [],
+        "model": "claude-sonnet-4-5",
+        "usage": {"input_tokens": 20, "output_tokens": 0}
+      }
+    },
+    {"type": "message_stop"}
+  ]
+}

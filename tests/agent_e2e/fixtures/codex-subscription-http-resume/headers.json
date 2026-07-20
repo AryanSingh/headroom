@@ -1,0 +1,6 @@
+{
+  "authorization_kind": "chatgpt-oauth-jwt",
+  "ChatGPT-Account-ID": "acct_fixture_9dfc9922a2c1",
+  "content-type": "application/json",
+  "openai-beta": "responses=v1"
+}

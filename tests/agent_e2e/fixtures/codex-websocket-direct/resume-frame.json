@@ -1,0 +1,16 @@
+{
+  "type": "response.create",
+  "response": {
+    "model": "gpt-5.4",
+    "input": [
+      {
+        "type": "message",
+        "role": "user",
+        "content": [{"type": "input_text", "text": "<synthetic:text:b7c2c00e9c99>"}]
+      }
+    ],
+    "tools": [],
+    "stream": false,
+    "store": true
+  }
+}

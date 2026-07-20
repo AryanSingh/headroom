@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "headers": {"content-type": "application/json"},
+  "json": {
+    "id": "response_fixture_b41d82c5097e",
+    "status": "completed",
+    "output": [{"type": "message", "role": "assistant", "content": []}],
+    "usage": {"input_tokens": 42, "output_tokens": 7}
+  }
+}

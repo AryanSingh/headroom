@@ -1,0 +1,46 @@
+{
+  "model": "claude-sonnet-4-5",
+  "max_tokens": 128,
+  "stream": true,
+  "system": [
+    {
+      "type": "text",
+      "text": "<synthetic:text:f47b4db87fa1>",
+      "cache_control": {"type": "ephemeral"}
+    }
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": [{"type": "text", "text": "<synthetic:text:4260b383cd28>"}]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "tool_use_fixture_56d7ef17398b",
+          "name": "fixture_tool",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "tool_use_fixture_56d7ef17398b",
+          "content": "<synthetic:content:5ca66dd80be4>"
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "name": "fixture_tool",
+      "description": "<synthetic:description:2acff941b49c>",
+      "input_schema": {"type": "object"}
+    }
+  ]
+}

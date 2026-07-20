@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "claude-messages-resume",
+  "client": "claude",
+  "client_version": "captured-structural-v1",
+  "tags": [
+    "api-key-auth",
+    "oauth-auth",
+    "invalid-auth",
+    "header-preservation",
+    "http-json",
+    "http-sse",
+    "client-disconnect",
+    "partial-stream",
+    "timeouts",
+    "retry",
+    "proxy-restart",
+    "first-turn",
+    "multi-turn",
+    "tool-loop",
+    "resume",
+    "repeated-tool-results",
+    "frozen-prefix",
+    "concurrent-sessions",
+    "system-string",
+    "system-blocks",
+    "thinking",
+    "redacted-thinking",
+    "cache-control",
+    "images",
+    "documents",
+    "citations",
+    "structured-output",
+    "large-tool-output",
+    "prompt-cache",
+    "four-breakpoint-ceiling",
+    "cache-accounting",
+    "count-tokens",
+    "batches",
+    "http-errors",
+    "malformed-json",
+    "malformed-sse",
+    "dropped-socket",
+    "context-overflow",
+    "fallback-routing"
+  ],
+  "runtimes": ["python"],
+  "unsupported_runtimes": [
+    {
+      "runtime": "native",
+      "reason": "Native ancillary batch and prompt-cache parity remains incomplete.",
+      "tracking_issue": "CUTCTX-NATIVE-ANTHROPIC-PARITY"
+    }
+  ],
+  "steps": [
+    {
+      "action": "request",
+      "transport": "http-sse",
+      "method": "POST",
+      "path": "/v1/messages",
+      "headers_fixture": "headers.json",
+      "body_fixture": "request.json",
+      "upstream_script": "success-sse.json"
+    },
+    {"action": "restart_proxy"},
+    {
+      "action": "request",
+      "transport": "http-sse",
+      "method": "POST",
+      "path": "/v1/messages",
+      "headers_fixture": "headers.json",
+      "body_fixture": "resume-request.json",
+      "upstream_script": "success-sse.json"
+    }
+  ],
+  "assertions": {
+    "preserved_paths": ["$.model", "$.system", "$.messages", "$.tools"],
+    "terminal_event": "message_stop"
+  }
+}

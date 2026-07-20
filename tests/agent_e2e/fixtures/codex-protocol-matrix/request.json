@@ -1,0 +1,24 @@
+{
+  "model": "gpt-5.4",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {"type": "input_text", "text": "<synthetic:text:6e5ef0c21a20>"},
+        {"type": "input_image", "image_url": "data:image/png;base64,c3ludGhldGlj"}
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "name": "fixture_tool",
+      "description": "<synthetic:description:2acff941b49c>",
+      "parameters": {"type": "object"}
+    }
+  ],
+  "parallel_tool_calls": true,
+  "prompt_cache_key": "request_fixture_f35e1432c4a7",
+  "stream": false,
+  "store": false
+}

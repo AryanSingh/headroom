@@ -1,0 +1,37 @@
+{
+  "model": "gpt-5.4",
+  "input": [
+    {
+      "type": "message",
+      "role": "user",
+      "content": [{"type": "input_text", "text": "<synthetic:text:d17d53ac8e9a>"}]
+    },
+    {
+      "type": "custom_tool_call",
+      "id": "call_fixture_50701c99952d",
+      "call_id": "call_fixture_9bb7a9684bb7",
+      "name": "read_fixture",
+      "input": "<synthetic:input:53e5994980c1>",
+      "status": "completed"
+    },
+    {
+      "type": "custom_tool_call_output",
+      "call_id": "call_fixture_9bb7a9684bb7",
+      "output": "<synthetic:output:b905304de918>"
+    },
+    {
+      "type": "reasoning",
+      "encrypted_content": "encrypted_fixture_fef929fde341"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "name": "read_fixture",
+      "description": "<synthetic:description:6d0f40e8538d>",
+      "parameters": {"type": "object", "properties": {}}
+    }
+  ],
+  "client_metadata": {"thread_id": "thread_fixture_713f09b80e62"},
+  "store": true
+}

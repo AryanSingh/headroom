@@ -290,9 +290,8 @@ def test_handle_openai_responses_routes_chatgpt_auth_to_backend_api(monkeypatch)
 
     response = anyio.run(handler.handle_openai_responses, request)
 
-    assert handler.captured_request is not None
-    method, url, headers, body = handler.captured_request
-    assert method == "POST"
+    assert handler.captured_stream_request is not None
+    url, headers, body = handler.captured_stream_request
     assert url == "https://chatgpt.com/backend-api/codex/responses"
     assert headers["ChatGPT-Account-ID"] == "acct-from-jwt"
     assert body["input"] == "hello"
@@ -441,8 +440,8 @@ def test_handle_openai_responses_chatgpt_oversize_is_truncated_before_upstream(m
     response = anyio.run(handler.handle_openai_responses, request)
 
     assert response.status_code == 200
-    assert handler.captured_request is not None
-    _, url, _, body = handler.captured_request
+    assert handler.captured_stream_request is not None
+    url, _, body = handler.captured_stream_request
     assert url == "https://chatgpt.com/backend-api/codex/responses"
     assert body["input"] == "shortened"
 
@@ -486,8 +485,8 @@ def test_handle_openai_responses_opaque_continuation_preserves_model_and_payload
     response = anyio.run(handler.handle_openai_responses, request)
 
     assert response.status_code == 200
-    assert handler.captured_request is not None
-    _, url, _, body = handler.captured_request
+    assert handler.captured_stream_request is not None
+    url, _, body = handler.captured_stream_request
     assert url == "https://chatgpt.com/backend-api/codex/responses"
     assert body["model"] == "gpt-5.6-sol"
     assert body["input"] == opaque_input
@@ -585,8 +584,8 @@ def test_handle_openai_responses_opaque_continuation_still_shrinks_oversized_ima
     response = anyio.run(handler.handle_openai_responses, request)
 
     assert response.status_code == 200
-    assert handler.captured_request is not None
-    _, url, _, body = handler.captured_request
+    assert handler.captured_stream_request is not None
+    url, _, body = handler.captured_stream_request
     assert url == "https://chatgpt.com/backend-api/codex/responses"
     assert body["model"] == "gpt-5.6-sol"
     # Encrypted continuation state must survive byte-for-byte.
@@ -790,8 +789,8 @@ def test_chatgpt_subscription_timeout_fails_open_when_client_header_is_absent(
     response = anyio.run(handler.handle_openai_responses, request)
 
     assert response.status_code == 200
-    assert handler.captured_request is not None
-    _, url, _, body = handler.captured_request
+    assert handler.captured_stream_request is not None
+    url, _, body = handler.captured_stream_request
     assert url == "https://chatgpt.com/backend-api/codex/responses"
     assert body["input"].startswith("large but upstream-valid continuation")
 

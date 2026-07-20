@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "headers": {"content-type": "text/event-stream", "x-request-id": "request_fixture_a13e8e91e0a4"},
+  "events": [
+    {"type": "response.created", "response": {"id": "response_fixture_787ecd11db28"}},
+    {"type": "response.completed", "response": {"id": "response_fixture_787ecd11db28", "status": "completed"}}
+  ]
+}

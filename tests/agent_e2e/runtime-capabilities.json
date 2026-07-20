@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "runtimes": {
+    "python": {
+      "supported": ["openai-responses-http", "openai-responses-sse", "openai-responses-websocket", "anthropic-messages", "anthropic-batches"]
+    },
+    "native": {
+      "supported": ["openai-responses-http", "anthropic-messages"],
+      "unsupported": [
+        {
+          "capability": "chatgpt-subscription-responses",
+          "reason": "Subscription credential routing and strict ChatGPT request normalization are Python-only.",
+          "tracking_issue": "CUTCTX-NATIVE-RESPONSES-SUBSCRIPTION"
+        },
+        {
+          "capability": "anthropic-ancillary-parity",
+          "reason": "Batch, prompt-cache, and restart coverage is incomplete in the native runtime.",
+          "tracking_issue": "CUTCTX-NATIVE-ANTHROPIC-PARITY"
+        }
+      ]
+    }
+  }
+}
