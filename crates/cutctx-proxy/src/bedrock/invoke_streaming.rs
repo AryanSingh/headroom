@@ -865,12 +865,27 @@ fn run_anthropic_compression(
         } else {
             None
         };
-    let ccr_for_request = if strategy_decision.is_some() && state.config.license_tier.allows_ccr() {
+    let licensed_ccr = if state.config.license_tier.allows_ccr() {
         state.ccr_store.as_deref()
     } else {
         None
     };
-    if let (Some(decision), None) = (&strategy_decision, ccr_for_request) {
+    let structural_ccr = match strategy_decision.as_ref() {
+        Some(decision)
+            if matches!(
+                decision.strategy,
+                ContextStrategy::SelectiveClear | ContextStrategy::SnapshotResume
+            ) =>
+        {
+            licensed_ccr
+        }
+        _ => None,
+    };
+    let live_zone_ccr = match strategy_decision.as_ref() {
+        Some(decision) if decision.strategy == ContextStrategy::SmartCompact => licensed_ccr,
+        _ => None,
+    };
+    if let (Some(decision), None) = (&strategy_decision, licensed_ccr) {
         if decision.strategy != ContextStrategy::RollingWindow {
             tracing::warn!(
                 event = "context_strategy_degraded",
@@ -885,7 +900,7 @@ fn run_anthropic_compression(
         }
     }
     let session_key = crate::session_state::resolve_session_key(headers, request_id);
-    let mutation = match (&strategy_decision, ccr_for_request) {
+    let mutation = match (&strategy_decision, structural_ccr) {
         (Some(decision), Some(store)) => crate::strategy_apply::apply_selected_structural_strategy(
             body,
             decision,
@@ -935,7 +950,7 @@ fn run_anthropic_compression(
     let active_body = mutation
         .map(|result| Bytes::from(result.body))
         .unwrap_or_else(|| body.clone());
-    let (active_strategy, max_lossy_ratio) = match (&strategy_decision, ccr_for_request) {
+    let (active_strategy, max_lossy_ratio) = match (&strategy_decision, live_zone_ccr) {
         (Some(decision), Some(_)) if decision.strategy == ContextStrategy::SmartCompact => {
             (ContextStrategy::SmartCompact, policy.max_lossy_ratio)
         }
@@ -950,7 +965,7 @@ fn run_anthropic_compression(
         state.config.cache_control_auto_frozen,
         cutctx_core::auth_mode::AuthMode::OAuth,
         request_id,
-        ccr_for_request,
+        live_zone_ccr,
         active_strategy,
         max_lossy_ratio,
     );
