@@ -13,6 +13,12 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, cast
 
+from cutctx.auth.client_credentials import (
+    ClientCredentialError,
+    ensure_local_client_credential,
+    resolve_client_credential,
+)
+
 from .health import probe_ready
 from .models import DeploymentManifest, InstallPreset, RuntimeKind
 from .paths import log_path, pid_path, profile_root
@@ -82,10 +88,38 @@ def _resolve_admin_api_key() -> str | None:
     return key or None
 
 
+def _resolve_client_api_key(manifest: DeploymentManifest) -> str | None:
+    """Resolve the server verifier for a persistent proxy."""
+
+    source_env = os.environ.copy()
+    source_env.update(manifest.base_env)
+    server_value = source_env.get("CUTCTX_CLIENT_API_KEY", "")
+    if server_value and server_value.strip():
+        return server_value
+
+    try:
+        credential = resolve_client_credential(
+            manifest.health_url,
+            environ=source_env,
+        )
+        if credential is None:
+            credential = ensure_local_client_credential(
+                manifest.health_url,
+                environ=source_env,
+            )
+    except ClientCredentialError:
+        return None
+    return credential.value
+
+
 def _runtime_env(manifest: DeploymentManifest) -> dict[str, str]:
     env = os.environ.copy()
     env.update(manifest.base_env)
     env.update(_deployment_env(manifest))
+    client_api_key = _resolve_client_api_key(manifest)
+    env.pop("CUTCTX_API_KEY", None)
+    if client_api_key:
+        env["CUTCTX_CLIENT_API_KEY"] = client_api_key
     admin_api_key = _resolve_admin_api_key()
     if admin_api_key:
         env["CUTCTX_ADMIN_API_KEY"] = admin_api_key
@@ -146,12 +180,19 @@ def build_runtime_command(manifest: DeploymentManifest) -> list[str]:
         if callable(getuid) and callable(getgid):
             command.extend(["--user", f"{getuid()}:{getgid()}"])
     runtime_env = {**manifest.base_env, **_deployment_env(manifest)}
+    runtime_env.pop("CUTCTX_API_KEY", None)
+    runtime_env.pop("CUTCTX_CLIENT_API_KEY", None)
     admin_api_key = _resolve_admin_api_key()
     if admin_api_key:
         runtime_env["CUTCTX_ADMIN_API_KEY"] = admin_api_key
     for name, value in runtime_env.items():
         command.extend(["--env", f"{name}={value}"])
+    client_api_key = _resolve_client_api_key(manifest)
+    if client_api_key:
+        command.extend(["--env", "CUTCTX_CLIENT_API_KEY"])
     for name in sorted(os.environ):
+        if name in {"CUTCTX_API_KEY", "CUTCTX_CLIENT_API_KEY"}:
+            continue
         if name.startswith(PASSTHROUGH_ENV_PREFIXES):
             command.extend(["--env", name])
     command.extend(
@@ -301,7 +342,7 @@ def start_persistent_docker(manifest: DeploymentManifest) -> None:
         *command[5:],  # drop initial `docker run --rm --name ...`
     ]
     subprocess.run(["docker", "rm", "-f", manifest.container_name], capture_output=True, text=True)
-    subprocess.run(docker_cmd, check=True)
+    subprocess.run(docker_cmd, check=True, env=_runtime_env(manifest))
 
 
 def stop_runtime(manifest: DeploymentManifest) -> None:

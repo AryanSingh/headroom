@@ -15,6 +15,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
+from cutctx.auth.client_credentials import ClientCredential
 from cutctx.cli import wrap as wrap_mod
 from cutctx.cli.main import main
 
@@ -597,6 +598,12 @@ def test_launch_tool_ignores_sigint_in_wrapper(
     class FakeCompleted:
         returncode = 0
 
+    monkeypatch.setattr(
+        wrap_mod,
+        "_apply_wrap_client_auth",
+        lambda env, origin: ClientCredential(origin, "test-client-key", "keyring"),
+    )
+    monkeypatch.setattr(wrap_mod, "_validate_wrap_client_auth", lambda *args: None)
     monkeypatch.setattr(wrap_mod, "_ensure_proxy", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         wrap_mod.signal, "signal", lambda sig, fn: signal_handlers.setdefault(sig, fn)

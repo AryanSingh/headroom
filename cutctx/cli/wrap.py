@@ -44,6 +44,13 @@ if sys.platform == "win32" and hasattr(sys.stdout, "buffer"):
 import click
 
 from cutctx._version import __version__ as _CUTCTX_VERSION
+from cutctx.auth.client_credentials import (
+    ClientCredential,
+    ClientCredentialError,
+    ensure_local_client_credential,
+    resolve_client_credential,
+    validate_client_credential,
+)
 from cutctx.copilot_auth import (
     has_oauth_auth,
     resolve_client_bearer_token,
@@ -333,6 +340,7 @@ def _resolve_admin_api_key_for_proxy_env() -> str | None:
 def _start_proxy(
     port: int,
     *,
+    client_api_key: str | None = None,
     learn: bool = False,
     memory: bool = False,
     agent_type: str = "unknown",
@@ -394,7 +402,10 @@ def _start_proxy(
 
     # Ensure proxy subprocess uses UTF-8 (Windows defaults to cp1252)
     proxy_env = os.environ.copy()
+    proxy_env.pop("CUTCTX_API_KEY", None)
     proxy_env["PYTHONIOENCODING"] = "utf-8"
+    if client_api_key:
+        proxy_env["CUTCTX_CLIENT_API_KEY"] = client_api_key
     from cutctx import paths as _paths
 
     proxy_env.setdefault("CUTCTX_LOG_FILE", str(_paths.request_history_path()))
@@ -1290,9 +1301,18 @@ def _run_proxy_only_watcher(
 
     try:
         _print_wrap_banner(agent_label)
+        child_env = os.environ.copy()
+        proxy_url = f"http://127.0.0.1:{port}"
+        credential = _apply_wrap_client_auth(child_env, proxy_url)
         proxy_holder[0] = _ensure_proxy(
-            port, no_proxy, learn=learn, memory=memory, agent_type=agent_type
+            port,
+            no_proxy,
+            learn=learn,
+            memory=memory,
+            agent_type=agent_type,
+            client_api_key=credential.value,
         )
+        _validate_wrap_client_auth(proxy_url, credential)
         click.echo()
         print_setup_lines()
         click.echo()
@@ -1916,6 +1936,7 @@ def _ensure_proxy(
     openai_api_url: str | None = None,
     anthropic_api_url: str | None = None,
     copilot_api_token: str | None = None,
+    client_api_key: str | None = None,
 ) -> subprocess.Popen | None:
     """Start or verify proxy. Returns process handle if we started it."""
     helpers = _live_wrap_module()
@@ -2150,6 +2171,7 @@ def _ensure_proxy(
                     openai_api_url=openai_api_url,
                     anthropic_api_url=anthropic_api_url,
                     copilot_api_token=copilot_api_token,
+                    client_api_key=client_api_key,
                 ),
             )
             click.echo(f"  Proxy ready on http://127.0.0.1:{port}")
@@ -2323,6 +2345,52 @@ def _ignore_child_sigint(signum: int | None = None, frame: Any = None) -> None:
     return None
 
 
+def _apply_wrap_client_auth(
+    env: dict[str, str],
+    credential_origin: str,
+) -> ClientCredential:
+    """Resolve once and inject only into the harness child environment."""
+
+    try:
+        credential = resolve_client_credential(
+            credential_origin,
+            environ=env,
+        )
+        if credential is None:
+            credential = ensure_local_client_credential(
+                credential_origin,
+                environ=env,
+            )
+    except ClientCredentialError as exc:
+        raise click.ClickException(str(exc)) from None
+    env["CUTCTX_API_KEY"] = credential.value
+    return credential
+
+
+def _validate_wrap_client_auth(
+    proxy_url: str,
+    credential: ClientCredential,
+) -> None:
+    status = validate_client_credential(proxy_url, credential)
+    if status.state == "valid":
+        return
+    origin = credential.proxy_origin
+    if status.state == "expired":
+        raise click.ClickException(
+            f"Cutctx client authentication expired for {origin}. "
+            f"Run: cutctx auth login --proxy-url {origin}"
+        )
+    if status.state == "invalid":
+        raise click.ClickException(
+            f"Cutctx client authentication is invalid for {origin}. "
+            f"Run: cutctx auth login --proxy-url {origin}"
+        )
+    raise click.ClickException(
+        f"Could not validate Cutctx client authentication at {proxy_url}. "
+        "Verify the proxy is reachable and retry."
+    )
+
+
 def _launch_tool(
     binary: str,
     args: tuple,
@@ -2341,6 +2409,7 @@ def _launch_tool(
     region: str | None = None,
     openai_api_url: str | None = None,
     copilot_api_token: str | None = None,
+    client_credential_origin: str | None = None,
 ) -> None:
     """Common logic: start proxy, launch tool, clean up."""
     proxy_holder: list[subprocess.Popen | None] = [None]
@@ -2350,6 +2419,11 @@ def _launch_tool(
     signal.signal(signal.SIGTERM, cleanup)
 
     try:
+        proxy_url = f"http://127.0.0.1:{port}"
+        credential = _apply_wrap_client_auth(
+            env,
+            client_credential_origin or proxy_url,
+        )
         click.echo()
         padded = f"CUTCTX WRAP: {tool_label}".center(47)
         click.echo("  ╔═══════════════════════════════════════════════╗")
@@ -2369,7 +2443,9 @@ def _launch_tool(
             region=region,
             openai_api_url=openai_api_url,
             copilot_api_token=copilot_api_token,
+            client_api_key=credential.value,
         )
+        _validate_wrap_client_auth(proxy_url, credential)
 
         if code_graph:
             _setup_code_graph(verbose=False)
@@ -2779,6 +2855,9 @@ def claude(
         if os.environ.get("CLAUDE_CODE_USE_FOUNDRY"):
             foundry_upstream = os.environ.get("ANTHROPIC_FOUNDRY_BASE_URL")
 
+        env = os.environ.copy()
+        client_proxy_url = f"http://127.0.0.1:{port}"
+        client_credential = _apply_wrap_client_auth(env, client_proxy_url)
         proxy_holder[0] = _ensure_proxy(
             port,
             no_proxy,
@@ -2787,7 +2866,9 @@ def claude(
             agent_type="claude",
             code_graph=code_graph,
             anthropic_api_url=foundry_upstream,
+            client_api_key=client_credential.value,
         )
+        _validate_wrap_client_auth(client_proxy_url, client_credential)
 
         if not no_rtk:
             if _selected_context_tool() == _CONTEXT_TOOL_LEAN_CTX:
@@ -2830,7 +2911,6 @@ def claude(
         _print_telemetry_notice()
         click.echo()
 
-        env = os.environ.copy()
         # Claude should route only through the Anthropic proxy path. Clear any
         # inherited OpenAI base overrides that could confuse downstream tooling.
         env.pop("OPENAI_BASE_URL", None)
@@ -4400,6 +4480,7 @@ def opencode(
         agent_type="opencode",
         backend=backend,
         openai_api_url=openai_api_url,
+        client_credential_origin=f"http://127.0.0.1:{requested_port}",
     )
 
 

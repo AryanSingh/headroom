@@ -24,6 +24,7 @@ import pytest
 from click.testing import CliRunner
 
 from cutctx import paths as paths_mod
+from cutctx.auth.client_credentials import ClientCredential
 from cutctx.cli import wrap as wrap_mod
 
 # ---------------------------------------------------------------------------
@@ -273,6 +274,12 @@ def test_run_proxy_only_watcher_calls_setup_lines_callback(
     def fake_setup() -> None:
         callback_calls.append(None)
 
+    monkeypatch.setattr(
+        wrap_mod,
+        "_apply_wrap_client_auth",
+        lambda env, origin: ClientCredential(origin, "test-client-key", "keyring"),
+    )
+    monkeypatch.setattr(wrap_mod, "_validate_wrap_client_auth", lambda *args: None)
     monkeypatch.setattr(wrap_mod, "_ensure_proxy", lambda *a, **kw: fake_proc)
     # Replace time.sleep with a no-op so the loop spins quickly.
     monkeypatch.setattr(wrap_mod.time, "sleep", lambda _s: None)
@@ -321,6 +328,12 @@ def test_run_proxy_only_watcher_keyboardinterrupt_shuts_down_cleanly(
         if sleep_calls["n"] >= 1:
             raise KeyboardInterrupt
 
+    monkeypatch.setattr(
+        wrap_mod,
+        "_apply_wrap_client_auth",
+        lambda env, origin: ClientCredential(origin, "test-client-key", "keyring"),
+    )
+    monkeypatch.setattr(wrap_mod, "_validate_wrap_client_auth", lambda *args: None)
     monkeypatch.setattr(wrap_mod, "_ensure_proxy", lambda *a, **kw: _FakeProc())
     monkeypatch.setattr(wrap_mod.time, "sleep", raising_sleep)
     monkeypatch.setattr(wrap_mod, "_make_cleanup", lambda holder, port: lambda *a, **kw: None)
