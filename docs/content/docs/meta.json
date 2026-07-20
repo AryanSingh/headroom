@@ -37,6 +37,7 @@
     "mcp",
     "---Configuration---",
     "configuration",
+    "authentication",
     "orchestration-platform",
     "filesystem-contract",
     "---Observability---",

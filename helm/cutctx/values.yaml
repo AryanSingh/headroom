@@ -38,6 +38,9 @@ proxy:
 # ── Enterprise Features ───────────────────────────────────────────────
 enterprise:
   adminApiKey: ""
+  # Keep these distinct from the admin key. Required for non-loopback binds.
+  proxyApiKey: ""
+  clientApiKey: ""
   corsOrigins: ""
   entitlementTier: ""
 

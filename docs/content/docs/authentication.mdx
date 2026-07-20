@@ -1,0 +1,144 @@
+---
+title: Client Authentication
+description: Configure one reusable, least-privilege Cutctx client credential for coding harnesses, SDKs, MCP, CI, and containers.
+---
+
+Cutctx uses a dedicated client credential for compression and CCR retrieval.
+Configure it once per proxy origin; wrappers, SDK plugins, and MCP processes
+reuse it until the proxy expires or revokes it.
+
+## Local setup
+
+Run the normal setup flow:
+
+```bash
+cutctx setup
+```
+
+For a loopback proxy, setup generates a cryptographically random 256-bit
+client credential and stores it in the operating system credential manager:
+
+- macOS Keychain
+- Windows Credential Manager
+- Linux Secret Service
+
+The value is not written to a shell profile, project file, harness config,
+MCP config, process argument, or log. Setup passes it only to the proxy
+process that verifies it.
+
+Every `cutctx wrap <harness>` command resolves the same origin-scoped
+credential and injects `CUTCTX_API_KEY` only into that harness's child
+environment. This includes Claude, Codex, OpenCode, Gemini, Aider, Copilot,
+Goose, OpenHands, and future wrappers that use the common launcher.
+
+## Remote proxy login
+
+An operator provisions a dedicated client key on the proxy as
+`CUTCTX_CLIENT_API_KEY`. Each user stores the corresponding client value once:
+
+```bash
+cutctx auth login --proxy-url https://proxy.example
+```
+
+Input is hidden. Cutctx validates the key against the agent-scoped status
+endpoint before storing it. Secret-bearing command-line flags are intentionally
+unsupported.
+
+Inspect the non-secret state at any time:
+
+```bash
+cutctx auth status --proxy-url https://proxy.example
+```
+
+Status reports the origin, source, validation state, and non-secret expiry
+metadata. It never displays the key.
+
+## Rotation and logout
+
+Validate and replace a credential atomically:
+
+```bash
+cutctx auth rotate --proxy-url https://proxy.example
+```
+
+If the replacement is invalid, expired, or the proxy is unreachable, Cutctx
+keeps the previous stored value.
+
+Remove only one origin's stored credential:
+
+```bash
+cutctx auth logout --proxy-url https://proxy.example
+```
+
+An environment override remains active until it is removed from the process
+or secret manager that supplied it.
+
+## Any coding CLI
+
+Known harnesses should use `cutctx wrap`. For a third-party or newly released
+CLI, use the generic child-process boundary:
+
+```bash
+cutctx auth exec --proxy-url https://proxy.example -- third-party-agent
+```
+
+The key is added to the child environment, never its argument list.
+
+## CI and containers
+
+Non-interactive environments use their platform secret manager:
+
+```bash
+CUTCTX_API_KEY="$CI_CUTCTX_CLIENT_KEY" cutctx wrap opencode
+```
+
+The proxy verifier uses the separate server-side name:
+
+```bash
+CUTCTX_CLIENT_API_KEY="$DEPLOYED_CUTCTX_CLIENT_KEY" cutctx proxy
+```
+
+Docker runtime construction uses `--env CUTCTX_CLIENT_API_KEY` and supplies
+the value through the Docker client's environment. It does not embed the
+value in `docker run` arguments.
+
+For a non-loopback proxy that intentionally reads a keyring entry as the same
+interactive user, set `CUTCTX_PUBLIC_URL` to the exact public origin. Cutctx
+does not guess a public origin for `0.0.0.0` or `::`.
+
+## Credential scopes
+
+| Credential | Client name | Server name | Access |
+| --- | --- | --- | --- |
+| Client key | `CUTCTX_API_KEY` | `CUTCTX_CLIENT_API_KEY` | Compression and CCR agent routes |
+| Provider-route key | Harness-specific header | `CUTCTX_PROXY_API_KEY` | Provider HTTP/WebSocket proxy routes |
+| Admin key | Admin header or bearer | `CUTCTX_ADMIN_API_KEY` | Dashboard and administrative routes |
+
+Do not use `CUTCTX_ADMIN_API_KEY` as a client key. A client key cannot read
+`/stats`, manage caches, access audit data, change policy, or use any other
+admin endpoint.
+
+Admin credentials remain temporarily accepted on agent routes as an audited
+break-glass compatibility path, but `cutctx auth login` rejects them for
+normal enrollment.
+
+## Secure-store failures
+
+Cutctx does not silently fall back to a plaintext credential file. If a secure
+keyring backend is unavailable, interactive setup stops with remediation.
+Configure macOS Keychain, Windows Credential Manager, or Linux Secret Service;
+for CI and containers, inject the two environment names through the platform
+secret manager.
+
+## Expired or invalid credentials
+
+Wrappers validate authentication after the proxy becomes ready and before
+starting the harness. An expired key produces one actionable failure:
+
+```text
+Cutctx client authentication expired for https://proxy.example.
+Run: cutctx auth login --proxy-url https://proxy.example
+```
+
+OpenCode also rate-limits authentication warnings to one per plugin process
+and preserves the original tool output or history when compression cannot run.

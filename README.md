@@ -97,7 +97,7 @@ pip install "cutctx-ai[all]"          # Python (broad bundle; some heavy/proprie
 npm install cutctx-ai                 # Node / TypeScript
 
 # 2 — Set up an AI coding agent (recommended)
-cutctx setup                         # detects agents, registers MCP, starts and verifies the proxy
+cutctx setup                         # also creates a reusable OS-keyring client credential
 
 # Or choose a manual mode
 cutctx wrap claude                    # wrap a coding agent
@@ -115,6 +115,7 @@ cutctx capabilities                   # show all algorithms, formats, and option
 
 **CLI commands** — Key commands to get started:
 - `cutctx wrap <agent>` — wrap Claude, Cursor, Codex, and other agents
+- `cutctx auth status` — verify reusable client authentication without displaying the key
 - `cutctx proxy` — drop-in proxy server for any LLM client
 - `cutctx global install` — managed macOS routing for compatible desktop and CLI harnesses; `status`, `doctor`, and `uninstall` are reversible
 - `cutctx perf` — show token savings metrics

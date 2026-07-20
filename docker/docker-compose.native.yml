@@ -36,10 +36,11 @@ services:
       HOME: /tmp/cutctx-home
       CUTCTX_HOST: 0.0.0.0
       CUTCTX_ADMIN_API_KEY: ${CUTCTX_ADMIN_API_KEY:-ci-native-e2e-key}
-      # A non-loopback proxy requires a distinct client key. Pass through an
-      # operator-supplied value; leaving it empty preserves the fail-closed
-      # deployment guard rather than silently sharing the admin credential.
+      # Non-loopback provider routes and agent routes use separate,
+      # least-privilege credentials. Leaving either empty preserves the
+      # fail-closed deployment guard rather than sharing the admin credential.
       CUTCTX_PROXY_API_KEY: ${CUTCTX_PROXY_API_KEY:-}
+      CUTCTX_CLIENT_API_KEY: ${CUTCTX_CLIENT_API_KEY:-}
       # Canonical Cutctx filesystem contract (issue #175). See `cli` service
       # above for rationale.
       CUTCTX_WORKSPACE_DIR: /tmp/cutctx-home/.cutctx

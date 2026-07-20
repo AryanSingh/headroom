@@ -5,6 +5,51 @@ description: Solutions for common Cutctx issues including proxy startup, connect
 
 Solutions for common Cutctx issues.
 
+## Client Authentication
+
+### Repeated “history compress failed” warnings
+
+**Symptom**: OpenCode or another coding harness repeatedly prints:
+
+```text
+cutctx: history compress failed, passing through Invalid or missing admin credentials.
+```
+
+**Cause**: The harness plugin is calling an agent compression route without
+the dedicated client credential. Ordinary compression must use
+`CUTCTX_API_KEY`, not the root admin key.
+
+**Fix**:
+
+```bash
+# Local proxy: generate/store the credential and restart the harness
+cutctx setup
+
+# Remote proxy: enter the provisioned key once
+cutctx auth login --proxy-url https://proxy.example
+
+# Verify without displaying the key
+cutctx auth status --proxy-url https://proxy.example
+```
+
+Always launch supported harnesses through `cutctx wrap <harness>`. For another
+CLI, use `cutctx auth exec --proxy-url URL -- COMMAND`. See
+[Client Authentication](/docs/authentication).
+
+### Credential is invalid or expired
+
+Run `cutctx auth status --proxy-url URL`. If the state is `invalid` or
+`expired`, run `cutctx auth login --proxy-url URL` again. Cutctx does not
+automatically delete the old value, so an operator can distinguish confirmed
+revocation from a temporarily unreachable proxy.
+
+### Secure credential storage is unavailable
+
+Interactive setup requires macOS Keychain, Windows Credential Manager, or
+Linux Secret Service and does not silently write plaintext credentials.
+Configure the platform credential manager, or use `CUTCTX_API_KEY` and
+`CUTCTX_CLIENT_API_KEY` through your CI/container secret manager.
+
 ## Proxy Server Issues
 
 ### Proxy will not start

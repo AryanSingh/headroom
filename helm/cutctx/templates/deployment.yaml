@@ -61,6 +61,20 @@ spec:
                   name: {{ include "cutctx.fullname" . }}-secrets
                   key: admin-api-key
             {{- end }}
+            {{- if .Values.enterprise.proxyApiKey }}
+            - name: CUTCTX_PROXY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "cutctx.fullname" . }}-secrets
+                  key: proxy-api-key
+            {{- end }}
+            {{- if .Values.enterprise.clientApiKey }}
+            - name: CUTCTX_CLIENT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "cutctx.fullname" . }}-secrets
+                  key: client-api-key
+            {{- end }}
             {{- if .Values.enterprise.entitlementTier }}
             - name: CUTCTX_ENTITLEMENT_TIER
               value: "{{ .Values.enterprise.entitlementTier }}"

@@ -80,8 +80,9 @@ def test_subcommand_verbose_flag_still_works() -> None:
     with patch("cutctx.cli.wrap.shutil.which", return_value="claude"):
         with patch("cutctx.cli.wrap._ensure_proxy", return_value=None):
             with patch("cutctx.cli.wrap._setup_rtk", return_value=None):
-                with patch("cutctx.cli.wrap.subprocess.run", return_value=completed):
-                    result = runner.invoke(main, ["wrap", "claude", "-v"])
+                with patch("cutctx.cli.wrap._validate_wrap_client_auth"):
+                    with patch("cutctx.cli.wrap.subprocess.run", return_value=completed):
+                        result = runner.invoke(main, ["wrap", "claude", "-v"])
 
     assert result.exit_code == 0, result.output
     assert "CUTCTX WRAP: CLAUDE" in result.output

@@ -46,8 +46,14 @@ Edit `secret.yaml` before deploying:
 stringData:
   CUTCTX_LICENSE_KEY: "your-license-key"
   CUTCTX_ADMIN_API_KEY: "your-admin-key"
+  CUTCTX_PROXY_API_KEY: "your-provider-route-key"
+  CUTCTX_CLIENT_API_KEY: "your-agent-client-key"
   CUTCTX_UPSTREAM_API_KEY: "your-anthropic-or-openai-key"
 ```
+
+Use distinct random values for the admin, provider-route, and agent-client
+credentials. Distribute only `CUTCTX_CLIENT_API_KEY`'s value to coding
+harness users, who store it locally with `cutctx auth login`.
 
 ### Optional: Upstream URL
 
