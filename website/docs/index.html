@@ -7,9 +7,9 @@
     <meta name="description" content="Install CutCtx, wrap an existing AI workflow, and inspect your own savings report.">
     <link rel="canonical" href="https://cutctx.com/docs/">
     <meta property="og:url" content="https://cutctx.com/docs/">
-    <link rel="icon" href="/assets/favicon.svg?v=20260721-evolve" type="image/svg+xml">
-    <link rel="stylesheet" href="/assets/site.css?v=20260721-evolve">
-    <script src="/assets/site.js?v=20260721-evolve" defer></script>
+    <link rel="icon" href="/assets/favicon.svg?v=20260721-platform" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/site.css?v=20260721-platform">
+    <script src="/assets/site.js?v=20260721-platform" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -38,6 +38,7 @@
           <a href="#initialize">02 Initialize</a>
           <a href="#wrap">03 Wrap</a>
           <a href="#measure">04 Measure</a>
+          <a href="#routing-status">05 Routing status</a>
         </nav>
 
         <div>
@@ -73,6 +74,13 @@
               <a class="button button-secondary" data-cta="pricing-docs" data-cta-placement="docs" href="/pricing/">Compare plans</a>
             </div>
           </section>
+          <section class="docs-step" id="routing-status">
+            <div class="eyebrow">Step 05</div>
+            <h2>Inspect routing before changing it</h2>
+            <p>When the optional Safe Savings status surface is enabled, inspect the active routing state and the latest privacy-safe decision without changing provider, account, transport, or model configuration.</p>
+            <pre><code>cutctx routing status --proxy-url http://127.0.0.1:8787</code></pre>
+            <div class="callout"><strong>Routing remains deliberate</strong><p>Read status to understand the active preset and a recent decision. Enabling or changing routing stays on its normal explicit configuration path.</p></div>
+          </section>
         </div>
       </section>
     </main>
@@ -80,7 +88,7 @@
     <footer class="site-footer">
       <div class="site-shell footer-grid">
         <div><a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a><p class="merchant-note">CutCtx is a product of PitchToShip. Payments, invoices, licensing, and customer account management are provided by PitchToShip.</p></div>
-        <nav class="footer-links" aria-label="Footer navigation"><a href="/">Home</a><a href="/pricing/">Pricing</a><a href="/security/">Security</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/refunds/">Refunds</a></nav>
+        <nav class="footer-links" aria-label="Footer navigation"><a href="/">Home</a><a href="/routing/">Routing</a><a href="/integrations/">Integrations</a><a href="/pricing/">Pricing</a><a href="/security/">Security</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/refunds/">Refunds</a></nav>
       </div>
     </footer>
   </body>

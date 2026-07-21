@@ -7,9 +7,9 @@
     <meta name="description" content="Understand CutCtx's local-first architecture, data handling, and governance capabilities.">
     <link rel="canonical" href="https://cutctx.com/security/">
     <meta property="og:url" content="https://cutctx.com/security/">
-    <link rel="icon" href="/assets/favicon.svg?v=20260721-evolve" type="image/svg+xml">
-    <link rel="stylesheet" href="/assets/site.css?v=20260721-evolve">
-    <script src="/assets/site.js?v=20260721-evolve" defer></script>
+    <link rel="icon" href="/assets/favicon.svg?v=20260721-platform" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/site.css?v=20260721-platform">
+    <script src="/assets/site.js?v=20260721-platform" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -51,6 +51,15 @@
       </section>
 
       <section class="section">
+        <div class="section-heading"><div class="eyebrow">Routing safety boundaries</div><h2>Optimization never bypasses the deployment contract.</h2><p>Before CutCtx applies an optimization route, it evaluates the request capability contract and the active provider, account, and transport proof.</p></div>
+        <div class="trust-grid">
+          <article class="trust-card"><div class="eyebrow">Capability</div><h3>Keep required behavior intact.</h3><p>Requests with tools, structured output, vision, audio, streaming, or other required capabilities stay on the requested model when the selected target cannot prove support.</p></article>
+          <article class="trust-card"><div class="eyebrow">Transport</div><h3>Keep the path proven.</h3><p>Provider, account, and transport safety checks run before routing; a rejected route is retained rather than bypassed.</p></article>
+          <article class="trust-card"><div class="eyebrow">Evidence</div><h3>Inspect without changing state.</h3><p>Read-only routing status and decision evidence explain a safe route or why the requested model remained in place.</p></article>
+        </div>
+      </section>
+
+      <section class="section">
         <div class="bento-grid">
           <article class="bento-card bento-primary"><div class="eyebrow">Commercial controls</div><h3>Governance capabilities</h3><p>Commercial deployments can use SSO/JWT/OIDC admin authentication, role-based access control, audit logging and export, retention controls, fleet-management APIs, and SCIM-style provisioning APIs.</p></article>
           <article class="bento-card bento-secondary"><div class="eyebrow">Infrastructure</div><h3>Deployment choices</h3><p>Run locally, in Docker or Docker Compose, on Kubernetes, or through an air-gapped deployment path when your environment requires it.</p></article>
@@ -66,7 +75,7 @@
     <footer class="site-footer">
       <div class="site-shell footer-grid">
         <div><a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a><p class="merchant-note">CutCtx is a product of PitchToShip. Payments, invoices, licensing, and customer account management are provided by PitchToShip.</p></div>
-        <nav class="footer-links" aria-label="Footer navigation"><a href="/">Home</a><a href="/pricing/">Pricing</a><a href="/docs/">Docs</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/refunds/">Refunds</a></nav>
+        <nav class="footer-links" aria-label="Footer navigation"><a href="/">Home</a><a href="/routing/">Routing</a><a href="/integrations/">Integrations</a><a href="/pricing/">Pricing</a><a href="/docs/">Docs</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/refunds/">Refunds</a></nav>
       </div>
     </footer>
   </body>

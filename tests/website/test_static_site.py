@@ -152,6 +152,26 @@ def test_security_page_makes_only_supported_claims():
     assert "HIPAA compliant" not in security
 
 
+def test_public_navigation_reaches_platform_destinations():
+    for page in PUBLIC_PAGES:
+        html = page.read_text(encoding="utf-8")
+        assert 'href="/routing/"' in html
+        assert 'href="/integrations/"' in html
+
+
+def test_pricing_does_not_invent_routing_entitlements():
+    pricing = read_page("website/pricing/index.html")
+    assert "unlimited routing" not in pricing.lower()
+    assert "guaranteed savings" not in pricing.lower()
+
+
+def test_security_explains_routing_safety_without_certification_claims():
+    security = read_page("website/security/index.html")
+    assert "capability" in security.lower()
+    assert "transport" in security.lower()
+    assert "SOC 2 certified" not in security
+
+
 def test_homepage_uses_evolved_conversion_structure():
     home = read_page("website/index.html")
     assert 'class="hero hero-split"' in home
@@ -228,9 +248,9 @@ def test_public_routes_share_the_evolved_shell():
 def test_public_pages_keep_local_assets_and_semantic_entry_points():
     for page in PUBLIC_PAGES:
         html = page.read_text(encoding="utf-8")
-        assert 'href="/assets/site.css?v=20260721-evolve"' in html
-        assert 'href="/assets/favicon.svg?v=20260721-evolve"' in html
-        assert 'src="/assets/site.js?v=20260721-evolve"' in html
+        assert 'href="/assets/site.css?v=20260721-platform"' in html
+        assert 'href="/assets/favicon.svg?v=20260721-platform"' in html
+        assert 'src="/assets/site.js?v=20260721-platform"' in html
         assert "fonts.googleapis.com" not in html
         assert "fonts.gstatic.com" not in html
         assert 'class="skip-link"' in html
