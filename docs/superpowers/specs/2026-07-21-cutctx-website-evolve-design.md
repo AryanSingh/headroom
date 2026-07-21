@@ -1,8 +1,8 @@
 # CutCtx website “Evolve” design
 
-**Status:** Approved design pending written-spec review  
-**Date:** 2026-07-21  
-**Deployment target:** `https://cutctx.com`  
+**Status:** Approved
+**Date:** 2026-07-21
+**Deployment target:** `https://cutctx.com`
 **Primary conversion:** Start free / local technical evaluation
 
 ## Objective
