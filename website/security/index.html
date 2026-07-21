@@ -1,4 +1,72 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CutCtx security and data handling</title><meta name="description" content="Understand CutCtx's local-first architecture, data handling, and governance capabilities."><link rel="canonical" href="https://cutctx.com/security/"><meta property="og:url" content="https://cutctx.com/security/"><link rel="stylesheet" href="/assets/site.css"><script src="/assets/site.js" defer></script></head>
-<body><a class="skip-link" href="#main-content">Skip to content</a><header class="site-header"><nav class="site-shell nav" aria-label="Primary navigation"><a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a><button class="nav-toggle" type="button" data-mobile-nav-toggle aria-expanded="false" aria-controls="site-navigation">Menu</button><div class="nav-links" id="site-navigation" data-mobile-nav data-open="false"><a href="/pricing/">Pricing</a><a href="/docs/">Docs</a><a class="button button-primary" href="/docs/">Start free</a></div></nav></header>
-<main id="main-content" class="site-shell"><section class="page-hero"><div class="eyebrow">Security posture</div><h1>Local-first by default. Your provider, your environment.</h1><p>CutCtx is a local-first control layer for AI-agent traffic. It processes context in your environment and forwards requests to the model provider you configure.</p></section><section class="content-grid"><div><h2>Data handling</h2><ul><li>Prompt and response content is processed in memory as part of the proxy workflow.</li><li>Retrieval state, audit records, and identity/organization metadata use customer-managed local storage.</li><li>You choose the upstream LLM provider and endpoint.</li><li>CutCtx does not require hosted prompt analytics for its core compression workflow.</li></ul><h2>Governance capabilities</h2><p>Commercial deployments can use SSO/JWT/OIDC admin authentication, role-based access control, audit logging and export, retention controls, fleet-management APIs, and SCIM-style provisioning APIs.</p><h2>Deployment choices</h2><p>Run locally, in Docker or Docker Compose, on Kubernetes, or through an air-gapped deployment path when your environment requires it.</p></div><aside class="callout"><strong>What still requires external validation</strong><p>Formal certifications, DPAs/MSAs, and third-party audit reports require separate legal, contractual, or independent-review work. This site does not represent them as completed.</p></aside></section></main><footer class="site-footer"><div class="site-shell footer-grid"><div><a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a><p class="merchant-note">CutCtx is a product of PitchToShip. Payments, invoices, licensing, and customer account management are provided by PitchToShip.</p></div><nav class="footer-links" aria-label="Footer navigation"><a href="/">Home</a><a href="/pricing/">Pricing</a><a href="/docs/">Docs</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/refunds/">Refunds</a></nav></div></footer></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CutCtx security and data handling</title>
+    <meta name="description" content="Understand CutCtx's local-first architecture, data handling, and governance capabilities.">
+    <link rel="canonical" href="https://cutctx.com/security/">
+    <meta property="og:url" content="https://cutctx.com/security/">
+    <link rel="stylesheet" href="/assets/site.css">
+    <script src="/assets/site.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <nav class="site-shell nav" aria-label="Primary navigation">
+        <a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a>
+        <button class="nav-toggle" type="button" data-mobile-nav-toggle aria-expanded="false" aria-controls="site-navigation">Menu</button>
+        <div class="nav-links" id="site-navigation" data-mobile-nav data-open="false">
+          <a href="/#capabilities">Product</a><a href="/pricing/">Pricing</a><a href="/docs/">Docs</a>
+          <a class="button button-primary" data-cta="start-free-header" data-cta-placement="header" href="/docs/#quick-start">Start free</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main-content" class="site-shell">
+      <section class="page-hero">
+        <div class="eyebrow">Security posture</div>
+        <h1>Local-first by default. Your provider, your environment.</h1>
+        <p>CutCtx is a local-first control layer for AI-agent traffic. It processes context in your environment and forwards requests to the model provider you configure.</p>
+      </section>
+
+      <section class="trust-grid" aria-label="CutCtx trust boundaries">
+        <article class="trust-card"><div class="eyebrow">Processing</div><h2>Your environment</h2><p>Core proxy and compression workflows run in infrastructure you control.</p></article>
+        <article class="trust-card"><div class="eyebrow">Egress</div><h2>Your provider</h2><p>Requests go to the LLM provider and endpoint selected by your team.</p></article>
+        <article class="trust-card"><div class="eyebrow">Storage</div><h2>Your retention</h2><p>Customer-managed local storage and deployment configuration determine retained operational state.</p></article>
+      </section>
+
+      <section class="section evidence-layout">
+        <div class="section-heading"><div class="eyebrow">Understand the boundary</div><h2>Data flow remains explicit.</h2><p>CutCtx does not require a hosted prompt analytics service for its core compression workflow.</p></div>
+        <div class="content-panel">
+          <h2>Data flow</h2>
+          <ul>
+            <li>Prompt and response content is processed in memory as part of the proxy workflow.</li>
+            <li>Retrieval state, audit records, and identity/organization metadata use customer-managed local storage.</li>
+            <li>You choose the upstream LLM provider and endpoint.</li>
+            <li>CutCtx does not require hosted prompt analytics for its core compression workflow.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="bento-grid">
+          <article class="bento-card bento-primary"><div class="eyebrow">Commercial controls</div><h3>Governance capabilities</h3><p>Commercial deployments can use SSO/JWT/OIDC admin authentication, role-based access control, audit logging and export, retention controls, fleet-management APIs, and SCIM-style provisioning APIs.</p></article>
+          <article class="bento-card bento-secondary"><div class="eyebrow">Infrastructure</div><h3>Deployment choices</h3><p>Run locally, in Docker or Docker Compose, on Kubernetes, or through an air-gapped deployment path when your environment requires it.</p></article>
+        </div>
+      </section>
+
+      <section class="section evidence-layout">
+        <div class="section-heading"><div class="eyebrow">Clear claims</div><h2>External validation stays external.</h2><p>Formal certifications and legal agreements require their own review and evidence.</p></div>
+        <div class="callout"><strong>What still requires external validation</strong><p>Formal certifications, DPAs/MSAs, and third-party audit reports require separate legal, contractual, or independent-review work. This site does not represent them as completed.</p><div class="inline-actions"><a class="button button-secondary" data-cta="enterprise-security" data-cta-placement="security" href="mailto:hello@aoexl.com?subject=CutCtx%20Enterprise">Discuss an enterprise deployment</a></div></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-shell footer-grid">
+        <div><a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a><p class="merchant-note">CutCtx is a product of PitchToShip. Payments, invoices, licensing, and customer account management are provided by PitchToShip.</p></div>
+        <nav class="footer-links" aria-label="Footer navigation"><a href="/">Home</a><a href="/pricing/">Pricing</a><a href="/docs/">Docs</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/refunds/">Refunds</a></nav>
+      </div>
+    </footer>
+  </body>
+</html>
