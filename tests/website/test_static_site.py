@@ -1,6 +1,21 @@
 from pathlib import Path
 
 
+PUBLIC_PAGES = [
+    Path("website/index.html"),
+    Path("website/pricing/index.html"),
+    Path("website/docs/index.html"),
+    Path("website/security/index.html"),
+    Path("website/terms/index.html"),
+    Path("website/privacy/index.html"),
+    Path("website/refunds/index.html"),
+]
+
+
+def read_page(path: str) -> str:
+    return Path(path).read_text(encoding="utf-8")
+
+
 def test_public_legal_pages_do_not_contain_unapproved_legacy_identity():
     pages = [
         Path("website/terms/index.html"),
@@ -68,4 +83,103 @@ def test_security_page_makes_only_supported_claims():
     assert "local-first" in security.lower()
     assert "customer-managed local storage" in security.lower()
     assert "SOC 2" not in security
+    assert "HIPAA compliant" not in security
+
+
+def test_homepage_uses_evolved_conversion_structure():
+    home = read_page("website/index.html")
+    assert 'class="hero hero-split"' in home
+    assert "data-product-flow" in home
+    assert 'id="how-it-works"' in home
+    assert all(stage in home for stage in ("Observe", "Compress", "Retrieve", "Prove"))
+    assert home.count('data-cta="start-free') >= 3
+    assert 'href="/docs/#quick-start"' in home
+
+
+def test_homepage_visualization_avoids_unsupported_savings_claims():
+    home = read_page("website/index.html")
+    assert "Illustrative workflow" in home
+    assert "guaranteed" not in home.lower()
+    assert "typical savings" not in home.lower()
+    assert "% saved" not in home.lower()
+
+
+def test_homepage_exposes_verified_compatibility():
+    home = read_page("website/index.html")
+    for label in (
+        "OpenAI",
+        "Anthropic",
+        "Gemini / Vertex",
+        "Amazon Bedrock",
+        "Claude Code",
+        "Codex",
+        "Cursor",
+    ):
+        assert label in home
+
+
+def test_public_routes_share_the_evolved_shell():
+    for page in PUBLIC_PAGES:
+        html = page.read_text(encoding="utf-8")
+        assert 'class="site-header"' in html
+        assert "data-mobile-nav-toggle" in html
+        assert 'href="/docs/#quick-start"' in html
+        assert 'class="site-footer"' in html
+        assert "CutCtx is a product of PitchToShip" in html
+
+
+def test_public_pages_keep_local_assets_and_semantic_entry_points():
+    for page in PUBLIC_PAGES:
+        html = page.read_text(encoding="utf-8")
+        assert 'href="/assets/site.css"' in html
+        assert 'src="/assets/site.js"' in html
+        assert "fonts.googleapis.com" not in html
+        assert "fonts.gstatic.com" not in html
+        assert 'class="skip-link"' in html
+        assert 'id="main-content"' in html
+
+
+def test_stylesheet_defines_responsive_accessible_contracts():
+    css = read_page("website/assets/site.css")
+    assert "prefers-reduced-motion: reduce" in css
+    assert "min-height: 2.75rem" in css
+    assert ".hero-split" in css
+    assert ".product-flow" in css
+    assert ".process-grid" in css
+
+
+def test_pricing_preserves_commerce_and_adds_recommendation_hierarchy():
+    pricing = read_page("website/pricing/index.html")
+    assert 'class="price-card featured"' in pricing
+    assert "Recommended for teams" in pricing
+    assert "Start with a measured evaluation" in pricing
+    assert (
+        "https://pitchtoship.com/billing?product=cutctx&amp;plan=starter&amp;billing=monthly"
+        in pricing
+    )
+    assert (
+        "https://pitchtoship.com/billing?product=cutctx&amp;plan=studio&amp;billing=monthly"
+        in pricing
+    )
+
+
+def test_docs_has_anchorable_install_to_report_flow():
+    docs = read_page("website/docs/index.html")
+    assert 'id="quick-start"' in docs
+    assert 'id="install"' in docs
+    assert 'id="wrap"' in docs
+    assert 'id="measure"' in docs
+    assert "pip install" in docs
+    assert "cutctx wrap" in docs
+    assert "cutctx savings report" in docs
+
+
+def test_security_has_trust_flow_and_enterprise_path_without_certification_claims():
+    security = read_page("website/security/index.html")
+    assert 'class="trust-grid"' in security
+    assert "Your environment" in security
+    assert "Your provider" in security
+    assert "Your retention" in security
+    assert "mailto:hello@aoexl.com?subject=CutCtx%20Enterprise" in security
+    assert "SOC 2 certified" not in security
     assert "HIPAA compliant" not in security
