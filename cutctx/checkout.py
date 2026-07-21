@@ -9,21 +9,15 @@ from __future__ import annotations
 import logging
 from urllib.parse import urlencode
 
+from cutctx.billing import get_checkout_url, map_tier_to_plan
+
 logger = logging.getLogger("cutctx.checkout")
 
-# PitchToShip checkout base URL
-_PITCHTOSHIP_CHECKOUT_BASE = "https://pitchtoship.com/checkout"
-
-# Product slugs per tier upgrade
-_UPGRADE_PRODUCTS = {
-    "team": "cutctx-team",
-    "business": "cutctx-business",
-    "enterprise": "cutctx-enterprise",
-}
+_SUPPORTED_TIERS = {"team", "business", "enterprise"}
 
 # Cutctx pricing page (fallback)
-_PRICING_URL = "https://cutctx.dev/pricing"
-_SUPPORT_EMAIL = "hello@cutctx.dev"
+_PRICING_URL = "https://cutctx.com/pricing/"
+_SUPPORT_EMAIL = "hello@aoexl.com"
 
 
 def checkout_url(tier: str, org_id: str | None = None) -> str:
@@ -36,16 +30,15 @@ def checkout_url(tier: str, org_id: str | None = None) -> str:
     Returns:
         Full checkout URL string.
     """
-    product = _UPGRADE_PRODUCTS.get(tier.lower().strip())
-    if product is None:
+    normalized_tier = tier.lower().strip()
+    if normalized_tier not in _SUPPORTED_TIERS:
         logger.warning("Unknown tier %r for checkout URL, falling back to pricing page", tier)
         return _PRICING_URL
 
-    params: dict[str, str] = {"product": product}
+    url = get_checkout_url(map_tier_to_plan(normalized_tier), billing="annual")
     if org_id:
-        params["org"] = org_id
+        url = f"{url}&{urlencode({'org': org_id})}"
 
-    url = f"{_PITCHTOSHIP_CHECKOUT_BASE}?{urlencode(params)}"
     logger.debug("Generated checkout URL for tier=%s: %s", tier, url)
     return url
 

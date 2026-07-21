@@ -6,6 +6,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).parents[1] / "scripts" / "diagnose_desktop_capture.sh"
 
 
@@ -26,8 +28,14 @@ class _DiagnosticHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("content-type", "application/json")
             self.end_headers()
+            stats_body = getattr(self.server, "stats_body", None)
+            if stats_body is not None:
+                self.wfile.write(stats_body)
+                return
+            log_requests = getattr(self.server, "include_log_requests", True)
+            prefix = b'{"log_requests":true,' if log_requests else b"{"
             self.wfile.write(
-                b'{"log_requests":true,"recent_requests":'
+                prefix + b'"recent_requests":'
                 b'[{"timestamp":"now","provider":"anthropic","model":"claude"}]}'
             )
             return
@@ -44,8 +52,12 @@ def _run_diagnostic(
     *,
     admin_key: str | None,
     fake_cutctx: bool = False,
+    include_log_requests: bool = True,
+    stats_body: bytes | None = None,
 ) -> str:
     server = ThreadingHTTPServer(("127.0.0.1", 0), _DiagnosticHandler)
+    server.include_log_requests = include_log_requests  # type: ignore[attr-defined]
+    server.stats_body = stats_body  # type: ignore[attr-defined]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -58,7 +70,7 @@ def _run_diagnostic(
             cutctx = fake_bin / "cutctx"
             cutctx.write_text(
                 "#!/bin/sh\n"
-                "if [ \"${CUTCTX_EXPERIMENTAL:-}\" = 1 ]; then\n"
+                'if [ "${CUTCTX_EXPERIMENTAL:-}" = 1 ]; then\n'
                 "  echo 'intercept status available'\n"
                 "  exit 0\n"
                 "fi\n"
@@ -101,6 +113,42 @@ def test_diagnostic_uses_admin_key_for_stats(monkeypatch, tmp_path: Path) -> Non
     output = _run_diagnostic(monkeypatch, tmp_path, admin_key="test-admin-key")
 
     assert "/stats shows 1 recent request(s)." in output
+
+
+def test_diagnostic_distinguishes_missing_log_field_from_unavailable_stats(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    output = _run_diagnostic(
+        monkeypatch,
+        tmp_path,
+        admin_key="test-admin-key",
+        include_log_requests=False,
+    )
+
+    assert "/stats does not expose log_requests in this build" in output
+    assert "because /stats was unavailable" not in output
+
+
+@pytest.mark.parametrize(
+    "stats_body",
+    [b"{", b'{"log_requests":true}', b'{"recent_requests":{}}'],
+)
+def test_diagnostic_rejects_invalid_stats_payloads(
+    monkeypatch,
+    tmp_path: Path,
+    stats_body: bytes,
+) -> None:
+    output = _run_diagnostic(
+        monkeypatch,
+        tmp_path,
+        admin_key="test-admin-key",
+        stats_body=stats_body,
+    )
+
+    assert "/stats response is not valid stats JSON" in output
+    assert "/stats shows" not in output
+    assert "request history is reachable" not in output
 
 
 def test_diagnostic_enables_read_only_intercept_status(monkeypatch, tmp_path: Path) -> None:
