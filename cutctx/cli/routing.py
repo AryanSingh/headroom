@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+from urllib.parse import urlparse
 
 import click
 import httpx
 
 from cutctx.cli.main import main
+from cutctx.paths import workspace_dir
 
 
 def _safe_savings_experience_enabled() -> bool:
@@ -24,8 +27,21 @@ def _proxy_url(value: str | None) -> str:
     return resolved.rstrip("/")
 
 
-def _admin_headers(admin_key: str | None) -> dict[str, str]:
+def _default_admin_key_path() -> Path:
+    return workspace_dir() / "admin_key.txt"
+
+
+def _is_loopback_proxy(proxy_url: str) -> bool:
+    return (urlparse(proxy_url).hostname or "").lower() in {"127.0.0.1", "localhost", "::1"}
+
+
+def _admin_headers(admin_key: str | None, proxy_url: str) -> dict[str, str]:
     key = admin_key or os.getenv("CUTCTX_ADMIN_API_KEY", "")
+    if not key and _is_loopback_proxy(proxy_url):
+        try:
+            key = _default_admin_key_path().read_text(encoding="utf-8").strip()
+        except OSError:
+            key = ""
     return {"x-cutctx-admin-key": key} if key else {}
 
 
@@ -39,10 +55,11 @@ def routing() -> None:
 @click.option("--admin-key", envvar="CUTCTX_ADMIN_API_KEY", help="Admin API key")
 def status(proxy_url: str | None, admin_key: str | None) -> None:
     """Show the live, read-only Safe Savings routing status."""
+    resolved_proxy_url = _proxy_url(proxy_url)
     try:
         response = httpx.get(
-            f"{_proxy_url(proxy_url)}/v1/orchestration/safe-savings/status",
-            headers=_admin_headers(admin_key),
+            f"{resolved_proxy_url}/v1/orchestration/safe-savings/status",
+            headers=_admin_headers(admin_key, resolved_proxy_url),
             timeout=10.0,
         )
         response.raise_for_status()

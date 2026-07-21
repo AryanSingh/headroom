@@ -268,6 +268,11 @@ def test_dashboard_audit_matrix(audit_page) -> None:  # type: ignore[no-untyped-
         search = page.locator('input[placeholder="Search unavailable"]')
         expect(search).to_be_disabled()
 
+    if route == "/orchestrator":
+        # Keep the visual artifact meaningful: teardown captures the screenshot,
+        # so this assertion must complete after the route leaves its loading shell.
+        expect(page.get_by_text("Routing mode control", exact=True)).to_be_visible()
+
     if route == "/playground":
         page.get_by_role("button", name="Load sample multimodal image").click()
         expect(page.get_by_text("Image attached")).to_be_visible()

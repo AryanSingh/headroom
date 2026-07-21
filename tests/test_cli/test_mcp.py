@@ -22,6 +22,7 @@ from cutctx.cli.mcp import (
     load_mcp_config,
     save_mcp_config,
 )
+from cutctx.mcp_registry.base import RegisterResult, RegisterStatus
 
 # Check if MCP SDK is available
 try:
@@ -249,6 +250,152 @@ class TestMCPStatusCommand:
 
         assert result.exit_code == 0
         assert "✓ Configured" in result.output
+
+    def test_status_reports_claude_desktop_scope_and_gateway_state(
+        self,
+        mock_claude_config_path,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Status distinguishes Desktop MCP coverage from hosted model routing."""
+        desktop_dir = tmp_path / "Claude"
+        desktop_dir.mkdir()
+        (desktop_dir / "claude_desktop_config.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "cutctx": {
+                            "command": "/opt/homebrew/bin/cutctx",
+                            "args": ["mcp", "serve"],
+                        },
+                        "slack": {
+                            "command": "/opt/homebrew/bin/cutctx",
+                            "args": [
+                                "mcp",
+                                "gateway",
+                                "--name",
+                                "slack",
+                                "--",
+                                "slack-mcp-server",
+                            ],
+                        },
+                    }
+                }
+            )
+        )
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.claude_desktop.default_config_dir",
+            lambda: desktop_dir,
+        )
+
+        result = CliRunner().invoke(main, ["mcp", "status"])
+
+        assert result.exit_code == 0
+        assert "Claude Desktop: ✓ Cutctx MCP configured" in result.output
+        assert "Desktop gateway: 1 server wrapped" in result.output
+        assert "Restart Claude Desktop" in result.output
+        assert "Hosted model requests: not proxy-routable" in result.output
+
+    def test_status_reports_detected_desktop_without_cutctx(
+        self,
+        mock_claude_config_path,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Status gives the exact install command for an unconfigured Desktop app."""
+        desktop_dir = tmp_path / "Claude"
+        desktop_dir.mkdir()
+        (desktop_dir / "claude_desktop_config.json").write_text(json.dumps({"mcpServers": {}}))
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.claude_desktop.default_config_dir",
+            lambda: desktop_dir,
+        )
+
+        result = CliRunner().invoke(main, ["mcp", "status"])
+
+        assert result.exit_code == 0
+        assert "Claude Desktop: ✗ Cutctx MCP not configured" in result.output
+        assert "cutctx mcp install --agent claude-desktop --gateway" in result.output
+
+
+class TestMCPInstallGuidance:
+    """Install output reflects the selected host's real transport boundary."""
+
+    def test_desktop_install_does_not_claim_base_url_routes_hosted_models(
+        self,
+        mock_mcp_available,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.install_everywhere",
+            lambda **_kwargs: {
+                "claude-desktop": RegisterResult(RegisterStatus.REGISTERED, "configured")
+            },
+        )
+        monkeypatch.setattr("cutctx.mcp_registry.any_succeeded", lambda _results: True)
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.format_results",
+            lambda *_args, **_kwargs: ["claude-desktop: registered"],
+        )
+
+        result = CliRunner().invoke(
+            main,
+            ["mcp", "install", "--agent", "claude-desktop"],
+        )
+
+        assert result.exit_code == 0
+        assert "Restart Claude Desktop" in result.output
+        assert "hosted model requests do not use the proxy" in result.output
+        assert "ANTHROPIC_BASE_URL=" not in result.output
+
+    def test_default_install_ignores_undetected_desktop_for_guidance(
+        self,
+        mock_mcp_available,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.install_everywhere",
+            lambda **_kwargs: {
+                "claude": RegisterResult(RegisterStatus.REGISTERED, "configured"),
+                "claude-desktop": RegisterResult(RegisterStatus.NOT_DETECTED, "not found"),
+            },
+        )
+        monkeypatch.setattr("cutctx.mcp_registry.any_succeeded", lambda _results: True)
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.format_results",
+            lambda *_args, **_kwargs: ["claude: registered", "claude-desktop: not detected"],
+        )
+
+        result = CliRunner().invoke(main, ["mcp", "install"])
+
+        assert result.exit_code == 0
+        assert "ANTHROPIC_BASE_URL=" in result.output
+        assert "Restart Claude Desktop" not in result.output
+
+    def test_mixed_install_prints_desktop_and_cli_guidance(
+        self,
+        mock_mcp_available,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.install_everywhere",
+            lambda **_kwargs: {
+                "claude": RegisterResult(RegisterStatus.REGISTERED, "configured"),
+                "claude-desktop": RegisterResult(RegisterStatus.ALREADY, "configured"),
+            },
+        )
+        monkeypatch.setattr("cutctx.mcp_registry.any_succeeded", lambda _results: True)
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.format_results",
+            lambda *_args, **_kwargs: ["claude: registered", "claude-desktop: already"],
+        )
+
+        result = CliRunner().invoke(main, ["mcp", "install"])
+
+        assert result.exit_code == 0
+        assert "Restart Claude Desktop" in result.output
+        assert "hosted model requests do not use the proxy" in result.output
+        assert "ANTHROPIC_BASE_URL=" in result.output
 
 
 class TestMCPServeCommand:

@@ -24,13 +24,13 @@ const ROUTING_MODES = [
     value: "balanced",
     label: "Balanced",
     description:
-      "Route low-complexity requests to a cheaper model; complex work stays on the requested model.",
+      "Route clear low-complexity work to a lower-cost compatible model; ambiguous or high-risk work stays on the requested model.",
   },
   {
     value: "aggressive",
     label: "Aggressive",
     description:
-      "Route every eligible request to the cheapest capable model; genuinely complex work is still protected.",
+      "Choose the cheapest certified compatible model for eligible work; high-risk work stays on the requested model.",
   },
 ];
 
@@ -400,9 +400,9 @@ export default function Orchestrator({ searchQuery = "" }) {
   const modeDescription = activeMode === "custom"
     ? "A custom routing preset is active. Choosing a preset will replace it."
     : activeMode === "aggressive"
-      ? "Aggressive (economy preset): routes every eligible request to the cheapest capable model after role bindings are applied. Genuinely complex work is still kept on the requested model."
+      ? "Aggressive (economy preset) chooses the cheapest certified compatible model after role bindings and safety gates are applied; high-risk work stays on the requested model."
       : activeMode === "balanced"
-        ? "Balanced (codex-gpt54mini-high preset): routes only low-complexity requests to a cheaper model after role bindings are applied; complex work stays on the requested model."
+        ? "Balanced (codex-gpt54mini-high preset) routes clear low-complexity work to a lower-cost compatible model and keeps ambiguous or high-risk work on the requested model."
         : "Off disables routing while preserving locked role assignments.";
 
   useEffect(() => {
@@ -516,8 +516,6 @@ export default function Orchestrator({ searchQuery = "" }) {
         </div>
       ) : null}
 
-      <RoutingStudio />
-      <OrchestrationStudio searchQuery={normalizedQuery} />
       <SafeSavingsPanel
         status={safeSavingsStatus}
         loading={safeSavingsLoading}
@@ -527,7 +525,7 @@ export default function Orchestrator({ searchQuery = "" }) {
         onDisable={handleSafeSavingsDisable}
       />
 
-      <section className="panel">
+      <section className="panel orchestrator-mode-panel">
         <div className="section-heading">
           <div className="heading-with-icon">
             <div className="heading-icon">
@@ -594,8 +592,9 @@ export default function Orchestrator({ searchQuery = "" }) {
             <div className="metric-footnote">Offloaded lower-cost route targets</div>
           </article>
         </section>
+      </section>
 
-        <section className="panel routing-evidence-panel">
+      <section className="panel routing-evidence-panel">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Measured policy</div>
@@ -683,9 +682,9 @@ export default function Orchestrator({ searchQuery = "" }) {
               )}
             </>
           ) : null}
-        </section>
+      </section>
 
-        <section className="panel">
+      <section className="panel">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Routing status</div>
@@ -714,9 +713,9 @@ export default function Orchestrator({ searchQuery = "" }) {
               <strong>{modelRouting.reason || "Ready"}</strong>
             </div>
           </div>
-        </section>
+      </section>
 
-        <section className="panel">
+      <section className="panel">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Provider policy</div>
@@ -781,9 +780,9 @@ export default function Orchestrator({ searchQuery = "" }) {
               </div>
             </>
           ) : null}
-        </section>
+      </section>
 
-        <section className="panel">
+      <section className="panel">
           <div className="section-heading">
             <div>
               <div className="eyebrow">Failover controls</div>
@@ -840,8 +839,10 @@ export default function Orchestrator({ searchQuery = "" }) {
               )}
             </div>
           ) : null}
-        </section>
       </section>
+
+      <RoutingStudio />
+      <OrchestrationStudio searchQuery={normalizedQuery} />
     </div>
   );
 }

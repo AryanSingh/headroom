@@ -83,6 +83,22 @@ class ClaudeDesktopRegistrar(MCPRegistrar):
         # but no file) is the reliable install signal on every platform.
         return self._config_dir.is_dir()
 
+    @property
+    def config_path(self) -> Path:
+        """Return the Desktop config path for diagnostics and operator output."""
+        return self._config_path
+
+    def gateway_wrapped_servers(self) -> list[str]:
+        """Return names of Desktop stdio servers currently using the gateway."""
+        if not self._config_path.exists():
+            return []
+        config = _read_json(self._config_path)
+        return sorted(
+            name
+            for name, entry in config.get("mcpServers", {}).items()
+            if isinstance(entry, dict) and _is_gateway_entry(entry)
+        )
+
     def get_server(self, server_name: str) -> ServerSpec | None:
         if not self._config_path.exists():
             return None

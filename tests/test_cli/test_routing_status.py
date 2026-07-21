@@ -116,6 +116,74 @@ def test_routing_status_reports_off_without_inventing_routes(monkeypatch) -> Non
     assert "Eligible exact routes:" not in result.output
 
 
+def test_routing_status_uses_managed_loopback_admin_key_file(monkeypatch, tmp_path) -> None:
+    requests: list[dict[str, str]] = []
+    monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
+    key_file = tmp_path / "admin_key.txt"
+    key_file.write_text("managed-admin-key\n")
+    monkeypatch.setattr(
+        "cutctx.cli.routing._default_admin_key_path",
+        lambda: key_file,
+    )
+
+    def fake_get(_url: str, *, headers: dict[str, str], timeout: float) -> _Response:
+        requests.append(headers)
+        return _Response(
+            {
+                "enabled": False,
+                "mode": "off",
+                "route_count": 0,
+                "routes": [],
+                "decision": None,
+            }
+        )
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    result = CliRunner().invoke(
+        main,
+        ["routing", "status", "--proxy-url", "http://127.0.0.1:8787"],
+        env={"CUTCTX_SAFE_SAVINGS_EXPERIENCE": "1"},
+    )
+
+    assert result.exit_code == 0, result.output
+    assert requests == [{"x-cutctx-admin-key": "managed-admin-key"}]
+
+
+def test_routing_status_respects_relocated_workspace_admin_key(monkeypatch, tmp_path) -> None:
+    requests: list[dict[str, str]] = []
+    monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
+    workspace = tmp_path / "managed-workspace"
+    workspace.mkdir()
+    (workspace / "admin_key.txt").write_text("relocated-admin-key\n")
+
+    def fake_get(_url: str, *, headers: dict[str, str], timeout: float) -> _Response:
+        requests.append(headers)
+        return _Response(
+            {
+                "enabled": False,
+                "mode": "off",
+                "route_count": 0,
+                "routes": [],
+                "decision": None,
+            }
+        )
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    result = CliRunner().invoke(
+        main,
+        ["routing", "status", "--proxy-url", "http://localhost:8787"],
+        env={
+            "CUTCTX_SAFE_SAVINGS_EXPERIENCE": "1",
+            "CUTCTX_WORKSPACE_DIR": str(workspace),
+        },
+    )
+
+    assert result.exit_code == 0, result.output
+    assert requests == [{"x-cutctx-admin-key": "relocated-admin-key"}]
+
+
 def test_routing_status_reports_connection_errors_without_exposing_admin_key(
     monkeypatch,
 ) -> None:

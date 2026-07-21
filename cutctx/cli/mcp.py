@@ -179,12 +179,28 @@ def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool, gateway: b
         else:
             click.echo("\n--gateway: Claude Desktop not detected; nothing to wrap.")
 
-    click.echo(
-        f"\nNext steps:\n"
-        f"  1. Start the Cutctx proxy (if not running): cutctx proxy\n"
-        f"  2. Start your agent (e.g.) ANTHROPIC_BASE_URL={proxy_url} claude\n"
-        f"  3. Restart any agent that was already running so it picks up the new MCP server.\n"
+    desktop_result = results.get("claude-desktop")
+    desktop_succeeded = bool(desktop_result and desktop_result.ok)
+    cli_agent_succeeded = any(
+        name != "claude-desktop" and result.ok for name, result in results.items()
     )
+    click.echo("\nNext steps:")
+    click.echo("  1. Start the Cutctx proxy if it is not running: cutctx proxy")
+    step = 2
+    if desktop_succeeded:
+        click.echo(f"  {step}. Restart Claude Desktop so it loads the Cutctx MCP configuration.")
+        step += 1
+        click.echo(
+            f"  {step}. Claude Desktop hosted model requests do not use the proxy; "
+            "Cutctx works there through MCP tools and gateway-compressed MCP tool output."
+        )
+        step += 1
+    if cli_agent_succeeded:
+        click.echo(
+            f"  {step}. Start your agent through the proxy: ANTHROPIC_BASE_URL={proxy_url} claude"
+        )
+        step += 1
+        click.echo(f"  {step}. Restart an already-running agent so it loads the MCP server.")
 
 
 @mcp.command("gateway", context_settings={"ignore_unknown_options": True})
@@ -337,10 +353,8 @@ def mcp_status() -> None:
     if MCP_CONFIG_PATH.exists():
         config = load_mcp_config()
         server_config = config.get("mcpServers", {}).get("cutctx")
-        if server_config is None:
-            server_config = config.get("mcpServers", {}).get("cutctx")
         if server_config is not None:
-            click.echo("Claude Config:  ✓ Configured")
+            click.echo("Claude Code:    ✓ Configured")
             click.echo(f"                {MCP_CONFIG_PATH}")
 
             # Show proxy URL
@@ -351,10 +365,10 @@ def mcp_status() -> None:
             )
             click.echo(f"Proxy URL:      {proxy_url}")
         else:
-            click.echo("Claude Config:  ✗ Not configured")
+            click.echo("Claude Code:    ✗ Not configured")
             click.echo("                Run: cutctx mcp install")
     else:
-        click.echo("Claude Config:  ✗ No config file")
+        click.echo("Claude Code:    ✗ No config file")
         click.echo("                Run: cutctx mcp install")
 
     # Check proxy connectivity
@@ -362,9 +376,7 @@ def mcp_status() -> None:
         import httpx
 
         config = load_mcp_config()
-        server_config = config.get("mcpServers", {}).get("cutctx")
-        if server_config is None:
-            server_config = config.get("mcpServers", {}).get("cutctx", {})
+        server_config = config.get("mcpServers", {}).get("cutctx", {})
         env = server_config.get("env", {})
         proxy_url = env.get("CUTCTX_PROXY_URL") or env.get(
             "CUTCTX_PROXY_URL",
@@ -384,6 +396,26 @@ def mcp_status() -> None:
             click.echo("Proxy Status:   ✗ Timeout")
     except ImportError:
         click.echo("Proxy Status:   ? (httpx not installed)")
+
+    from cutctx.mcp_registry.claude_desktop import ClaudeDesktopRegistrar
+
+    desktop = ClaudeDesktopRegistrar()
+    if not desktop.detect():
+        click.echo("Claude Desktop: - Not detected")
+        return
+
+    if desktop.get_server("cutctx") is None:
+        click.echo("Claude Desktop: ✗ Cutctx MCP not configured")
+        click.echo("                cutctx mcp install --agent claude-desktop --gateway")
+    else:
+        click.echo("Claude Desktop: ✓ Cutctx MCP configured")
+        click.echo(f"                {desktop.config_path}")
+        click.echo("                Restart Claude Desktop after configuration changes")
+
+    wrapped = desktop.gateway_wrapped_servers()
+    noun = "server" if len(wrapped) == 1 else "servers"
+    click.echo(f"Desktop gateway: {len(wrapped)} {noun} wrapped")
+    click.echo("Hosted model requests: not proxy-routable; use MCP tools/gateway in Desktop")
 
 
 @mcp.command("serve")

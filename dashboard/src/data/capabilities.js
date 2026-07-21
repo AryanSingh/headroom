@@ -3,10 +3,11 @@ export const capabilityGroups = [
     title: 'Core Deployment Modes',
     description: 'The main ways Cutctx shows up in a user workflow.',
     items: [
-      { name: 'Proxy', detail: 'Drop-in OpenAI and Anthropic compatible proxy with live savings and observability.' },
+      { name: 'Proxy', detail: 'OpenAI- and Anthropic-compatible proxy for clients that can point their API base URL, with live savings and observability. Claude Desktop hosted model requests are excluded.' },
       { name: 'Agent Wrap', detail: 'Wrap Codex, Claude, Copilot, OpenCode, and other agent shells without code changes.' },
       { name: 'Inline Libraries', detail: 'Python, TypeScript, and Go SDKs for direct compression inside apps.' },
-      { name: 'MCP Server', detail: 'Expose compress, retrieve, and status tools to MCP clients.' },
+      { name: 'MCP Server', detail: 'Expose compress, retrieve, and stats tools to MCP clients.' },
+      { name: 'Claude Desktop MCP', detail: 'On-demand tools and gateway compression for Desktop MCP tool output. The hosted Desktop model connection does not pass through Cutctx.' },
     ],
   },
   {
@@ -63,7 +64,7 @@ export const capabilityGroups = [
       { name: 'Anthropic Messages API', detail: 'Native /v1/messages support for Claude clients with content-block handling.' },
       { name: 'Responses API / Codex', detail: 'WebSocket streaming aliases for OpenAI Codex and Responses API traffic.' },
       { name: 'Google Gemini', detail: 'Gemini model routing with automatic token budget translation.' },
-      { name: 'Streaming (SSE)', detail: 'Server-Sent Events passthrough with in-flight compression and PII redaction.' },
+      { name: 'Streaming (SSE)', detail: 'Request transformation before upstream handoff with response stream passthrough, usage capture, and configured safety checks.' },
       { name: 'Structured Output', detail: 'JSON schema validation and retry loop for reliable structured completions.' },
     ],
   },
