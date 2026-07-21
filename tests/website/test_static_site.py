@@ -3,6 +3,8 @@ from pathlib import Path
 
 PUBLIC_PAGES = [
     Path("website/index.html"),
+    Path("website/routing/index.html"),
+    Path("website/integrations/index.html"),
     Path("website/pricing/index.html"),
     Path("website/docs/index.html"),
     Path("website/security/index.html"),
@@ -49,6 +51,12 @@ def test_sitemap_uses_only_cutctx_canonical_urls():
     assert "https://www.cutctx.com" not in sitemap
 
 
+def test_sitemap_includes_all_cutctx_public_destinations():
+    sitemap = Path("website/sitemap.xml").read_text(encoding="utf-8")
+    for path in ("/routing/", "/integrations/"):
+        assert f"https://cutctx.com{path}" in sitemap
+
+
 def test_homepage_has_product_and_merchant_disclosure():
     home = Path("website/index.html").read_text(encoding="utf-8")
     assert "Reduce LLM context overhead" in home
@@ -76,6 +84,64 @@ def test_docs_provides_a_fast_evaluation_path():
     assert "pip install" in docs
     assert "cutctx wrap" in docs
     assert "cutctx savings report" in docs
+
+
+def test_docs_include_the_verified_routing_status_evaluation():
+    docs = read_page("website/docs/index.html")
+    assert "cutctx routing status --proxy-url http://127.0.0.1:8787" in docs
+
+
+def test_public_platform_navigation_and_routes_are_present():
+    home = read_page("website/index.html")
+    routing = read_page("website/routing/index.html")
+    integrations = read_page("website/integrations/index.html")
+    for page in (home, routing, integrations):
+        assert 'href="/routing/"' in page
+        assert 'href="/integrations/"' in page
+        assert "CutCtx is a product of PitchToShip" in page
+
+
+def test_routing_page_uses_only_verified_routing_language():
+    routing = read_page("website/routing/index.html")
+    assert "codex-gpt54mini-high" in routing
+    assert "codex-opencode-slim" in routing
+    assert "oh-my-opencode-slim" in routing
+    assert "opt-in" in routing.lower()
+    assert "capability" in routing.lower()
+    assert "guaranteed" not in routing.lower()
+
+
+def test_integrations_page_maps_verified_access_surfaces():
+    integrations = read_page("website/integrations/index.html")
+    for label in (
+        "Python",
+        "TypeScript",
+        "Go",
+        "MCP",
+        "VS Code",
+        "JetBrains",
+        "OpenAI",
+        "Anthropic",
+        "Gemini",
+    ):
+        assert label in integrations
+    assert "100+ providers" not in integrations
+
+
+def test_public_pages_use_self_hosted_platform_fonts():
+    css = read_page("website/assets/site.css")
+    assert "@font-face" in css
+    assert "/assets/fonts/" in css
+    assert "fonts.googleapis.com" not in css
+
+
+def test_platform_font_assets_are_local_and_present():
+    for asset in (
+        "website/assets/fonts/instrument-sans-latin.woff2",
+        "website/assets/fonts/instrument-sans-latin-bold.woff2",
+        "website/assets/fonts/jetbrains-mono-latin.woff2",
+    ):
+        assert Path(asset).exists()
 
 
 def test_security_page_makes_only_supported_claims():
