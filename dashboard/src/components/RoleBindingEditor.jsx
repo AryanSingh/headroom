@@ -161,7 +161,7 @@ export default function RoleBindingEditor({
                         onChange={(event) =>
                           onUpdateBinding(binding.id, { selectors: textToSelectors(event.target.value) })
                         }
-                        placeholder={"workflow=docs\\nrepository=headroom"}
+                        placeholder={"workflow=docs\nrepository=headroom"}
                       />
                     </label>
 

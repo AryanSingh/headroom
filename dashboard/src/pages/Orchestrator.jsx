@@ -15,9 +15,23 @@ import RoutingStudio from "../components/routing-studio/RoutingStudio";
 import SafeSavingsPanel from "../components/SafeSavingsPanel";
 
 const ROUTING_MODES = [
-  { value: "off", label: "Off", description: "Disable model routing" },
-  { value: "balanced", label: "Balanced", description: "Use codex-gpt54mini-high" },
-  { value: "aggressive", label: "Aggressive", description: "Use economy" },
+  {
+    value: "off",
+    label: "Off",
+    description: "No routing — every request uses the model you asked for.",
+  },
+  {
+    value: "balanced",
+    label: "Balanced",
+    description:
+      "Route low-complexity requests to a cheaper model; complex work stays on the requested model.",
+  },
+  {
+    value: "aggressive",
+    label: "Aggressive",
+    description:
+      "Route every eligible request to the cheapest capable model; genuinely complex work is still protected.",
+  },
 ];
 
 function RoutingModeSelector({ value, onChange, disabled }) {
@@ -386,9 +400,9 @@ export default function Orchestrator({ searchQuery = "" }) {
   const modeDescription = activeMode === "custom"
     ? "A custom routing preset is active. Choosing a preset will replace it."
     : activeMode === "aggressive"
-      ? "Aggressive routes to the economy preset after role bindings are applied."
+      ? "Aggressive (economy preset): routes every eligible request to the cheapest capable model after role bindings are applied. Genuinely complex work is still kept on the requested model."
       : activeMode === "balanced"
-        ? "Balanced keeps the canonical codex-gpt54mini-high preset after role bindings are applied."
+        ? "Balanced (codex-gpt54mini-high preset): routes only low-complexity requests to a cheaper model after role bindings are applied; complex work stays on the requested model."
         : "Off disables routing while preserving locked role assignments.";
 
   useEffect(() => {
