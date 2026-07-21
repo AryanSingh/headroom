@@ -261,6 +261,13 @@ class RequestLogger:
         self.log_full_messages = log_full_messages
         # Use deque with maxlen for automatic FIFO eviction
         self._logs: deque[RequestLog] = deque(maxlen=self.MAX_LOG_ENTRIES)
+        # When a file write fails (read-only fs, permissions, disk full) we
+        # degrade to memory-only. Reads MUST then prefer the in-memory deque —
+        # otherwise get_recent() keeps returning the *stale* file tail while the
+        # live session's requests (which are always appended to the deque) never
+        # surface. See get_recent() for the read-side guard.
+        self._file_write_degraded = False
+        self._file_write_warned = False
 
         if self.log_file:
             try:
@@ -352,7 +359,7 @@ class RequestLogger:
 
         self._logs.append(entry)
 
-        if self.log_file:
+        if self.log_file and not self._file_write_degraded:
             try:
                 with open(self.log_file, "a") as f:
                     log_dict = asdict(entry)
@@ -361,8 +368,19 @@ class RequestLogger:
                         log_dict.pop("compressed_messages", None)
                         log_dict.pop("response_content", None)
                     f.write(json.dumps(log_dict) + "\n")
-            except OSError:
-                pass  # Graceful degradation: memory-only logging continues
+            except OSError as exc:
+                # Graceful degradation: memory-only logging continues, but flag
+                # it so reads switch to the in-memory deque instead of serving a
+                # stale on-disk tail (which would hide this session's requests).
+                self._file_write_degraded = True
+                if not self._file_write_warned:
+                    self._file_write_warned = True
+                    logger.warning(
+                        "Request log file %s is not writable (%s) — falling back "
+                        "to in-memory request history for this process.",
+                        self.log_file,
+                        exc,
+                    )
 
     def get_recent(self, n: int = 100) -> list[dict]:
         """Get recent log entries (without request/compressed messages and response_content).
@@ -374,7 +392,7 @@ class RequestLogger:
         own requests only) if no log file is configured or it can't be
         read yet.
         """
-        entries = self._read_recent_from_file(n)
+        entries = None if self._file_write_degraded else self._read_recent_from_file(n)
         if entries is None:
             entries = [asdict(e) for e in list(self._logs)[-n:]]
         return [
@@ -416,7 +434,7 @@ class RequestLogger:
         configured so inspector-style views can follow requests handled by any
         sibling proxy process.
         """
-        entries = self._read_recent_from_file(n)
+        entries = None if self._file_write_degraded else self._read_recent_from_file(n)
         if entries is not None:
             return entries
         return [asdict(e) for e in list(self._logs)[-n:]]

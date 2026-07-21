@@ -19,14 +19,14 @@ export default function SafeSavingsPanel({
     return null;
   }
 
-    const decision = status.decision;
-    const routes = Array.isArray(status.routes) ? status.routes : [];
-    const transportSafeTargets = Array.isArray(status.transport_safe_targets)
-      ? status.transport_safe_targets
-      : [];
-    const signals = decision?.signals || [];
-    const requiredCapabilities = decision?.required_capabilities || [];
-    const missingCapabilities = decision?.missing_capabilities || [];
+  const decision = status.decision;
+  const routes = Array.isArray(status.routes) ? status.routes : [];
+  const transportSafeTargets = Array.isArray(status.transport_safe_targets)
+    ? status.transport_safe_targets
+    : [];
+  const signals = decision?.signals || [];
+  const requiredCapabilities = decision?.required_capabilities || [];
+  const missingCapabilities = decision?.missing_capabilities || [];
 
   return (
     <section className="panel" aria-labelledby="safe-savings-heading">
