@@ -215,3 +215,64 @@ Cutctx has the strongest competitive position in the context optimization space 
 The biggest competitive risk is the **verification gap**: if independent benchmarks consistently show that fleet-level savings are marginal or negative, the entire value proposition is undermined. This needs to be addressed before any other competitive action.
 
 The second-biggest opportunity is **enterprise**: no competitor has an enterprise offering. If Cutctx can close the SOC 2 and sales motion gaps, it owns an uncontested segment.
+
+---
+
+## Current Gateway, Routing, and Observability Supplement (2026-07-21)
+
+This supplement adds a current review of public first-party pages for direct
+LLM gateway, routing, and observability alternatives. Public pricing and
+feature packaging can change; the source URLs below are the current reference.
+
+| Company | Public positioning and primary offer | Current public pricing | Website lesson for CutCtx |
+| --- | --- | --- | --- |
+| [Portkey](https://portkey.ai/pricing) | AI gateway with routing, observability, prompt management, guardrails, model catalog, MCP gateway, and enterprise controls. | Developer: free; Production: $49/month; Enterprise: custom. | Make the complete operating system visible early. Do not compete with the generic word “gateway”; show context efficiency inside real agent workflows. |
+| [LiteLLM](https://www.litellm.ai/) | OpenAI-compatible model access with fallbacks, spend tracking, budgets, rate limits, guardrails, and observability across a broad provider catalog. | Open Source: $0; Enterprise: contact sales / 30-day trial. | Avoid unsupported provider-count claims. Lead with protocol-aware context handling, conservative routing, and agent-focused integrations. |
+| [Helicone](https://www.helicone.ai/pricing) | LLM observability and monitoring with gateway features such as caching, rate limits, and automatic fallbacks. | Hobby: free; Pro: $79/month plus usage; Team: $799/month plus usage; Enterprise: custom. | Present telemetry as evidence for optimization and routing, not merely as a log product. |
+
+### Updated positioning
+
+The strongest credible public category for CutCtx is a **local-first
+context-efficiency and intelligent-routing layer for agent workloads**:
+
+1. observe the actual workload;
+2. compress and recover useful context;
+3. make conservative, capability-safe model-routing decisions when opted in;
+4. forward through the team's chosen provider or compatible client; and
+5. expose savings, routing, and operational evidence for review.
+
+The website should not claim a universal provider count, guaranteed saving,
+certification, or universal enterprise availability. Optional enterprise
+services must remain distinct from the core runtime.
+
+### Routing differentiation to express
+
+- Routing is opt-in and intentionally conservative.
+- A clearly low-complexity eligible task can use a cheaper compatible target;
+  high-risk, broad, ambiguous, tool-heavy, or capability-incompatible work
+  stays on the requested model.
+- Provider, account, transport, capability, readiness, and certification gates
+  constrain candidates; a failed gate retains the requested model.
+- Operators can inspect an applied route or a clear retention reason.
+- The canonical public preset is `codex-gpt54mini-high`.
+  `codex-opencode-slim` and `oh-my-opencode-slim` are compatibility aliases,
+  not separate products.
+
+### UX and typography recommendation
+
+Use self-hosted **Instrument Sans** for public-site display and interface text,
+paired with self-hosted **JetBrains Mono** for commands, model names, routing
+receipts, and technical metadata. This creates a precise developer-tool feel
+without copying Portkey and LiteLLM's dark-gradient language or Helicone's
+deliberately neutral pricing treatment. Preserve system fallbacks and avoid
+remote font requests.
+
+### Pricing implications
+
+- Preserve the existing verified PitchToShip checkout URLs and merchant
+  disclosure.
+- Do not reduce prices reactively based on competitor public pricing. The
+  existing $1,500/$3,500 monthly positioning needs a clearer value narrative
+  around coordinated operational deployment and governance.
+- Explain routing as an opt-in evaluated capability, but do not assign it to a
+  public paid plan until entitlement evidence is confirmed.
