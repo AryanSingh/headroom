@@ -343,6 +343,7 @@ code { color: #c9f8e2; font-family: "SFMono-Regular", Consolas, "Liberation Mono
 .cta-band::after { position: absolute; right: -4rem; top: -7rem; width: 20rem; height: 20rem; border: 1px solid rgba(5,32,24,0.14); border-radius: 50%; content: ""; }
 .cta-band h2 { position: relative; max-width: 16ch; margin: 0; font-size: clamp(2rem,4.5vw,4rem); letter-spacing: -0.07em; line-height: 0.98; }
 .cta-band p { position: relative; max-width: 42rem; }
+.cta-band .eyebrow { color: #0b5a43; }
 .cta-band .button:not(.button-quiet) { background: #052018; color: var(--ink); }
 
 .site-footer { border-top: 1px solid var(--line); padding: 3rem 0; color: var(--ink-faint); }

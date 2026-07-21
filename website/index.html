@@ -7,7 +7,7 @@
     <meta name="description" content="Reduce LLM context overhead while keeping your existing AI workflow, provider, and deployment model.">
     <link rel="canonical" href="https://cutctx.com/">
     <meta property="og:title" content="CutCtx — Context efficiency for AI workflows">
-    <meta property="og:description" content="Reduce LLM context overhead without changing your AI workflow.">
+    <meta property="og:description" content="Send models less context while keeping useful information within reach.">
     <meta property="og:url" content="https://cutctx.com/">
     <link rel="stylesheet" href="/assets/site.css">
     <script src="/assets/site.js" defer></script>
@@ -19,48 +19,192 @@
         <a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a>
         <button class="nav-toggle" type="button" data-mobile-nav-toggle aria-expanded="false" aria-controls="site-navigation">Menu</button>
         <div class="nav-links" id="site-navigation" data-mobile-nav data-open="false">
-          <a href="/pricing/">Pricing</a><a href="/docs/">Docs</a><a href="/security/">Security</a>
-          <a class="button button-primary" data-cta="pricing" href="/pricing/">Choose a plan</a>
+          <a href="#capabilities">Product</a>
+          <a href="/pricing/">Pricing</a>
+          <a href="/docs/">Docs</a>
+          <a href="/security/">Security</a>
+          <a class="button button-primary" data-cta="start-free-header" data-cta-placement="header" href="/docs/#quick-start">Start free</a>
         </div>
       </nav>
     </header>
+
     <main id="main-content" class="site-shell">
-      <section class="hero">
-        <div class="eyebrow">Context efficiency for serious AI work</div>
-        <h1>Reduce LLM context overhead without changing your AI workflow.</h1>
-        <p>CutCtx is a local-first proxy and toolkit for AI agents and LLM applications. Keep your chosen provider, preserve useful context, and see the savings in your own traffic.</p>
-        <div class="hero-actions">
-          <a class="button button-primary" data-cta="start-free" href="/docs/">Start free</a>
-          <a class="button button-secondary" data-cta="view-pricing" href="/pricing/">View pricing</a>
+      <section class="hero hero-split">
+        <div class="hero-copy">
+          <div class="eyebrow">Context efficiency for serious AI work</div>
+          <h1>Send models less context. Keep what matters within reach.</h1>
+          <p class="lede">CutCtx is a local-first control layer for AI agents and LLM applications. Reduce context overhead, retain access to useful information, and measure the result on your own traffic.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" data-cta="start-free-hero" data-cta-placement="hero" href="/docs/#quick-start">Start free</a>
+            <a class="button button-secondary" data-cta="see-how" data-cta-placement="hero" href="#how-it-works">See how it works</a>
+          </div>
+          <p class="hero-note">Local-first · Provider-flexible · Measured on your workload</p>
+        </div>
+
+        <div class="product-flow" data-product-flow aria-label="Illustrative CutCtx workflow">
+          <div class="flow-head"><span>Illustrative workflow</span><span class="signal">Evaluation active</span></div>
+          <div class="flow-body">
+            <div class="flow-row">
+              <div class="flow-node"><span class="flow-label">Incoming context</span><strong>Agent history + tools</strong></div>
+              <span class="flow-arrow" aria-hidden="true">→</span>
+              <div class="flow-node flow-node-accent"><span class="flow-label">CutCtx</span><strong>Compress + retrieve</strong></div>
+              <span class="flow-arrow" aria-hidden="true">→</span>
+              <div class="flow-node"><span class="flow-label">Selected model</span><strong>Focused payload</strong></div>
+            </div>
+            <div class="metric-rail" aria-label="CutCtx evaluation signals">
+              <span>Useful context retained</span>
+              <span>Provider route preserved</span>
+              <span>Report available</span>
+            </div>
+          </div>
         </div>
       </section>
-      <section class="proof-grid" aria-label="CutCtx proof points">
-        <article class="stat"><strong>Local-first</strong><span>Processing stays in your environment by default.</span></article>
-        <article class="stat"><strong>Provider-flexible</strong><span>Use OpenAI, Anthropic, Gemini/Vertex, Amazon Bedrock, or your chosen endpoint.</span></article>
-        <article class="stat"><strong>Measurable</strong><span>Use built-in telemetry and reports to evaluate your own traffic.</span></article>
+
+      <section class="compatibility" aria-label="Compatible providers and agents">
+        <p class="compatibility-label">Fits the providers and agent workflows your engineers already use</p>
+        <div class="chip-row">
+          <span class="chip">OpenAI</span>
+          <span class="chip">Anthropic</span>
+          <span class="chip">Gemini / Vertex</span>
+          <span class="chip">Amazon Bedrock</span>
+          <span class="chip">Chosen endpoint</span>
+          <span class="chip">Claude Code</span>
+          <span class="chip">Codex</span>
+          <span class="chip">Cursor</span>
+          <span class="chip">Cline</span>
+          <span class="chip">Aider</span>
+        </div>
       </section>
+
+      <section class="section" id="how-it-works">
+        <div class="section-heading">
+          <div class="eyebrow">One control loop</div>
+          <h2>Context efficiency you can inspect, not merely assume.</h2>
+          <p>CutCtx works around the workflow you already have, preserving your provider choice and making the result observable.</p>
+        </div>
+        <div class="process-grid">
+          <article class="process-step">
+            <span class="step-index">01</span>
+            <h3>Observe</h3>
+            <p>Accept compatible agent and application traffic, then understand the context entering the workflow.</p>
+          </article>
+          <article class="process-step">
+            <span class="step-index">02</span>
+            <h3>Compress</h3>
+            <p>Reduce unnecessary context overhead with protocol-aware controls before the request reaches the model.</p>
+          </article>
+          <article class="process-step">
+            <span class="step-index">03</span>
+            <h3>Retrieve</h3>
+            <p>Keep useful information accessible through retrieval, memory, and cache-aware context controls.</p>
+          </article>
+          <article class="process-step">
+            <span class="step-index">04</span>
+            <h3>Prove</h3>
+            <p>Use telemetry and savings reports to evaluate the operational result on your own traffic.</p>
+          </article>
+        </div>
+      </section>
+
       <section class="section">
-        <div class="section-heading"><div class="eyebrow">Fit into what already works</div><h2>One control layer for the workflows your engineers already use.</h2><p>Run the proxy locally or in your infrastructure, wrap supported coding agents, and keep provider routing under your control.</p></div>
-        <div class="feature-grid">
-          <article class="feature-card"><h3>Agent-ready workflows</h3><p>Wrap Claude Code, Codex, Cursor, Cline, Continue, Aider, OpenHands, Windsurf, Zed, OpenCode, OpenClaw, Goose, and more.</p></article>
-          <article class="feature-card"><h3>Context, not compromise</h3><p>Compression, retrieval, memory, and cache-aware controls are designed to retain access to useful information when a model needs it.</p></article>
-          <article class="feature-card"><h3>Deploy your way</h3><p>Use a local CLI, Docker, Docker Compose, Kubernetes, or an air-gapped deployment path.</p></article>
+        <div class="section-heading">
+          <div class="eyebrow">Built for the real workflow</div>
+          <h2>A context layer that stays out of your way.</h2>
+          <p>Start with the part you need today. Keep provider routing, deployment, and evidence under your control as the rollout grows.</p>
+        </div>
+        <div class="bento-grid" id="capabilities">
+          <article class="bento-card bento-primary">
+            <div class="eyebrow">Context control</div>
+            <h3>Reduce overhead without losing the thread.</h3>
+            <p>Protocol-aware compression works with retrieval, memory, and cache-aware controls so useful information remains available when the workflow needs it.</p>
+            <div class="command-card">context → classify → compress → retrieve → model</div>
+          </article>
+          <article class="bento-card bento-secondary">
+            <div class="eyebrow">Fits your stack</div>
+            <h3>Keep the agents and providers you already use.</h3>
+            <p>Wrap supported coding agents and route compatible OpenAI, Anthropic, Gemini/Vertex, Bedrock, and chosen-endpoint traffic through one control layer.</p>
+          </article>
+          <article class="bento-card bento-secondary">
+            <div class="eyebrow">Operational evidence</div>
+            <h3>Inspect the result on your traffic.</h3>
+            <p>Use the local dashboard, telemetry, and savings reports to understand the result before selecting a commercial path.</p>
+          </article>
+          <article class="bento-card bento-primary">
+            <div class="eyebrow">Deployment control</div>
+            <h3>Start locally. Deploy where your environment requires.</h3>
+            <p>Use the CLI and local proxy, Docker or Docker Compose, Kubernetes, or an air-gapped deployment path.</p>
+            <div class="chip-row" aria-label="Deployment options">
+              <span class="chip">Local CLI</span><span class="chip">Docker</span><span class="chip">Kubernetes</span><span class="chip">Air-gapped</span>
+            </div>
+          </article>
         </div>
       </section>
+
+      <section class="section evidence-layout">
+        <div class="section-heading">
+          <div class="eyebrow">Evaluation to evidence</div>
+          <h2>Make the next decision with your own report.</h2>
+          <p>CutCtx is designed for a low-friction technical evaluation. Use a workflow you already trust, then inspect what changed.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" data-cta="start-free-evidence" data-cta-placement="evidence" href="/docs/#quick-start">Run it on your workflow</a>
+          </div>
+        </div>
+        <div class="evidence-steps">
+          <article class="evidence-step"><span class="step-index">01</span><div><strong>Install</strong><p>Add CutCtx locally without replacing your agent or provider.</p></div></article>
+          <article class="evidence-step"><span class="step-index">02</span><div><strong>Wrap</strong><p>Route a supported coding agent or compatible application through the proxy.</p></div></article>
+          <article class="evidence-step"><span class="step-index">03</span><div><strong>Run</strong><p>Use the workflow normally so the evaluation reflects real traffic.</p></div></article>
+          <article class="evidence-step"><span class="step-index">04</span><div><strong>Inspect</strong><p>Review telemetry and the savings report before you decide how to scale.</p></div></article>
+        </div>
+      </section>
+
       <section class="section">
-        <div class="section-heading"><div class="eyebrow">Move from evaluation to evidence</div><h2>Make the next decision with a savings report—not a promise.</h2><p>Start with the Builder path, observe your own workload, and scale into shared reporting, policy controls, and governance when your team needs them.</p></div>
-        <div class="feature-grid">
-          <article class="feature-card"><h3>Builder</h3><p>Core compression, proxy, CLI wrapping, SDKs, MCP, local dashboard, and Docker deployment for technical evaluation.</p></article>
-          <article class="feature-card"><h3>Teams and business units</h3><p>Shared analytics, reporting, policy presets, budget controls, organization/workspace models, and deployment support.</p></article>
-          <article class="feature-card"><h3>Enterprise controls</h3><p>Identity-aware administration, RBAC, audit export, retention controls, fleet APIs, and SCIM-style provisioning APIs.</p></article>
+        <div class="section-heading">
+          <div class="eyebrow">Control stays close</div>
+          <h2>Local-first by default. Flexible when the deployment grows.</h2>
+          <p>Processing stays in your environment by default, requests go to the model provider you configure, and commercial controls can support broader organizational needs.</p>
         </div>
+        <div class="trust-grid">
+          <article class="trust-card"><h3>Customer environment</h3><p>Run locally or in customer-managed infrastructure rather than depending on hosted prompt analytics.</p></article>
+          <article class="trust-card"><h3>Chosen provider</h3><p>Keep OpenAI, Anthropic, Gemini/Vertex, Bedrock, or the compatible endpoint selected by your team.</p></article>
+          <article class="trust-card"><h3>Governed scale</h3><p>Add shared reporting, policy, identity, audit, retention, and deployment support when the organization needs them.</p></article>
+        </div>
+        <div class="hero-actions"><a class="button button-secondary" data-cta="security-home" data-cta-placement="security" href="/security/">Review security and data handling</a></div>
       </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <div class="eyebrow">A path for each stage</div>
+          <h2>Evaluate freely. Add coordination and governance deliberately.</h2>
+        </div>
+        <div class="trust-grid">
+          <article class="trust-card"><div class="eyebrow">Builder</div><h3>Prove the workflow locally.</h3><p>Core compression, proxy, CLI wrapping, SDKs, MCP, local dashboard, and Docker.</p></article>
+          <article class="trust-card"><div class="eyebrow">Team</div><h3>Share evidence and policy.</h3><p>Shared analytics, savings reports, policy presets, budget controls, and support.</p></article>
+          <article class="trust-card"><div class="eyebrow">Enterprise</div><h3>Operate with governance.</h3><p>Identity-aware administration, RBAC, audit export, retention controls, fleet APIs, and deployment support.</p></article>
+        </div>
+        <div class="hero-actions"><a class="button button-secondary" data-cta="pricing-home" data-cta-placement="pricing-preview" href="/pricing/">Compare plans</a></div>
+      </section>
+
       <section class="cta-band">
-        <h2>Start with the workflow you already have.</h2>
-        <p>Install locally, wrap an agent, and inspect CutCtx savings on your own traffic.</p>
-        <div class="inline-actions"><a class="button" data-cta="cta-start-free" href="/docs/">Read the quick start</a><a class="button" data-cta="cta-pricing" href="/pricing/">Choose a plan</a></div>
+        <div class="eyebrow">Start with evidence</div>
+        <h2>Run CutCtx on the workflow you already have.</h2>
+        <p>Install locally, wrap an agent, and inspect the result on your own traffic.</p>
+        <div class="inline-actions">
+          <a class="button" data-cta="start-free-final" data-cta-placement="final" href="/docs/#quick-start">Start free</a>
+          <a class="button button-quiet" data-cta="view-pricing-final" data-cta-placement="final" href="/pricing/">View pricing</a>
+        </div>
       </section>
     </main>
-    <footer class="site-footer"><div class="site-shell footer-grid"><div><a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a><p class="merchant-note">CutCtx is a product of PitchToShip. Payments, invoices, licensing, and customer account management are provided by PitchToShip.</p></div><nav class="footer-links" aria-label="Footer navigation"><a href="/pricing/">Pricing</a><a href="/docs/">Docs</a><a href="/security/">Security</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/refunds/">Refunds</a></nav></div></footer>
+
+    <footer class="site-footer">
+      <div class="site-shell footer-grid">
+        <div>
+          <a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a>
+          <p class="merchant-note">CutCtx is a product of PitchToShip. Payments, invoices, licensing, and customer account management are provided by PitchToShip.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/pricing/">Pricing</a><a href="/docs/">Docs</a><a href="/security/">Security</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/refunds/">Refunds</a>
+        </nav>
+      </div>
+    </footer>
   </body>
 </html>
