@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CutCtx routing — efficient models, deliberate safety</title>
+    <meta name="description" content="Understand CutCtx's opt-in, conservative model routing and the evidence used to retain or route a request.">
+    <link rel="canonical" href="https://cutctx.com/routing/">
+    <meta property="og:url" content="https://cutctx.com/routing/">
+    <link rel="icon" href="/assets/favicon.svg?v=20260721-evolve" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/site.css?v=20260721-evolve">
+    <script src="/assets/site.js?v=20260721-evolve" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <nav class="site-shell nav" aria-label="Primary navigation">
+        <a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a>
+        <button class="nav-toggle" type="button" data-mobile-nav-toggle aria-expanded="false" aria-controls="site-navigation">Menu</button>
+        <div class="nav-links" id="site-navigation" data-mobile-nav data-open="false">
+          <a href="/#platform">Platform</a><a href="/routing/">Routing</a><a href="/integrations/">Integrations</a><a href="/docs/">Docs</a><a href="/pricing/">Pricing</a><a href="/security/">Security</a>
+          <a class="button button-primary" data-cta="start-free-header" data-cta-placement="header" href="/docs/#quick-start">Start free</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main-content" class="site-shell">
+      <section class="page-hero">
+        <div class="eyebrow">Intelligent routing, deliberately constrained</div>
+        <h1>Use a more efficient model only when the work earns it.</h1>
+        <p>CutCtx routing is opt-in. It keeps the requested model when the work is high-risk, ambiguous, tool-heavy, capability-incompatible, or not proven safe for the active provider, account, and transport.</p>
+        <p class="page-kicker">Conservative by default · Observable decision reasons · No silent provider switch</p>
+        <div class="hero-actions"><a class="button button-primary" data-cta="routing-evaluate" data-cta-placement="routing-hero" href="/docs/#routing-status">Inspect routing status</a><a class="button button-secondary" data-cta="routing-integrations" data-cta-placement="routing-hero" href="/integrations/">Review integrations</a></div>
+      </section>
+
+      <section class="section" aria-labelledby="decision-heading">
+        <div class="section-heading"><div class="eyebrow">A safe decision path</div><h2 id="decision-heading">The route has to prove itself.</h2><p>CutCtx does not treat a short prompt as automatically safe to downgrade. The request, available target, and transport must all satisfy the policy before a route can apply.</p></div>
+        <div class="decision-flow">
+          <article class="decision-step"><div class="eyebrow">01 Request</div><h3>Understand the work</h3><p>Complexity, recent tool context, code, security, and other risk signals can keep the requested model in place.</p></article>
+          <article class="decision-step"><div class="eyebrow">02 Capabilities</div><h3>Match the contract</h3><p>Tool calling, structured output, vision, audio, streaming, and other required capabilities must be supported by the target.</p></article>
+          <article class="decision-step"><div class="eyebrow">03 Transport</div><h3>Prove the path</h3><p>Provider, account, and transport proof constrain which targets can be considered.</p></article>
+          <article class="decision-step"><div class="eyebrow">04 Readiness</div><h3>Require eligibility</h3><p>Readiness, certification, availability, and cost gates keep unknown or unsuitable candidates out.</p></article>
+          <article class="decision-step"><div class="eyebrow">05 Outcome</div><h3>Route or retain</h3><p>A route applies only when every gate passes. Otherwise, the requested model retained outcome is the correct result.</p></article>
+        </div>
+      </section>
+
+      <section class="section evidence-layout">
+        <div class="section-heading"><div class="eyebrow">What the operator can inspect</div><h2>See the decision, not just the effective model.</h2><p>Routing evidence identifies an applied source-to-target pair or a clear retention reason such as no route, insufficient confidence, unsuitable workload, or missing capabilities.</p></div>
+        <div class="route-receipt" aria-label="Illustrative routing receipt">
+          <div class="flow-head"><span>Illustrative routing receipt</span><span class="signal">Read-only evidence</span></div>
+          <div class="evidence-steps">
+            <article class="evidence-step"><span class="step-index">A</span><div><strong>Eligible route applied</strong><p>Only after complexity, capability, provider, account, transport, readiness, and certification gates pass.</p></div></article>
+            <article class="evidence-step"><span class="step-index">B</span><div><strong>requested model retained</strong><p>Used when a route is not warranted; no fallback is used to bypass a rejected safety condition.</p></div></article>
+            <article class="evidence-step"><span class="step-index">C</span><div><strong>Reason available</strong><p>Examples include <code>no_route_for_model</code>, <code>confidence_below_threshold</code>, and <code>workload_not_downgradeable</code>.</p></div></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading"><div class="eyebrow">Verified preset language</div><h2>Start with a conservative preset, not a blanket downgrade.</h2></div>
+        <div class="trust-grid">
+          <article class="trust-card"><div class="eyebrow">Canonical preset</div><h3>codex-gpt54mini-high</h3><p>The primary named preset for the documented conservative routing behavior.</p></article>
+          <article class="trust-card"><div class="eyebrow">Compatibility aliases</div><h3>codex-opencode-slim<br>oh-my-opencode-slim</h3><p>Compatibility aliases, not separate products or routing plans.</p></article>
+          <article class="trust-card"><div class="eyebrow">Operator control</div><h3>Opt in, inspect, decide.</h3><p>Routing status is read-only. It does not silently change providers, accounts, credentials, transports, or models.</p></article>
+        </div>
+      </section>
+
+      <section class="cta-band"><div class="eyebrow">Evaluate on your traffic</div><h2>Inspect the route before you change the workflow.</h2><p>Install locally, wrap a supported workflow, and inspect routing status alongside your own savings evidence.</p><div class="inline-actions"><a class="button" data-cta="routing-start-free" data-cta-placement="routing-final" href="/docs/#quick-start">Start free</a><a class="button button-quiet" data-cta="routing-pricing" data-cta-placement="routing-final" href="/pricing/">Compare plans</a></div></section>
+    </main>
+
+    <footer class="site-footer"><div class="site-shell footer-grid"><div><a class="brand" href="/"><span class="brand-mark">Cut</span>Ctx</a><p class="merchant-note">CutCtx is a product of PitchToShip. Payments, invoices, licensing, and customer account management are provided by PitchToShip.</p></div><nav class="footer-links" aria-label="Footer navigation"><a href="/routing/">Routing</a><a href="/integrations/">Integrations</a><a href="/pricing/">Pricing</a><a href="/docs/">Docs</a><a href="/security/">Security</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/refunds/">Refunds</a></nav></div></footer>
+  </body>
+</html>
