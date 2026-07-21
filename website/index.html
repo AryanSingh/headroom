@@ -3,11 +3,11 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CutCtx — Context efficiency for AI workflows</title>
-    <meta name="description" content="Reduce LLM context overhead while keeping your existing AI workflow, provider, and deployment model.">
+    <title>CutCtx — Context efficiency and intelligent routing</title>
+    <meta name="description" content="Make each agent turn earn its context and model choice with local-first context efficiency and intelligent routing.">
     <link rel="canonical" href="https://cutctx.com/">
-    <meta property="og:title" content="CutCtx — Context efficiency for AI workflows">
-    <meta property="og:description" content="Send models less context while keeping useful information within reach.">
+    <meta property="og:title" content="CutCtx — Context efficiency and intelligent routing">
+    <meta property="og:description" content="Understand agent context, reduce overhead, and route only when the work is eligible.">
     <meta property="og:url" content="https://cutctx.com/">
     <link rel="icon" href="/assets/favicon.svg?v=20260721-evolve" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/site.css?v=20260721-evolve">
@@ -34,14 +34,14 @@
     <main id="main-content" class="site-shell">
       <section class="hero hero-split">
         <div class="hero-copy">
-          <div class="eyebrow">Context efficiency for serious AI work</div>
-          <h1>Send models less context. Keep what matters within reach.</h1>
-          <p class="lede">CutCtx is a local-first control layer for AI agents and LLM applications. Reduce context overhead, retain access to useful information, and measure the result on your own traffic.</p>
+          <div class="eyebrow">Context efficiency + intelligent routing</div>
+          <h1>Make every agent turn earn its context and its model.</h1>
+          <p class="lede">CutCtx is a local-first platform for understanding agent context, reducing overhead, recovering useful state, and making conservative routing decisions on the workflow you already run.</p>
           <div class="hero-actions">
             <a class="button button-primary" data-cta="start-free-hero" data-cta-placement="hero" href="/docs/#quick-start">Start free</a>
-            <a class="button button-secondary" data-cta="see-how" data-cta-placement="hero" href="#how-it-works">See how it works</a>
+            <a class="button button-secondary" data-cta="routing-hero" data-cta-placement="hero" href="/routing/">Explore routing</a>
           </div>
-          <p class="hero-note">Local-first · Provider-flexible · Measured on your workload</p>
+          <p class="hero-note">Local-first · Provider-aware · Fail-closed when a route is not eligible</p>
         </div>
 
         <div class="product-flow" data-product-flow aria-label="Illustrative CutCtx workflow">
@@ -50,14 +50,14 @@
             <div class="flow-row">
               <div class="flow-node"><span class="flow-label">Incoming context</span><strong>Agent history + tools</strong></div>
               <span class="flow-arrow" aria-hidden="true">→</span>
-              <div class="flow-node flow-node-accent"><span class="flow-label">CutCtx</span><strong>Compress + retrieve</strong></div>
+              <div class="flow-node flow-node-accent"><span class="flow-label">CutCtx decision</span><strong>Compress · recover · route or retain</strong></div>
               <span class="flow-arrow" aria-hidden="true">→</span>
-              <div class="flow-node"><span class="flow-label">Selected model</span><strong>Focused payload</strong></div>
+              <div class="flow-node"><span class="flow-label">Chosen path</span><strong>Eligible route or requested model</strong></div>
             </div>
             <div class="metric-rail" aria-label="CutCtx evaluation signals">
               <span>Useful context retained</span>
-              <span>Provider route preserved</span>
-              <span>Report available</span>
+              <span>Provider + capability gates</span>
+              <span>Routing evidence available</span>
             </div>
           </div>
         </div>
@@ -81,65 +81,33 @@
 
       <section class="section" id="how-it-works">
         <div class="section-heading">
-          <div class="eyebrow">One control loop</div>
-          <h2>Context efficiency you can inspect, not merely assume.</h2>
-          <p>CutCtx works around the workflow you already have, preserving your provider choice and making the result observable.</p>
+          <div class="eyebrow">One complete operating loop</div>
+          <h2>Improve the context and the decision around it.</h2>
+          <p>CutCtx works around the workflow you already have: it understands the request, preserves useful state, routes only when the constraints allow it, and makes the result observable.</p>
         </div>
         <div class="process-grid">
-          <article class="process-step">
-            <span class="step-index">01</span>
-            <h3>Observe</h3>
-            <p>Accept compatible agent and application traffic, then understand the context entering the workflow.</p>
-          </article>
-          <article class="process-step">
-            <span class="step-index">02</span>
-            <h3>Compress</h3>
-            <p>Reduce unnecessary context overhead with protocol-aware controls before the request reaches the model.</p>
-          </article>
-          <article class="process-step">
-            <span class="step-index">03</span>
-            <h3>Retrieve</h3>
-            <p>Keep useful information accessible through retrieval, memory, and cache-aware context controls.</p>
-          </article>
-          <article class="process-step">
-            <span class="step-index">04</span>
-            <h3>Prove</h3>
-            <p>Use telemetry and savings reports to evaluate the operational result on your own traffic.</p>
-          </article>
+          <article class="process-step"><span class="step-index">01</span><h3>Observe</h3><p>See context, token, and workflow signals entering a compatible agent or application path.</p></article>
+          <article class="process-step"><span class="step-index">02</span><h3>Understand</h3><p>Classify protocol and request context before an optimization decision is made.</p></article>
+          <article class="process-step"><span class="step-index">03</span><h3>Compress / Recover</h3><p>Reduce overhead while retaining useful information through retrieval and memory controls.</p></article>
+          <article class="process-step"><span class="step-index">04</span><h3>Route or retain</h3><p>Use opt-in routing only for clearly eligible work; retain the requested model when safety gates do not pass.</p></article>
+          <article class="process-step"><span class="step-index">05</span><h3>Forward</h3><p>Send the focused request through the provider and compatible endpoint your team selected.</p></article>
+          <article class="process-step"><span class="step-index">06</span><h3>Measure</h3><p>Inspect savings, latency, budgets, health, diagnostics, and routing outcomes.</p></article>
+          <article class="process-step"><span class="step-index">07</span><h3>Govern</h3><p>Add policy, identity, audit, retention, tenancy, and entitlement controls only when the deployment needs them.</p></article>
         </div>
       </section>
 
-      <section class="section">
+      <section class="section" id="platform" aria-labelledby="platform-heading">
         <div class="section-heading">
-          <div class="eyebrow">Built for the real workflow</div>
-          <h2>A context layer that stays out of your way.</h2>
-          <p>Start with the part you need today. Keep provider routing, deployment, and evidence under your control as the rollout grows.</p>
+          <div class="eyebrow">One operating layer, deliberate boundaries</div>
+          <h2 id="platform-heading">The runtime, decisions, and controls your rollout needs.</h2>
+          <p>Start with a local evaluation. Add coordination and governance only when the workflow and organization call for them.</p>
         </div>
-        <div class="bento-grid" id="capabilities">
-          <article class="bento-card bento-primary">
-            <div class="eyebrow">Context control</div>
-            <h3>Reduce overhead without losing the thread.</h3>
-            <p>Protocol-aware compression works with retrieval, memory, and cache-aware controls so useful information remains available when the workflow needs it.</p>
-            <div class="command-card">context → classify → compress → retrieve → model</div>
-          </article>
-          <article class="bento-card bento-secondary">
-            <div class="eyebrow">Fits your stack</div>
-            <h3>Keep the agents and providers you already use.</h3>
-            <p>Wrap supported coding agents and route compatible OpenAI, Anthropic, Gemini/Vertex, Bedrock, and chosen-endpoint traffic through one control layer.</p>
-          </article>
-          <article class="bento-card bento-secondary">
-            <div class="eyebrow">Operational evidence</div>
-            <h3>Inspect the result on your traffic.</h3>
-            <p>Use the local dashboard, telemetry, and savings reports to understand the result before selecting a commercial path.</p>
-          </article>
-          <article class="bento-card bento-primary">
-            <div class="eyebrow">Deployment control</div>
-            <h3>Start locally. Deploy where your environment requires.</h3>
-            <p>Use the CLI and local proxy, Docker or Docker Compose, Kubernetes, or an air-gapped deployment path.</p>
-            <div class="chip-row" aria-label="Deployment options">
-              <span class="chip">Local CLI</span><span class="chip">Docker</span><span class="chip">Kubernetes</span><span class="chip">Air-gapped</span>
-            </div>
-          </article>
+        <div class="platform-map">
+          <article class="platform-card"><div class="eyebrow">Core runtime</div><h3>Context that stays useful.</h3><p>Observe, compress, recover, proxy, and measure close to the workflow.</p></article>
+          <article class="platform-card"><div class="eyebrow">Intelligent optimization</div><h3>Route or retain deliberately.</h3><p>Use opt-in routing only when complexity, capability, provider, account, and transport conditions are eligible.</p><div class="command-card">preset: codex-gpt54mini-high</div></article>
+          <article class="platform-card"><div class="eyebrow">Operator layer</div><h3>Inspect the result.</h3><p>Review savings, latency, budgets, routing, health, and diagnostics with evidence from your workload.</p></article>
+          <article class="platform-card"><div class="eyebrow">Developer and agent access</div><h3>Meet existing workflows.</h3><p>Use SDKs, compatible proxies, CLI wrappers, MCP, agent plugins, and IDE integrations.</p><a class="button button-secondary" href="/integrations/">See integrations</a></article>
+          <article class="platform-card"><div class="eyebrow">Optional enterprise controls</div><h3>Govern when needed.</h3><p>Add identity, policy, audit, retention, tenancy, and entitlement controls deliberately.</p></article>
         </div>
       </section>
 

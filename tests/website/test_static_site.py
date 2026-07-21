@@ -59,7 +59,7 @@ def test_sitemap_includes_all_cutctx_public_destinations():
 
 def test_homepage_has_product_and_merchant_disclosure():
     home = Path("website/index.html").read_text(encoding="utf-8")
-    assert "Reduce LLM context overhead" in home
+    assert "Make every agent turn earn its context and its model" in home
     assert "CutCtx is a product of PitchToShip" in home
     assert "OpenAI" in home and "Anthropic" in home and "Amazon Bedrock" in home
     assert "guaranteed" not in home.lower()
@@ -157,9 +157,40 @@ def test_homepage_uses_evolved_conversion_structure():
     assert 'class="hero hero-split"' in home
     assert "data-product-flow" in home
     assert 'id="how-it-works"' in home
-    assert all(stage in home for stage in ("Observe", "Compress", "Retrieve", "Prove"))
+    assert all(
+        stage in home
+        for stage in (
+            "Observe",
+            "Understand",
+            "Compress / Recover",
+            "Route or retain",
+            "Forward",
+            "Measure",
+            "Govern",
+        )
+    )
     assert home.count('data-cta="start-free') >= 3
     assert 'href="/docs/#quick-start"' in home
+
+
+def test_homepage_positions_routing_as_a_core_capability():
+    home = read_page("website/index.html")
+    assert "intelligent routing" in home.lower()
+    assert 'href="/routing/"' in home
+    assert "Route or retain" in home
+    assert "codex-gpt54mini-high" in home
+
+
+def test_homepage_exposes_the_verified_platform_layers():
+    home = read_page("website/index.html")
+    for label in (
+        "Core runtime",
+        "Intelligent optimization",
+        "Operator layer",
+        "Developer and agent access",
+        "Optional enterprise controls",
+    ):
+        assert label in home
 
 
 def test_homepage_visualization_avoids_unsupported_savings_claims():
