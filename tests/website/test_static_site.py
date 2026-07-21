@@ -9,6 +9,11 @@ def test_public_legal_pages_do_not_contain_unapproved_legacy_identity():
     ]
     assert all(page.exists() for page in pages)
     rendered = "\n".join(page.read_text(encoding="utf-8") for page in pages)
+    assert "PITCHTOSHIP (OPC) PRIVATE LIMITED" in rendered
+    assert "Muzaffarpur, Bihar 842002, India" in rendered
+    assert "hello@aoexl.com" in rendered
+    assert "14 days" in rendered
+    assert "laws of India" in rendered
     assert "Cutctx Labs" not in rendered
     assert "sales@payzli.com" not in rendered
     assert "{{" not in rendered
