@@ -131,9 +131,9 @@ def test_public_routes_share_the_evolved_shell():
 def test_public_pages_keep_local_assets_and_semantic_entry_points():
     for page in PUBLIC_PAGES:
         html = page.read_text(encoding="utf-8")
-        assert 'href="/assets/site.css"' in html
-        assert 'href="/assets/favicon.svg"' in html
-        assert 'src="/assets/site.js"' in html
+        assert 'href="/assets/site.css?v=20260721-evolve"' in html
+        assert 'href="/assets/favicon.svg?v=20260721-evolve"' in html
+        assert 'src="/assets/site.js?v=20260721-evolve"' in html
         assert "fonts.googleapis.com" not in html
         assert "fonts.gstatic.com" not in html
         assert 'class="skip-link"' in html
