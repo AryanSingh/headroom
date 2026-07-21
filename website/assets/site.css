@@ -1,0 +1,170 @@
+:root {
+  --surface: #09111f;
+  --panel: #101c30;
+  --panel-soft: #14223a;
+  --text: #f5f8ff;
+  --muted: #adbbd3;
+  --accent: #68e6b3;
+  --accent-strong: #34c98d;
+  --focus: #8ab4ff;
+  --line: rgba(173, 187, 211, 0.22);
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  --max-width: 72rem;
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--surface); color-scheme: dark; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 12% -8%, rgba(104, 230, 179, 0.18), transparent 30rem),
+    radial-gradient(circle at 86% 8%, rgba(138, 180, 255, 0.14), transparent 26rem),
+    var(--surface);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+a { color: inherit; }
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+.site-shell { width: min(calc(100% - 2rem), var(--max-width)); margin-inline: auto; }
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 10;
+  background: var(--text);
+  color: var(--surface);
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.4rem;
+}
+
+.skip-link:focus { top: 1rem; }
+
+.site-header { border-bottom: 1px solid var(--line); backdrop-filter: blur(16px); }
+
+.nav {
+  min-height: 4.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.brand { color: var(--text); font-size: 1.1rem; font-weight: 800; letter-spacing: -0.04em; text-decoration: none; }
+.brand-mark { color: var(--accent); }
+
+.nav-links { display: flex; align-items: center; gap: 1.15rem; }
+.nav-links a { color: var(--muted); font-size: 0.94rem; font-weight: 650; text-decoration: none; }
+.nav-links a:hover { color: var(--text); }
+
+.nav-toggle {
+  display: none;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 0.5rem 0.7rem;
+}
+
+.eyebrow { color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+
+.hero { padding: clamp(4.8rem, 11vw, 9rem) 0 5rem; max-width: 59rem; }
+.hero h1, .page-hero h1 { font-size: clamp(2.65rem, 6vw, 5.5rem); letter-spacing: -0.07em; line-height: 0.98; margin: 0.8rem 0 1.25rem; }
+.hero p, .page-hero p { color: var(--muted); font-size: clamp(1.08rem, 2vw, 1.35rem); max-width: 46rem; }
+
+.hero-actions, .inline-actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 2rem; }
+
+.button {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  display: inline-flex;
+  font-size: 0.95rem;
+  font-weight: 800;
+  gap: 0.4rem;
+  justify-content: center;
+  min-height: 2.85rem;
+  padding: 0.55rem 1rem;
+  text-decoration: none;
+}
+
+.button-primary { background: var(--accent); color: #062018; }
+.button-primary:hover { background: #91efc8; }
+.button-secondary { border-color: var(--line); color: var(--text); }
+.button-secondary:hover { background: rgba(245, 248, 255, 0.07); }
+
+.proof-grid, .feature-grid, .pricing-grid { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.proof-grid { margin: 1rem 0 5rem; }
+
+.stat, .feature-card, .price-card, .callout {
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: linear-gradient(145deg, rgba(20, 34, 58, 0.93), rgba(9, 17, 31, 0.82));
+  box-shadow: var(--shadow);
+}
+
+.stat { padding: 1rem 1.15rem; }
+.stat strong { display: block; color: var(--accent); font-size: 1.3rem; letter-spacing: -0.05em; }
+.stat span, .feature-card p, .price-card p, .callout p { color: var(--muted); margin: 0.35rem 0 0; }
+
+.section { padding: 4.5rem 0; border-top: 1px solid var(--line); }
+.section-heading { max-width: 46rem; margin-bottom: 2rem; }
+.section-heading h2 { font-size: clamp(1.8rem, 3.5vw, 3.1rem); letter-spacing: -0.055em; line-height: 1.08; margin: 0.4rem 0 0.8rem; }
+.section-heading p { color: var(--muted); margin: 0; }
+
+.feature-card, .price-card { padding: 1.35rem; }
+.feature-card h3, .price-card h2 { font-size: 1.15rem; letter-spacing: -0.025em; margin: 0; }
+.feature-card ul, .price-card ul { color: var(--muted); margin: 1rem 0; padding-left: 1.15rem; }
+.feature-card li + li, .price-card li + li { margin-top: 0.35rem; }
+
+.price-card { display: flex; flex-direction: column; }
+.price-card.featured { border-color: rgba(104, 230, 179, 0.72); }
+.price { font-size: 2.25rem; font-weight: 850; letter-spacing: -0.07em; margin: 0.75rem 0 0; }
+.price small { color: var(--muted); font-size: 0.9rem; font-weight: 600; letter-spacing: 0; }
+.price-card .button { margin-top: auto; }
+
+.cta-band { margin: 4.5rem 0; padding: clamp(1.6rem, 5vw, 3rem); border-radius: 1rem; background: var(--accent); color: #062018; }
+.cta-band h2 { font-size: clamp(1.75rem, 4vw, 3.2rem); letter-spacing: -0.06em; line-height: 1.05; margin: 0; }
+.cta-band p { max-width: 42rem; }
+.cta-band .button { background: #062018; color: var(--text); }
+
+.page-hero { padding: 4.25rem 0 3rem; max-width: 50rem; }
+.content-grid { display: grid; gap: 1.4rem; grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr); }
+.callout { padding: 1.2rem; }
+.callout strong { color: var(--accent); }
+
+pre { overflow-x: auto; border: 1px solid var(--line); border-radius: 0.7rem; background: #050b14; padding: 1rem; }
+code { color: #c8f9df; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+
+.legal-copy { max-width: 50rem; }
+.legal-copy h2 { margin-top: 2.4rem; letter-spacing: -0.03em; }
+.legal-copy p, .legal-copy li { color: var(--muted); }
+
+.site-footer { border-top: 1px solid var(--line); color: var(--muted); padding: 2.5rem 0; }
+.footer-grid { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 1rem; }
+.footer-links a { font-size: 0.9rem; }
+.merchant-note { font-size: 0.88rem; max-width: 45rem; }
+
+@media (max-width: 48rem) {
+  .nav-toggle { display: inline-flex; }
+  .nav-links { display: none; width: 100%; padding: 0.5rem 0 1rem; flex-direction: column; align-items: flex-start; }
+  .nav-links[data-open="true"] { display: flex; }
+  .nav { flex-wrap: wrap; }
+  .proof-grid, .feature-grid, .pricing-grid, .content-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
