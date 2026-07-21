@@ -35,7 +35,21 @@ def _strict_mode() -> bool:
     legitimate traffic — the fail-closed only kicks in when no
     cached value is available.
     """
-    return os.environ.get("CUTCTX_LICENSE_STRICT_MODE", "1") == "1"
+    return os.environ.get("CUTCTX_LICENSE_STRICT_MODE", "1") != "0"
+
+
+def _service_request_kwargs(**kwargs):
+    """Add the optional least-privilege license-service credential.
+
+    ``CUTCTX_LICENSE_SERVICE_API_KEY`` is intentionally separate from
+    ``CUTCTX_ADMIN_API_KEY``. The latter is never forwarded implicitly by
+    this client; deployments that need machine-to-machine authentication
+    must explicitly configure the narrowly scoped service credential.
+    """
+    service_key = os.environ.get("CUTCTX_LICENSE_SERVICE_API_KEY")
+    if service_key:
+        kwargs["headers"] = {"X-Cutctx-Admin-Key": service_key}
+    return kwargs
 
 
 def get_portal_url() -> str:
@@ -69,7 +83,10 @@ def is_revoked(license_key: str) -> bool:
     now = time.time()
     if now > _CRL_CACHE["expires_at"]:
         try:
-            resp = httpx.get(f"{get_portal_url()}/v1/license/crl", timeout=5.0)
+            resp = httpx.get(
+                f"{get_portal_url()}/v1/license/crl",
+                **_service_request_kwargs(timeout=5.0),
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 _CRL_CACHE["revoked"] = set(data.get("revoked", []))
@@ -94,34 +111,53 @@ def is_revoked(license_key: str) -> bool:
                 _strict_mode(),
             )
 
+    # A strict deployment may trust only a fresh CRL. If refresh did not
+    # establish one, deny commercial access rather than treating a possibly
+    # revoked key as valid. Development can explicitly opt out with
+    # CUTCTX_LICENSE_STRICT_MODE=0.
+    if _strict_mode() and now > _CRL_CACHE["expires_at"]:
+        logger.warning("No fresh CRL is available; strict mode denies license %s", license_key[:8])
+        return True
+
     revoked_set = _CRL_CACHE["revoked"]
     assert isinstance(revoked_set, set)
     return license_key in revoked_set
 
 
 def activate_instance(license_key: str, instance_id: str) -> bool:
-    """Register this instance activation with the portal. Fails open."""
+    """Register this instance activation with the portal.
+
+    Network failures deny activation in strict mode, which is the default.
+    Explicit development mode (``CUTCTX_LICENSE_STRICT_MODE=0``) retains the
+    legacy fail-open behavior for offline local work.
+    """
     try:
         resp = httpx.post(
             f"{get_portal_url()}/v1/license/activate",
             json={"license_key": license_key, "instance_id": instance_id},
-            timeout=5.0,
+            **_service_request_kwargs(timeout=5.0),
         )
         if resp.status_code != 200 or not _response_is_json(resp):
             return False
         payload = resp.json()
         return isinstance(payload, dict) and payload.get("status") in {"ok", "activated"}
     except Exception:
-        return True  # Fail open
+        return not _strict_mode()
 
 
 def checkout_seat(license_key: str, user_id: str) -> bool:
-    """Checkout or renew a seat lease. Returns False if no seats available, True otherwise (fails open)."""
+    """Checkout or renew a seat lease.
+
+    Portal errors and unavailable seats deny the request in strict mode,
+    which is the default. Set ``CUTCTX_LICENSE_STRICT_MODE=0`` only for
+    explicitly chosen offline development environments to preserve the
+    legacy fail-open behavior for network exceptions.
+    """
     try:
         resp = httpx.post(
             f"{get_portal_url()}/v1/license/checkout-seat",
             json={"license_key": license_key, "user_id": user_id, "lease_duration": 3600.0},
-            timeout=5.0,
+            **_service_request_kwargs(timeout=5.0),
         )
         if resp.status_code == 429:
             return False
@@ -130,11 +166,11 @@ def checkout_seat(license_key: str, user_id: str) -> bool:
         payload = resp.json()
         return isinstance(payload, dict) and payload.get("status") in {"ok", "seat_leased"}
     except Exception:
-        return True
+        return not _strict_mode()
 
 
 def start_trial(trial_token: str, customer_email: str, duration: float = 14 * 86400.0) -> bool:
-    """Start a server-side trial. Returns True on success or fail-open."""
+    """Start a server-side trial; network errors fail open for compatibility."""
     try:
         resp = httpx.post(
             f"{get_portal_url()}/v1/license/start-trial",
@@ -143,7 +179,7 @@ def start_trial(trial_token: str, customer_email: str, duration: float = 14 * 86
                 "customer_email": customer_email,
                 "duration": duration,
             },
-            timeout=5.0,
+            **_service_request_kwargs(timeout=5.0),
         )
         if resp.status_code != 200 or not _response_is_json(resp):
             return False
@@ -154,12 +190,12 @@ def start_trial(trial_token: str, customer_email: str, duration: float = 14 * 86
 
 
 def is_trial_active(trial_token: str) -> bool:
-    """Check if a trial is active. Returns True if active or fail-open."""
+    """Check if a trial is active; unavailable portal responses fail open."""
     try:
         resp = httpx.post(
             f"{get_portal_url()}/v1/license/check-trial",
             json={"trial_token": trial_token},
-            timeout=5.0,
+            **_service_request_kwargs(timeout=5.0),
         )
         if resp.status_code == 200 and _response_is_json(resp):
             payload = resp.json()

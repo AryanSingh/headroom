@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 from urllib.parse import quote
 
 from fastapi import (
@@ -19,6 +19,7 @@ from fastapi import (
     WebSocketException,
 )
 from fastapi.responses import JSONResponse, Response
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import HTTPConnection
 
 from cutctx.proxy.handlers.openai import _resolve_codex_routing_headers
@@ -544,8 +545,42 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
                 },
             ) from exc
 
+    async def _require_paid_user_seat(connection: HTTPConnection) -> None:
+        """Bind paid HTTP or WebSocket traffic to a user and seat lease."""
+        entitlement_checker = getattr(proxy, "entitlement_checker", None)
+        if getattr(entitlement_checker, "plan_name", "builder") == "builder":
+            return
+
+        def deny(status_code: int, message: str) -> NoReturn:
+            if connection.scope.get("type") == "websocket":
+                raise WebSocketException(code=1008, reason=message)
+            raise HTTPException(status_code=status_code, detail={"message": message})
+
+        license_key = getattr(proxy.config, "license_key", None)
+        secret = getattr(proxy.config, "user_token_hmac_secret", None)
+        if not license_key or not secret:
+            deny(
+                503,
+                "Paid provider traffic requires CUTCTX_USER_TOKEN_HMAC_SECRET and "
+                "X-Cutctx-User-Token.",
+            )
+        from cutctx_ee.billing.client import checkout_seat
+        from cutctx_ee.user_tokens import UserTokenError, verify_user_token
+
+        try:
+            user_id = verify_user_token(
+                connection.headers.get("x-cutctx-user-token", ""), secret, license_key
+            )
+        except UserTokenError as exc:
+            deny(401, str(exc))
+        if not await run_in_threadpool(checkout_seat, license_key, user_id):
+            deny(403, "No licensed seat is available for this user.")
+        connection.state.cutctx_user_id = user_id
+
     parent_app = app
-    provider_router = APIRouter(dependencies=[Depends(_require_proxy_client)])
+    provider_router = APIRouter(
+        dependencies=[Depends(_require_proxy_client), Depends(_require_paid_user_seat)]
+    )
     app = cast(Any, provider_router)
 
     async def vertex_publisher_passthrough(request: Request, publisher: str, action: str):

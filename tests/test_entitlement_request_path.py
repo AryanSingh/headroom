@@ -38,10 +38,23 @@ def test_episodic_memory_refused_at_init_without_business_tier() -> None:
         assert "episodic_memory" in proxy.component_init_errors
 
 
-def test_episodic_memory_activates_with_business_tier() -> None:
+def test_unlicensed_declared_business_tier_does_not_enable_episodic_memory() -> None:
     app = create_app(_config(episodic_memory_enabled=True, entitlement_tier="business"))
     with TestClient(app):
         proxy = app.state.proxy
+        assert proxy.episodic_tracker is None
+        assert "episodic_memory" in proxy.component_init_errors
+
+
+def test_validated_business_license_enables_episodic_memory_after_validation() -> None:
+    app = create_app(_config(episodic_memory_enabled=True))
+    with TestClient(app):
+        proxy = app.state.proxy
+        assert proxy.episodic_tracker is None
+
+        _apply_validated_license(proxy, LicenseInfo(status="active", plan="business"))
+        proxy._reconcile_episodic_entitlement()
+
         assert proxy.episodic_tracker is not None
         assert "episodic_memory" not in proxy.component_init_errors
 
@@ -67,8 +80,12 @@ def test_config_flags_memory_requires_entitlement(endpoint: str) -> None:
 
 @pytest.mark.parametrize("endpoint", ["/config/flags", "/admin/config/flags"])
 def test_config_flags_memory_allows_entitled_tier(endpoint: str) -> None:
-    app = create_app(_config(entitlement_tier="business"))
+    app = create_app(_config())
     with TestClient(app) as client:
+        _apply_validated_license(
+            app.state.proxy,
+            LicenseInfo(status="active", plan="business"),
+        )
         response = client.post(
             endpoint,
             json={"memory": True},

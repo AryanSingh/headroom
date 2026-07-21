@@ -143,15 +143,18 @@ class UsageReporter:
             )
             if resp.status_code == 200:
                 data = resp.json()
+                status = data.get("status")
+                if status is None:
+                    status = "active" if data.get("valid") is True else "invalid"
                 trial_expires_at = data.get("trial_expires_at")
                 if isinstance(trial_expires_at, str):
                     trial_expires_at = datetime.fromisoformat(trial_expires_at)
 
                 self._license_info = LicenseInfo(
-                    status=data.get("status", "invalid"),
+                    status=status,
                     org_id=data.get("org_id"),
                     org_name=data.get("org_name"),
-                    plan=data.get("plan"),
+                    plan=data.get("plan") or data.get("tier"),
                     quota_tokens=data.get("quota_tokens"),
                     trial_expires_at=trial_expires_at,
                     validated_at=datetime.now(timezone.utc),
@@ -164,6 +167,22 @@ class UsageReporter:
                     self._license_info.plan,
                 )
                 return self._license_info
+            if resp.status_code == 403:
+                try:
+                    rejection = resp.json().get("detail", {})
+                except (json.JSONDecodeError, AttributeError, TypeError):
+                    rejection = {}
+                if rejection.get("error") != "validation_unavailable":
+                    self._license_info = LicenseInfo(
+                        status=rejection.get("status") or "invalid",
+                        validated_at=datetime.now(timezone.utc),
+                    )
+                    self._save_cache()
+                    logger.warning(
+                        "License validation definitively rejected the license: status=%s",
+                        self._license_info.status,
+                    )
+                    return self._license_info
             else:
                 logger.warning(
                     "License validation returned status %d, using cached info",

@@ -10,7 +10,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cutctx.proxy.models import ProxyConfig
-from cutctx.proxy.server import create_app
+from cutctx.proxy.server import _apply_validated_license, create_app
+from cutctx.telemetry.reporter import LicenseInfo
 
 os.environ["CUTCTX_SKIP_INTEGRITY_CHECK"] = "1"
 
@@ -33,6 +34,7 @@ async def test_dynamic_initialization_of_memory_module(
     app = create_app(config)
     proxy = app.state.proxy
     assert getattr(proxy, "episodic_tracker", None) is None
+    _apply_validated_license(proxy, LicenseInfo(status="active", plan="business"))
 
     with TestClient(app) as client:
         flags_before = client.get(
@@ -79,6 +81,7 @@ def test_business_tier_can_enable_episodic_memory_live_without_mocks(
     app = create_app(config)
     proxy = app.state.proxy
     assert getattr(proxy, "episodic_tracker", None) is None
+    _apply_validated_license(proxy, LicenseInfo(status="active", plan="business"))
 
     with TestClient(app) as client:
         response = client.post(
@@ -117,6 +120,7 @@ def test_legacy_admin_flags_can_enable_real_episodic_memory(
     )
     app = create_app(config)
     proxy = app.state.proxy
+    _apply_validated_license(proxy, LicenseInfo(status="active", plan="business"))
 
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.post(

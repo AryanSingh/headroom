@@ -43,11 +43,14 @@ def episodic_store(tmp_memory_dir):
 
 
 @pytest.fixture
-def episodic_client(tmp_memory_dir):
+def episodic_client(tmp_memory_dir, monkeypatch):
     """Create a test client with episodic memory enabled."""
-    os.environ["CUTCTX_EPISODIC_MEMORY_DIR"] = tmp_memory_dir
+    monkeypatch.setenv("CUTCTX_EPISODIC_MEMORY_DIR", tmp_memory_dir)
+    monkeypatch.setenv("CUTCTX_SKIP_UPSTREAM_CHECK", "1")
 
     from cutctx.proxy.models import ProxyConfig
+    from cutctx.proxy.server import _apply_validated_license, create_app
+    from cutctx.telemetry.reporter import LicenseInfo
 
     config = ProxyConfig(
         optimize=False,
@@ -60,14 +63,15 @@ def episodic_client(tmp_memory_dir):
         # its tier explicitly now that activation is entitlement-gated.
         entitlement_tier="business",
     )
-    from cutctx.proxy.server import create_app
 
     app = create_app(config)
+    _apply_validated_license(
+        app.state.proxy,
+        LicenseInfo(status="active", plan="business"),
+    )
+    app.state.proxy._reconcile_episodic_entitlement()
     with TestClient(app) as client:
         yield client
-
-    del os.environ["CUTCTX_EPISODIC_MEMORY_DIR"]
-
 
 @pytest.fixture
 def no_episodic_client():

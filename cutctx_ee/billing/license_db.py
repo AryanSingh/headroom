@@ -183,8 +183,44 @@ class LicenseDB:
         ]
 
     def activate_instance(self, license_key: str, instance_id: str) -> bool:
-        """Record a proxy instance activation against this license."""
+        """Record or renew a proxy instance activation against this license.
+
+        Instance capacity is bounded by the licensed seat count. Renewing an
+        already activated instance is idempotent and does not consume another
+        slot.
+        """
         try:
+            # Lock before reading capacity so two connections cannot both see
+            # the same free seat and insert competing leases.
+            self._conn.execute("BEGIN IMMEDIATE")
+            record = self.get(license_key)
+            if not record:
+                self._conn.rollback()
+                return False
+            if record.seats <= 0:
+                self._conn.rollback()
+                return False
+
+            existing = self._conn.execute(
+                "SELECT 1 FROM activations WHERE license_key = ? AND instance_id = ?",
+                (license_key, instance_id),
+            ).fetchone()
+            if existing:
+                self._conn.execute(
+                    "UPDATE activations SET activated_at = ? WHERE license_key = ? AND instance_id = ?",
+                    (time.time(), license_key, instance_id),
+                )
+                self._conn.commit()
+                return True
+
+            active_instances = self._conn.execute(
+                "SELECT count(*) FROM activations WHERE license_key = ?",
+                (license_key,),
+            ).fetchone()[0]
+            if active_instances >= record.seats:
+                self._conn.rollback()
+                return False
+
             self._conn.execute(
                 "INSERT INTO activations (license_key, instance_id, activated_at) VALUES (?, ?, ?)",
                 (license_key, instance_id, time.time()),
@@ -196,6 +232,7 @@ class LicenseDB:
             )
             return True
         except sqlite3.IntegrityError:
+            self._conn.rollback()
             return False
 
     def _emit_audit(self, action: str, payload: dict) -> None:
@@ -267,33 +304,44 @@ class LicenseDB:
     def checkout_seat(self, license_key: str, user_id: str, lease_duration: float) -> bool:
         """Checkout or renew a seat lease. Returns False if no seats available."""
         now = time.time()
-        # Clean up expired leases
-        self._conn.execute("DELETE FROM seat_leases WHERE expires_at < ?", (now,))
+        try:
+            # Lock before reading capacity so two connections cannot both see
+            # the same free seat and insert competing leases.
+            self._conn.execute("BEGIN IMMEDIATE")
 
-        # Check max seats
-        record = self.get(license_key)
-        if not record:
-            return False
-
-        active_leases = self._conn.execute(
-            "SELECT count(*) FROM seat_leases WHERE license_key = ?", (license_key,)
-        ).fetchone()[0]
-
-        if record.seats > 0 and active_leases >= record.seats:
-            # Check if user already has a lease (renew)
-            user_lease = self._conn.execute(
-                "SELECT 1 FROM seat_leases WHERE license_key = ? AND user_id = ?",
-                (license_key, user_id),
-            ).fetchone()
-            if not user_lease:
+            record = self.get(license_key)
+            if not record or record.seats <= 0:
+                self._conn.rollback()
                 return False
 
-        self._conn.execute(
-            """INSERT OR REPLACE INTO seat_leases (license_key, user_id, leased_at, expires_at)
-               VALUES (?, ?, ?, ?)""",
-            (license_key, user_id, now, now + lease_duration),
-        )
-        self._conn.commit()
+            # Clean up expired leases inside the same write transaction.
+            self._conn.execute("DELETE FROM seat_leases WHERE expires_at < ?", (now,))
+
+            active_leases = self._conn.execute(
+                "SELECT count(*) FROM seat_leases WHERE license_key = ?", (license_key,)
+            ).fetchone()[0]
+
+            # Check max seats. An existing user's lease may be renewed at
+            # capacity without consuming another seat.
+            if active_leases >= record.seats:
+                user_lease = self._conn.execute(
+                    "SELECT 1 FROM seat_leases WHERE license_key = ? AND user_id = ?",
+                    (license_key, user_id),
+                ).fetchone()
+                if not user_lease:
+                    self._conn.rollback()
+                    return False
+
+            self._conn.execute(
+                """INSERT OR REPLACE INTO seat_leases (license_key, user_id, leased_at, expires_at)
+                   VALUES (?, ?, ?, ?)""",
+                (license_key, user_id, now, now + lease_duration),
+            )
+            self._conn.commit()
+        except sqlite3.Error:
+            self._conn.rollback()
+            return False
+
         self._emit_audit(
             "license.checkout_seat",
             {"license_key": license_key, "user_id": user_id, "duration": lease_duration},

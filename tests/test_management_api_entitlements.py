@@ -8,11 +8,12 @@ from fastapi.testclient import TestClient
 from cutctx.audit import reset_audit_logger
 from cutctx.fleet import reset_fleet_store
 from cutctx.org import reset_org_store
-from cutctx.proxy.server import ProxyConfig, create_app
+from cutctx.proxy.server import ProxyConfig, _apply_validated_license, create_app
 from cutctx.rbac import reset_rbac_checker
 from cutctx.retention import get_retention_manager, reset_retention_manager
 from cutctx.scim import reset_scim_store
 from cutctx.sso import SsoClaims, SsoConfig, SsoTokenInvalidError, SsoValidator
+from cutctx.telemetry.reporter import LicenseInfo
 
 
 def _make_client(tmp_path, monkeypatch, *, tier: str) -> TestClient:
@@ -33,7 +34,10 @@ def _make_client(tmp_path, monkeypatch, *, tier: str) -> TestClient:
         org_db_path=str(tmp_path / f"org-{tier}.db"),
         scim_db_path=str(tmp_path / f"scim-{tier}.db"),
     )
-    return TestClient(create_app(config))
+    app = create_app(config)
+    if tier and tier != "builder":
+        _apply_validated_license(app.state.proxy, LicenseInfo(status="active", plan=tier))
+    return TestClient(app)
 
 
 def test_team_can_access_team_analytics_but_not_business_or_enterprise_routes(

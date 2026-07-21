@@ -2,13 +2,12 @@
 # Copyright (c) 2025-2026 Cutctx Labs.
 """FastAPI router factory for license validation + Stripe webhook.
 
-Blocker-1: the ``/v1/license/validate|activate|checkout-seat|start-trial|
-check-trial|crl`` and ``/webhooks/stripe`` routes were previously
-unauthenticated. License endpoints now require admin auth + the
-``license.write`` RBAC permission. The Stripe webhook is
-authenticated via ``STRIPE_WEBHOOK_SECRET`` (HMAC signature check),
-not via the admin API key, so the admin auth dependency is NOT
-applied to it.
+Blocker-1: the license-management routes were previously unauthenticated.
+Mutation and administrative read endpoints now require admin auth plus the
+``license.write`` RBAC permission. ``/v1/license/validate`` remains public by
+design because the high-entropy license key is the bearer credential used for
+first activation and cloud validation. The Stripe webhook is authenticated via
+``STRIPE_WEBHOOK_SECRET`` (HMAC signature check), not via the admin API key.
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ import os
 from collections.abc import Callable
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -35,6 +34,10 @@ class CheckoutSeatRequest(BaseModel):
     lease_duration: float = 3600.0
 
 
+class ValidateLicenseRequest(BaseModel):
+    license_key: str
+
+
 class StartTrialRequest(BaseModel):
     trial_token: str
     customer_email: str
@@ -49,9 +52,11 @@ def create_license_validation_router(
     require_admin_auth: Callable[..., Any] | None = None,
     require_rbac_permission: Callable[..., Any] | None = None,
 ) -> APIRouter:
-    """Build the license-validation router with auth dependencies applied
-    to admin-facing endpoints. The Stripe webhook uses its own
-    signature verification and is NOT gated by admin auth.
+    """Build the license-validation router with auth on management endpoints.
+
+    License validation is intentionally public because possession of the
+    high-entropy key is the validation credential. The Stripe webhook uses its
+    own signature verification and is not gated by admin auth.
     """
     router = APIRouter()
 
@@ -64,14 +69,14 @@ def create_license_validation_router(
     if not admin_deps:
         logger.warning(
             "create_license_validation_router built without auth dependencies — "
-            "/v1/license/* will be reachable without auth."
+            "license-management endpoints will be reachable without auth."
         )
 
-    @router.post("/v1/license/validate", dependencies=admin_deps)
+    @router.post("/v1/license/validate")
     async def validate_license(
-        x_license_key: str = Header(..., description="License key to validate"),
+        req: ValidateLicenseRequest,
     ) -> dict:
-        """Validate a license key. Called by the Rust proxy on startup.
+        """Validate a bearer license key. Called by clients on activation.
 
         Security chain:
           1. Try PitchToShip remote verification
@@ -87,13 +92,33 @@ def create_license_validation_router(
             verify_license as pts_verify,
         )
 
-        pts_result = pts_verify(x_license_key, hwid="")
+        license_key = req.license_key
+
+        def normalized_valid_result(result: dict) -> dict:
+            return {
+                "status": result.get("status") or "active",
+                "plan": result.get("plan") or result.get("tier"),
+                **({"org_id": result["org_id"]} if result.get("org_id") else {}),
+                **({"org_name": result["org_name"]} if result.get("org_name") else {}),
+                **({"seats": result["seats"]} if result.get("seats") is not None else {}),
+                **({"expires_at": result["expires_at"]} if result.get("expires_at") else {}),
+                **({"features": result["features"]} if result.get("features") else {}),
+                **({"offline_verified": True} if result.get("offline_verified") else {}),
+            }
+
+        pts_result = pts_verify(license_key, hwid="")
         if pts_result is not None:
-            logger.info("License validated via PitchToShip for key=%s", x_license_key[:8])
-            return pts_result
+            if pts_result.get("valid"):
+                logger.info("License validated via PitchToShip for key=%s", license_key[:8])
+                return normalized_valid_result(pts_result)
+            logger.warning(
+                "PitchToShip definitively rejected license for key=%s",
+                license_key[:8],
+            )
+            raise HTTPException(status_code=403, detail=pts_result)
 
         logger.info("PitchToShip unavailable, attempting local ECDSA verification")
-        signed_token = _get_cached_signed_token(x_license_key)
+        signed_token = _get_cached_signed_token(license_key)
         if signed_token:
             public_key = _get_cached_public_key()
             if public_key:
@@ -101,35 +126,37 @@ def create_license_validation_router(
                 if payload:
                     logger.info(
                         "License validated via local ECDSA for key=%s",
-                        x_license_key[:8],
+                        license_key[:8],
                     )
-                    return {
-                        "valid": True,
-                        "tier": payload.get("tier"),
-                        "features": payload.get("features"),
-                        "expires_at": payload.get("expires_at"),
-                        "offline_verified": True,
-                    }
+                    return normalized_valid_result(
+                        {
+                            "valid": True,
+                            "tier": payload.get("tier"),
+                            "features": payload.get("features"),
+                            "expires_at": payload.get("expires_at"),
+                            "offline_verified": True,
+                        }
+                    )
 
         try:
             from cutctx_ee.billing.license_db import get_license_db
 
             db = get_license_db()
-            result = db.validate(x_license_key)
+            result = db.validate(license_key)
             if not result["valid"]:
                 logger.warning(
                     "License validation failed (all methods) for key=%s",
-                    x_license_key[:8],
+                    license_key[:8],
                 )
                 raise HTTPException(status_code=403, detail=result)
-            logger.info("License validated via local SQLite for key=%s", x_license_key[:8])
-            return result
+            logger.info("License validated via local SQLite for key=%s", license_key[:8])
+            return normalized_valid_result(result)
         except HTTPException:
             raise
         except Exception as e:
             logger.warning(
                 "FAIL CLOSED: All license validation methods failed for key=%s",
-                x_license_key[:8],
+                license_key[:8],
             )
             raise HTTPException(
                 status_code=403, detail={"valid": False, "error": "validation_unavailable"}
@@ -143,7 +170,8 @@ def create_license_validation_router(
         result = db.validate(req.license_key)
         if not result["valid"]:
             raise HTTPException(status_code=403, detail=result)
-        db.activate_instance(req.license_key, req.instance_id)
+        if not db.activate_instance(req.license_key, req.instance_id):
+            raise HTTPException(status_code=409, detail={"error": "activation_rejected"})
         return {"status": "ok"}
 
     @router.get("/v1/license/crl", dependencies=admin_deps)

@@ -445,6 +445,11 @@ class ProxyConfig:
     license_key: str | None = None
     license_cloud_url: str = field(default_factory=lambda: _DEFAULT_LICENSE_API_URL)
     license_report_interval: int = 300
+    # HMAC verifier for signed, user-scoped provider tokens. Required for
+    # paid provider traffic so a seat is associated with a non-spoofable user.
+    user_token_hmac_secret: str | None = field(
+        default_factory=lambda: os.environ.get("CUTCTX_USER_TOKEN_HMAC_SECRET")
+    )
 
     # Entitlement tier (auto-detected from license if set, or manual override).
     # Values: "builder" (free), "team", "business", "enterprise".

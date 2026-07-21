@@ -919,11 +919,11 @@ class CutctxProxy(
         self._turn_counter = 0
 
         # ``cutctx_ee`` is optional, so an OSS install uses a fail-closed
-        # checker instead of failing proxy startup. Built before any
-        # tier-gated component so activation decisions can consult it; a
-        # configured license key re-validates (and can override) this tier
-        # during startup().
-        self.entitlement_checker = _load_entitlement_checker(config.entitlement_tier)
+        # checker instead of failing proxy startup. A raw configured tier is
+        # never evidence of a commercial entitlement: paid components start
+        # at Builder and can be enabled only after startup validation applies
+        # an active/trial license result.
+        self.entitlement_checker = _load_entitlement_checker(None)
         self.component_init_errors: dict[str, str] = {}
         if config.entitlement_tier and not config.license_key:
             logger.warning(
@@ -2684,6 +2684,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "Authorization",
             "Content-Type",
             "X-Cutctx-Admin-Key",
+            "X-Cutctx-User-Token",
             "X-Request-ID",
             "X-Cutctx-MFA-Code",
             "anthropic-version",

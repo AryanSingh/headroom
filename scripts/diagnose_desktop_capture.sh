@@ -17,10 +17,11 @@ PORT="${CUTCTX_PROXY_PORT:-8787}"
 BASE="http://127.0.0.1:${PORT}"
 SEND_TEST=0
 [[ "${1:-}" == "--send-test" ]] && SEND_TEST=1
-STATS_HEADERS=()
-if [[ -n "${CUTCTX_ADMIN_API_KEY:-}" ]]; then
-  STATS_HEADERS=(-H "x-cutctx-admin-key: ${CUTCTX_ADMIN_API_KEY}")
-fi
+# Keep this array non-empty for macOS's Bash 3.2: with `set -u`, expanding an
+# empty array inside command substitution exits the subshell before curl runs.
+# A blank admin header is equivalent to omitting it and lets us report the real
+# HTTP 401/403 response instead of misdiagnosing it as a connection failure.
+STATS_HEADERS=(-H "x-cutctx-admin-key: ${CUTCTX_ADMIN_API_KEY:-}")
 
 pass() { printf '  \033[32mPASS\033[0m  %s\n' "$1"; }
 warn() { printf '  \033[33mWARN\033[0m  %s\n' "$1"; }
@@ -28,7 +29,7 @@ fail() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; }
 hdr()  { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 hdr "1. Is the cutctx proxy running and reachable on :${PORT}?"
-if curl -fsS --max-time 3 "${BASE}/health" >/dev/null 2>&1; then
+if curl -q -fsS --max-time 3 "${BASE}/health" >/dev/null 2>&1; then
   pass "Proxy responds on ${BASE}/health"
 else
   fail "No proxy on ${BASE}. Start it: cutctx proxy --port ${PORT}"
@@ -39,7 +40,7 @@ hdr "2. Does /stats currently show any recent requests?"
 STATS_FILE="$(mktemp "${TMPDIR:-/tmp}/cutctx-desktop-stats.XXXXXX")"
 trap 'rm -f "${STATS_FILE}"' EXIT
 STATS_HTTP_STATUS="$(
-  curl -sS --max-time 5 "${STATS_HEADERS[@]}" \
+  curl -q -sS --max-time 5 "${STATS_HEADERS[@]}" \
     -o "${STATS_FILE}" -w '%{http_code}' "${BASE}/stats" 2>/dev/null
 )"
 STATS_CURL_STATUS=$?
@@ -122,15 +123,15 @@ fi
 if [[ "${SEND_TEST}" == "1" ]]; then
   hdr "5. Sending one test request THROUGH the proxy to confirm capture + logging"
   if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
-    BEFORE="$(curl -fsS "${STATS_HEADERS[@]}" "${BASE}/stats" | python3 -c 'import sys,json;print(len((json.load(sys.stdin) or {}).get("recent_requests") or []))' 2>/dev/null || echo 0)"
-    curl -fsS --max-time 30 "${BASE}/v1/messages" \
+    BEFORE="$(curl -q -fsS "${STATS_HEADERS[@]}" "${BASE}/stats" | python3 -c 'import sys,json;print(len((json.load(sys.stdin) or {}).get("recent_requests") or []))' 2>/dev/null || echo 0)"
+    curl -q -fsS --max-time 30 "${BASE}/v1/messages" \
       -H "x-api-key: ${ANTHROPIC_API_KEY}" \
       -H "anthropic-version: 2023-06-01" \
       -H "content-type: application/json" \
       -d '{"model":"claude-3-5-haiku-latest","max_tokens":8,"messages":[{"role":"user","content":"ping"}]}' \
       >/dev/null 2>&1 && pass "Test request sent." || warn "Test request failed (check key / model)."
     sleep 1
-    AFTER="$(curl -fsS "${STATS_HEADERS[@]}" "${BASE}/stats" | python3 -c 'import sys,json;print(len((json.load(sys.stdin) or {}).get("recent_requests") or []))' 2>/dev/null || echo 0)"
+    AFTER="$(curl -q -fsS "${STATS_HEADERS[@]}" "${BASE}/stats" | python3 -c 'import sys,json;print(len((json.load(sys.stdin) or {}).get("recent_requests") or []))' 2>/dev/null || echo 0)"
     if [[ "${AFTER}" -gt "${BEFORE}" ]]; then
       pass "recent_requests grew ${BEFORE} -> ${AFTER}: capture + logging + display WORK end-to-end."
     else
