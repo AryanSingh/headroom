@@ -34,7 +34,7 @@ def verify_user_token(token: str, secret: str, license_key: str) -> str:
             raise UserTokenError("token subject is missing")
         if payload.get("license_key") != license_key:
             raise UserTokenError("token is not issued for this license")
-        if not isinstance(payload.get("exp"), (int, float)) or payload["exp"] <= time.time():
+        if not isinstance(payload.get("exp"), int | float) or payload["exp"] <= time.time():
             raise UserTokenError("token is expired")
         return subject
     except UserTokenError:

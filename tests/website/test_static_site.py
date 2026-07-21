@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 PUBLIC_PAGES = [
     Path("website/index.html"),
     Path("website/routing/index.html"),
