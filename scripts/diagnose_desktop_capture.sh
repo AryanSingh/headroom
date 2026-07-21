@@ -44,18 +44,28 @@ STATS_HTTP_STATUS="$(
 )"
 STATS_CURL_STATUS=$?
 STATS="$(<"${STATS_FILE}")"
+STATS_VALID=0
 if [[ "${STATS_CURL_STATUS}" -ne 0 ]]; then
   fail "Could not connect to ${BASE}/stats (curl exit ${STATS_CURL_STATUS})."
 elif [[ "${STATS_HTTP_STATUS}" == 2* ]]; then
-  COUNT="$(printf '%s' "${STATS}" | python3 -c 'import sys,json;print(len((json.load(sys.stdin) or {}).get("recent_requests") or []))' 2>/dev/null || echo "?")"
-  if [[ "${COUNT}" == "0" ]]; then
-    warn "/stats reachable but recent_requests is EMPTY — nothing has been captured yet."
+  if COUNT="$(printf '%s' "${STATS}" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+if not isinstance(d, dict) or not isinstance(d.get("recent_requests"), list):
+    raise SystemExit(1)
+print(len(d["recent_requests"]))' 2>/dev/null)"; then
+    STATS_VALID=1
+    if [[ "${COUNT}" == "0" ]]; then
+      warn "/stats reachable but recent_requests is EMPTY — nothing has been captured yet."
+    else
+      pass "/stats shows ${COUNT} recent request(s)."
+      printf '%s' "${STATS}" | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+for r in d["recent_requests"][-3:]:
+    if isinstance(r, dict):
+        print("        last:", r.get("timestamp"), r.get("provider"), r.get("model"))' 2>/dev/null
+    fi
   else
-    pass "/stats shows ${COUNT} recent request(s)."
-    printf '%s' "${STATS}" | python3 -c 'import sys,json
-d=json.load(sys.stdin) or {}
-for r in (d.get("recent_requests") or [])[-3:]:
-    print("        last:", r.get("timestamp"), r.get("provider"), r.get("model"))' 2>/dev/null
+    fail "/stats response is not valid stats JSON (expected a recent_requests list)."
   fi
 else
   fail "/stats returned HTTP ${STATS_HTTP_STATUS}."
@@ -72,7 +82,14 @@ LOGHINT="$(printf '%s' "${STATS}" | python3 -c 'import sys,json;d=json.load(sys.
 if [[ "${LOGHINT}" == "False" ]]; then
   fail "log_requests is disabled. Restart proxy WITHOUT --no-request-logging."
 elif [[ "${LOGHINT}" == "unknown" ]]; then
-  warn "Could not determine whether request logging is enabled because /stats was unavailable."
+  if [[ "${STATS_VALID}" -eq 1 ]]; then
+    warn "/stats does not expose log_requests in this build; request history is reachable,"
+    warn "but file-backed versus memory-only logging cannot be determined from this endpoint."
+  elif [[ "${STATS_CURL_STATUS}" -eq 0 && "${STATS_HTTP_STATUS}" == 2* ]]; then
+    warn "Could not determine whether request logging is enabled because /stats was invalid."
+  else
+    warn "Could not determine whether request logging is enabled because /stats was unavailable."
+  fi
 else
   pass "Request logging appears enabled (log_requests=${LOGHINT})."
 fi

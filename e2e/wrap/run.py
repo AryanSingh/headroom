@@ -977,6 +977,7 @@ def main() -> None:
                 "HOME": str(home_dir),
                 "PATH": f"{shim_dir}{os.pathsep}{base_env['PATH']}",
                 "CUTCTX_E2E_LOG_DIR": str(log_dir),
+                "CUTCTX_API_KEY": "test-client-key",
                 "CUTCTX_ADMIN_API_KEY": "test-key",
                 "OPENAI_TARGET_API_URL": "http://127.0.0.1:19001/v1",
             }
