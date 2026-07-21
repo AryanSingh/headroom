@@ -90,7 +90,7 @@ def test_sitemap_includes_all_cutctx_public_destinations():
 
 - [ ] **Step 3: Run the focused suite to verify failure**
 
-Run: `rtk pytest tests/website/test_static_site.py -q`  
+Run: `rtk pytest tests/website/test_static_site.py -q`
 Expected: FAIL because the routing/integrations pages, font declarations, and routing status copy do not yet exist.
 
 - [ ] **Step 4: Commit the red test contract**
@@ -198,7 +198,7 @@ each footer. Ensure every public page keeps `data-mobile-nav-toggle`,
 
 - [ ] **Step 5: Run the focused suite to verify passing shared contracts**
 
-Run: `rtk pytest tests/website/test_static_site.py -q`  
+Run: `rtk pytest tests/website/test_static_site.py -q`
 Expected: shared-font and shared-navigation assertions pass; page-content assertions not yet implemented may remain failing until their task.
 
 - [ ] **Step 6: Commit the shared visual system**
@@ -243,7 +243,7 @@ def test_homepage_exposes_the_verified_platform_layers():
 
 - [ ] **Step 2: Run only the new homepage tests to verify failure**
 
-Run: `rtk pytest tests/website/test_static_site.py -q`  
+Run: `rtk pytest tests/website/test_static_site.py -q`
 Expected: FAIL because the current homepage remains compression-first.
 
 - [ ] **Step 3: Replace the hero and product-flow markup**
@@ -280,7 +280,7 @@ applied”; never use a savings percentage or a universal routing claim.
 
 - [ ] **Step 5: Run the static suite and inspect the home page locally**
 
-Run: `rtk pytest tests/website/test_static_site.py -q`  
+Run: `rtk pytest tests/website/test_static_site.py -q`
 Expected: PASS for homepage platform/routing contracts.
 
 - [ ] **Step 6: Commit the platform homepage**
@@ -326,7 +326,7 @@ def test_routing_page_describes_safe_retention_and_aliases():
 
 - [ ] **Step 2: Run the targeted static suite to verify failure**
 
-Run: `rtk pytest tests/website/test_static_site.py -q`  
+Run: `rtk pytest tests/website/test_static_site.py -q`
 Expected: FAIL because neither public route exists.
 
 - [ ] **Step 3: Implement `website/routing/index.html`**
@@ -368,7 +368,7 @@ PitchToShip footer disclosure.
 
 - [ ] **Step 6: Run the static suite to verify passing public-route contracts**
 
-Run: `rtk pytest tests/website/test_static_site.py -q`  
+Run: `rtk pytest tests/website/test_static_site.py -q`
 Expected: PASS.
 
 - [ ] **Step 7: Commit the new public destinations**
@@ -418,7 +418,7 @@ def test_security_explains_routing_safety_without_certification_claims():
 
 - [ ] **Step 2: Run the static suite to verify failure**
 
-Run: `rtk pytest tests/website/test_static_site.py -q`  
+Run: `rtk pytest tests/website/test_static_site.py -q`
 Expected: FAIL until navigation and content changes are in place.
 
 - [ ] **Step 3: Add a fifth Docs quick-start step for read-only routing evaluation**
@@ -451,7 +451,7 @@ header/footer navigation so it matches the public site.
 
 - [ ] **Step 6: Run the full static suite**
 
-Run: `rtk pytest tests/website/test_static_site.py -q`  
+Run: `rtk pytest tests/website/test_static_site.py -q`
 Expected: PASS.
 
 - [ ] **Step 7: Commit buyer-journey alignment**

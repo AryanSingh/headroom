@@ -1,7 +1,7 @@
 # CutCtx Platform Evolve Website Design
 
-**Date:** 2026-07-21  
-**Status:** Approved direction; implementation plan pending written-spec review  
+**Date:** 2026-07-21
+**Status:** Approved direction; implementation plan pending written-spec review
 **Scope:** Public website under `website/`, including homepage, pricing, docs,
 security, and new routing/integrations public destinations.
 
