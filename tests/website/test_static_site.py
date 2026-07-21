@@ -132,6 +132,7 @@ def test_public_pages_keep_local_assets_and_semantic_entry_points():
     for page in PUBLIC_PAGES:
         html = page.read_text(encoding="utf-8")
         assert 'href="/assets/site.css"' in html
+        assert 'href="/assets/favicon.svg"' in html
         assert 'src="/assets/site.js"' in html
         assert "fonts.googleapis.com" not in html
         assert "fonts.gstatic.com" not in html
@@ -139,10 +140,17 @@ def test_public_pages_keep_local_assets_and_semantic_entry_points():
         assert 'id="main-content"' in html
 
 
+def test_local_favicon_is_present():
+    favicon = Path("website/assets/favicon.svg")
+    assert favicon.exists()
+    assert "<svg" in favicon.read_text(encoding="utf-8")
+
+
 def test_stylesheet_defines_responsive_accessible_contracts():
     css = read_page("website/assets/site.css")
     assert "prefers-reduced-motion: reduce" in css
     assert "min-height: 2.75rem" in css
+    assert "min-height: 2.8rem" in css
     assert ".hero-split" in css
     assert ".product-flow" in css
     assert ".process-grid" in css

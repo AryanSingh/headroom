@@ -141,7 +141,7 @@ h1, h2, h3, p { text-wrap: pretty; }
 }
 
 .button {
-  min-height: 2.75rem;
+  min-height: 2.8rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
