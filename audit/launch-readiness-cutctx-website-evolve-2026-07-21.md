@@ -2,20 +2,20 @@
 
 **Date:** 2026-07-21
 **Scope:** Public marketing, pricing, onboarding, security, and legal routes at `cutctx.com`
-**Website implementation commit:** `25688854e31ccbbaae9e4190f47483e754123727`
+**Website implementation commit:** `ac702334`
 **Deployment path:** GitHub `AryanSingh/headroom` `main` → existing Cloudflare Pages project `cutctx-web` → `website/`
-**Recommendation:** **GO TO DEPLOY**, with live acceptance verification required before final sign-off
+**Recommendation:** **FINAL GO**
 
 ## Executive sign-off
 
-The candidate is ready to push to the existing Cloudflare Pages deployment.
+The candidate is deployed through the existing Cloudflare Pages deployment.
 The public site has a complete conversion journey, responsive implementation,
 truthful product framing, preserved PitchToShip commerce links, visible legal
 disclosure, a low-friction quick start, and a clear security boundary.
 
-Final production sign-off requires the post-push checks in this report. The
-release must be treated as deployed-but-unverified until the Cloudflare build
-commit and live routes are confirmed.
+Production sign-off is complete. The Cloudflare deployment, live routes,
+responsive presentation, commerce destinations, legal disclosure, and
+canonical-domain behavior have been verified.
 
 ## Feature completeness
 
@@ -92,6 +92,13 @@ commit and live routes are confirmed.
 - Pricing mobile CTA heights measured approximately `44.8px` after the touch
   target correction.
 - No browser console warnings or errors were observed on the reviewed routes.
+- Live HTTPS acceptance passed for `/`, `/pricing/`, `/docs/`, `/security/`,
+  `/terms/`, `/privacy/`, and `/refunds/` after the production deployment.
+- `www.cutctx.com` now returns a permanent `301` to the matching apex path and
+  preserves the query string; `https://www.cutctx.com/docs/?x=1` redirects to
+  `https://cutctx.com/docs/?x=1`.
+- Cloudflare Rules shows one active Redirect Rule, using the standard
+  `Redirect from WWW to root [Template]` wildcard action.
 - SSH host `github-personal` resolves to GitHub with
   `~/.ssh/id_ed25519_personal` and authenticated as `AryanSingh`.
 
@@ -109,7 +116,7 @@ commit and live routes are confirmed.
 
 ## Post-push production acceptance
 
-The release receives final **GO** only after all items below pass:
+The release received final **GO** after all items below passed:
 
 1. Cloudflare Pages shows a successful production deployment sourced from the
    final `main` commit.
@@ -125,9 +132,9 @@ The release receives final **GO** only after all items below pass:
 
 ## Go/no-go decision
 
-**Current decision: GO TO DEPLOY.** The candidate is sign-off ready for the
-existing automated deployment path. The only release condition is successful
-live acceptance after Cloudflare builds the pushed `main` commit.
+**Current decision: FINAL GO.** The evolved site is live from `main`, the
+production acceptance checklist is complete, and the canonical-domain rule is
+active. No unrelated Cloudflare resource was changed.
 
 The lack of a production analytics collector is a growth-measurement limitation,
 not a safety or correctness blocker for this static visual release.
