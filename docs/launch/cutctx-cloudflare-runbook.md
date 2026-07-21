@@ -24,6 +24,18 @@ supply and approve all of the following:
 Do not publish a public legal route or direct checkout button until every value
 has been supplied and approved by the owner.
 
+## Approved public legal details
+
+- Legal entity: `PITCHTOSHIP (OPC) PRIVATE LIMITED`.
+- Business address: Panch M Corp, Tola, V.C. Lane, Muzaffarpur, Bihar 842002,
+  India.
+- Public legal, privacy, billing, and support contact: `hello@aoexl.com`.
+- Refund policy: a 14-day money-back guarantee for the first self-service paid
+  purchase; renewals, partial billing periods, custom work, and completed
+  services are non-refundable except where required by law.
+- Governing law: India; courts in Muzaffarpur, Bihar, India.
+- Legal-page effective date: 21 July 2026.
+
 ## Cloudflare zone
 
 1. In the existing Cloudflare account, add `cutctx.com` as a new zone.
