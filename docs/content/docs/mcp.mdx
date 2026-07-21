@@ -1,9 +1,9 @@
 ---
 title: MCP Tools
-description: Compression, retrieval, and stats as MCP tools for Claude Code, Cursor, and any MCP-compatible host.
+description: Compression, retrieval, and stats as MCP tools for Claude Code, the Claude Desktop app, Cursor, and any MCP-compatible host.
 ---
 
-Cutctx's MCP server exposes compression, retrieval, and observability as tools that any MCP-compatible AI coding tool can call -- Claude Code, Cursor, Codex, and more. No proxy required.
+Cutctx's MCP server exposes compression, retrieval, and observability as tools that any MCP-compatible AI coding tool can call -- Claude Code, the Claude Desktop app, Cursor, Codex, and more. No proxy required.
 
 ## Installation
 
@@ -159,6 +159,7 @@ Do not assume that a running proxy exposes an HTTP MCP endpoint at `/mcp`. If `h
 | Tool | MCP Support | Setup |
 |------|-------------|-------|
 | Claude Code | Native | `cutctx mcp install` |
+| Claude Desktop app | Native | `cutctx mcp install` · `--gateway` auto-compresses MCP tool outputs |
 | Cursor | Supported | Add to Cursor MCP settings |
 | Codex | If supported | Configure MCP server |
 | Any MCP host | Yes | Point to `cutctx mcp serve` |

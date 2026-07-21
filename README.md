@@ -186,17 +186,18 @@ conservative defaults.
 
 ## Agent compatibility matrix
 
-| Agent       | `cutctx wrap` | Notes                            |
-|-------------|:---------------:|----------------------------------|
-| Claude Code | ✅              | `--memory` · `--code-graph`      |
-| Codex       | ✅              | shares memory with Claude        |
-| Cursor      | ✅              | prints config — paste once       |
-| Aider       | ✅              | starts proxy + launches          |
-| Copilot CLI | ✅              | starts proxy + launches          |
-| OpenClaw    | ✅              | installs as ContextEngine plugin |
-| Antigravity | ✅              | Google VS Code fork · `.antigravityrules` |
+| Agent            | `cutctx wrap` | Notes                            |
+|------------------|:---------------:|----------------------------------|
+| Claude Code      | ✅              | `--memory` · `--code-graph`      |
+| Codex            | ✅              | shares memory with Claude        |
+| Cursor           | ✅              | prints config — paste once       |
+| Aider            | ✅              | starts proxy + launches          |
+| Copilot CLI      | ✅              | starts proxy + launches          |
+| OpenClaw         | ✅              | installs as ContextEngine plugin |
+| Antigravity      | ✅              | Google VS Code fork · `.antigravityrules` |
+| Claude Desktop   | —               | `mcp install` · `--gateway` compresses MCP tool outputs |
 
-Any OpenAI-compatible client works via `cutctx proxy`. MCP-native: `cutctx mcp install`.
+Any OpenAI-compatible client works via `cutctx proxy`. MCP-native: `cutctx mcp install` — registers the Cutctx MCP server with Claude Code, the **Claude Desktop app**, and Codex in one shot. Desktop's model endpoint can't be proxied, so `cutctx mcp install --gateway` interposes at the MCP layer instead: every tool result from Desktop's other MCP servers is compressed by `cutctx mcp gateway` before it reaches context.
 
 ### GitHub Copilot CLI subscription mode
 

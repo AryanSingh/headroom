@@ -130,3 +130,63 @@ def _cleanup_cutctx_logger():
         if "RotatingFile" in type(handler).__name__:
             cutctx_logger.removeHandler(handler)
             handler.close()
+
+
+# ---------------------------------------------------------------------------
+# Playwright browser availability guard
+#
+# The browser-based dashboard/docs tests use ``pytest.importorskip`` to skip
+# when the *playwright package* is missing — but that does not cover the far
+# more common case where the package is installed yet the browser binary is
+# not (fresh checkout, CI without `playwright install`, contributor machines).
+# There ``chromium.launch()`` raises a hard error and the whole test turns red
+# for a purely environmental reason. This hook detects the browser binary once
+# and, when absent, converts those failures into explicit skips. Where the
+# browser IS installed, the tests run normally and full coverage is preserved.
+# ---------------------------------------------------------------------------
+import functools as _functools  # noqa: E402
+import os as _os  # noqa: E402
+import types as _types  # noqa: E402
+
+import pytest as _pytest  # noqa: E402
+
+
+@_functools.lru_cache(maxsize=1)
+def _chromium_browser_available() -> bool:
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        return False
+    try:
+        with sync_playwright() as pw:
+            path = pw.chromium.executable_path
+        return bool(path) and _os.path.exists(path)
+    except Exception:
+        return False
+
+
+def _module_uses_playwright(module: object) -> bool:
+    """True if a test module bound the playwright package at import time.
+
+    Every browser test does ``x = pytest.importorskip("playwright.sync_api")``,
+    binding the playwright module under some name; detect that regardless of
+    the chosen variable name.
+    """
+    for value in vars(module).values():
+        if isinstance(value, _types.ModuleType) and getattr(
+            value, "__name__", ""
+        ).startswith("playwright"):
+            return True
+    return False
+
+
+def pytest_collection_modifyitems(config, items):
+    if _chromium_browser_available():
+        return
+    skip_no_browser = _pytest.mark.skip(
+        reason="Playwright chromium browser not installed; run `playwright install chromium`"
+    )
+    for item in items:
+        module = getattr(item, "module", None)
+        if module is not None and _module_uses_playwright(module):
+            item.add_marker(skip_no_browser)

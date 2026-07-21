@@ -250,11 +250,17 @@ class TestWorkerConfiguration:
         from cutctx.proxy.server import _MULTI_WORKER_CONFIG_ENV, run_server
 
         captured = {}
+        # A non-loopback host (0.0.0.0) trips require_secure_deployment unless
+        # the full client-auth trio is configured. This test exercises the
+        # multi-worker import-string path, not security, so supply the keys a
+        # real network-facing deployment would set.
         config = ProxyConfig(
             host="0.0.0.0",
             port=8787,
             max_connections=200,
+            admin_api_key="test-admin-key",
             proxy_api_key="test-proxy-key",
+            client_api_key="test-client-key",
         )
 
         def fake_run(app, **kwargs):

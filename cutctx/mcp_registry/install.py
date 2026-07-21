@@ -7,6 +7,7 @@ from collections.abc import Iterable
 
 from .base import MCPRegistrar, RegisterResult, RegisterStatus, ServerSpec
 from .claude import ClaudeRegistrar
+from .claude_desktop import ClaudeDesktopRegistrar
 from .codex import CodexRegistrar
 
 #: Default proxy URL used when none is given.
@@ -18,7 +19,7 @@ def get_all_registrars() -> list[MCPRegistrar]:
 
     The list grows as we add adapters for Cursor, Continue, Cline, etc.
     """
-    return [ClaudeRegistrar(), CodexRegistrar()]
+    return [ClaudeRegistrar(), ClaudeDesktopRegistrar(), CodexRegistrar()]
 
 
 def _resolve_cutctx_command() -> str:

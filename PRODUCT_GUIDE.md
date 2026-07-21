@@ -224,7 +224,7 @@ const result = await compress(messages, { model: 'claude-sonnet-4-5' });
 cutctx mcp install && claude
 ```
 
-Installs three MCP tools into Claude Code: `cutctx_compress`, `cutctx_retrieve`, `cutctx_stats`. The agent can call them directly.
+Installs three MCP tools into Claude Code: `cutctx_compress`, `cutctx_retrieve`, `cutctx_stats`. The agent can call them directly. `cutctx mcp install` also configures the Claude Desktop app, and `--gateway` transparently compresses Desktop's MCP tool outputs (its model endpoint can't be proxied).
 
 ### Docker / Kubernetes
 
@@ -262,6 +262,7 @@ Requires `CUTCTX_LICENSE_HMAC_SECRET` to be set. Models pre-downloaded via `HF_H
 | Agent | `cutctx wrap` | Notes |
 |---|:---:|---|
 | Claude Code | ✅ | `--memory` · `--code-graph` |
+| Claude Desktop | — | `mcp install` · `--gateway` compresses MCP tool outputs |
 | OpenAI Codex CLI | ✅ | Shares memory with Claude |
 | Cursor | ✅ | Prints config snippet — paste once |
 | Aider | ✅ | Starts proxy + launches |

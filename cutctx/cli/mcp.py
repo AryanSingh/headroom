@@ -109,7 +109,15 @@ def mcp() -> None:
     is_flag=True,
     help="Overwrite existing Cutctx config in case of mismatch.",
 )
-def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool) -> None:
+@click.option(
+    "--gateway",
+    is_flag=True,
+    help=(
+        "Also route the Claude Desktop app's other MCP servers through "
+        "`cutctx mcp gateway` so their tool outputs are compressed automatically."
+    ),
+)
+def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool, gateway: bool) -> None:
     """Install the Cutctx MCP server into every detected coding agent.
 
     \b
@@ -122,6 +130,8 @@ def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool) -> None:
     Examples:
         cutctx mcp install                              # every detected agent
         cutctx mcp install --agent claude               # Claude Code only
+        cutctx mcp install --agent claude-desktop       # Claude Desktop app only
+        cutctx mcp install --gateway                    # + compress Desktop MCP traffic
         cutctx mcp install --proxy-url http://localhost:9000
     """
     try:
@@ -154,11 +164,71 @@ def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool) -> None:
     if not any_succeeded(results):
         raise SystemExit(1)
 
+    if gateway:
+        from cutctx.mcp_registry.claude_desktop import ClaudeDesktopRegistrar
+
+        desktop = ClaudeDesktopRegistrar()
+        if desktop.detect():
+            click.echo("\nRouting Claude Desktop MCP servers through the gateway...")
+            statuses = desktop.wrap_servers_with_gateway()
+            for server, status in statuses.items():
+                click.echo(f"  {server}: {status}")
+            if desktop.last_backup_path is not None:
+                click.echo(f"  (backed up config to {desktop.last_backup_path})")
+            click.echo("  Restart Claude Desktop for the gateway to take effect.")
+        else:
+            click.echo("\n--gateway: Claude Desktop not detected; nothing to wrap.")
+
     click.echo(
         f"\nNext steps:\n"
         f"  1. Start the Cutctx proxy (if not running): cutctx proxy\n"
         f"  2. Start your agent (e.g.) ANTHROPIC_BASE_URL={proxy_url} claude\n"
         f"  3. Restart any agent that was already running so it picks up the new MCP server.\n"
+    )
+
+
+@mcp.command("gateway", context_settings={"ignore_unknown_options": True})
+@click.option("--name", default=None, help="Label for log lines (defaults to the command).")
+@click.option(
+    "--min-chars",
+    default=None,
+    type=int,
+    help="Only compress text blocks at least this long (default: 2000).",
+)
+@click.argument("command", nargs=-1, type=click.UNPROCESSED, required=True)
+def mcp_gateway(name: str | None, min_chars: int | None, command: tuple[str, ...]) -> None:
+    """Run an MCP server through the Cutctx compression gateway.
+
+    \b
+    Transparent stdio proxy: spawns COMMAND, relays JSON-RPC verbatim, but
+    compresses large tools/call results before they reach the host's model
+    context. Originals stay retrievable via cutctx_retrieve.
+
+    \b
+    Built for hosts whose model endpoint can't be proxied (Claude Desktop):
+        cutctx mcp gateway --name slack -- npx -y slack-mcp-server
+    Or wrap every Desktop server in one shot:
+        cutctx mcp install --gateway
+    """
+    import asyncio
+
+    from cutctx.mcp_gateway import DEFAULT_MIN_CHARS, run_gateway
+
+    args = list(command)
+    if args and args[0] == "--":
+        args = args[1:]
+    if not args:
+        click.echo("Error: no upstream command given.", err=True)
+        raise SystemExit(2)
+
+    raise SystemExit(
+        asyncio.run(
+            run_gateway(
+                args,
+                name=name,
+                min_chars=min_chars if min_chars is not None else DEFAULT_MIN_CHARS,
+            )
+        )
     )
 
 
@@ -209,6 +279,19 @@ def mcp_uninstall() -> None:
             if cbm_rm.returncode == 0:
                 click.echo("✓ codebase-memory-mcp MCP server removed")
                 removed = True
+
+    # Also remove from the Claude Desktop app config if present
+    from cutctx.mcp_registry.claude_desktop import ClaudeDesktopRegistrar
+
+    desktop = ClaudeDesktopRegistrar()
+    if desktop.detect():
+        restored = desktop.unwrap_gateway_servers()
+        if restored:
+            click.echo(f"✓ Gateway removed from Claude Desktop servers: {', '.join(restored)}")
+            removed = True
+        if desktop.unregister_server("cutctx"):
+            click.echo("✓ Cutctx MCP server removed from Claude Desktop (restart the app)")
+            removed = True
 
     # Also remove from mcp.json fallback config if present
     if MCP_CONFIG_PATH.exists():

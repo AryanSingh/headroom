@@ -28,7 +28,7 @@ The canonical, always-current documentation index lives at the docs site below. 
 - [Quickstart](docs/content/docs/quickstart.mdx): 5-minute end-to-end (install → compress → call the model).
 - [Installation](docs/content/docs/installation.mdx): All install paths, extras, Docker tags, env vars.
 - [Proxy server](docs/content/docs/proxy.mdx): Run as a local HTTP proxy in front of OpenAI / Anthropic / Gemini.
-- [MCP server](docs/content/docs/mcp.mdx): `cutctx_compress`, `cutctx_retrieve`, `cutctx_stats` for Claude Code / Cursor / any MCP host.
+- [MCP server](docs/content/docs/mcp.mdx): `cutctx_compress`, `cutctx_retrieve`, `cutctx_stats` for Claude Code / Claude Desktop app / Cursor / any MCP host.
 - [API reference](docs/content/docs/api-reference.mdx): Python + TypeScript `compress()` API.
 
 ## How it works
