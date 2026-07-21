@@ -43,3 +43,18 @@ def test_pricing_routes_to_pitchtoship_without_payment_secrets():
     assert "https://pitchtoship.com/billing?product=cutctx&amp;plan=studio&amp;billing=monthly" in pricing
     assert "Razorpay" not in pricing
     assert "RAZORPAY_" not in pricing
+
+
+def test_docs_provides_a_fast_evaluation_path():
+    docs = Path("website/docs/index.html").read_text(encoding="utf-8")
+    assert "pip install" in docs
+    assert "cutctx wrap" in docs
+    assert "cutctx savings report" in docs
+
+
+def test_security_page_makes_only_supported_claims():
+    security = Path("website/security/index.html").read_text(encoding="utf-8")
+    assert "local-first" in security.lower()
+    assert "customer-managed local storage" in security.lower()
+    assert "SOC 2" not in security
+    assert "HIPAA compliant" not in security
