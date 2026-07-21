@@ -4,15 +4,20 @@
 
   if (toggle && nav) {
     toggle.addEventListener("click", () => {
-      const isOpen = nav.dataset.open === "true";
-      nav.dataset.open = String(!isOpen);
-      toggle.setAttribute("aria-expanded", String(!isOpen));
+      const nextOpen = nav.dataset.open !== "true";
+      nav.dataset.open = String(nextOpen);
+      toggle.setAttribute("aria-expanded", String(nextOpen));
     });
   }
 
   document.querySelectorAll("[data-cta]").forEach((element) => {
     element.addEventListener("click", () => {
-      window.dispatchEvent(new CustomEvent("cutctx:cta", { detail: { action: element.dataset.cta } }));
+      window.dispatchEvent(new CustomEvent("cutctx:cta", {
+        detail: {
+          action: element.dataset.cta,
+          placement: element.dataset.ctaPlacement || "unspecified",
+        },
+      }));
     });
   });
 })();
