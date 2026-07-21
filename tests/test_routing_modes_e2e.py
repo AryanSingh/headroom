@@ -16,9 +16,12 @@ from __future__ import annotations
 
 import pytest
 
+from cutctx.orchestration.registry import DynamicModelRegistry
 from cutctx.proxy.model_router import (
     ModelRouter,
     ModelRouterConfig,
+    TaskComplexity,
+    classify_task_complexity,
     model_routing_preset_for_mode,
     normalize_model_routing_mode,
     prepare_model_routing,
@@ -28,11 +31,7 @@ SIMPLE = [{"role": "user", "content": "hi, what's 2+2?"}]
 COMPLEX = [
     {
         "role": "user",
-        "content": (
-            "Design a Byzantine-fault-tolerant distributed consensus protocol; "
-            "prove safety and liveness, analyze CAP trade-offs, and compare Raft, "
-            "Paxos, and HotStuff in depth with failure scenarios. " * 6
-        ),
+        "content": "Implement model routing in the proxy and test it end to end.",
     }
 ]
 
@@ -51,7 +50,14 @@ def _router_for(mode: str):
     preset = model_routing_preset_for_mode(normalize_model_routing_mode(mode))
     if preset is None:
         return None
-    return ModelRouter(config=ModelRouterConfig.from_preset_name(preset))
+    # The runtime proxy binds the orchestration model registry immediately
+    # after constructing its router. Keep this end-to-end harness faithful to
+    # that path so catalog-certified current models are tested rather than the
+    # stale explicit-route compatibility fallback.
+    return ModelRouter(
+        config=ModelRouterConfig.from_preset_name(preset),
+        registry=DynamicModelRegistry(),
+    )
 
 
 def _route(mode: str, model: str, messages):
@@ -80,8 +86,8 @@ def test_off_never_downgrades():
 def test_simple_request_downgrades_to_cheaper_model(mode):
     routed, reason = _route(mode, "claude-opus-4-5", SIMPLE)
     assert routed != "claude-opus-4-5", f"{mode}: simple opus request was not downgraded"
-    assert routed == "claude-sonnet-4-5"
-    assert reason in {"downgrade_applied", "catalog_candidate_selected"}
+    assert routed == "claude-haiku-4-5"
+    assert reason == "catalog_candidate_selected"
 
 
 @pytest.mark.parametrize("mode", ["balanced", "aggressive"])
@@ -94,6 +100,7 @@ def test_sonnet_simple_request_downgrades_to_haiku(mode):
 def test_complex_request_stays_on_requested_model(mode):
     """Intelligent routing must NOT send hard tasks to a weaker model,
     even in aggressive mode."""
+    assert classify_task_complexity(COMPLEX) == TaskComplexity.HIGH
     routed, reason = _route(mode, "claude-opus-4-5", COMPLEX)
     assert routed == "claude-opus-4-5", f"{mode}: complex request wrongly downgraded to {routed}"
     assert reason == "workload_not_downgradeable"
