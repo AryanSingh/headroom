@@ -93,9 +93,7 @@ def normalize_proxy_origin(proxy_url: str) -> str:
 
     scheme = parsed.scheme.lower()
     if scheme not in {"http", "https"} or not parsed.hostname:
-        raise ClientCredentialConfigError(
-            "Proxy URL must be an absolute HTTP(S) URL."
-        )
+        raise ClientCredentialConfigError("Proxy URL must be an absolute HTTP(S) URL.")
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ClientCredentialConfigError(
             "Proxy URL must not contain user info, query credentials, or fragments."
@@ -119,23 +117,15 @@ def _default_keyring_backend() -> object:
         import keyring
 
         backend = keyring.get_keyring()
-        backend_name = (
-            f"{type(backend).__module__}.{type(backend).__qualname__}"
-        ).lower()
+        backend_name = (f"{type(backend).__module__}.{type(backend).__qualname__}").lower()
         priority = float(getattr(backend, "priority", 0))
-        if priority <= 0 or any(
-            marker in backend_name for marker in _INSECURE_BACKEND_MARKERS
-        ):
-            raise ClientCredentialStoreError(
-                "A secure OS credential store is unavailable."
-            )
+        if priority <= 0 or any(marker in backend_name for marker in _INSECURE_BACKEND_MARKERS):
+            raise ClientCredentialStoreError("A secure OS credential store is unavailable.")
         return keyring
     except ClientCredentialStoreError:
         raise
     except Exception:
-        raise ClientCredentialStoreError(
-            "A secure OS credential store is unavailable."
-        ) from None
+        raise ClientCredentialStoreError("A secure OS credential store is unavailable.") from None
 
 
 class KeyringClientCredentialStore:
@@ -305,9 +295,7 @@ def validate_client_credential(
         payload = {}
 
     if response.status_code == 200:
-        credential_kind = (
-            payload.get("credential_kind") if isinstance(payload, dict) else None
-        )
+        credential_kind = payload.get("credential_kind") if isinstance(payload, dict) else None
         if credential_kind == "admin_compat":
             return ClientCredentialStatus("invalid")
         expires_at = payload.get("expires_at") if isinstance(payload, dict) else None
@@ -318,9 +306,7 @@ def validate_client_credential(
     if response.status_code in {401, 403}:
         error = payload.get("error", {}) if isinstance(payload, dict) else {}
         code = error.get("code", "") if isinstance(error, dict) else ""
-        if isinstance(code, str) and (
-            "expired" in code.lower() or "revoked" in code.lower()
-        ):
+        if isinstance(code, str) and ("expired" in code.lower() or "revoked" in code.lower()):
             return ClientCredentialStatus("expired")
         return ClientCredentialStatus("invalid")
     return ClientCredentialStatus("unreachable")

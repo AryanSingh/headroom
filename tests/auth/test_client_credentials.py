@@ -56,10 +56,7 @@ class MemoryStore:
 
 def test_normalize_proxy_origin_is_stable_and_rejects_secret_bearing_urls() -> None:
     assert normalize_proxy_origin("HTTP://LOCALHOST:80/v1/") == "http://localhost"
-    assert (
-        normalize_proxy_origin("https://Proxy.Example:443/api")
-        == "https://proxy.example"
-    )
+    assert normalize_proxy_origin("https://Proxy.Example:443/api") == "https://proxy.example"
     assert normalize_proxy_origin("http://[::1]:8787/v1") == "http://[::1]:8787"
 
     with pytest.raises(ClientCredentialConfigError):

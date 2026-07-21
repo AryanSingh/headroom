@@ -161,12 +161,8 @@ def setup(port: int, auto_detect: bool, start: bool, do_register_mcp: bool) -> N
     except ClientCredentialError:
         click.echo(click.style(" FAILED", fg="red"))
         click.echo("Secure credential storage is unavailable.")
-        click.echo(
-            "Install/configure an OS keyring backend, or set CUTCTX_API_KEY and"
-        )
-        click.echo(
-            "CUTCTX_CLIENT_API_KEY through your CI/container secret manager."
-        )
+        click.echo("Install/configure an OS keyring backend, or set CUTCTX_API_KEY and")
+        click.echo("CUTCTX_CLIENT_API_KEY through your CI/container secret manager.")
         raise click.exceptions.Exit(1) from None
     click.echo(click.style(" Configured", fg="green"))
 

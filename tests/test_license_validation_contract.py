@@ -22,11 +22,15 @@ from cutctx.telemetry.reporter import LicenseInfo, UsageReporter
 
 
 def _user_token(*, subject: str = "user-1") -> str:
-    payload = base64.urlsafe_b64encode(
-        json.dumps(
-            {"sub": subject, "license_key": "license-1", "exp": time.time() + 60}
-        ).encode()
-    ).rstrip(b"=").decode()
+    payload = (
+        base64.urlsafe_b64encode(
+            json.dumps(
+                {"sub": subject, "license_key": "license-1", "exp": time.time() + 60}
+            ).encode()
+        )
+        .rstrip(b"=")
+        .decode()
+    )
     signed = f"ctu1.{payload}"
     return f"{signed}.{hmac.new(b'user-secret', signed.encode(), hashlib.sha256).hexdigest()}"
 

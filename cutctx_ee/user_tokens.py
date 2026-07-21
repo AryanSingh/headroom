@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
 """Verification for Cutctx user-scoped provider tokens."""
+
 from __future__ import annotations
 
 import base64

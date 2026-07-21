@@ -69,7 +69,9 @@ class _Collector:
 
 
 def _fake_compress(_: str) -> CompressedText:
-    return CompressedText(text="<z>", hash="deadbeefcafe0000", original_tokens=1500, compressed_tokens=90)
+    return CompressedText(
+        text="<z>", hash="deadbeefcafe0000", original_tokens=1500, compressed_tokens=90
+    )
 
 
 def _server(tmp_path: Path, body: str, name: str = "srv.py") -> str:
@@ -78,7 +80,9 @@ def _server(tmp_path: Path, body: str, name: str = "srv.py") -> str:
     return str(path)
 
 
-async def _drive(gateway: MCPGateway, inputs: list[bytes], *, timeout: float = 10.0) -> tuple[int, _Collector]:
+async def _drive(
+    gateway: MCPGateway, inputs: list[bytes], *, timeout: float = 10.0
+) -> tuple[int, _Collector]:
     """Run the gateway, feed ``inputs``, then close stdin and await exit."""
     r_fd, w_fd = os.pipe()
     stdin = os.fdopen(r_fd, "rb", buffering=0)
@@ -106,7 +110,9 @@ def test_relay_compresses_and_exits_cleanly(tmp_path: Path) -> None:
             gw,
             [
                 _frame({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
-                _frame({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "big"}}),
+                _frame(
+                    {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "big"}}
+                ),
             ],
         )
 

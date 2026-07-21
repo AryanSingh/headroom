@@ -119,9 +119,7 @@ def test_proxy_retrieve_uses_client_not_admin_header() -> None:
 
     assert result["hash"] == "abc"
     request = server._http_client.post.await_args
-    assert request.kwargs["headers"] == {
-        "Authorization": "Bearer client-secret"
-    }
+    assert request.kwargs["headers"] == {"Authorization": "Bearer client-secret"}
     assert "x-cutctx-admin-key" not in request.kwargs["headers"]
 
 
@@ -144,6 +142,4 @@ def test_proxy_stats_uses_agent_scoped_endpoint_and_header() -> None:
     assert result == {"store": {"entry_count": 1}}
     request = server._http_client.get.await_args
     assert request.args[0].endswith("/v1/retrieve/stats")
-    assert request.kwargs["headers"] == {
-        "Authorization": "Bearer client-secret"
-    }
+    assert request.kwargs["headers"] == {"Authorization": "Bearer client-secret"}

@@ -73,6 +73,7 @@ def episodic_client(tmp_memory_dir, monkeypatch):
     with TestClient(app) as client:
         yield client
 
+
 @pytest.fixture
 def no_episodic_client():
     """Create a test client with episodic memory disabled."""

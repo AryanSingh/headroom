@@ -173,9 +173,9 @@ def _module_uses_playwright(module: object) -> bool:
     the chosen variable name.
     """
     for value in vars(module).values():
-        if isinstance(value, _types.ModuleType) and getattr(
-            value, "__name__", ""
-        ).startswith("playwright"):
+        if isinstance(value, _types.ModuleType) and getattr(value, "__name__", "").startswith(
+            "playwright"
+        ):
             return True
     return False
 

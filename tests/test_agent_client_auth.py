@@ -107,9 +107,7 @@ def test_admin_key_compatibility_on_agent_route_is_audited_once(
 
     assert first.status_code == 200
     assert second.status_code == 200
-    assert sum(
-        "deprecated_agent_admin_auth" in record.message for record in caplog.records
-    ) == 1
+    assert sum("deprecated_agent_admin_auth" in record.message for record in caplog.records) == 1
 
 
 def test_loopback_remains_open_when_no_client_key_is_configured() -> None:

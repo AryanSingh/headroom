@@ -58,13 +58,9 @@ def _validate_for_persistence(origin: str, key: str) -> None:
     if status.state == "valid":
         return
     if status.state == "expired":
-        raise click.ClickException(
-            f"Cutctx client authentication expired for {origin}."
-        )
+        raise click.ClickException(f"Cutctx client authentication expired for {origin}.")
     if status.state == "unreachable":
-        raise click.ClickException(
-            f"Could not reach the Cutctx client-auth endpoint at {origin}."
-        )
+        raise click.ClickException(f"Could not reach the Cutctx client-auth endpoint at {origin}.")
     raise click.ClickException(f"Cutctx client authentication is invalid for {origin}.")
 
 

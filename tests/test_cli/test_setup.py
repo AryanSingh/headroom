@@ -125,10 +125,7 @@ def test_setup_bootstraps_client_auth_before_proxy_start(monkeypatch) -> None:
     monkeypatch.setattr(
         setup_mod,
         "_start_proxy",
-        lambda port, client_api_key: events.append(
-            ("proxy", port, client_api_key)
-        )
-        or True,
+        lambda port, client_api_key: events.append(("proxy", port, client_api_key)) or True,
     )
 
     result = CliRunner().invoke(setup, ["--no-detect", "--no-mcp"])
@@ -147,9 +144,7 @@ def test_setup_fails_closed_when_secure_store_is_unavailable(monkeypatch) -> Non
     monkeypatch.setattr(
         setup_mod,
         "ensure_local_client_credential",
-        lambda url: (_ for _ in ()).throw(
-            ClientCredentialStoreError("secure store unavailable")
-        ),
+        lambda url: (_ for _ in ()).throw(ClientCredentialStoreError("secure store unavailable")),
         raising=False,
     )
 

@@ -59,9 +59,7 @@ def effective_proxy_key(config: Any) -> str | None:
 def effective_agent_client_key(config: Any) -> str | None:
     """Resolve the least-privilege SDK/MCP client verifier."""
 
-    return getattr(config, "client_api_key", None) or os.environ.get(
-        "CUTCTX_CLIENT_API_KEY"
-    )
+    return getattr(config, "client_api_key", None) or os.environ.get("CUTCTX_CLIENT_API_KEY")
 
 
 def _is_private_literal_upstream(url: str | None) -> bool:

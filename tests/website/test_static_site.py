@@ -66,8 +66,14 @@ def test_homepage_has_product_and_merchant_disclosure():
 
 def test_pricing_routes_to_pitchtoship_without_payment_secrets():
     pricing = Path("website/pricing/index.html").read_text(encoding="utf-8")
-    assert "https://pitchtoship.com/billing?product=cutctx&amp;plan=starter&amp;billing=monthly" in pricing
-    assert "https://pitchtoship.com/billing?product=cutctx&amp;plan=studio&amp;billing=monthly" in pricing
+    assert (
+        "https://pitchtoship.com/billing?product=cutctx&amp;plan=starter&amp;billing=monthly"
+        in pricing
+    )
+    assert (
+        "https://pitchtoship.com/billing?product=cutctx&amp;plan=studio&amp;billing=monthly"
+        in pricing
+    )
     assert "Razorpay" not in pricing
     assert "RAZORPAY_" not in pricing
 

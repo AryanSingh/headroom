@@ -52,9 +52,7 @@ def test_helm_chart_wires_all_non_loopback_auth_boundaries() -> None:
     deployment = (ROOT / "helm" / "cutctx" / "templates" / "deployment.yaml").read_text(
         encoding="utf-8"
     )
-    secret = (ROOT / "helm" / "cutctx" / "templates" / "secret.yaml").read_text(
-        encoding="utf-8"
-    )
+    secret = (ROOT / "helm" / "cutctx" / "templates" / "secret.yaml").read_text(encoding="utf-8")
 
     for value_name, env_name, secret_name in (
         ("adminApiKey", "CUTCTX_ADMIN_API_KEY", "admin-api-key"),

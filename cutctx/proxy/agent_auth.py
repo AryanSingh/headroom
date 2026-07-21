@@ -40,9 +40,7 @@ class AgentAuthIdentity:
 def effective_client_key(config: Any) -> str | None:
     """Resolve the server-side verifier for agent operations."""
 
-    return getattr(config, "client_api_key", None) or os.environ.get(
-        "CUTCTX_CLIENT_API_KEY"
-    )
+    return getattr(config, "client_api_key", None) or os.environ.get("CUTCTX_CLIENT_API_KEY")
 
 
 def _bearer(headers: Any) -> str:
@@ -78,9 +76,7 @@ def require_agent_client(request: Any, config: Any) -> AgentAuthIdentity:
     """Authenticate compression and CCR operations without granting admin."""
 
     expected = effective_client_key(config)
-    supplied = _bearer(request.headers) or str(
-        request.headers.get("x-cutctx-api-key", "")
-    )
+    supplied = _bearer(request.headers) or str(request.headers.get("x-cutctx-api-key", ""))
     if expected and supplied and hmac.compare_digest(supplied, expected):
         return AgentAuthIdentity("client")
 
