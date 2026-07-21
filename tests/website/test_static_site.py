@@ -50,6 +50,12 @@ def test_pricing_routes_to_pitchtoship_without_payment_secrets():
     assert "RAZORPAY_" not in pricing
 
 
+def test_pricing_uses_the_verified_company_contact():
+    pricing = Path("website/pricing/index.html").read_text(encoding="utf-8")
+    assert "hello@aoexl.com" in pricing
+    assert "hello@pitchtoship.com" not in pricing
+
+
 def test_docs_provides_a_fast_evaluation_path():
     docs = Path("website/docs/index.html").read_text(encoding="utf-8")
     assert "pip install" in docs
