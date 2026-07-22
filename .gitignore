@@ -18,6 +18,7 @@ scripts/*
 !scripts/sync-plugin-versions.py
 !scripts/changelog-gen.py
 !scripts/verify-versions.py
+!scripts/verify_pilot_release.py
 !scripts/run_remote_hosted_smoke.py
 !scripts/run_staged_gateway_smoke.py
 !scripts/run_staging_dashboard_smoke.py

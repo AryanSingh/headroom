@@ -7,7 +7,7 @@ MATURIN ?= maturin
 PYTHON ?= python3
 FIXTURES ?= tests/parity/fixtures
 
-.PHONY: help test test-parity bench build-proxy build-wheel build-dashboard build-binary build-cython check-release fmt fmt-check lint clippy clean ci-precheck ci-precheck-rust ci-precheck-python ci-precheck-dashboard ci-precheck-commitlint install-git-hooks verify-rust-core
+.PHONY: help test test-parity bench build-proxy build-wheel build-dashboard build-binary build-cython check-release verify-pilot-release fmt fmt-check lint clippy clean ci-precheck ci-precheck-rust ci-precheck-python ci-precheck-dashboard ci-precheck-commitlint install-git-hooks verify-rust-core
 
 help:
 	@echo "Cutctx Rust targets:"
@@ -202,6 +202,9 @@ check-release:
 	@echo "Phase 4: Capability check"
 	cutctx capabilities || true
 	@echo "── check-release complete ───────────────────────────────────────────"
+
+verify-pilot-release:
+	uv run python scripts/verify_pilot_release.py --output audit/pilot-verification.json
 
 # ─── Protected distribution ────────────────────────────────────────────────
 #
