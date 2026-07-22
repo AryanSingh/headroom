@@ -67,6 +67,7 @@ jobs:
               - 'e2e/**'
               - 'scripts/install*'
               - 'pyproject.toml'
+              - '.github/workflows/ci.yml'
             workflows:
               - '.github/workflows/**'
 
