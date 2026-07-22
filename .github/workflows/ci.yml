@@ -174,7 +174,7 @@ jobs:
           fi
       - name: Verify and package offline model cache
         run: |
-          python -c "from huggingface_hub import snapshot_download; print(snapshot_download('sentence-transformers/all-MiniLM-L6-v2', cache_dir='.ci-hf-cache/hub', local_files_only=True))"
+          python -c "from huggingface_hub import snapshot_download; print(snapshot_download('sentence-transformers/all-MiniLM-L6-v2', cache_dir='.ci-hf-cache/hub', local_files_only=True, ignore_patterns=['*.onnx', 'openvino/*', '*.h5', '*.ot', 'pytorch_model.bin', 'rust_model.ot', 'flax_model.msgpack']))"
           tar -C .ci-hf-cache -czf all-minilm-model-cache.tar.gz .
       - name: Upload model cache for offline test jobs
         uses: actions/upload-artifact@v7
