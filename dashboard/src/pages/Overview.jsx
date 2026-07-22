@@ -3009,6 +3009,10 @@ export default function Overview({ searchQuery = '' }) {
             searchQuery={normalizedQuery}
           />
 
+        </div>
+
+        <div className="overview-secondary-stack">
+
           <SavingsPanel
             title="Savings by model"
             eyebrow="Attribution"

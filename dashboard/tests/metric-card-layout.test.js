@@ -14,6 +14,7 @@ test('MetricCard groups primary and supporting content for narrow layouts', () =
   assert.match(overviewSource, /className="metric-supporting"/);
   assert.match(desktopStyles, /\.metric-primary,\s*\.metric-supporting\s*\{\s*display: grid;/);
   assert.match(wideDesktopStyles, /\.metric-grid-four\s*\{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
-  assert.match(styles, /\.overview-bottom-grid:not\(\.request-trace-grid\)\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/);
+  assert.match(overviewSource, /className="overview-secondary-stack"/);
+  assert.match(styles, /\.overview-secondary-stack\s*\{\s*display: grid;/);
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.metric-card\s*\{[\s\S]*grid-template-columns:/);
 });
