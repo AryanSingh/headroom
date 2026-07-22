@@ -3129,48 +3129,71 @@ class OpenAIResponsesMixin:
                     body.get("tools"),
                     tokenizer,
                 )
-                tool_surface_result = slim_tool_surface(
-                    body.get("tools"),
-                    query=tool_surface_query,
-                    tokenizer=tokenizer,
-                    tool_choice=body.get("tool_choice"),
-                    config=self.config,
-                    messages=body.get("input"),
-                )
-                tool_surface_tokens_saved = tool_surface_result.tokens_saved
-                if tool_surface_result.modified:
-                    body["tools"] = tool_surface_result.tools
-                    tokens_saved += tool_surface_tokens_saved
-                    optimized_tokens = max(
-                        0,
-                        original_tokens - tokens_saved,
-                    )
-                    schema_savings_metadata = merge_savings_metadata(
-                        schema_savings_metadata,
-                        {"api_surface_slimming": {"tokens": tool_surface_result.tokens_saved}},
-                    )
-                    transforms_applied = [
-                        "openai:responses:tool_surface_slimming",
-                        *list(transforms_applied),
-                    ]
+                tool_surface_tokens_saved = 0
                 original_tools_payload = copy.deepcopy(body.get("tools"))
-                (
-                    body,
-                    _modified,
-                    _tokens_saved,
-                    _transforms,
-                    _reason,
-                    _bytes_before,
-                    _bytes_after,
-                    _attempted_tokens,
-                    _compression_timing,
-                ) = await self._compress_openai_responses_payload_in_executor(
-                    body,
-                    model=model,
-                    request_id=request_id,
-                )
+                if is_chatgpt_auth:
+                    (
+                        body,
+                        _modified,
+                        _tokens_saved,
+                        _transforms,
+                        _reason,
+                        _bytes_before,
+                        _bytes_after,
+                        _attempted_tokens,
+                        _compression_timing,
+                    ) = await self._compress_chatgpt_subscription_tool_outputs_in_executor(
+                        body,
+                        model=model,
+                        request_id=request_id,
+                    )
+                else:
+                    tool_surface_result = slim_tool_surface(
+                        body.get("tools"),
+                        query=tool_surface_query,
+                        tokenizer=tokenizer,
+                        tool_choice=body.get("tool_choice"),
+                        config=self.config,
+                        messages=body.get("input"),
+                    )
+                    tool_surface_tokens_saved = tool_surface_result.tokens_saved
+                    if tool_surface_result.modified:
+                        body["tools"] = tool_surface_result.tools
+                        tokens_saved += tool_surface_tokens_saved
+                        optimized_tokens = max(
+                            0,
+                            original_tokens - tokens_saved,
+                        )
+                        schema_savings_metadata = merge_savings_metadata(
+                            schema_savings_metadata,
+                            {
+                                "api_surface_slimming": {
+                                    "tokens": tool_surface_result.tokens_saved
+                                }
+                            },
+                        )
+                        transforms_applied = [
+                            "openai:responses:tool_surface_slimming",
+                            *list(transforms_applied),
+                        ]
+                    (
+                        body,
+                        _modified,
+                        _tokens_saved,
+                        _transforms,
+                        _reason,
+                        _bytes_before,
+                        _bytes_after,
+                        _attempted_tokens,
+                        _compression_timing,
+                    ) = await self._compress_openai_responses_payload_in_executor(
+                        body,
+                        model=model,
+                        request_id=request_id,
+                    )
                 if (
-                    original_tools_payload
+                    not is_chatgpt_auth
+                    and original_tools_payload
                     and "openai:responses:tool_schema_compaction" in _transforms
                 ):
                     schema_savings_metadata = merge_savings_metadata(

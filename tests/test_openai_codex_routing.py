@@ -2,7 +2,7 @@ import base64
 import json
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
 import pytest
@@ -490,6 +490,76 @@ def test_handle_openai_responses_opaque_continuation_preserves_model_and_payload
     assert url == "https://chatgpt.com/backend-api/codex/responses"
     assert body["model"] == "gpt-5.6-sol"
     assert body["input"] == opaque_input
+
+
+def test_handle_openai_responses_chatgpt_compresses_only_ordinary_tool_output(monkeypatch):
+    long_output = "compressible output " * 200
+    tools = [
+        {
+            "type": "function",
+            "name": "read_fixture",
+            "description": "provider-owned description " * 40,
+            "parameters": {"type": "object", "properties": {}},
+        }
+    ]
+    request = _build_request(
+        {
+            "model": "gpt-5.4",
+            "input": [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_1",
+                    "output": long_output,
+                }
+            ],
+            "tools": tools,
+        },
+        {
+            "Authorization": "Bearer sk-test",
+            "ChatGPT-Account-ID": "acct-from-jwt",
+            "User-Agent": "Codex Desktop/1.0",
+        },
+    )
+    handler = _DummyOpenAIHandler()
+    handler.config.optimize = True
+    compressed = {
+        "model": "gpt-5.4",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "short output",
+            }
+        ],
+        "tools": tools,
+        "store": False,
+        "stream": True,
+    }
+    handler._compress_chatgpt_subscription_tool_outputs_in_executor = AsyncMock(
+        return_value=(
+            compressed,
+            True,
+            398,
+            ["router:openai:responses:function_call_output:kompress"],
+            None,
+            5000,
+            500,
+            400,
+            {},
+        )
+    )
+    handler._compress_openai_responses_payload_in_executor = AsyncMock(
+        side_effect=AssertionError("subscription traffic used the general compressor")
+    )
+    monkeypatch.setattr("cutctx.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+
+    response = anyio.run(handler.handle_openai_responses, request)
+
+    assert response.status_code == 200
+    assert handler.captured_stream_request is not None
+    _, _, body = handler.captured_stream_request
+    assert body["input"][0]["output"] == "short output"
+    assert body["tools"] == tools
 
 
 def test_remote_compaction_subscription_body_is_forwarded_unchanged(monkeypatch):
