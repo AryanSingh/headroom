@@ -168,6 +168,15 @@ def test_macos_native_wrapper_dependency_install_retries_pypi_downloads() -> Non
     assert "python -m pip install --retries 10 --timeout 60 pytest" in content
 
 
+def test_chaos_workflow_skips_optional_prometheus_rule_without_operator_crd() -> None:
+    """The disposable Kind cluster intentionally has no Prometheus Operator."""
+    content = (ROOT / ".github" / "workflows" / "chaos-testing.yml").read_text(encoding="utf-8")
+
+    assert "for manifest in k8s/*.yaml; do" in content
+    assert "k8s/prometheus-rules.yaml" in content
+    assert 'kubectl apply -f "$manifest"' in content
+
+
 def test_docker_native_e2e_configures_distinct_non_loopback_client_key() -> None:
     content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     filter_start = content.index("\n            e2e:")

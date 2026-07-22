@@ -20,7 +20,16 @@ jobs:
       - name: Deploy cutctx to cluster
         run: |
           kubectl create namespace cutctx
-          kubectl apply -f k8s/
+          # The disposable Kind cluster exercises the proxy's recovery path;
+          # it intentionally does not install the Prometheus Operator CRD.
+          # Apply all core manifests while leaving the optional monitoring
+          # rule to production clusters where that operator is present.
+          for manifest in k8s/*.yaml; do
+            if [ "$manifest" = "k8s/prometheus-rules.yaml" ]; then
+              continue
+            fi
+            kubectl apply -f "$manifest"
+          done
           kubectl wait --for=condition=available --timeout=60s deployment/cutctx-proxy -n cutctx
 
       - name: Run Synthetic Load & Pod Evictions
