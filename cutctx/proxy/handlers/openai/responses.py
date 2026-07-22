@@ -1431,6 +1431,12 @@ class OpenAIResponsesMixin:
             return "passthrough", "subscription_no_eligible_output"
         if any(item.get("type") == "compaction" for item in items):
             return "passthrough", "subscription_opaque_continuation"
+        if any(
+            item.get("type") in self.OPENAI_RESPONSES_OUTPUT_TYPES
+            and (not isinstance(item.get("call_id"), str) or not item.get("call_id"))
+            for item in items
+        ):
+            return "passthrough", "subscription_no_eligible_output"
 
         eligible = any(
             item.get("type") in self.OPENAI_RESPONSES_OUTPUT_TYPES
@@ -3276,21 +3282,36 @@ class OpenAIResponsesMixin:
                 # proceed rather than getting an opaque 400 or being blocked.
                 _CHATGPT_MAX_BODY_BYTES = 900 * 1024  # 900 KB conservative limit
                 if is_chatgpt_auth and _http_body_bytes > _CHATGPT_MAX_BODY_BYTES:
-                    logger.warning(
-                        "[%s] /v1/responses body too large for chatgpt.com "
-                        "(%d bytes > %d limit) — applying emergency truncation",
-                        request_id,
-                        _http_body_bytes,
-                        _CHATGPT_MAX_BODY_BYTES,
-                    )
-                    body = _truncate_body_for_chatgpt(body, _CHATGPT_MAX_BODY_BYTES, request_id)
-                    _truncated_bytes = len(json.dumps(body).encode("utf-8", errors="replace"))
-                    logger.info(
-                        "[%s] /v1/responses emergency truncation: %d → %d bytes",
-                        request_id,
-                        _http_body_bytes,
-                        _truncated_bytes,
-                    )
+                    if _contains_opaque_responses_continuation(body):
+                        body = _shrink_oversized_images(body)
+                        logger.warning(
+                            "[%s] /v1/responses preserving oversized opaque ChatGPT "
+                            "continuation after compression failure (%d bytes)",
+                            request_id,
+                            _http_body_bytes,
+                        )
+                    else:
+                        logger.warning(
+                            "[%s] /v1/responses body too large for chatgpt.com "
+                            "(%d bytes > %d limit) — applying emergency truncation",
+                            request_id,
+                            _http_body_bytes,
+                            _CHATGPT_MAX_BODY_BYTES,
+                        )
+                        body = _truncate_body_for_chatgpt(
+                            body,
+                            _CHATGPT_MAX_BODY_BYTES,
+                            request_id,
+                        )
+                        _truncated_bytes = len(
+                            json.dumps(body).encode("utf-8", errors="replace")
+                        )
+                        logger.info(
+                            "[%s] /v1/responses emergency truncation: %d → %d bytes",
+                            request_id,
+                            _http_body_bytes,
+                            _truncated_bytes,
+                        )
                 elif _http_action.refuse:
                     if (is_chatgpt_auth or client == "codex") and _http_action.reason == "timeout":
                         logger.warning(

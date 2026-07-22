@@ -10,12 +10,17 @@
       {
         "type": "custom_tool_call_output",
         "call_id": "call_fixture_resume",
-        "output": "this output remains unchanged because it shares an opaque continuation request"
+        "output": "<synthetic:output:7c8fc9877f43>"
       },
       {
         "type": "message",
         "role": "user",
-        "content": [{"type": "input_text", "text": "continue"}]
+        "content": [
+          {
+            "type": "input_text",
+            "text": "<synthetic:text:b7c2c00e9c99>"
+          }
+        ]
       }
     ],
     "tools": [],

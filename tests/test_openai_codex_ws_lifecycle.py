@@ -1179,6 +1179,8 @@ async def test_many_concurrent_sessions_cleanly_drained():
         json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
         json.dumps({"type": "response.completed", "response": {"id": "r_1"}}),
     ]
+    missing = object()
+    original_websockets = sys.modules.get("websockets", missing)
 
     async def run_one() -> None:
         upstream = _FakeUpstream(list(upstream_events))
@@ -1189,7 +1191,13 @@ async def test_many_concurrent_sessions_cleanly_drained():
             await handler.handle_openai_responses_ws(client_ws)
         assert handler.ws_sessions.active_count() == 0
 
-    await asyncio.gather(*[run_one() for _ in range(50)])
+    try:
+        await asyncio.gather(*[run_one() for _ in range(50)])
+    finally:
+        if original_websockets is missing:
+            sys.modules.pop("websockets", None)
+        else:
+            sys.modules["websockets"] = original_websockets
 
     # Global check: no codex-ws-* named task remains.
     leaked = [
