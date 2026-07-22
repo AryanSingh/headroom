@@ -1621,20 +1621,21 @@ text-align: right;
   min-width: 0;
 }
 
-.overview-secondary-stack {
-  display: contents;
+.overview-secondary-stack,
+.overview-side-stack {
+  display: grid;
+  gap: var(--space-lg);
+  min-width: 0;
+  align-content: start;
 }
 
 .activity-panel {
   order: 2;
 }
 
-.overview-side-stack {
-  display: contents;
-}
-
 .savings-panel-model { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: 34rem; }
 .savings-panel-model-list { min-height: 0; overflow-y: auto; padding-right: var(--space-xs); }
+
 
 .stack-list,
 .chip-stack,
