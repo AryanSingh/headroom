@@ -8,10 +8,11 @@ real code paths (not mocked) and assert on registry / task state.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -460,6 +461,56 @@ async def test_ws_chatgpt_subscription_preserves_requested_model_before_forwardi
 
 
 @pytest.mark.asyncio
+async def test_ws_chatgpt_first_frame_uses_safe_tool_output_compressor():
+    tools = [{"type": "function", "name": "read_fixture", "description": "provider owned"}]
+    inner = {
+        "model": "gpt-5.4",
+        "tools": tools,
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "compressible output " * 200,
+            }
+        ],
+    }
+    frame = json.dumps({"type": "response.create", "response": inner})
+    upstream = _FakeUpstream(
+        [
+            json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
+            json.dumps({"type": "response.completed", "response": {"id": "r_1"}}),
+        ]
+    )
+    client_ws = _FakeWebSocket(frames=[frame])
+    client_ws.headers["chatgpt-account-id"] = "acct-123"
+    handler = _DummyOpenAIHandler()
+    handler.config.optimize = True
+    handler._compress_chatgpt_subscription_tool_outputs_in_executor = AsyncMock(
+        return_value=(
+            {**inner, "input": [{**inner["input"][0], "output": "short output"}]},
+            True,
+            398,
+            ["router:openai:responses:function_call_output:kompress"],
+            None,
+            5000,
+            500,
+            400,
+            {},
+        )
+    )
+    handler._compress_openai_responses_payload_in_executor = AsyncMock(
+        side_effect=AssertionError("subscription first frame used the general compressor")
+    )
+
+    with patch.dict(sys.modules, {"websockets": _make_fake_websockets_module(upstream)}):
+        await handler.handle_openai_responses_ws(client_ws)
+
+    forwarded = json.loads(upstream.sent[0])["response"]
+    assert forwarded["tools"] == tools
+    assert forwarded["input"][0]["output"] == "short output"
+
+
+@pytest.mark.asyncio
 async def test_ws_opaque_continuation_ignores_approximate_context_refusal():
     """Encrypted subscription state must reach ChatGPT unchanged.
 
@@ -553,6 +604,123 @@ async def test_ws_second_turn_preserves_requested_model_under_chatgpt_auth():
     assert len(upstream.sent) >= 2, "handler never forwarded the second frame upstream"
     second_forwarded = json.loads(upstream.sent[1])
     assert second_forwarded["response"]["model"] == "gpt-5.6-terra"
+
+
+@pytest.mark.asyncio
+async def test_ws_chatgpt_later_frame_uses_safe_tool_output_compressor():
+    second_inner = {
+        "model": "gpt-5.6-terra",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_2",
+                "output": "compressible output " * 200,
+            }
+        ],
+    }
+    client_ws = _FakeWebSocket(
+        frames=[_first_frame(), json.dumps({"type": "response.create", "response": second_inner})]
+    )
+    client_ws.headers["chatgpt-account-id"] = "acct-123"
+    upstream = _FakeUpstream(
+        [
+            json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
+            json.dumps({"type": "response.completed", "response": {"id": "r_1"}}),
+        ]
+    )
+    handler = _DummyOpenAIHandler()
+    handler.config.optimize = True
+    calls = 0
+
+    async def compress_subscription(payload, *, model, request_id):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            size = len(json.dumps(payload).encode())
+            return (
+                payload,
+                False,
+                0,
+                [],
+                "subscription_no_eligible_output",
+                size,
+                size,
+                0,
+                {},
+            )
+        candidate = copy.deepcopy(payload)
+        candidate["input"][0]["output"] = "short output"
+        return (
+            candidate,
+            True,
+            398,
+            ["router:openai:responses:function_call_output:kompress"],
+            None,
+            5000,
+            500,
+            400,
+            {},
+        )
+
+    handler._compress_chatgpt_subscription_tool_outputs_in_executor = compress_subscription
+
+    with patch.dict(sys.modules, {"websockets": _make_fake_websockets_module(upstream)}):
+        await asyncio.wait_for(handler.handle_openai_responses_ws(client_ws), timeout=5.0)
+
+    second_forwarded = json.loads(upstream.sent[1])["response"]
+    assert second_forwarded["model"] == "gpt-5.6-terra"
+    assert second_forwarded["input"][0]["output"] == "short output"
+
+
+@pytest.mark.asyncio
+async def test_ws_chatgpt_safe_compressor_failure_forwards_opaque_frame_without_closing(
+    monkeypatch,
+):
+    inner = {
+        "model": "gpt-5.6-sol",
+        "input": [
+            {"type": "reasoning", "encrypted_content": "opaque-model-bound-continuation"},
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "continue"}],
+            },
+        ],
+    }
+    client_ws = _FakeWebSocket(
+        frames=[json.dumps({"type": "response.create", "response": inner})]
+    )
+    client_ws.headers["chatgpt-account-id"] = "acct-123"
+    upstream = _FakeUpstream(
+        [
+            json.dumps({"type": "response.created", "response": {"id": "r_1"}}),
+            json.dumps({"type": "response.completed", "response": {"id": "r_1"}}),
+        ]
+    )
+    handler = _DummyOpenAIHandler()
+    handler.config.optimize = True
+    handler._compress_chatgpt_subscription_tool_outputs_in_executor = AsyncMock(
+        side_effect=RuntimeError("synthetic optional compression failure")
+    )
+    handler._openai_responses_context_guard = MagicMock(
+        return_value=(True, 294_402, 242_400, 258_400)
+    )
+    monkeypatch.setattr(
+        "cutctx.proxy.helpers.decide_compression_failure_action",
+        lambda *args, **kwargs: SimpleNamespace(
+            refuse=True,
+            reason="context_risk",
+            frame_bytes=2_000_000,
+        ),
+    )
+
+    with patch.dict(sys.modules, {"websockets": _make_fake_websockets_module(upstream)}):
+        await handler.handle_openai_responses_ws(client_ws)
+
+    forwarded = json.loads(upstream.sent[0])["response"]
+    assert forwarded["model"] == "gpt-5.6-sol"
+    assert forwarded["input"] == inner["input"]
+    assert client_ws.close_code != 1009
 
 
 @pytest.mark.asyncio

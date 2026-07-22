@@ -4997,25 +4997,32 @@ class OpenAIResponsesMixin:
                                 _inner.get("tools") if isinstance(_inner, dict) else None,
                                 get_tokenizer(_model),
                             )
-                            _tool_surface_result = slim_tool_surface(
-                                _inner.get("tools") if isinstance(_inner, dict) else None,
-                                query=extract_responses_query(
-                                    _inner if isinstance(_inner, dict) else {}
-                                ),
-                                tokenizer=get_tokenizer(_model),
-                                config=self.config,
-                                tool_choice=_inner.get("tool_choice")
-                                if isinstance(_inner, dict)
-                                else None,
-                                messages=_inner if isinstance(_inner, dict) else None,
-                            )
-                            _tool_surface_saved = _tool_surface_result.tokens_saved
-                            if _tool_surface_result.modified and isinstance(_inner, dict):
-                                _inner = {**_inner, "tools": _tool_surface_result.tools}
-                                ws_savings_metadata = merge_savings_metadata(
-                                    ws_savings_metadata,
-                                    {"api_surface_slimming": {"tokens": _tool_surface_saved}},
+                            _tool_surface_saved = 0
+                            _tool_surface_result = None
+                            if not is_chatgpt_auth:
+                                _tool_surface_result = slim_tool_surface(
+                                    _inner.get("tools") if isinstance(_inner, dict) else None,
+                                    query=extract_responses_query(
+                                        _inner if isinstance(_inner, dict) else {}
+                                    ),
+                                    tokenizer=get_tokenizer(_model),
+                                    config=self.config,
+                                    tool_choice=_inner.get("tool_choice")
+                                    if isinstance(_inner, dict)
+                                    else None,
+                                    messages=_inner if isinstance(_inner, dict) else None,
                                 )
+                                _tool_surface_saved = _tool_surface_result.tokens_saved
+                                if _tool_surface_result.modified and isinstance(_inner, dict):
+                                    _inner = {**_inner, "tools": _tool_surface_result.tools}
+                                    ws_savings_metadata = merge_savings_metadata(
+                                        ws_savings_metadata,
+                                        {
+                                            "api_surface_slimming": {
+                                                "tokens": _tool_surface_saved
+                                            }
+                                        },
+                                    )
                             if _tool_scaffolding_tokens > 0:
                                 _schema_saved = 0
                                 ws_savings_metadata = merge_savings_metadata(
@@ -5033,6 +5040,22 @@ class OpenAIResponsesMixin:
                                     },
                                 )
                             _original_ws_tools = copy.deepcopy(_inner.get("tools"))
+                            if is_chatgpt_auth:
+                                _compression_result = (
+                                    await self._compress_chatgpt_subscription_tool_outputs_in_executor(
+                                        _inner,
+                                        model=_model,
+                                        request_id=request_id,
+                                    )
+                                )
+                            else:
+                                _compression_result = (
+                                    await self._compress_openai_responses_payload_in_executor(
+                                        _inner,
+                                        model=_model,
+                                        request_id=request_id,
+                                    )
+                                )
                             (
                                 _new_inner,
                                 _modified,
@@ -5043,13 +5066,10 @@ class OpenAIResponsesMixin:
                                 _bytes_after,
                                 _ws_attempted_tokens,
                                 _ws_compression_timing,
-                            ) = await self._compress_openai_responses_payload_in_executor(
-                                _inner,
-                                model=_model,
-                                request_id=request_id,
-                            )
+                            ) = _compression_result
                             if (
-                                _original_ws_tools
+                                not is_chatgpt_auth
+                                and _original_ws_tools
                                 and "openai:responses:tool_schema_compaction" in _ws_transforms
                             ):
                                 ws_savings_metadata = merge_savings_metadata(
@@ -5101,7 +5121,10 @@ class OpenAIResponsesMixin:
                                 _record_ws_compression_overhead(_rewrite_ms)
                             tokens_saved += int(_tool_surface_saved)
                             attempted_input_tokens_total += int(_tool_surface_saved)
-                            if _tool_surface_result.modified:
+                            if (
+                                _tool_surface_result is not None
+                                and _tool_surface_result.modified
+                            ):
                                 if (
                                     "openai:responses:tool_surface_slimming"
                                     not in transforms_applied
@@ -5186,7 +5209,7 @@ class OpenAIResponsesMixin:
                         _ws_frame_bytes,
                         client=client,
                     )
-                    if _ws_action.refuse:
+                    if _ws_action.refuse and not is_chatgpt_auth:
                         logger.error(
                             "[%s] WS /v1/responses REFUSING to forward "
                             "frame after compression failure "
@@ -5483,37 +5506,60 @@ class OpenAIResponsesMixin:
                             _record_ws_compression_overhead(_preflight_ms)
                             _compression_started = time.perf_counter()
                             try:
-                                frame_surface_result = slim_tool_surface(
-                                    inner_payload.get("tools")
-                                    if isinstance(inner_payload, dict)
-                                    else None,
-                                    query=extract_responses_query(
-                                        inner_payload if isinstance(inner_payload, dict) else {}
-                                    ),
-                                    config=self.config,
-                                    tokenizer=get_tokenizer(model_for_frame),
-                                    tool_choice=inner_payload.get("tool_choice")
-                                    if isinstance(inner_payload, dict)
-                                    else None,
-                                    messages=inner_payload
-                                    if isinstance(inner_payload, dict)
-                                    else None,
-                                )
-                                frame_surface_saved = frame_surface_result.tokens_saved
-                                if (
-                                    not is_chatgpt_auth
-                                    and frame_surface_result.modified
-                                    and isinstance(inner_payload, dict)
-                                ):
-                                    inner_payload = {
-                                        **inner_payload,
-                                        "tools": frame_surface_result.tools,
-                                    }
-                                    ws_savings_metadata = merge_savings_metadata(
-                                        ws_savings_metadata,
-                                        {"api_surface_slimming": {"tokens": frame_surface_saved}},
+                                frame_surface_saved = 0
+                                frame_surface_result = None
+                                if not is_chatgpt_auth:
+                                    frame_surface_result = slim_tool_surface(
+                                        inner_payload.get("tools")
+                                        if isinstance(inner_payload, dict)
+                                        else None,
+                                        query=extract_responses_query(
+                                            inner_payload
+                                            if isinstance(inner_payload, dict)
+                                            else {}
+                                        ),
+                                        config=self.config,
+                                        tokenizer=get_tokenizer(model_for_frame),
+                                        tool_choice=inner_payload.get("tool_choice")
+                                        if isinstance(inner_payload, dict)
+                                        else None,
+                                        messages=inner_payload
+                                        if isinstance(inner_payload, dict)
+                                        else None,
                                     )
+                                    frame_surface_saved = frame_surface_result.tokens_saved
+                                    if frame_surface_result.modified and isinstance(
+                                        inner_payload, dict
+                                    ):
+                                        inner_payload = {
+                                            **inner_payload,
+                                            "tools": frame_surface_result.tools,
+                                        }
+                                        ws_savings_metadata = merge_savings_metadata(
+                                            ws_savings_metadata,
+                                            {
+                                                "api_surface_slimming": {
+                                                    "tokens": frame_surface_saved
+                                                }
+                                            },
+                                        )
                                 original_frame_tools = copy.deepcopy(inner_payload.get("tools"))
+                                if is_chatgpt_auth:
+                                    frame_compression_result = (
+                                        await self._compress_chatgpt_subscription_tool_outputs_in_executor(
+                                            inner_payload,
+                                            model=model_for_frame,
+                                            request_id=request_id,
+                                        )
+                                    )
+                                else:
+                                    frame_compression_result = (
+                                        await self._compress_openai_responses_payload_in_executor(
+                                            inner_payload,
+                                            model=model_for_frame,
+                                            request_id=request_id,
+                                        )
+                                    )
                                 (
                                     new_inner,
                                     modified,
@@ -5524,15 +5570,10 @@ class OpenAIResponsesMixin:
                                     bytes_after,
                                     frame_attempted_tokens,
                                     frame_compression_timing,
-                                ) = await self._compress_openai_responses_payload_in_executor(
-                                    inner_payload,
-                                    model=model_for_frame,
-                                    request_id=request_id,
-                                    compact_tool_schemas=not is_chatgpt_auth,
-                                    allow_payload_mutation=not is_chatgpt_auth,
-                                )
+                                ) = frame_compression_result
                                 if (
-                                    original_frame_tools
+                                    not is_chatgpt_auth
+                                    and original_frame_tools
                                     and "openai:responses:tool_schema_compaction"
                                     in frame_transforms
                                 ):
@@ -5621,10 +5662,7 @@ class OpenAIResponsesMixin:
                                     raw_bytes=len(raw_msg.encode("utf-8", errors="replace")),
                                     client=refusal_client,
                                 )
-                                if guard_refuse and not (
-                                    is_chatgpt_auth
-                                    and _contains_opaque_responses_continuation(inner_payload)
-                                ):
+                                if guard_refuse and not is_chatgpt_auth:
                                     logger.error(
                                         "[%s] WS /v1/responses refusing frame after "
                                         "compression failure (reason=%s, estimated_tokens=%d "
@@ -5741,7 +5779,7 @@ class OpenAIResponsesMixin:
                         _record_ws_compression_overhead(_rewrite_ms)
                         tokens_saved += int(frame_surface_saved)
                         attempted_input_tokens_total += int(frame_surface_saved)
-                        if frame_surface_result.modified:
+                        if frame_surface_result is not None and frame_surface_result.modified:
                             if "openai:responses:tool_surface_slimming" not in transforms_applied:
                                 transforms_applied.append("openai:responses:tool_surface_slimming")
                         tokens_saved += int(frame_saved)
