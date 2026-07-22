@@ -168,6 +168,17 @@ def test_macos_native_wrapper_dependency_install_retries_pypi_downloads() -> Non
     assert "python -m pip install --retries 10 --timeout 60 pytest" in content
 
 
+def test_docker_native_e2e_configures_distinct_non_loopback_client_key() -> None:
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    start = content.index("\n  docker-native-e2e:")
+    end = content.index("\n  windows-native-wrapper:", start)
+    job = content[start:end]
+
+    assert "CUTCTX_ADMIN_API_KEY: ci-native-e2e-key" in job
+    assert "CUTCTX_PROXY_API_KEY: ci-native-e2e-proxy-client-key" in job
+    assert "CUTCTX_CLIENT_API_KEY: ci-native-e2e-agent-client-key" in job
+
+
 def test_ci_commitlint_runs_only_for_pull_requests() -> None:
     content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
