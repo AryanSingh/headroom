@@ -189,6 +189,17 @@ def test_ci_commitlint_runs_only_for_pull_requests() -> None:
     assert "github.event_name == 'pull_request'" in content
 
 
+def test_ci_hands_prefetched_model_to_offline_test_jobs_as_an_artifact() -> None:
+    """Cold-cache runs must not depend on same-run actions/cache visibility."""
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "name: all-minilm-model-cache" in content
+    assert content.count("name: all-minilm-model-cache") == 3
+    assert "all-minilm-model-cache.tar.gz" in content
+    assert content.count("Extract prefetched HuggingFace model cache") == 2
+    assert "Restore HuggingFace model cache (warmed by prefetch-model)" not in content
+
+
 def test_ci_enforces_and_uploads_python_coverage() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     codecov = (ROOT / "codecov.yml").read_text(encoding="utf-8")
