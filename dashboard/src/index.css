@@ -1620,6 +1620,12 @@ text-align: right;
   min-width: 0;
 }
 
+/* The standard Overview flow has one content stack. Reserve a second column
+   only for the request-trace variant, which actually renders one. */
+.overview-bottom-grid:not(.request-trace-grid) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .activity-panel {
   order: 2;
 }
