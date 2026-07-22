@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import copy
 import threading
 from types import MethodType, SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
 
 from cutctx.proxy.handlers import openai as openai_handler
 from cutctx.proxy.handlers.openai import OpenAIHandlerMixin
@@ -228,6 +232,174 @@ def test_openai_responses_adapter_compresses_custom_tool_call_output():
     assert "router:openai:responses:custom_tool_call_output:kompress" in transforms
     assert units_by_category == {"applied": 1}
     assert strategy_chain == []
+
+
+def test_chatgpt_subscription_helper_compresses_only_tool_output_and_attributes_savings():
+    router = ContentRouter()
+
+    def compress(self, content: str, **_kwargs):
+        return RouterCompressionResult(
+            compressed="kept words",
+            original=content,
+            strategy_used=CompressionStrategy.KOMPRESS,
+        )
+
+    router.compress = MethodType(compress, router)
+    handler = _handler_with_router(router)
+    long_text = " ".join(f"word{i}" for i in range(180))
+    payload = {
+        "model": "gpt-5.4",
+        "tools": [{"type": "function", "name": "read_fixture", "description": long_text}],
+        "instructions": long_text,
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": long_text,
+            },
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": long_text}],
+            },
+        ],
+    }
+
+    updated, modified, saved, transforms, reason, before, after, attempted = (
+        handler._compress_chatgpt_subscription_tool_outputs(
+            payload,
+            model="gpt-5.4",
+            request_id="req_subscription_safe",
+        )
+    )
+
+    assert modified is True
+    assert saved == 178
+    assert attempted == 180
+    assert reason is None
+    assert after < before
+    assert updated["input"][0]["output"] == "kept words"
+    assert updated["input"][1] == payload["input"][1]
+    assert updated["tools"] == payload["tools"]
+    assert updated["instructions"] == payload["instructions"]
+    assert "router:openai:responses:function_call_output:kompress" in transforms
+    assert "openai:responses:tool_schema_compaction" not in transforms
+    assert "openai:responses:tool_surface_slimming" not in transforms
+
+
+def test_chatgpt_subscription_helper_passthrough_preserves_opaque_payload():
+    handler = _handler_with_router(ContentRouter())
+    payload = {
+        "model": "gpt-5.6-sol",
+        "input": [
+            {"type": "reasoning", "encrypted_content": "opaque"},
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "compressible output " * 200,
+            },
+        ],
+    }
+
+    result = handler._compress_chatgpt_subscription_tool_outputs(
+        payload,
+        model="gpt-5.6-sol",
+        request_id="req_subscription_opaque",
+    )
+
+    assert result[0] is payload
+    assert result[1:5] == (False, 0, [], "subscription_opaque_continuation")
+    assert result[5] == result[6]
+    assert result[7] == 0
+
+
+def test_chatgpt_subscription_helper_rejects_router_mutation_outside_output(monkeypatch):
+    handler = _handler_with_router(ContentRouter())
+    payload = {
+        "model": "gpt-5.4",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "compressible output " * 200,
+            }
+        ],
+    }
+    candidate = copy.deepcopy(payload)
+    candidate["model"] = "gpt-5.6-sol"
+    candidate["input"][0]["output"] = "short"
+    monkeypatch.setattr(
+        handler,
+        "_compress_openai_responses_live_text_units_with_router",
+        lambda *args, **kwargs: (candidate, True, 399, ["unsafe"], {"applied": 1}, [], 400),
+    )
+
+    result = handler._compress_chatgpt_subscription_tool_outputs(
+        payload,
+        model="gpt-5.4",
+        request_id="req_subscription_invariant",
+    )
+
+    assert result[0] is payload
+    assert result[1:5] == (False, 0, [], "subscription_invariant_failed")
+
+
+def test_chatgpt_subscription_helper_fails_open_when_router_raises(monkeypatch):
+    handler = _handler_with_router(ContentRouter())
+    payload = {
+        "model": "gpt-5.4",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "compressible output " * 200,
+            }
+        ],
+    }
+
+    def raise_compression(*args, **kwargs):
+        raise RuntimeError("synthetic compressor failure")
+
+    monkeypatch.setattr(
+        handler,
+        "_compress_openai_responses_live_text_units_with_router",
+        raise_compression,
+    )
+
+    result = handler._compress_chatgpt_subscription_tool_outputs(
+        payload,
+        model="gpt-5.4",
+        request_id="req_subscription_failure",
+    )
+
+    assert result[0] is payload
+    assert result[1:5] == (False, 0, [], "subscription_compression_failed")
+
+
+@pytest.mark.asyncio
+async def test_chatgpt_subscription_helper_uses_bounded_executor():
+    handler = _handler_with_router(ContentRouter())
+    handler._run_compression_in_executor = AsyncMock(
+        return_value=(
+            {"model": "gpt-5.4", "input": []},
+            False,
+            0,
+            [],
+            "subscription_no_eligible_output",
+            32,
+            32,
+            0,
+        )
+    )
+
+    result = await handler._compress_chatgpt_subscription_tool_outputs_in_executor(
+        {"model": "gpt-5.4", "input": []},
+        model="gpt-5.4",
+        request_id="req_subscription_executor",
+    )
+
+    assert handler._run_compression_in_executor.await_count == 1
+    assert result[-1] == {}
 
 
 def test_openai_responses_large_plain_tool_output_avoids_ml_latency_and_preserves_envelope():

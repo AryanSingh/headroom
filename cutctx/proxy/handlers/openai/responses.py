@@ -1993,6 +1993,92 @@ class OpenAIResponsesMixin:
             attempted_input_tokens,
         )
 
+    def _compress_chatgpt_subscription_tool_outputs(
+        self,
+        payload: dict[str, Any],
+        *,
+        model: str,
+        request_id: str,
+        timing: dict[str, float] | None = None,
+    ) -> tuple[dict[str, Any], bool, int, list[str], str | None, int, int, int]:
+        """Compress only validated mutable tool outputs for subscription traffic."""
+        try:
+            input_bytes = len(json.dumps(payload).encode("utf-8"))
+        except (TypeError, ValueError):
+            return payload, False, 0, [], "subscription_compression_failed", 0, 0, 0
+
+        try:
+            policy, passthrough_reason = self._classify_chatgpt_subscription_compression(payload)
+            if policy != "tool_outputs_only":
+                return payload, False, 0, [], passthrough_reason, input_bytes, input_bytes, 0
+
+            candidate, modified, _router_saved, transforms, _units, _strategies, attempted = (
+                self._compress_openai_responses_live_text_units_with_router(
+                    copy.deepcopy(payload),
+                    model=model,
+                    request_id=request_id,
+                    timing=timing,
+                )
+            )
+            if not modified:
+                return (
+                    payload,
+                    False,
+                    0,
+                    [],
+                    "subscription_no_eligible_output",
+                    input_bytes,
+                    input_bytes,
+                    attempted,
+                )
+
+            tokenizer = self.openai_provider.get_token_counter(model)
+            valid, validated_saved = self._validate_chatgpt_subscription_tool_output_candidate(
+                payload,
+                candidate,
+                tokenizer=tokenizer,
+            )
+            if not valid:
+                return (
+                    payload,
+                    False,
+                    0,
+                    [],
+                    "subscription_invariant_failed",
+                    input_bytes,
+                    input_bytes,
+                    attempted,
+                )
+
+            output_bytes = len(json.dumps(candidate).encode("utf-8"))
+            return (
+                candidate,
+                True,
+                validated_saved,
+                list(dict.fromkeys(transforms)),
+                None,
+                input_bytes,
+                output_bytes,
+                attempted,
+            )
+        except Exception as exc:
+            logger.warning(
+                "[%s] ChatGPT subscription tool-output compression failed open: %s: %s",
+                request_id,
+                type(exc).__name__,
+                exc,
+            )
+            return (
+                payload,
+                False,
+                0,
+                [],
+                "subscription_compression_failed",
+                input_bytes,
+                input_bytes,
+                0,
+            )
+
     def _compress_openai_responses_payload(
         self,
         payload: dict[str, Any],
@@ -2337,6 +2423,29 @@ class OpenAIResponsesMixin:
         if len(result) == 8:
             return (*result, timing)
         return result
+
+    async def _compress_chatgpt_subscription_tool_outputs_in_executor(
+        self,
+        payload: dict[str, Any],
+        *,
+        model: str,
+        request_id: str,
+    ) -> tuple[dict[str, Any], bool, int, list[str], str | None, int, int, int, dict[str, float]]:
+        timing: dict[str, float] = {}
+
+        def _compress():  # noqa: ANN202
+            return self._compress_chatgpt_subscription_tool_outputs(
+                payload,
+                model=model,
+                request_id=request_id,
+                timing=timing,
+            )
+
+        result = await self._run_compression_in_executor(
+            _compress,
+            timeout=COMPRESSION_TIMEOUT_SECONDS,
+        )
+        return (*result, timing)
 
     def _compress_openai_responses_latest_user_tail_with_router(
         self,
