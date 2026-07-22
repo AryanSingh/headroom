@@ -853,7 +853,7 @@ pre {
 }
 
 .metric-grid-four {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .metric-grid-three {
@@ -866,7 +866,8 @@ pre {
 
 .metric-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(8rem, 0.65fr);
+  align-items: stretch;
   gap: var(--space-md);
   padding: var(--space-xl);
   position: relative;
@@ -875,35 +876,14 @@ pre {
 
 .metric-primary,
 .metric-supporting {
-  display: contents;
+  display: grid;
+  gap: var(--space-md);
+  min-width: 0;
 }
 
-.metric-primary > .metric-label {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.metric-supporting > .metric-icon {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.metric-primary > .metric-value,
-.metric-primary > .sparkline,
-.metric-supporting > .metric-footnote {
-  grid-column: 1 / -1;
-}
-
-.metric-primary > .metric-value {
-  grid-row: 2;
-}
-
-.metric-primary > .sparkline {
-  grid-row: 3;
-}
-
-.metric-supporting > .metric-footnote {
-  grid-row: 4;
+.metric-supporting {
+  justify-items: end;
+  text-align: right;
 }
 
 .metric-card::after {
@@ -2865,23 +2845,6 @@ OVERVIEW: TREND CHART
 .metric-grid-three,
 .metric-grid-two {
 grid-template-columns: 1fr;
-}
-
-.metric-card {
-  grid-template-columns: minmax(0, 1fr) minmax(8rem, 0.65fr);
-  align-items: stretch;
-}
-
-.metric-primary,
-.metric-supporting {
-  display: grid;
-  gap: var(--space-md);
-  min-width: 0;
-}
-
-.metric-supporting {
-  justify-items: end;
-  text-align: right;
 }
 
 .governance-snapshot-grid {
