@@ -1116,7 +1116,7 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, totalUsd, metric, emp
   const sortedRows = [...visibleRows].sort((a, b) => (byUsd ? b.usd - a.usd : b.tokens - a.tokens));
 
   return (
-    <section className="panel panel-data">
+    <section className={`panel panel-data ${title === 'Savings by model' ? 'savings-panel-model' : ''}`}>
       <div className="section-heading">
         <div>
           <div className="eyebrow">{eyebrow}</div>
@@ -1127,7 +1127,7 @@ function SavingsPanel({ title, eyebrow, rows, totalTokens, totalUsd, metric, emp
       {sortedRows.length === 0 ? (
         <EmptyState icon={emptyIcon} title={emptyTitle} description={emptyDescription} />
       ) : (
-        <div className="source-stack">
+        <div className={`source-stack ${title === 'Savings by model' ? 'savings-panel-model-list' : ''}`}>
           {sortedRows.map((row) => {
             const value = byUsd ? row.usd : row.tokens;
             const percent = total > 0 ? (value / total) * 100 : 0;
