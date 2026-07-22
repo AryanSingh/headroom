@@ -51,6 +51,16 @@ def test_loopback_http_remains_zero_config_without_proxy_key() -> None:
     require_http_proxy_client(_request(), ProxyConfig(host="127.0.0.1"))
 
 
+def test_non_loopback_http_requires_configured_proxy_key() -> None:
+    with pytest.raises(ProxyClientAuthError, match="configure CUTCTX_PROXY_API_KEY"):
+        require_http_proxy_client(_request(), ProxyConfig(host="0.0.0.0"))
+
+
+def test_non_loopback_websocket_requires_configured_proxy_key() -> None:
+    with pytest.raises(ProxyClientAuthError, match="configure CUTCTX_PROXY_API_KEY"):
+        require_websocket_proxy_client(_websocket(), ProxyConfig(host="0.0.0.0"))
+
+
 def test_websocket_rejects_cross_origin_browser_on_loopback() -> None:
     with pytest.raises(ProxyClientAuthError, match="WebSocket origin"):
         require_websocket_proxy_client(

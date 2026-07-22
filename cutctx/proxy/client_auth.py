@@ -17,6 +17,11 @@ class ProxyClientAuthError(PermissionError):
 def _require_key(headers: Any, config: Any) -> None:
     expected = effective_proxy_key(config)
     if not expected:
+        if not is_loopback_host(getattr(config, "host", None)):
+            raise ProxyClientAuthError(
+                "A non-loopback proxy requires a provider-route credential; "
+                "configure CUTCTX_PROXY_API_KEY."
+            )
         return
     supplied = str(headers.get("x-cutctx-proxy-key", ""))
     if not supplied or not hmac.compare_digest(supplied, expected):

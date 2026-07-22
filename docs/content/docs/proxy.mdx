@@ -22,6 +22,15 @@ cutctx proxy \
 
 Telemetry is enabled by default. Opt out with `CUTCTX_TELEMETRY=off` or `--no-telemetry`.
 
+## Network exposure
+
+The default loopback binding (`127.0.0.1`) permits provider traffic without a
+Cutctx-specific credential. If you bind the proxy to a non-loopback address
+(for example, `0.0.0.0`), set `CUTCTX_PROXY_API_KEY` before starting it and
+send the same value in `X-Cutctx-Proxy-Key` on every provider HTTP or WebSocket
+request. The proxy rejects non-loopback provider traffic when that key is not
+configured. Put TLS termination in front of any network-exposed deployment.
+
 ## CLI options
 
 ### Core

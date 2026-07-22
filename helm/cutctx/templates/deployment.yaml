@@ -1,3 +1,9 @@
+{{- $adminApiKey := required "enterprise.adminApiKey is required for a non-loopback Cutctx deployment" .Values.enterprise.adminApiKey -}}
+{{- $proxyApiKey := required "enterprise.proxyApiKey is required for a non-loopback Cutctx deployment" .Values.enterprise.proxyApiKey -}}
+{{- $clientApiKey := required "enterprise.clientApiKey is required for a non-loopback Cutctx deployment" .Values.enterprise.clientApiKey -}}
+{{- if or (eq $adminApiKey $proxyApiKey) (eq $adminApiKey $clientApiKey) (eq $proxyApiKey $clientApiKey) -}}
+{{- fail "enterprise.adminApiKey, enterprise.proxyApiKey, and enterprise.clientApiKey must use distinct values" -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -54,27 +60,21 @@ spec:
             - name: CUTCTX_PROXY_UPSTREAM
               value: "{{ .Values.proxy.upstream }}"
             {{- end }}
-            {{- if .Values.enterprise.adminApiKey }}
             - name: CUTCTX_ADMIN_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ include "cutctx.fullname" . }}-secrets
                   key: admin-api-key
-            {{- end }}
-            {{- if .Values.enterprise.proxyApiKey }}
             - name: CUTCTX_PROXY_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ include "cutctx.fullname" . }}-secrets
                   key: proxy-api-key
-            {{- end }}
-            {{- if .Values.enterprise.clientApiKey }}
             - name: CUTCTX_CLIENT_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ include "cutctx.fullname" . }}-secrets
                   key: client-api-key
-            {{- end }}
             {{- if .Values.enterprise.entitlementTier }}
             - name: CUTCTX_ENTITLEMENT_TIER
               value: "{{ .Values.enterprise.entitlementTier }}"

@@ -34,6 +34,14 @@ def test_docker_compose_keeps_local_first_proxy_configuration_explicit() -> None
     assert "CUTCTX_CONFIG_DIR" in compose
 
 
+def test_root_compose_requires_all_network_auth_keys() -> None:
+    compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+
+    assert "CUTCTX_ADMIN_API_KEY=${CUTCTX_ADMIN_API_KEY:?" in compose
+    assert "CUTCTX_PROXY_API_KEY=${CUTCTX_PROXY_API_KEY:?" in compose
+    assert "CUTCTX_CLIENT_API_KEY=${CUTCTX_CLIENT_API_KEY:?" in compose
+
+
 def test_kubernetes_secret_documents_all_non_loopback_auth_boundaries() -> None:
     secret = (ROOT / "k8s" / "secret.yaml").read_text(encoding="utf-8")
     readme = (ROOT / "k8s" / "README.md").read_text(encoding="utf-8")
@@ -62,3 +70,13 @@ def test_helm_chart_wires_all_non_loopback_auth_boundaries() -> None:
         assert value_name in values
         assert env_name in deployment
         assert secret_name in secret
+
+
+def test_helm_chart_requires_distinct_network_auth_keys() -> None:
+    deployment = (ROOT / "helm" / "cutctx" / "templates" / "deployment.yaml").read_text(
+        encoding="utf-8"
+    )
+
+    for value_name in ("adminApiKey", "proxyApiKey", "clientApiKey"):
+        assert f'required "enterprise.{value_name} is required' in deployment
+    assert "must use distinct values" in deployment

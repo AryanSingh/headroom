@@ -37,9 +37,11 @@ proxy:
 
 # ── Enterprise Features ───────────────────────────────────────────────
 enterprise:
+  # Required. Generate three distinct values before `helm install`.
   adminApiKey: ""
-  # Keep these distinct from the admin key. Required for non-loopback binds.
+  # Provider HTTP/WebSocket clients send this as X-Cutctx-Proxy-Key.
   proxyApiKey: ""
+  # SDK, MCP, and compression clients use this least-privilege credential.
   clientApiKey: ""
   corsOrigins: ""
   entitlementTier: ""
