@@ -8,6 +8,7 @@ command depends on an extra package.
 from __future__ import annotations
 
 from importlib import import_module
+from typing import Any
 
 _LAZY_SUBMODULES = {
     "agent_savings",
@@ -41,7 +42,7 @@ _LAZY_SUBMODULES = {
 __all__ = ["main", *_LAZY_SUBMODULES]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name == "main":
         from .main import main
 
