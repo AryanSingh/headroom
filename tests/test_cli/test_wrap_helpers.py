@@ -369,6 +369,7 @@ def test_run_proxy_only_watcher_unexpected_exception_returns_exit_1(
     monkeypatch.setattr(wrap_mod, "_ensure_proxy", boom)
     monkeypatch.setattr(wrap_mod, "_make_cleanup", lambda holder, port: lambda *a, **kw: None)
     monkeypatch.setattr(wrap_mod.signal, "signal", lambda *a, **kw: None)
+    monkeypatch.setenv("CUTCTX_API_KEY", "test-client-key")
 
     runner = CliRunner()
 

@@ -82,7 +82,11 @@ def test_subcommand_verbose_flag_still_works() -> None:
             with patch("cutctx.cli.wrap._setup_rtk", return_value=None):
                 with patch("cutctx.cli.wrap._validate_wrap_client_auth"):
                     with patch("cutctx.cli.wrap.subprocess.run", return_value=completed):
-                        result = runner.invoke(main, ["wrap", "claude", "-v"])
+                        result = runner.invoke(
+                            main,
+                            ["wrap", "claude", "-v"],
+                            env={"CUTCTX_API_KEY": "test-client-key"},
+                        )
 
     assert result.exit_code == 0, result.output
     assert "CUTCTX WRAP: CLAUDE" in result.output
