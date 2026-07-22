@@ -252,8 +252,9 @@ class ReplayResult:
 
 
 class ReplayHarness:
-    def __init__(self, fixture_root: str | Path) -> None:
+    def __init__(self, fixture_root: str | Path, *, optimize: bool = False) -> None:
         self.fixture_root = Path(fixture_root)
+        self.optimize = optimize
         self.upstream = ScriptedUpstream()
         self.upstream_server = ThreadedUvicorn(self.upstream.app)
         self.proxy_port = _unused_port()
@@ -273,7 +274,7 @@ class ReplayHarness:
         config = ProxyConfig(
             host="127.0.0.1",
             port=self.proxy_port,
-            optimize=False,
+            optimize=self.optimize,
             image_optimize=False,
             audio_optimize=False,
             cache_enabled=False,
