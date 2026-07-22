@@ -1,5 +1,24 @@
 # Security Audit Report — Cutctx v0.26.0
 
+## 2026-07-22 assisted-pilot addendum
+
+**Pilot security score: 94/100.** No Critical or High security finding remains
+on the supported path. Non-loopback HTTP and WebSocket provider traffic now
+requires `CUTCTX_PROXY_API_KEY`. Customer-managed deployments require distinct
+admin, provider-route, and agent-client credentials. Helm fails during render
+when the required credentials are missing or reused.
+
+The root Docker Compose deployment now keeps Qdrant and Neo4j off host ports,
+requires an explicit Neo4j credential, and persists Cutctx state in a named
+volume. The commercial-header scan passes for every Python file in `cutctx_ee`.
+Focused authentication and deployment tests pass 40 cases; the Helm and Docker
+configuration checks pass from candidate
+`b88669e3a19db4b42b2a71a15edf91c3725f67d5`.
+
+The pilot still requires TLS termination, customer secret-manager controls,
+legal approval of data terms, and customer acceptance of telemetry. No external
+penetration test was performed in this release pass.
+
 **Date:** 2026-06-19
 
 ## Summary

@@ -1,5 +1,24 @@
 # Product Maturity Audit: Cutctx / Headroom
 
+## 2026-07-22 assisted-pilot addendum
+
+**Pilot product-readiness score: 88/100.** The supported offer is now explicit:
+one assisted paying customer, manual billing and license issuance, OpenAI and
+Anthropic, Codex and Claude clients, macOS/Linux workstations, and
+customer-managed Docker or Kubernetes.
+
+The repository includes an environment worksheet, onboarding checklist,
+customer acceptance test, support and escalation policy, incident procedure,
+backup/restore and upgrade/rollback runbooks, license/billing handoff, and known
+limitations. This closes the operational gaps that made the earlier customer
+journey ad hoc.
+
+Self-serve checkout, Windows, hosted Cutctx, providers outside OpenAI and
+Anthropic, procurement certifications, and broad enterprise support remain
+outside the pilot commitment. The release owner must secure the agreement,
+legal approval, payment, named support owner, data-handling approval, and the
+customer change window before granting paid access.
+
 **Date:** 2026-07-18  
 **Version audited:** 0.31.0 (open-core: Apache-2.0 + Commercial)  
 **Scope:** Feature completeness, UX, performance, reliability, security, enterprise readiness, developer experience

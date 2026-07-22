@@ -72,3 +72,19 @@ before giving the customer paid access:
 
 Open external sign-offs require a Conditional Go even if every software gate
 passes.
+
+## Remediation result
+
+Candidate `b88669e3a19db4b42b2a71a15edf91c3725f67d5` closes every confirmed
+software finding in this baseline:
+
+- `PILOT-SEC-001`: resolved and covered for HTTP and WebSocket traffic.
+- `PILOT-OPS-001`: resolved with required Compose credentials.
+- `PILOT-OPS-002`: resolved with fail-fast Helm credential validation.
+- `PILOT-OPS-003`: resolved through the pilot recovery and operations kit.
+- `PILOT-QA-001`: resolved through the customer acceptance test.
+- `PILOT-QA-002`: resolved through `scripts/verify_pilot_release.py`.
+- `PILOT-OPS-004`: refuted by cross-connection SQLite contention tests.
+
+The final verifier records 13 passed checks, zero failures, and zero skips in
+`audit/pilot-verification.json`.

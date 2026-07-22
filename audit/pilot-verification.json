@@ -1,0 +1,239 @@
+{
+  "candidate_commit": "b88669e3a19db4b42b2a71a15edf91c3725f67d5",
+  "checks": [
+    {
+      "command": [
+        "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_pilot_release_docs.py"
+      ],
+      "name": "pilot-doc-contracts",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.12.12, pytest-9.0.3, pluggy-1.6.0\nrootdir: /Users/aryansingh/Documents/Claude/Projects/headroom\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, langsmith-0.8.0, timeout-2.4.0, asyncio-1.3.0, cov-7.0.0\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollected 3 items\n\ntests/test_pilot_release_docs.py ...                                     [100%]\n\n============================== 3 passed in 0.54s ===============================\n"
+    },
+    {
+      "command": [
+        "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_proxy_client_auth.py",
+        "tests/test_agent_client_auth.py",
+        "tests/test_cross_harness_client_auth_e2e.py",
+        "tests/test_deployment_security.py",
+        "tests/test_product_operator_contracts.py"
+      ],
+      "name": "network-and-deployment-security",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.12.12, pytest-9.0.3, pluggy-1.6.0\nrootdir: /Users/aryansingh/Documents/Claude/Projects/headroom\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, langsmith-0.8.0, timeout-2.4.0, asyncio-1.3.0, cov-7.0.0\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollected 40 items\n\ntests/test_proxy_client_auth.py .........                                [ 22%]\ntests/test_agent_client_auth.py ........                                 [ 42%]\ntests/test_cross_harness_client_auth_e2e.py .                            [ 45%]\ntests/test_deployment_security.py ...............                        [ 82%]\ntests/test_product_operator_contracts.py .......                         [100%]\n\n============================== 40 passed in 7.02s ==============================\n"
+    },
+    {
+      "command": [
+        "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_storage_backends.py",
+        "cutctx_ee/tests/test_license_db.py",
+        "tests/test_license_validation_contract.py",
+        "tests/test_entitlement_request_path.py",
+        "tests/test_management_api_entitlements.py"
+      ],
+      "name": "license-and-sqlite-durability",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.12.12, pytest-9.0.3, pluggy-1.6.0\nrootdir: /Users/aryansingh/Documents/Claude/Projects/headroom\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, langsmith-0.8.0, timeout-2.4.0, asyncio-1.3.0, cov-7.0.0\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollected 46 items\n\ntests/test_storage_backends.py .......                                   [ 15%]\ncutctx_ee/tests/test_license_db.py .........                             [ 34%]\ntests/test_license_validation_contract.py ..........                     [ 56%]\ntests/test_entitlement_request_path.py .........                         [ 76%]\ntests/test_management_api_entitlements.py ...........                    [100%]\n\n============================= 46 passed in 18.16s ==============================\n"
+    },
+    {
+      "command": [
+        "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_mcp_registry",
+        "tests/test_model_router.py",
+        "tests/test_provider_proxy_routes.py"
+      ],
+      "name": "supported-provider-and-client-paths",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.12.12, pytest-9.0.3, pluggy-1.6.0\nrootdir: /Users/aryansingh/Documents/Claude/Projects/headroom\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, langsmith-0.8.0, timeout-2.4.0, asyncio-1.3.0, cov-7.0.0\nasyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollected 215 items\n\ntests/test_mcp_registry/test_claude_desktop_registrar.py ............... [  6%]\n.......                                                                  [ 10%]\ntests/test_mcp_registry/test_claude_registrar.py .....................   [ 20%]\ntests/test_mcp_registry/test_codex_registrar.py ........................ [ 31%]\n.                                                                        [ 31%]\ntests/test_mcp_registry/test_display.py ................                 [ 39%]\ntests/test_mcp_registry/test_gateway.py ....................             [ 48%]\ntests/test_mcp_registry/test_gateway_run.py .....                        [ 50%]\ntests/test_mcp_registry/test_install.py ...........                      [ 55%]\ntests/test_mcp_registry/test_ledger.py ....                              [ 57%]\ntests/test_model_router.py ............................................. [ 78%]\n................................                                         [ 93%]\ntests/test_provider_proxy_routes.py ..............                       [100%]\n\n============================= 215 passed in 16.35s =============================\n"
+    },
+    {
+      "command": [
+        "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3",
+        "-m",
+        "ruff",
+        "check",
+        "cutctx/proxy/client_auth.py",
+        "tests/test_proxy_client_auth.py",
+        "tests/test_product_operator_contracts.py",
+        "tests/test_storage_backends.py",
+        "cutctx_ee/tests/test_license_db.py",
+        "tests/test_pilot_release_docs.py",
+        "tests/test_verify_pilot_release.py",
+        "scripts/verify_pilot_release.py"
+      ],
+      "name": "python-lint",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": "All checks passed!\n"
+    },
+    {
+      "command": [
+        "npm",
+        "test"
+      ],
+      "name": "dashboard-unit",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": "\n> dashboard@0.0.0 test\n> node --test tests/*.test.js\n\nTAP version 13\n# Subtest: production JavaScript chunks stay within the 500 kB bundle budget\nok 1 - production JavaScript chunks stay within the 500 kB bundle budget\n  ---\n  duration_ms: 991.680667\n  type: 'test'\n  ...\n# Subtest: prioritizes an authentication failure over another request failure\nok 2 - prioritizes an authentication failure over another request failure\n  ---\n  duration_ms: 0.571208\n  type: 'test'\n  ...\n# Subtest: prioritizes a health authentication failure over a statistics failure\nok 3 - prioritizes a health authentication failure over a statistics failure\n  ---\n  duration_ms: 0.096084\n  type: 'test'\n  ...\n# Subtest: preserves statistics-first error selection without an authentication failure\nok 4 - preserves statistics-first error selection without an authentication failure\n  ---\n  duration_ms: 0.067125\n  type: 'test'\n  ...\n# Subtest: returns both payloads when the requests succeed\nok 5 - returns both payloads when the requests succeed\n  ---\n  duration_ms: 0.382709\n  type: 'test'\n  ...\n# Subtest: rejects an already-aborted caller signal without starting fetch or a timeout\nok 6 - rejects an already-aborted caller signal without starting fetch or a timeout\n  ---\n  duration_ms: 0.630334\n  type: 'test'\n  ...\n# Subtest: preserves a caller abort reason instead of normalizing it as a timeout\nok 7 - preserves a caller abort reason instead of normalizing it as a timeout\n  ---\n  duration_ms: 0.234958\n  type: 'test'\n  ...\n# Subtest: normalizes only its own timeout as TimeoutError\nok 8 - normalizes only its own timeout as TimeoutError\n  ---\n  duration_ms: 0.467209\n  type: 'test'\n  ...\n# Subtest: cleans up timeout and caller listener after success\nok 9 - cleans up timeout and caller listener after success\n  ---\n  duration_ms: 0.234917\n  type: 'test'\n  ...\n# Subtest: cleans up timeout and caller listener after http error\nok 10 - cleans up timeout and caller listener after http error\n  ---\n  duration_ms: 0.224\n  type: 'test'\n  ...\n# Subtest: cleans up timeout and caller listener after caller abort\nok 11 - cleans up timeout and caller listener after caller abort\n  ---\n  duration_ms: 0.148708\n  type: 'test'\n  ...\n# Subtest: cleans up timeout and caller listener after timeout\nok 12 - cleans up timeout and caller listener after timeout\n  ---\n  duration_ms: 0.126333\n  type: 'test'\n  ...\n# Subtest: MetricCard groups primary and supporting content for narrow layouts\nok 13 - MetricCard groups primary and supporting content for narrow layouts\n  ---\n  duration_ms: 0.629792\n  type: 'test'\n  ...\n1..13\n# tests 13\n# suites 0\n# pass 13\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 1302.026917\n"
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "name": "dashboard-build",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": "\n> dashboard@0.0.0 build\n> vite build\n\nvite v8.0.16 building client environment for production...\n\u001b[2K\ntransforming...\u2713 1807 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                            0.47 kB \u2502 gzip:  0.30 kB\ndist/assets/index-ihJhikmm.css            72.02 kB \u2502 gzip: 12.22 kB\ndist/assets/arrow-right-DRNGNURS.js        0.15 kB \u2502 gzip:  0.15 kB\ndist/assets/circle-minus-hWQmXSQ6.js       0.16 kB \u2502 gzip:  0.16 kB\ndist/assets/circle-check-B8jmcB40.js       0.16 kB \u2502 gzip:  0.16 kB\ndist/assets/play-BFiQ7S2L.js               0.17 kB \u2502 gzip:  0.17 kB\ndist/assets/triangle-alert-WFICW9uy.js     0.25 kB \u2502 gzip:  0.20 kB\ndist/assets/refresh-cw-XW4ZjHti.js         0.31 kB \u2502 gzip:  0.21 kB\ndist/assets/sparkles-BuaDEnQI.js           0.48 kB \u2502 gzip:  0.27 kB\ndist/assets/shield-check-CpMOJCUY.js       0.60 kB \u2502 gzip:  0.28 kB\ndist/assets/format-CuFEFxYb.js             0.91 kB \u2502 gzip:  0.45 kB\ndist/assets/x-Bw7T7yzA.js                  0.94 kB \u2502 gzip:  0.43 kB\ndist/assets/lock-CHeQG4Ll.js               0.94 kB \u2502 gzip:  0.47 kB\ndist/assets/Replay-CO7C7mwh.js             3.57 kB \u2502 gzip:  1.48 kB\ndist/assets/Memory-B00XSHXx.js             6.15 kB \u2502 gzip:  2.34 kB\ndist/assets/savings-sources-DecuwtBt.js    6.35 kB \u2502 gzip:  2.04 kB\ndist/assets/Firewall-Dhyhl7UD.js           8.35 kB \u2502 gzip:  2.86 kB\ndist/assets/Playground-B_ecBnMl.js        11.05 kB \u2502 gzip:  3.99 kB\ndist/assets/Savings-xrW59MKC.js           12.71 kB \u2502 gzip:  3.99 kB\ndist/assets/Capabilities-C1MYiVCs.js      15.72 kB \u2502 gzip:  6.00 kB\ndist/assets/Governance-1BCrWIn6.js        17.58 kB \u2502 gzip:  5.45 kB\ndist/assets/Docs-BCKW1cDm.js              29.87 kB \u2502 gzip:  9.68 kB\ndist/assets/Overview-6mbmhLeR.js          69.62 kB \u2502 gzip: 17.61 kB\ndist/assets/Orchestrator-BUa-dp3-.js      75.84 kB \u2502 gzip: 18.60 kB\ndist/assets/index-B7I1OE-x.js            255.50 kB \u2502 gzip: 82.44 kB\n\n\u2713 built in 183ms\n"
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "name": "rust-format",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "name": "rust-tests",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "2b4afceb43b)\n     Running tests/tokenizer_proptest.rs (target/debug/deps/tokenizer_proptest-51b05d342a0d1bb7)\n     Running unittests src/lib.rs (target/debug/deps/cutctx_parity-a59dd8f1b0e8d847)\n     Running unittests src/bin/parity_run.rs (target/debug/deps/parity_run-695c28729f7e0c17)\n     Running unittests src/lib.rs (target/debug/deps/cutctx_proxy-6b77cd843dd3f82a)\n     Running unittests src/main.rs (target/debug/deps/cutctx-c74bde852deae444)\n     Running tests/e2e_real.rs (target/debug/deps/e2e_real-c0af536c4c081c26)\n     Running tests/integration_bedrock_authmode.rs (target/debug/deps/integration_bedrock_authmode-8b5aa5dc584fdd9a)\n     Running tests/integration_bedrock_invoke.rs (target/debug/deps/integration_bedrock_invoke-5aeaf4ce7ea1ebe3)\n     Running tests/integration_bedrock_metrics.rs (target/debug/deps/integration_bedrock_metrics-f2a1683b75ce797e)\n     Running tests/integration_bedrock_streaming.rs (target/debug/deps/integration_bedrock_streaming-a93cb6cc47bbad18)\n     Running tests/integration_body.rs (target/debug/deps/integration_body-cb9a60a2d0da7563)\n     Running tests/integration_body_size.rs (target/debug/deps/integration_body_size-8c923dfda1e43492)\n     Running tests/integration_cache_control.rs (target/debug/deps/integration_cache_control-8ffe2134369f07e2)\n     Running tests/integration_cache_drift.rs (target/debug/deps/integration_cache_drift-98964c3cf5f9f8ec)\n     Running tests/integration_chat_completions.rs (target/debug/deps/integration_chat_completions-c6c28065f913555e)\n     Running tests/integration_compression.rs (target/debug/deps/integration_compression-cf87dac2e18c9e18)\n     Running tests/integration_context_strategies.rs (target/debug/deps/integration_context_strategies-f6cb312728db840b)\n     Running tests/integration_conversations.rs (target/debug/deps/integration_conversations-49cd341aa06a8ab0)\n     Running tests/integration_e3_anthropic_cache_control.rs (target/debug/deps/integration_e3_anthropic_cache_control-78a659ccf2b1c9a8)\n     Running tests/integration_e4_openai_cache_key.rs (target/debug/deps/integration_e4_openai_cache_key-d0e97e1b1a6d3231)\n     Running tests/integration_headers.rs (target/debug/deps/integration_headers-43071fec875371a3)\n     Running tests/integration_health.rs (target/debug/deps/integration_health-13a7c87b5f7eeeef)\n     Running tests/integration_http.rs (target/debug/deps/integration_http-20ea0b47af1aaef4)\n     Running tests/integration_metrics.rs (target/debug/deps/integration_metrics-7d87b63cc8e89b17)\n     Running tests/integration_request_id.rs (target/debug/deps/integration_request_id-4b226bccbb922d37)\n     Running tests/integration_responses.rs (target/debug/deps/integration_responses-12a395a18444e528)\n     Running tests/integration_responses_streaming.rs (target/debug/deps/integration_responses_streaming-be8827622a957ae3)\n     Running tests/integration_schema_sort.rs (target/debug/deps/integration_schema_sort-040dac296e359e14)\n     Running tests/integration_sse.rs (target/debug/deps/integration_sse-bfb0eb0bf5e0d5f0)\n     Running tests/integration_tool_sort.rs (target/debug/deps/integration_tool_sort-4e1c0ec44a7b150a)\n     Running tests/integration_vertex_raw_predict.rs (target/debug/deps/integration_vertex_raw_predict-cdddaa759962fb45)\n     Running tests/integration_volatile_detector.rs (target/debug/deps/integration_volatile_detector-4555d174d4fad16d)\n     Running tests/integration_ws.rs (target/debug/deps/integration_ws-3021b28522ee487f)\n     Running tests/license_verify.rs (target/debug/deps/license_verify-9b00b3dd89b5181c)\n     Running tests/sse_anthropic.rs (target/debug/deps/sse_anthropic-5addacc9126e78b1)\n     Running tests/sse_framing.rs (target/debug/deps/sse_framing-175ab576b6f4eef3)\n     Running tests/sse_openai_chat.rs (target/debug/deps/sse_openai_chat-6da3e88606a3368f)\n     Running tests/sse_openai_responses.rs (target/debug/deps/sse_openai_responses-603448f393aefc5a)\n   Doc-tests cutctx_core\n   Doc-tests cutctx_parity\n   Doc-tests cutctx_proxy\n",
+      "stdout_tail": "qual ... ok\ntest oauth_request_passes_tools_through_byte_equal ... ok\ntest payg_with_marker_passes_tools_through_byte_equal ... ok\ntest payg_request_with_unsorted_tools_is_sorted_at_upstream ... ok\n\ntest result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s\n\n\nrunning 5 tests\ntest adc_failure_returns_5xx_no_silent_forward ... ok\ntest native_envelope_round_trip_byte_equal ... ok\ntest stream_raw_predict_sse_handled ... ok\ntest adc_bearer_token_signed_correctly ... ok\ntest thinking_block_preserved ... ok\n\ntest result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s\n\n\nrunning 1 test\ntest tracing_capture::volatile_timestamp_in_system_emits_warn_and_passes_through ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s\n\n\nrunning 3 tests\ntest ws_client_close_propagates ... ok\ntest ws_text_and_binary_round_trip ... ok\ntest ws_idle_connection_is_closed_after_configured_timeout ... ok\n\ntest result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s\n\n\nrunning 1 test\ntest test_ed25519_license_verification ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n\n\nrunning 9 tests\ntest citations_delta_accumulated ... ok\ntest interleaved_blocks_by_index ... ok\ntest input_json_delta_concatenated_parsed_at_stop ... ok\ntest mid_stream_error_event_handled ... ok\ntest four_event_dance_text_block ... ok\ntest signature_delta_preserved_byte_equal ... ok\ntest message_delta_finalizes_stop_reason_and_output_tokens ... ok\ntest thinking_delta_accumulated ... ok\ntest split_chunks_preserve_event_boundaries ... ok\n\ntest result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n\nrunning 11 tests\ntest done_sentinel_detected ... ok\ntest double_newline_emits_event ... ok\ntest multiple_events_one_chunk ... ok\ntest chunk_boundary_inside_event_name ... ok\ntest single_newline_does_not_emit_event ... ok\ntest ping_keepalive_skipped ... ok\ntest sse_event_traits_present ... ok\ntest trailing_data_after_done_tolerated ... ok\ntest utf8_split_emoji_across_chunks_preserved ... ok\ntest sse_parser_no_panic_one_byte_at_a_time ... ok\ntest sse_parser_no_panic_on_arbitrary_bytes ... ok\n\ntest result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.31s\n\n\nrunning 6 tests\ntest done_sentinel_terminates_stream_status ... ok\ntest multiple_choices_keyed_by_index ... ok\ntest refusal_field_handled ... ok\ntest tool_call_arguments_concatenated ... ok\ntest usage_in_final_chunk_when_include_usage_set ... ok\ntest tool_call_id_and_name_only_first_chunk ... ok\n\ntest result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n\nrunning 8 tests\ntest minimal_upstream_response_pr_c4 ... ok\ntest response_incomplete_status ... ok\ntest reasoning_summary_accumulated ... ok\ntest response_failed_status ... ok\ntest output_text_delta_accumulated_per_item ... ok\ntest out_of_order_item_completion_by_id ... ok\ntest function_call_arguments_string_preserved ... ok\ntest chunk_boundary_invariance_pr_c4 ... ok\n\ntest result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s\n\n\nrunning 3 tests\ntest crates/cutctx-core/src/transforms/smart_crusher/builder.rs - transforms::smart_crusher::builder (line 9) ... ignored\ntest crates/cutctx-core/src/transforms/smart_crusher/builder.rs - transforms::smart_crusher::builder::SmartCrusherBuilder::add_default_oss_constraints (line 101) ... ignored\ntest crates/cutctx-core/src/tokenizer/registry.rs - tokenizer::registry::try_register_hf (line 135) - compile ... ok\n\ntest result: ok. 1 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.28s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n"
+    },
+    {
+      "command": [
+        "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3",
+        "scripts/verify-versions.py"
+      ],
+      "name": "version-contract",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": "All versions aligned at 0.31.0\nPackages: pyproject.toml, plugins/openclaw/package.json, sdk/typescript/package.json, crates/cutctx-py/Cargo.toml, Cargo.lock:cutctx-py, plugins/cutctx-agent-hooks/.claude-plugin/plugin.json, plugins/cutctx-agent-hooks/.github/plugin/plugin.json, helm/cutctx/Chart.yaml:version, helm/cutctx/Chart.yaml:appVersion, helm/cutctx/values.yaml:image.tag, k8s/deployment.yaml:image, /Users/aryansingh/Documents/Claude/Projects/headroom/.claude-plugin/marketplace.json:metadata, /Users/aryansingh/Documents/Claude/Projects/headroom/.claude-plugin/marketplace.json:plugins[0], /Users/aryansingh/Documents/Claude/Projects/headroom/.github/plugin/marketplace.json:metadata, /Users/aryansingh/Documents/Claude/Projects/headroom/.github/plugin/marketplace.json:plugins[0]\n"
+    },
+    {
+      "command": [
+        "/Users/aryansingh/Documents/Claude/Projects/headroom/.venv/bin/python3",
+        "scripts/assert_ee_spdx_headers.py"
+      ],
+      "name": "commercial-license-boundary",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": "SUCCESS: All .py files in cutctx_ee contain the SPDX commercial header.\n"
+    },
+    {
+      "command": [
+        "helm",
+        "template",
+        "pilot",
+        "helm/cutctx",
+        "--set",
+        "enterprise.adminApiKey=pilot-admin-secret",
+        "--set",
+        "enterprise.proxyApiKey=pilot-proxy-secret",
+        "--set",
+        "enterprise.clientApiKey=pilot-client-secret"
+      ],
+      "name": "helm-render",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": ": pilot-cutctx\n    namespace: default\nroleRef:\n  kind: Role\n  name: pilot-cutctx\n  apiGroup: rbac.authorization.k8s.io\n\n---\n# Source: cutctx/templates/service.yaml\napiVersion: v1\nkind: Service\nmetadata:\n  name: pilot-cutctx\n  labels:\n    helm.sh/chart: cutctx-0.31.0\n    app.kubernetes.io/name: cutctx\n    app.kubernetes.io/instance: pilot\n    app.kubernetes.io/version: \"0.31.0\"\n    app.kubernetes.io/managed-by: Helm\nspec:\n  type: ClusterIP\n  ports:\n    - port: 80\n      targetPort: http\n      protocol: TCP\n      name: http\n  selector:\n    app.kubernetes.io/name: cutctx\n    app.kubernetes.io/instance: pilot\n\n---\n# Source: cutctx/templates/deployment.yaml\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: pilot-cutctx\n  labels:\n    helm.sh/chart: cutctx-0.31.0\n    app.kubernetes.io/name: cutctx\n    app.kubernetes.io/instance: pilot\n    app.kubernetes.io/version: \"0.31.0\"\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: cutctx\n      app.kubernetes.io/instance: pilot\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: cutctx\n        app.kubernetes.io/instance: pilot\n    spec:\n      serviceAccountName: pilot-cutctx\n      securityContext:\n        fsGroup: 1000\n        runAsGroup: 1000\n        runAsNonRoot: true\n        runAsUser: 1000\n      containers:\n        - name: cutctx\n          securityContext:\n            allowPrivilegeEscalation: false\n            capabilities:\n              drop:\n              - ALL\n            readOnlyRootFilesystem: true\n          image: \"ghcr.io/cutctx/cutctx:0.31.0\"\n          imagePullPolicy: IfNotPresent\n          ports:\n            - name: http\n              containerPort: 8787\n              protocol: TCP\n          env:\n            - name: CUTCTX_HOST\n              value: \"0.0.0.0\"\n            - name: CUTCTX_PORT\n              value: \"8787\"\n            - name: CUTCTX_PROXY_COMPRESSION\n              value: \"true\"\n            - name: CUTCTX_PROXY_COMPRESSION_MODE\n              value: \"live_zone\"\n            - name: CUTCTX_BACKEND\n              value: \"anthropic\"\n            - name: CUTCTX_MODE\n              value: \"token\"\n            - name: CUTCTX_MAX_BODY_MB\n              value: \"50\"\n            - name: CUTCTX_AUDIT_DISABLED\n              value: \"0\"\n            - name: CUTCTX_ADMIN_API_KEY\n              valueFrom:\n                secretKeyRef:\n                  name: pilot-cutctx-secrets\n                  key: admin-api-key\n            - name: CUTCTX_PROXY_API_KEY\n              valueFrom:\n                secretKeyRef:\n                  name: pilot-cutctx-secrets\n                  key: proxy-api-key\n            - name: CUTCTX_CLIENT_API_KEY\n              valueFrom:\n                secretKeyRef:\n                  name: pilot-cutctx-secrets\n                  key: client-api-key\n          livenessProbe:\n            failureThreshold: 3\n            httpGet:\n              path: /livez\n              port: http\n            initialDelaySeconds: 10\n            periodSeconds: 15\n            timeoutSeconds: 5\n          readinessProbe:\n            failureThreshold: 3\n            httpGet:\n              path: /readyz\n              port: http\n            initialDelaySeconds: 5\n            periodSeconds: 10\n            timeoutSeconds: 5\n          startupProbe:\n            failureThreshold: 30\n            httpGet:\n              path: /livez\n              port: http\n            initialDelaySeconds: 5\n            periodSeconds: 5\n          resources:\n            null\n          volumeMounts:\n            - name: data\n              mountPath: /home/nonroot/.cutctx\n            - name: tmp\n              mountPath: /tmp\n      volumes:\n        - name: data\n          persistentVolumeClaim:\n            claimName: pilot-cutctx-pvc\n        # The image runs with a read-only root filesystem. Python, TLS, and\n        # optional provider SDKs need a writable temporary directory.\n        - name: tmp\n          emptyDir:\n            sizeLimit: 64Mi\n"
+    },
+    {
+      "command": [
+        "docker",
+        "compose",
+        "config"
+      ],
+      "name": "docker-compose-config",
+      "required": true,
+      "returncode": 0,
+      "status": "passed",
+      "stderr_tail": "",
+      "stdout_tail": "name: headroom\nservices:\n  cutctx-proxy:\n    build:\n      context: /Users/aryansingh/Documents/Claude/Projects/headroom\n      dockerfile: Dockerfile\n    command:\n      - --host\n      - 0.0.0.0\n    depends_on:\n      neo4j:\n        condition: service_started\n        required: true\n      qdrant:\n        condition: service_started\n        required: true\n    environment:\n      CUTCTX_ADMIN_API_KEY: pilot-admin-secret\n      CUTCTX_CLIENT_API_KEY: pilot-client-secret\n      CUTCTX_HOST: 0.0.0.0\n      CUTCTX_PROXY_API_KEY: pilot-proxy-secret\n    healthcheck:\n      test:\n        - CMD\n        - curl\n        - --fail\n        - --silent\n        - http://127.0.0.1:8787/readyz\n      timeout: 5s\n      interval: 30s\n      retries: 3\n      start_period: 20s\n    networks:\n      default: null\n    ports:\n      - mode: ingress\n        target: 8787\n        published: \"8787\"\n        protocol: tcp\n    volumes:\n      - type: volume\n        source: cutctx_data\n        target: /home/nonroot/.cutctx\n        volume: {}\n  neo4j:\n    environment:\n      NEO4J_AUTH: neo4j/pilot-graph-secret\n      NEO4J_PLUGINS: '[\"apoc\"]'\n      NEO4J_apoc_export_file_enabled: \"true\"\n      NEO4J_apoc_import_file_enabled: \"true\"\n      NEO4J_apoc_import_file_use__neo4j__config: \"true\"\n    image: neo4j:5.26\n    networks:\n      default: null\n    volumes:\n      - type: volume\n        source: neo4j_data\n        target: /data\n        volume: {}\n  qdrant:\n    environment:\n      QDRANT__SERVICE__GRPC_PORT: \"6334\"\n    image: qdrant/qdrant:v1.17.1\n    networks:\n      default: null\n    volumes:\n      - type: volume\n        source: qdrant_data\n        target: /qdrant/storage\n        volume: {}\nnetworks:\n  default:\n    name: headroom_default\nvolumes:\n  cutctx_data:\n    name: headroom_cutctx_data\n  neo4j_data:\n    name: headroom_neo4j_data\n  qdrant_data:\n    name: headroom_qdrant_data\n"
+    }
+  ],
+  "external_signoffs": [
+    {
+      "name": "Contracting entity and approved pilot agreement",
+      "status": "open"
+    },
+    {
+      "name": "Legal review of terms, privacy terms, and required DPA",
+      "status": "open"
+    },
+    {
+      "name": "Payment or invoice confirmation",
+      "status": "open"
+    },
+    {
+      "name": "Named support owner and response target",
+      "status": "open"
+    },
+    {
+      "name": "Customer approval of data handling and telemetry",
+      "status": "open"
+    },
+    {
+      "name": "Customer-cluster live provider, backup restore, and rollback acceptance",
+      "status": "open"
+    }
+  ],
+  "failed": 0,
+  "generated_at": "2026-07-22T18:00:05.055957+00:00",
+  "optional_failed": 0,
+  "passed": true,
+  "passed_count": 13,
+  "skipped": 0
+}
