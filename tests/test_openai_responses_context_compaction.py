@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import copy
 import json
 from types import SimpleNamespace
 from typing import Any
+
+import pytest
 
 from cutctx.proxy.handlers.openai import (
     OpenAIHandlerMixin,
@@ -470,6 +473,158 @@ def test_codex_subscription_payload_is_a_full_passthrough() -> None:
     assert transforms == []
     assert before == after
     assert attempted == 0
+
+
+@pytest.mark.parametrize(
+    ("payload", "reason"),
+    [
+        (
+            {
+                "model": "gpt-5.4",
+                "input": [
+                    {"type": "reasoning", "encrypted_content": "opaque"},
+                    {
+                        "type": "function_call_output",
+                        "call_id": "call_1",
+                        "output": "compressible output " * 200,
+                    },
+                ],
+            },
+            "subscription_opaque_continuation",
+        ),
+        (
+            {
+                "model": "gpt-5.4",
+                "previous_response_id": "resp_123",
+                "input": [
+                    {
+                        "type": "function_call_output",
+                        "call_id": "call_1",
+                        "output": "compressible output " * 200,
+                    }
+                ],
+            },
+            "subscription_previous_response_resume",
+        ),
+        (
+            {
+                "model": "gpt-5.4",
+                "input": [{"type": "compaction", "payload": "x" * (1024 * 1024)}],
+                "client_metadata": {"remote_compaction": True},
+                "include": ["reasoning.encrypted_content"],
+                "parallel_tool_calls": False,
+                "prompt_cache_key": "remote-compact",
+                "reasoning": {"effort": "medium"},
+                "store": False,
+                "stream": True,
+                "stream_options": {"include_usage": True},
+                "text": {"verbosity": "low"},
+            },
+            "subscription_remote_compaction",
+        ),
+        (
+            {"model": "gpt-5.4", "input": "unknown input container"},
+            "subscription_no_eligible_output",
+        ),
+    ],
+)
+def test_chatgpt_subscription_classifier_rejects_protected_payloads(
+    payload: dict[str, Any],
+    reason: str,
+) -> None:
+    handler = _HandlerHarness(ContentRouter(ContentRouterConfig()))
+
+    policy, actual_reason = handler._classify_chatgpt_subscription_compression(payload)
+
+    assert policy == "passthrough"
+    assert actual_reason == reason
+
+
+def test_chatgpt_subscription_classifier_allows_only_recognized_string_outputs() -> None:
+    handler = _HandlerHarness(ContentRouter(ContentRouterConfig()))
+    payload = {
+        "model": "gpt-5.4",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "compressible output " * 200,
+            }
+        ],
+    }
+
+    policy, reason = handler._classify_chatgpt_subscription_compression(payload)
+
+    assert policy == "tool_outputs_only"
+    assert reason is None
+
+
+def test_chatgpt_subscription_validator_accepts_only_smaller_output_strings() -> None:
+    handler = _HandlerHarness(ContentRouter(ContentRouterConfig()))
+    original = {
+        "model": "gpt-5.4",
+        "tools": [{"type": "function", "name": "read_fixture"}],
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "one two three four five six",
+            }
+        ],
+    }
+    candidate = copy.deepcopy(original)
+    candidate["input"][0]["output"] = "one two"
+
+    valid, saved = handler._validate_chatgpt_subscription_tool_output_candidate(
+        original,
+        candidate,
+        tokenizer=_StubTokenizer(),
+    )
+
+    assert valid is True
+    assert saved == 4
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda body: body.update({"model": "gpt-5.6-sol"}),
+        lambda body: body.update({"tools": []}),
+        lambda body: body["input"][0].update({"call_id": "call_changed"}),
+        lambda body: body["input"].reverse(),
+        lambda body: body["input"][1].update({"encrypted_content": "changed"}),
+        lambda body: body.update({"metadata": {"changed": True}}),
+        lambda body: body["input"][0].update(
+            {"output": "one two three four five six seven"}
+        ),
+    ],
+)
+def test_chatgpt_subscription_validator_rejects_wider_or_larger_mutations(mutate) -> None:
+    handler = _HandlerHarness(ContentRouter(ContentRouterConfig()))
+    original = {
+        "model": "gpt-5.4",
+        "tools": [{"type": "function", "name": "read_fixture"}],
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": "one two three four five six",
+            },
+            {"type": "reasoning", "encrypted_content": "opaque"},
+        ],
+    }
+    candidate = copy.deepcopy(original)
+    candidate["input"][0]["output"] = "one two"
+    mutate(candidate)
+
+    valid, saved = handler._validate_chatgpt_subscription_tool_output_candidate(
+        original,
+        candidate,
+        tokenizer=_StubTokenizer(),
+    )
+
+    assert valid is False
+    assert saved == 0
 
 
 def test_responses_compression_failure_refuses_when_context_guard_trips() -> None:

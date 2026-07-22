@@ -1409,6 +1409,94 @@ class OpenAIResponsesMixin:
             failure_action.reason,
         )
 
+    def _classify_chatgpt_subscription_compression(
+        self,
+        payload: dict[str, Any],
+    ) -> tuple[str, str | None]:
+        """Select the narrow mutation policy for a ChatGPT subscription payload."""
+        if _is_remote_compaction_subscription_request(payload):
+            return "passthrough", "subscription_remote_compaction"
+
+        previous_response_id = payload.get("previous_response_id")
+        if isinstance(previous_response_id, str) and previous_response_id:
+            return "passthrough", "subscription_previous_response_resume"
+
+        if _contains_opaque_responses_continuation(payload):
+            return "passthrough", "subscription_opaque_continuation"
+
+        items = payload.get("input")
+        if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+            return "passthrough", "subscription_no_eligible_output"
+        if any(item.get("type") == "compaction" for item in items):
+            return "passthrough", "subscription_opaque_continuation"
+
+        eligible = any(
+            item.get("type") in self.OPENAI_RESPONSES_OUTPUT_TYPES
+            and isinstance(item.get("output"), str)
+            for item in items
+        )
+        if not eligible:
+            return "passthrough", "subscription_no_eligible_output"
+        return "tool_outputs_only", None
+
+    def _validate_chatgpt_subscription_tool_output_candidate(
+        self,
+        original: dict[str, Any],
+        candidate: dict[str, Any],
+        *,
+        tokenizer: Any,
+    ) -> tuple[bool, int]:
+        """Prove that a candidate changed only smaller allowlisted output strings."""
+        if original.keys() != candidate.keys():
+            return False, 0
+        for key in original:
+            if key != "input" and original[key] != candidate[key]:
+                return False, 0
+
+        original_items = original.get("input")
+        candidate_items = candidate.get("input")
+        if not isinstance(original_items, list) or not isinstance(candidate_items, list):
+            return False, 0
+        if len(original_items) != len(candidate_items):
+            return False, 0
+
+        total_saved = 0
+        changed_outputs = 0
+        for original_item, candidate_item in zip(original_items, candidate_items, strict=True):
+            if not isinstance(original_item, dict) or not isinstance(candidate_item, dict):
+                return False, 0
+            if original_item.keys() != candidate_item.keys():
+                return False, 0
+            if original_item == candidate_item:
+                continue
+            if original_item.get("type") not in self.OPENAI_RESPONSES_OUTPUT_TYPES:
+                return False, 0
+
+            original_output = original_item.get("output")
+            candidate_output = candidate_item.get("output")
+            if not isinstance(original_output, str) or not isinstance(candidate_output, str):
+                return False, 0
+
+            original_without_output = {
+                key: value for key, value in original_item.items() if key != "output"
+            }
+            candidate_without_output = {
+                key: value for key, value in candidate_item.items() if key != "output"
+            }
+            if original_without_output != candidate_without_output:
+                return False, 0
+
+            before = tokenizer.count_text(original_output)
+            after = tokenizer.count_text(candidate_output)
+            if after >= before:
+                return False, 0
+            total_saved += before - after
+            changed_outputs += 1
+
+        if changed_outputs == 0:
+            return False, 0
+        return True, total_saved
+
     def _compress_openai_responses_live_text_units_with_router(
         self,
         payload: dict[str, Any],
