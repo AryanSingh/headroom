@@ -1003,16 +1003,17 @@ function MetricCard({
 }) {
   return (
     <article className={`metric-card ${className}`.trim()}>
-      <div className="metric-header">
+      <div className="metric-primary">
         <span className="metric-label">{label}</span>
+        <div className="metric-value">{value}</div>
+        {sparkline ? <Sparkline values={sparkline} color={sparklineColor} /> : null}
+      </div>
+      <div className="metric-supporting">
         <div className={`metric-icon ${iconColor}`}>
           <Icon size={16} />
         </div>
+        <div className="metric-footnote">{footnote}</div>
       </div>
-
-      <div className="metric-value">{value}</div>
-      {sparkline ? <Sparkline values={sparkline} color={sparklineColor} /> : null}
-      <div className="metric-footnote">{footnote}</div>
     </article>
   );
 }
