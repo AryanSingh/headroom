@@ -687,9 +687,7 @@ async def test_ws_chatgpt_safe_compressor_failure_forwards_opaque_frame_without_
             },
         ],
     }
-    client_ws = _FakeWebSocket(
-        frames=[json.dumps({"type": "response.create", "response": inner})]
-    )
+    client_ws = _FakeWebSocket(frames=[json.dumps({"type": "response.create", "response": inner})])
     client_ws.headers["chatgpt-account-id"] = "acct-123"
     upstream = _FakeUpstream(
         [

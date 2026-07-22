@@ -620,9 +620,7 @@ def test_chatgpt_subscription_validator_accepts_only_smaller_output_strings() ->
         lambda body: body["input"].reverse(),
         lambda body: body["input"][1].update({"encrypted_content": "changed"}),
         lambda body: body.update({"metadata": {"changed": True}}),
-        lambda body: body["input"][0].update(
-            {"output": "one two three four five six seven"}
-        ),
+        lambda body: body["input"][0].update({"output": "one two three four five six seven"}),
     ],
 )
 def test_chatgpt_subscription_validator_rejects_wider_or_larger_mutations(mutate) -> None:

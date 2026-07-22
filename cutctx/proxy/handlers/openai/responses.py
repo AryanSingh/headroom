@@ -3174,11 +3174,7 @@ class OpenAIResponsesMixin:
                         )
                         schema_savings_metadata = merge_savings_metadata(
                             schema_savings_metadata,
-                            {
-                                "api_surface_slimming": {
-                                    "tokens": tool_surface_result.tokens_saved
-                                }
-                            },
+                            {"api_surface_slimming": {"tokens": tool_surface_result.tokens_saved}},
                         )
                         transforms_applied = [
                             "openai:responses:tool_surface_slimming",
@@ -3303,9 +3299,7 @@ class OpenAIResponsesMixin:
                             _CHATGPT_MAX_BODY_BYTES,
                             request_id,
                         )
-                        _truncated_bytes = len(
-                            json.dumps(body).encode("utf-8", errors="replace")
-                        )
+                        _truncated_bytes = len(json.dumps(body).encode("utf-8", errors="replace"))
                         logger.info(
                             "[%s] /v1/responses emergency truncation: %d → %d bytes",
                             request_id,
@@ -5040,11 +5034,7 @@ class OpenAIResponsesMixin:
                                     _inner = {**_inner, "tools": _tool_surface_result.tools}
                                     ws_savings_metadata = merge_savings_metadata(
                                         ws_savings_metadata,
-                                        {
-                                            "api_surface_slimming": {
-                                                "tokens": _tool_surface_saved
-                                            }
-                                        },
+                                        {"api_surface_slimming": {"tokens": _tool_surface_saved}},
                                     )
                             if _tool_scaffolding_tokens > 0:
                                 _schema_saved = 0
@@ -5064,12 +5054,10 @@ class OpenAIResponsesMixin:
                                 )
                             _original_ws_tools = copy.deepcopy(_inner.get("tools"))
                             if is_chatgpt_auth:
-                                _compression_result = (
-                                    await self._compress_chatgpt_subscription_tool_outputs_in_executor(
-                                        _inner,
-                                        model=_model,
-                                        request_id=request_id,
-                                    )
+                                _compression_result = await self._compress_chatgpt_subscription_tool_outputs_in_executor(
+                                    _inner,
+                                    model=_model,
+                                    request_id=request_id,
                                 )
                             else:
                                 _compression_result = (
@@ -5144,10 +5132,7 @@ class OpenAIResponsesMixin:
                                 _record_ws_compression_overhead(_rewrite_ms)
                             tokens_saved += int(_tool_surface_saved)
                             attempted_input_tokens_total += int(_tool_surface_saved)
-                            if (
-                                _tool_surface_result is not None
-                                and _tool_surface_result.modified
-                            ):
+                            if _tool_surface_result is not None and _tool_surface_result.modified:
                                 if (
                                     "openai:responses:tool_surface_slimming"
                                     not in transforms_applied
@@ -5537,9 +5522,7 @@ class OpenAIResponsesMixin:
                                         if isinstance(inner_payload, dict)
                                         else None,
                                         query=extract_responses_query(
-                                            inner_payload
-                                            if isinstance(inner_payload, dict)
-                                            else {}
+                                            inner_payload if isinstance(inner_payload, dict) else {}
                                         ),
                                         config=self.config,
                                         tokenizer=get_tokenizer(model_for_frame),
@@ -5568,12 +5551,10 @@ class OpenAIResponsesMixin:
                                         )
                                 original_frame_tools = copy.deepcopy(inner_payload.get("tools"))
                                 if is_chatgpt_auth:
-                                    frame_compression_result = (
-                                        await self._compress_chatgpt_subscription_tool_outputs_in_executor(
-                                            inner_payload,
-                                            model=model_for_frame,
-                                            request_id=request_id,
-                                        )
+                                    frame_compression_result = await self._compress_chatgpt_subscription_tool_outputs_in_executor(
+                                        inner_payload,
+                                        model=model_for_frame,
+                                        request_id=request_id,
                                     )
                                 else:
                                     frame_compression_result = (

@@ -59,9 +59,9 @@ def test_subscription_websocket_compresses_ordinary_output_and_preserves_opaque_
     original_first = json.loads((scenario_dir / "frame.json").read_text(encoding="utf-8"))[
         "response"
     ]
-    original_resume = json.loads(
-        (scenario_dir / "resume-frame.json").read_text(encoding="utf-8")
-    )["response"]
+    original_resume = json.loads((scenario_dir / "resume-frame.json").read_text(encoding="utf-8"))[
+        "response"
+    ]
 
     with ReplayHarness(FIXTURES, optimize=True) as harness:
         result = harness.run("codex-websocket-direct")
