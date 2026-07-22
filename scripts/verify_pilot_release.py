@@ -134,11 +134,16 @@ def _command_environment(check: Check) -> dict[str, str]:
             "CI": "true",
             "GIT_TERMINAL_PROMPT": "0",
             "PAGER": "cat",
-            "CUTCTX_ADMIN_API_KEY": "pilot-admin-secret",
-            "CUTCTX_PROXY_API_KEY": "pilot-proxy-secret",
-            "CUTCTX_CLIENT_API_KEY": "pilot-client-secret",
         }
     )
+    if check.name == "docker-compose-config":
+        environment.update(
+            {
+                "CUTCTX_ADMIN_API_KEY": "pilot-admin-secret",
+                "CUTCTX_PROXY_API_KEY": "pilot-proxy-secret",
+                "CUTCTX_CLIENT_API_KEY": "pilot-client-secret",
+            }
+        )
     if check.name.startswith("dashboard-"):
         environment["npm_config_yes"] = "true"
     return environment

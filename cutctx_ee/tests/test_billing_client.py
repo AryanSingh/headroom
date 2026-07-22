@@ -219,3 +219,5 @@ def test_trial_status_fails_open_on_non_json(monkeypatch):
         lambda *args, **kwargs: _FakeResponse(200, content_type="text/html"),
     )
     assert client.is_trial_active("trial-1") is True
+# SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
+# Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.

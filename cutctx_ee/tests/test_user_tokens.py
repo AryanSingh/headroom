@@ -47,3 +47,5 @@ def test_user_token_rejects_missing_subject_or_expired_payload(payload: dict) ->
 def test_user_token_rejects_malformed_input() -> None:
     with pytest.raises(UserTokenError, match="malformed token"):
         verify_user_token("not-a-token", "secret", "license-1")
+# SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
+# Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.

@@ -60,3 +60,5 @@ def test_verify_signed_token_accepts_a_signature_with_high_bit_der_integer():
         .decode("ascii")
     )
     assert client.verify_signed_token(token, pem) == {"tier": "builder"}
+# SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
+# Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.

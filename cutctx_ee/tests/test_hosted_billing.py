@@ -18,3 +18,5 @@ def test_ee_portal_is_the_pitchtoship_account_portal(monkeypatch):
     assert billing.get_portal_url("buyer@example.com") == (
         "https://billing.example/account?email=buyer%40example.com"
     )
+# SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
+# Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
