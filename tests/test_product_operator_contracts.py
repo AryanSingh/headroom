@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -40,6 +42,17 @@ def test_root_compose_requires_all_network_auth_keys() -> None:
     assert "CUTCTX_ADMIN_API_KEY=${CUTCTX_ADMIN_API_KEY:?" in compose
     assert "CUTCTX_PROXY_API_KEY=${CUTCTX_PROXY_API_KEY:?" in compose
     assert "CUTCTX_CLIENT_API_KEY=${CUTCTX_CLIENT_API_KEY:?" in compose
+
+
+def test_root_compose_keeps_stateful_dependencies_private_and_persistent() -> None:
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    services = compose["services"]
+
+    assert "ports" not in services["qdrant"]
+    assert "ports" not in services["neo4j"]
+    assert "NEO4J_AUTH=${NEO4J_AUTH:?set NEO4J_AUTH}" in services["neo4j"]["environment"]
+    assert "cutctx_data:/home/nonroot/.cutctx" in services["cutctx-proxy"]["volumes"]
+    assert "cutctx_data" in compose["volumes"]
 
 
 def test_kubernetes_secret_documents_all_non_loopback_auth_boundaries() -> None:

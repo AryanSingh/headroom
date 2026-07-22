@@ -142,6 +142,7 @@ def _command_environment(check: Check) -> dict[str, str]:
                 "CUTCTX_ADMIN_API_KEY": "pilot-admin-secret",
                 "CUTCTX_PROXY_API_KEY": "pilot-proxy-secret",
                 "CUTCTX_CLIENT_API_KEY": "pilot-client-secret",
+                "NEO4J_AUTH": "neo4j/pilot-graph-secret",
             }
         )
     if check.name.startswith("dashboard-"):
