@@ -526,6 +526,20 @@ def test_codex_subscription_payload_is_a_full_passthrough() -> None:
             {"model": "gpt-5.4", "input": "unknown input container"},
             "subscription_no_eligible_output",
         ),
+        (
+            {
+                "model": "gpt-5.4",
+                "input": [
+                    {
+                        "type": "function_call_output",
+                        "call_id": "call_1",
+                        "output": "compressible output " * 200,
+                    },
+                    {"unexpected": "missing item type"},
+                ],
+            },
+            "subscription_no_eligible_output",
+        ),
     ],
 )
 def test_chatgpt_subscription_classifier_rejects_protected_payloads(

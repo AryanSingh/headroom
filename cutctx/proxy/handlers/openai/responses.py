@@ -1427,6 +1427,8 @@ class OpenAIResponsesMixin:
         items = payload.get("input")
         if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
             return "passthrough", "subscription_no_eligible_output"
+        if any(not isinstance(item.get("type"), str) or not item.get("type") for item in items):
+            return "passthrough", "subscription_no_eligible_output"
         if any(item.get("type") == "compaction" for item in items):
             return "passthrough", "subscription_opaque_continuation"
 
