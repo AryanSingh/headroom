@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlite3
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -292,3 +294,21 @@ def test_sqlite_storage_get_conn_reuses_connection_and_create_storage_entrypoint
         lambda group: [SimpleNamespace(name="custom", load=lambda: lambda url: created)],
     )
     assert create_storage("custom://db") is created
+
+
+def test_sqlite_save_waits_for_short_external_write_lock(tmp_path: Path) -> None:
+    path = tmp_path / "metrics.db"
+    storage = SQLiteStorage(str(path))
+    blocker = sqlite3.connect(path, check_same_thread=False)
+    blocker.execute("BEGIN IMMEDIATE")
+    release = threading.Timer(0.1, blocker.commit)
+    release.start()
+
+    try:
+        storage.save(_metrics("locked-write", datetime(2026, 7, 22, 12, 0, 0)))
+    finally:
+        release.join()
+        blocker.close()
+
+    assert storage.get("locked-write") is not None
+    storage.close()

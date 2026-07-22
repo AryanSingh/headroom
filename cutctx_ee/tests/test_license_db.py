@@ -130,3 +130,34 @@ def test_concurrent_checkout_across_two_connections_respects_one_seat(tmp_path) 
 
     assert len(lease_rows) == 1
     assert lease_rows[0][0] in {"user-1", "user-2"}
+
+
+def test_activation_waits_for_short_external_write_lock(tmp_path) -> None:
+    db_path = tmp_path / "licenses.db"
+    owner = _db_with_one_seat_license(tmp_path)
+    owner._conn.execute("BEGIN IMMEDIATE")
+
+    def activate() -> bool:
+        contender = LicenseDB(db_path)
+        try:
+            return contender.activate_instance("local-license", "instance-1")
+        finally:
+            contender.close()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        result = executor.submit(activate)
+        time.sleep(0.1)
+        owner._conn.commit()
+        assert result.result(timeout=2) is True
+    owner.close()
+
+    verification_db = LicenseDB(db_path)
+    try:
+        activation_count = verification_db._conn.execute(
+            "SELECT count(*) FROM activations WHERE license_key = ?",
+            ("local-license",),
+        ).fetchone()[0]
+    finally:
+        verification_db.close()
+
+    assert activation_count == 1
