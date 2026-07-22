@@ -196,6 +196,7 @@ def test_ci_hands_prefetched_model_to_offline_test_jobs_as_an_artifact() -> None
     assert "name: all-minilm-model-cache" in content
     assert content.count("name: all-minilm-model-cache") == 3
     assert "all-minilm-model-cache.tar.gz" in content
+    assert "cache_dir='.ci-hf-cache/hub'" in content
     assert content.count("Extract prefetched HuggingFace model cache") == 2
     assert "Restore HuggingFace model cache (warmed by prefetch-model)" not in content
 

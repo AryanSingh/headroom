@@ -153,7 +153,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .ci-hf-cache
-          key: ${{ runner.os }}-models-allMiniLM-pytorch-v1
+          key: ${{ runner.os }}-models-allMiniLM-safetensors-v1
       - name: Fetch all-MiniLM-L6-v2 once (authenticated, resilient)
         if: steps.hfcache.outputs.cache-hit != 'true'
         env:
@@ -162,7 +162,7 @@ jobs:
         run: |
           fetched=0
           for i in 1 2 3 4 5 6; do
-            if python -c "from huggingface_hub import snapshot_download; snapshot_download('sentence-transformers/all-MiniLM-L6-v2', cache_dir='.ci-hf-cache', ignore_patterns=['*.onnx', 'openvino/*', '*.h5', '*.ot', 'rust_model.ot', 'flax_model.msgpack'])"; then
+            if python -c "from huggingface_hub import snapshot_download; snapshot_download('sentence-transformers/all-MiniLM-L6-v2', cache_dir='.ci-hf-cache/hub', ignore_patterns=['*.onnx', 'openvino/*', '*.h5', '*.ot', 'pytorch_model.bin', 'rust_model.ot', 'flax_model.msgpack'])"; then
               fetched=1
               break
             fi
@@ -174,7 +174,7 @@ jobs:
           fi
       - name: Verify and package offline model cache
         run: |
-          python -c "from huggingface_hub import snapshot_download; print(snapshot_download('sentence-transformers/all-MiniLM-L6-v2', cache_dir='.ci-hf-cache', local_files_only=True))"
+          python -c "from huggingface_hub import snapshot_download; print(snapshot_download('sentence-transformers/all-MiniLM-L6-v2', cache_dir='.ci-hf-cache/hub', local_files_only=True))"
           tar -C .ci-hf-cache -czf all-minilm-model-cache.tar.gz .
       - name: Upload model cache for offline test jobs
         uses: actions/upload-artifact@v7
