@@ -10,6 +10,7 @@
     <link rel="icon" href="/assets/favicon.svg?v=20260721-platform" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/site.css?v=20260721-platform">
     <script src="/assets/site.js?v=20260721-platform" defer></script>
+    <script type="module" src="/assets/pricing.js?v=20260723-inline-checkout"></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -29,7 +30,7 @@
         <div class="eyebrow">Start free. Scale with evidence.</div>
         <h1>Choose the control your workflow needs.</h1>
         <p>Begin with a local technical evaluation. Add shared reporting, policy, governance, and deployment support when the result and organization justify it.</p>
-        <p class="page-kicker">Monthly pricing · PitchToShip billing · Cancel before renewal</p>
+        <p class="page-kicker">Monthly pricing · Secure CutCtx checkout · Cancel before renewal</p>
       </section>
 
       <section class="content-panel" aria-labelledby="evaluation-heading">
@@ -58,19 +59,19 @@
           <article class="price-card featured">
             <div class="plan-badge">Recommended for teams</div>
             <h2>Team</h2>
-            <div class="price">$1,500 <small>/ month</small></div>
-            <p>For one engineering team adopting shared AI workflows.</p>
+            <div class="price" data-plan-price="starter">Loading…</div>
+            <p data-plan-description="starter">For one engineering team adopting shared AI workflows.</p>
             <ul><li>Shared analytics and savings reports</li><li>Policy presets and budget controls</li><li>Business-hours support</li></ul>
-          <a class="button button-primary" data-cta="team-checkout" data-cta-placement="pricing-card" href="https://pitchtoship.com/billing?product=cutctx&amp;plan=starter&amp;billing=monthly&amp;returnTo=https%3A%2F%2Fcutctx.com%2Flicenses">Choose Team</a>
+            <button class="button button-primary" data-cta="team-checkout" data-cta-placement="pricing-card" data-plan-select="starter" type="button" disabled>Choose Team</button>
           </article>
 
           <article class="price-card">
             <div class="eyebrow">Coordinate</div>
             <h2>Business</h2>
-            <div class="price">$3,500 <small>/ month</small></div>
-            <p>For platform teams and multi-project organizations.</p>
+            <div class="price" data-plan-price="studio">Loading…</div>
+            <p data-plan-description="studio">For platform teams and multi-project organizations.</p>
             <ul><li>Organization, workspace, and project models</li><li>Historical and exportable reporting</li><li>Deployment advisory</li></ul>
-          <a class="button button-primary" data-cta="business-checkout" data-cta-placement="pricing-card" href="https://pitchtoship.com/billing?product=cutctx&amp;plan=studio&amp;billing=monthly&amp;returnTo=https%3A%2F%2Fcutctx.com%2Flicenses">Choose Business</a>
+            <button class="button button-primary" data-cta="business-checkout" data-cta-placement="pricing-card" data-plan-select="studio" type="button" disabled>Choose Business</button>
           </article>
 
           <article class="price-card">
@@ -82,6 +83,18 @@
             <a class="button button-secondary" data-cta="enterprise-contact" data-cta-placement="pricing-card" href="mailto:hello@aoexl.com?subject=CutCtx%20Enterprise">Talk to us</a>
           </article>
         </div>
+
+        <section id="cutctx-checkout" class="checkout-panel" hidden aria-labelledby="checkout-heading" aria-live="polite">
+          <div class="eyebrow">Secure checkout</div>
+          <h2 id="checkout-heading">Continue with CutCtx</h2>
+          <p id="checkout-plan-summary">Select a plan above to continue.</p>
+          <form id="cutctx-checkout-form" class="checkout-form">
+            <label for="checkout-email">Checkout email</label>
+            <input id="checkout-email" name="email" type="email" autocomplete="email" placeholder="you@company.com" required>
+            <button class="button button-primary" id="checkout-submit" type="submit">Continue to secure payment</button>
+          </form>
+          <p id="checkout-status" class="license-status" role="status"></p>
+        </section>
 
         <div class="merchant-panel">
           <div class="eyebrow">Billing and account management</div>
