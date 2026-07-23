@@ -10,6 +10,7 @@ test('CutCtx pricing renders a database-backed inline checkout instead of a Pitc
   assert.match(pricing, /id="cutctx-checkout"/);
   assert.doesNotMatch(pricing, /pitchtoship\.com\/billing/);
   assert.match(pricing, /\/assets\/pricing\.js/);
+  assert.match(pricing, /\/assets\/site\.css\?v=20260723-inline-checkout/);
 });
 
 test('CutCtx checkout loads catalog data and verifies payment without a cross-site handoff', () => {
