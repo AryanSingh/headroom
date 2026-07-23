@@ -346,6 +346,28 @@ h1, h2, h3, p { text-wrap: pretty; }
 .page-hero h1 { max-width: 14ch; font-size: clamp(2.8rem, 5.8vw, 5.5rem); }
 .page-kicker { margin-top: 1.25rem; color: var(--ink-faint); font-family: var(--font-mono); font-size: 0.76rem; }
 
+.license-page { max-width: 58rem; padding: clamp(4rem, 8vw, 7rem) 0 6rem; }
+.license-hero { max-width: 45rem; }
+.license-hero h1 { margin: 0.7rem 0 1rem; font-size: clamp(2.8rem, 6vw, 5.2rem); letter-spacing: -0.075em; line-height: 0.95; }
+.license-hero p { margin: 0; color: var(--ink-soft); font-size: 1.1rem; }
+.license-panel { margin-top: 2.5rem; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: linear-gradient(145deg, rgba(18,34,56,0.88), rgba(8,17,29,0.96)); box-shadow: var(--shadow); padding: clamp(1.35rem, 4vw, 2.5rem); }
+.license-form { display: grid; gap: 0.75rem; max-width: 36rem; }
+.license-form label { color: var(--ink-soft); font-size: 0.88rem; font-weight: 800; }
+.license-form input { width: 100%; min-height: 3rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(3,7,13,0.7); color: var(--ink); font: inherit; padding: 0.65rem 0.8rem; }
+.license-form input:focus { border-color: var(--focus); outline: 0; }
+.license-form .button { width: fit-content; }
+.license-status { min-height: 1.6rem; margin: 1rem 0 0; color: var(--ink-soft); }
+.license-status[data-state="error"] { color: #ffb6b6; }
+.license-status[data-state="success"] { color: var(--mint); }
+.license-results { margin-top: 2rem; border-top: 1px solid var(--line); padding-top: 1.5rem; }
+.license-results-heading { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.license-results h2 { margin: 0.35rem 0 0; font-size: clamp(1.6rem, 3vw, 2.2rem); letter-spacing: -0.05em; }
+.license-list { display: grid; gap: 0.8rem; margin-top: 1.25rem; }
+.license-card { border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(3,7,13,0.48); padding: 1rem; }
+.license-card h3 { margin: 0; font-size: 1.05rem; }
+.license-card p { margin: 0.45rem 0 0; color: var(--ink-soft); }
+.license-card code { overflow-wrap: anywhere; }
+
 .docs-layout { display: grid; grid-template-columns: minmax(12rem, 0.28fr) minmax(0, 0.72fr); gap: clamp(2rem, 5vw, 5rem); align-items: start; padding-bottom: 6rem; }
 .docs-nav { position: sticky; top: 6rem; display: grid; gap: 0.35rem; border-left: 1px solid var(--line); padding-left: 1rem; }
 .docs-nav a { color: var(--ink-faint); font-size: 0.88rem; font-weight: 700; text-decoration: none; }
