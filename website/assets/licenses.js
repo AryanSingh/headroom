@@ -15,10 +15,6 @@ function setStatus(message, state = '') {
   status.dataset.state = state;
 }
 
-function licensePortalUrl() {
-  return new URL('/licenses', window.location.origin).toString();
-}
-
 function readSession() {
   try {
     return JSON.parse(window.localStorage.getItem(SESSION_KEY) || 'null');
@@ -119,9 +115,9 @@ async function sendMagicLink(event) {
 
   submitButton.disabled = true;
   setStatus('Sending your secure Magic Link…');
-  const response = await request(`${SUPABASE_URL}/auth/v1/otp`, {
+  const response = await request(`${SUPABASE_URL}/functions/v1/request-license-link`, {
     method: 'POST',
-    body: JSON.stringify({ email, create_user: true, email_redirect_to: licensePortalUrl() }),
+    body: JSON.stringify({ email }),
   });
   const body = await response.json().catch(() => ({}));
   submitButton.disabled = false;
