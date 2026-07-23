@@ -78,6 +78,21 @@ def test_pricing_routes_to_pitchtoship_without_payment_secrets():
     assert "RAZORPAY_" not in pricing
 
 
+def test_pricing_explains_checkout_and_license_management():
+    pricing = read_page("website/pricing/index.html")
+    assert ">Buy Team<" in pricing
+    assert ">Buy Business<" in pricing
+    assert "License key emailed after payment" in pricing
+    assert 'href="https://pitchtoship.com/account"' in pricing
+    assert "Manage license" in pricing
+
+
+def test_docs_explains_how_to_activate_and_recover_a_paid_license():
+    docs = read_page("website/docs/index.html")
+    assert "cutctx license activate &lt;license-key&gt;" in docs
+    assert 'href="https://pitchtoship.com/account"' in docs
+
+
 def test_pricing_uses_the_verified_company_contact():
     pricing = Path("website/pricing/index.html").read_text(encoding="utf-8")
     assert "hello@aoexl.com" in pricing
@@ -162,6 +177,13 @@ def test_public_navigation_reaches_platform_destinations():
         html = page.read_text(encoding="utf-8")
         assert 'href="/routing/"' in html
         assert 'href="/integrations/"' in html
+
+
+def test_public_navigation_exposes_purchase_and_license_management():
+    for page in (Path("website/index.html"), Path("website/pricing/index.html")):
+        html = page.read_text(encoding="utf-8")
+        assert 'href="/pricing/"' in html
+        assert 'href="https://pitchtoship.com/account"' in html
 
 
 def test_pricing_does_not_invent_routing_entitlements():
