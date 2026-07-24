@@ -35,6 +35,26 @@ def test_checkout_seat_accepts_json_success(monkeypatch):
     assert client.checkout_seat("lic-1", "user-1") is True
 
 
+def test_checkout_seat_uses_hosted_heartbeat_for_cutctx_key(monkeypatch):
+    calls = []
+
+    def hosted_post(endpoint, payload):
+        calls.append((endpoint, payload))
+        return {"accepted": True}
+
+    monkeypatch.setattr(client, "_post_hosted_license", hosted_post)
+    monkeypatch.setattr(client.httpx, "post", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError()))
+
+    assert client.checkout_seat("cutctx_enterprise", "user-1") is True
+    assert calls == [("seat-heartbeat", {"key": "cutctx_enterprise", "hwid": "user-1"})]
+
+
+def test_checkout_seat_denies_hosted_capacity_rejection(monkeypatch):
+    monkeypatch.setattr(client, "_post_hosted_license", lambda *_args: {"accepted": False})
+
+    assert client.checkout_seat("cutctx_enterprise", "user-over-limit") is False
+
+
 def test_checkout_seat_fails_closed_on_portal_exception_by_default(monkeypatch):
     monkeypatch.delenv("CUTCTX_LICENSE_STRICT_MODE", raising=False)
 

@@ -14,11 +14,40 @@ logger = logging.getLogger(__name__)
 
 _CRL_CACHE: dict[str, set[str] | float] = {"revoked": set(), "expires_at": 0.0}
 _DEFAULT_PORTAL_URL = "https://pitchtoship.com"
+_HOSTED_LICENSE_URL = os.environ.get(
+    "CUTCTX_LICENSE_SUPABASE_URL", "https://udeekuvifncmqvoywhlg.supabase.co"
+).rstrip("/")
+_HOSTED_LICENSE_ANON_KEY = os.environ.get(
+    "CUTCTX_LICENSE_SUPABASE_ANON_KEY",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkZWVrdXZpZm5jbXF2b3l3aGxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3OTQ3NjUsImV4cCI6MjEwMDM3MDc2NX0.Jhg4l0uf1ccwT-2Om3Ae3HOjy9SaCvX6EHnZ1FGhRGA",
+)
 
 
 def _response_is_json(resp: httpx.Response) -> bool:
     content_type = resp.headers.get("content-type", "").lower()
     return "json" in content_type
+
+
+def _is_hosted_cutctx_key(license_key: str) -> bool:
+    return license_key.startswith("cutctx_")
+
+
+def _post_hosted_license(endpoint: str, payload: dict) -> dict | None:
+    """Call the public hosted license service without privileged credentials."""
+    try:
+        response = httpx.post(
+            f"{_HOSTED_LICENSE_URL}/functions/v1/{endpoint}",
+            json=payload,
+            headers={"apikey": _HOSTED_LICENSE_ANON_KEY},
+            timeout=5.0,
+        )
+        if response.status_code >= 500 or not _response_is_json(response):
+            return None
+        body = response.json()
+        return body if isinstance(body, dict) else None
+    except Exception as exc:
+        logger.warning("Hosted license service unavailable: %s", exc)
+        return None
 
 
 def _strict_mode() -> bool:
@@ -153,6 +182,14 @@ def checkout_seat(license_key: str, user_id: str) -> bool:
     explicitly chosen offline development environments to preserve the
     legacy fail-open behavior for network exceptions.
     """
+    if _is_hosted_cutctx_key(license_key):
+        payload = _post_hosted_license(
+            "seat-heartbeat", {"key": license_key, "hwid": user_id}
+        )
+        if payload is None:
+            return not _strict_mode()
+        return payload.get("accepted") is True
+
     try:
         resp = httpx.post(
             f"{get_portal_url()}/v1/license/checkout-seat",

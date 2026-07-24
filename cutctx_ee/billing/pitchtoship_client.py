@@ -22,12 +22,22 @@ import os
 import time
 from pathlib import Path
 from typing import Any
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 logger = logging.getLogger("cutctx.pitchtoship")
 
 PITCHTOSHIP_URL = os.environ.get("PITCHTOSHIP_URL")  # e.g. http://localhost:3001
+_HOSTED_LICENSE_URL = os.environ.get(
+    "CUTCTX_LICENSE_SUPABASE_URL", "https://udeekuvifncmqvoywhlg.supabase.co"
+).rstrip("/")
+# Supabase anon keys identify the public project API and are intentionally safe
+# to distribute with browser and runtime clients. This must never be replaced
+# with a service-role key.
+_HOSTED_LICENSE_ANON_KEY = os.environ.get(
+    "CUTCTX_LICENSE_SUPABASE_ANON_KEY",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkZWVrdXZpZm5jbXF2b3l3aGxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3OTQ3NjUsImV4cCI6MjEwMDM3MDc2NX0.Jhg4l0uf1ccwT-2Om3Ae3HOjy9SaCvX6EHnZ1FGhRGA",
+)
 _CACHE_DIR = Path.home() / ".cutctx" / "pts_cache"
 _PUBLIC_KEY_CACHE = _CACHE_DIR / "pitchtoship_public.pem"
 _SIGNED_TOKEN_CACHE = _CACHE_DIR / "signed_token_cache.json"
@@ -105,6 +115,46 @@ def _b64url_decode(data: str) -> bytes:
 def is_configured() -> bool:
     """Return True if PitchToShip integration is enabled."""
     return bool(PITCHTOSHIP_URL)
+
+
+def _is_hosted_cutctx_key(license_key: str) -> bool:
+    """Return whether a key was issued by the hosted CutCtx portal."""
+    return license_key.startswith("cutctx_")
+
+
+def _post_hosted_license(endpoint: str, data: dict[str, Any]) -> dict[str, Any] | None:
+    """Call a public Supabase license Edge Function.
+
+    A client-side (4xx) response is returned as a definitive response so the
+    caller can deny access. A server error or network failure returns ``None``
+    and therefore permits the existing offline validation fallback.
+    """
+    try:
+        payload = json.dumps(data).encode("utf-8")
+        req = Request(
+            f"{_HOSTED_LICENSE_URL}/functions/v1/{endpoint}",
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "apikey": _HOSTED_LICENSE_ANON_KEY,
+            },
+            method="POST",
+        )
+        with urlopen(req, timeout=5.0) as response:
+            body = json.loads(response.read().decode("utf-8"))
+            return body if isinstance(body, dict) else None
+    except HTTPError as exc:
+        if exc.code >= 500:
+            logger.warning("Hosted license service returned HTTP %s", exc.code)
+            return None
+        try:
+            body = json.loads(exc.read().decode("utf-8"))
+            return body if isinstance(body, dict) else {"valid": False}
+        except Exception:
+            return {"valid": False}
+    except (URLError, OSError, ValueError, json.JSONDecodeError) as exc:
+        logger.warning("Hosted license service unavailable: %s", exc)
+        return None
 
 
 def _post(endpoint: str, data: dict[str, Any], timeout: float = 5.0) -> dict[str, Any] | None:
@@ -324,7 +374,19 @@ def verify_license(license_key: str, hwid: str) -> dict[str, Any] | None:
     When offline: verifies the cached signed token using ECDSA public key.
     Returns None if verification fails (fail closed).
     """
-    # Try online verification first
+    if _is_hosted_cutctx_key(license_key):
+        hosted = _post_hosted_license("verify-license", {"key": license_key})
+        if hosted is not None:
+            if not hosted.get("valid"):
+                return {"valid": False}
+            return {
+                "valid": True,
+                "tier": hosted.get("tier"),
+                "seats": hosted.get("seatsLimit"),
+                "expires_at": hosted.get("expiresAt"),
+            }
+
+    # Legacy online verification remains for pre-hosted licenses.
     result = _post("/api/licenses/verify", {"license_key": license_key, "hwid": hwid})
     if result and result.get("valid"):
         # Cache the signed token for offline use
@@ -390,4 +452,6 @@ def verify_trial_token(token: str) -> dict[str, Any] | None:
 
 def heartbeat_seat(license_key: str, hwid: str) -> dict[str, Any] | None:
     """Send seat heartbeat to PitchToShip."""
+    if _is_hosted_cutctx_key(license_key):
+        return _post_hosted_license("seat-heartbeat", {"key": license_key, "hwid": hwid})
     return _post("/api/seats/heartbeat", {"license_key": license_key, "hwid": hwid})

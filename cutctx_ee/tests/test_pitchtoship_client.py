@@ -10,6 +10,46 @@ from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 from cutctx_ee.billing import pitchtoship_client as client
 
 
+def test_hosted_cutctx_verification_maps_enterprise_response(monkeypatch):
+    calls = []
+
+    def hosted_post(endpoint, payload):
+        calls.append((endpoint, payload))
+        return {
+            "valid": True,
+            "tier": "enterprise",
+            "seatsLimit": 500,
+            "expiresAt": "2027-07-24T00:00:00Z",
+        }
+
+    monkeypatch.setattr(client, "_post_hosted_license", hosted_post)
+
+    result = client.verify_license("cutctx_test_enterprise", "machine-1")
+
+    assert calls == [("verify-license", {"key": "cutctx_test_enterprise"})]
+    assert result == {
+        "valid": True,
+        "tier": "enterprise",
+        "seats": 500,
+        "expires_at": "2027-07-24T00:00:00Z",
+    }
+
+
+def test_hosted_cutctx_definitive_rejection_does_not_try_legacy_portal(monkeypatch):
+    monkeypatch.setattr(client, "_post_hosted_license", lambda *_args: {"valid": False})
+    monkeypatch.setattr(client, "_post", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError()))
+
+    assert client.verify_license("cutctx_invalid", "machine-1") == {"valid": False}
+
+
+def test_hosted_cutctx_transport_failure_keeps_existing_fallback(monkeypatch):
+    monkeypatch.setattr(client, "_post_hosted_license", lambda *_args: None)
+    monkeypatch.setattr(client, "_get_cached_signed_token", lambda *_args: None)
+    monkeypatch.setattr(client, "_post", lambda *_args, **_kwargs: None)
+
+    assert client.verify_license("cutctx_offline", "machine-1") is None
+
+
 def test_online_verification_caches_the_public_key_for_first_offline_use(monkeypatch):
     monkeypatch.setattr(
         client,
