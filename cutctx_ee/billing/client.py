@@ -15,6 +15,27 @@ logger = logging.getLogger(__name__)
 _CRL_CACHE: dict[str, set[str] | float] = {"revoked": set(), "expires_at": 0.0}
 _DEFAULT_PORTAL_URL = "https://pitchtoship.com"
 
+#: Base URL of the licence API — Supabase Edge Functions.
+#:
+#: `pitchtoship.com` serves no licence API: it is a single-page app, so the
+#: `/v1/license/*` paths this module used to call fell through to the SPA and
+#: answered 405 on every POST. Licence validation lives in Supabase Edge
+#: Functions. Verified functions on this base: `verify-license`, `list-plans`.
+DEFAULT_LICENSE_API_URL = "https://udeekuvifncmqvoywhlg.supabase.co/functions/v1"
+
+#: Per-key validation cache for `is_revoked`: key -> (expires_at, revoked).
+_VALIDATION_CACHE: dict[str, tuple[float, bool]] = {}
+_VALIDATION_TTL = 300.0
+
+
+def get_license_api_url() -> str:
+    """Base URL for the licence API (Supabase Edge Functions).
+
+    Distinct from :func:`get_portal_url`, which addresses the marketing and
+    checkout site. Override with ``CUTCTX_LICENSE_API_URL``.
+    """
+    return (os.environ.get("CUTCTX_LICENSE_API_URL") or DEFAULT_LICENSE_API_URL).rstrip("/")
+
 
 def _response_is_json(resp: httpx.Response) -> bool:
     content_type = resp.headers.get("content-type", "").lower()
@@ -62,66 +83,76 @@ def get_portal_url() -> str:
 
 
 def is_revoked(license_key: str) -> bool:
-    """Check if a license key is revoked, using a 5-minute local cache.
+    """Return True when ``license_key`` is not currently valid.
 
-    Audit-Deep-2026-06-21: the previous code failed OPEN on network
-    errors. That let an attacker who could isolate the proxy
-    network bypass revocation. The function now:
+    There is **no CRL endpoint** in the licence API. The previous
+    implementation fetched ``/v1/license/crl`` from the marketing site, which
+    does not serve it: that host is a single-page app, so the request got a
+    200 with an HTML body, JSON parsing failed, the cache stayed empty, and
+    strict mode then denied *every* licence — including valid paid ones.
+    Verified against a real enterprise key on 2026-07-25.
 
-      1. Tries to refresh the cache from the portal (5 min TTL).
-      2. On network error, KEEPS the existing cached value (the
-         safe choice: a recent CRL is more reliable than no CRL).
-      3. Returns False (not revoked) only if the cache has a
-         value AND the key is not in it. Returns True (revoked) if
-         the key is in the cache.
-      4. If the cache is empty AND the network fetch failed AND
-         strict mode is on, logs a loud warning and assumes NOT
-         revoked (the historical default) so the proxy can still
-         boot offline. This is the only remaining fail-open
-         path, and it is loud.
+    Revocation is instead expressed by ``verify-license`` itself: a revoked,
+    expired, or unknown key answers ``{"valid": false}``. This function asks
+    that question per key and caches the answer for 5 minutes.
+
+    Failure semantics are unchanged in spirit:
+
+      * A definite answer from the API is authoritative and cached.
+      * On a network error or malformed reply, a cached answer is reused.
+      * With no cached answer, strict mode (the default) denies, and
+        ``CUTCTX_LICENSE_STRICT_MODE=0`` allows, for offline development.
+
+    Note this returns True for expired and unrecognised keys too, not only
+    administratively revoked ones. For the gating decisions that call it,
+    "not currently valid" is the question that matters.
     """
     now = time.time()
-    if now > _CRL_CACHE["expires_at"]:
-        try:
-            resp = httpx.get(
-                f"{get_portal_url()}/v1/license/crl",
-                **_service_request_kwargs(timeout=5.0),
+    cached = _VALIDATION_CACHE.get(license_key)
+    if cached and now < cached[0]:
+        return cached[1]
+
+    url = f"{get_license_api_url()}/verify-license"
+    try:
+        resp = httpx.post(
+            url,
+            json={"key": license_key},
+            **_service_request_kwargs(timeout=5.0),
+        )
+        if not _response_is_json(resp):
+            raise ValueError(
+                f"{url} returned HTTP {resp.status_code} with content-type "
+                f"{resp.headers.get('content-type')!r}, not JSON — the licence "
+                "API is probably not deployed at this URL (a static site "
+                "answers 200 for unmatched paths). Check CUTCTX_LICENSE_API_URL."
             )
-            if resp.status_code == 200:
-                data = resp.json()
-                _CRL_CACHE["revoked"] = set(data.get("revoked", []))
-                _CRL_CACHE["expires_at"] = now + 300  # Cache for 5 mins
-            else:
-                # Non-200: keep the existing cache, do not refresh
-                # the expiry. Next call will retry.
-                logger.warning(
-                    "CRL fetch returned HTTP %s; keeping existing cache",
-                    resp.status_code,
-                )
-        except Exception as exc:
-            # Network error: keep the existing cache (if any).
-            # This is the only fail-open path and is loud.
+        # 400 means the key was rejected outright, which is a definite answer.
+        if resp.status_code in (200, 400):
+            revoked = not resp.json().get("valid", False)
+            _VALIDATION_CACHE[license_key] = (now + _VALIDATION_TTL, revoked)
+            return revoked
+        raise ValueError(f"{url} returned unexpected HTTP {resp.status_code}")
+    except Exception as exc:
+        if cached:
             logger.warning(
-                "CRL fetch failed (%s); keeping existing cache "
-                "(size=%d). Strict mode: %s. A revoked license may "
-                "be temporarily treated as valid until the next "
-                "successful fetch.",
+                "Licence validation failed (%s); reusing the cached answer "
+                "(revoked=%s) for key %s...",
                 exc,
-                len(_CRL_CACHE.get("revoked") or set()),
-                _strict_mode(),
+                cached[1],
+                license_key[:8],
             )
-
-    # A strict deployment may trust only a fresh CRL. If refresh did not
-    # establish one, deny commercial access rather than treating a possibly
-    # revoked key as valid. Development can explicitly opt out with
-    # CUTCTX_LICENSE_STRICT_MODE=0.
-    if _strict_mode() and now > _CRL_CACHE["expires_at"]:
-        logger.warning("No fresh CRL is available; strict mode denies license %s", license_key[:8])
-        return True
-
-    revoked_set = _CRL_CACHE["revoked"]
-    assert isinstance(revoked_set, set)
-    return license_key in revoked_set
+            return cached[1]
+        denied = _strict_mode()
+        logger.warning(
+            "Licence validation failed (%s) and no cached answer is "
+            "available for key %s... Strict mode: %s, so this licence is "
+            "treated as %s.",
+            exc,
+            license_key[:8],
+            _strict_mode(),
+            "REVOKED" if denied else "valid",
+        )
+        return denied
 
 
 def activate_instance(license_key: str, instance_id: str) -> bool:

@@ -122,13 +122,24 @@ cutctx capabilities                   # show all algorithms, formats, and option
 - `cutctx capabilities` — list compression algorithms, supported formats, and configuration options
 - `cutctx learn` — analyze failed sessions and auto-generate corrections
 
-**Accuracy guard** — `--accuracy-guard strict` (default in agent profiles) verifies that compressed output preserves critical identifiers, function names, and references before forwarding. Use `CUTCTX_ACCURACY_GUARD=strict|balanced|off` to tune.
+**Accuracy guard** — `CUTCTX_ACCURACY_GUARD=strict|balanced|off` and
+`--accuracy-guard` enforce log-severity fidelity during compression.
+Scope: log-shaped payloads only (pytest, npm, cargo, jest, make, generic builds).
+- `off` (default): No checking, zero overhead.
+- `balanced`: Check; log WARNING on violation, forward compressed payload anyway.
+- `strict`: Check; on violation, forward ORIGINAL payload (fail-safe), log WARNING.
+
+Violation definition: a line at ERROR, FATAL, or FAIL severity is silently lost
+during compression (absent from compressed output and not disclosed in the omission
+marker). The check runs once per request on the request path and has minimal cost
+(single linear pass, no re-tokenization). Metrics and detailed logging appear in
+proxy debug logs at WARNING level. Non-log payloads bypass the guard entirely.
 
 Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`, `[image]`, `[agno]`, `[langchain]`, `[evals]`, `[pytorch-mps]` (Apple-GPU memory-embedder offload — set `CUTCTX_EMBEDDER_RUNTIME=pytorch_mps`). Requires **Python 3.10+**.
 
 ## Proof
 
-**Savings on real agent workloads:**
+**Per-workload savings on eligible payloads:**
 
 | Workload                      | Before | After  | Savings |
 |-------------------------------|-------:|-------:|--------:|
@@ -136,6 +147,34 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 | SRE incident debugging        | 65,694 |  5,118 | **92%** |
 | GitHub issue triage           | 54,174 | 14,761 | **73%** |
 | Codebase exploration          | 78,502 | 41,254 | **47%** |
+
+> **Read this before budgeting against the table above.** These are
+> *per-payload* ratios measured on long-context payloads that the router
+> chose to compress. They are not the savings you should expect across a
+> whole fleet, and the difference is large.
+>
+> **Fleet-wide reduction on our own production traffic is 0.7%**
+> (10,802 requests, 927.4M → 920.5M tokens; run `cutctx perf` to
+> reproduce on your own telemetry). Two reasons account for the gap, and
+> both are by design:
+>
+> - **Most traffic is deliberately bypassed.** Short turns, and any
+>   output from a tool on the protected denylist (`Read`, `Grep`,
+>   `Glob`, `Write`, `Edit`, `Bash`), are passed through uncompressed so
+>   Cutctx cannot corrupt the payloads an agent is most sensitive to.
+>   The "Code search" row above was measured on a tool *not* on that
+>   denylist — running the same payload through `Grep` yields 0%
+>   reduction by design. See
+>   [docs/configuration-reference.md](docs/configuration-reference.md)
+>   for `CUTCTX_EXCLUDE_TOOLS`.
+> - **Cache reads dominate the token count.** 870M of those 927M tokens
+>   are provider cache reads, which are already billed at a discount and
+>   are not a compression target.
+>
+> Per-model results vary accordingly: on our traffic `gpt-4o` and
+> `gpt-5.4` saw 95–98% reduction, while `gpt-5.6-terra` — 71% of request
+> volume — saw 0%. **Model your ROI on your own `cutctx perf` output,
+> not on the table above.**
 
 Savings are reported by source: RTK CLI filtering, Cutctx compression,
 provider/native cache behavior, semantic cache hits, and model routing are
@@ -407,6 +446,8 @@ Running with compression disabled (pure gateway) requires neither asset.
 
 | [Model routing presets](docs/content/docs/model-routing-presets.mdx) | [Agent compatibility guide](PRODUCT_GUIDE.md#7-agent-compatibility) |
 | [Deterministic orchestration](docs/content/docs/orchestration-platform.mdx) | [API reference](docs/content/docs/api-reference.mdx#orchestration-management-api) |
+| [**Why isn't my output compressing?**](docs/why-output-is-not-compressing.md) | [Configuration reference — every env var](docs/configuration-reference.md) |
+| [Backup & restore runbook](docs/runbooks/backup-restore.md) | [Schema migrations](scripts/migrate.py) |
 ## Compared to
 
 Cutctx runs **locally**, covers **every** content type, works with every major framework, and is **reversible**.

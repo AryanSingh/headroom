@@ -53,16 +53,26 @@ dependencies = [
     "tiktoken>=0.5.0",            # Tokenizer for all compressors
     "pydantic>=2.0.0",            # Config and data models
     "litellm>=1.86.2,<2.0",        # Model registry, pricing, and provider support
-    "click>=8.1.0",               # CLI framework
+    "click>=8.3.3",               # CLI framework (>=8.3.3: PYSEC-2026-2132)
     "rich>=13.0.0",               # Rich terminal output
     "opentelemetry-api>=1.24.0",  # Safe no-op OTEL API for instrumentation
     "ast-grep-cli>=0.30.0",       # AST-aware code slicing (CodeCompressor); binary wheel
-    "cryptography>=46.0.0",       # Fernet encryption for local state + HMAC for license cache
+    "cryptography>=48.0.1",       # Fernet encryption for local state + HMAC for license cache
     "fastapi>=0.115.0",
     "uvicorn>=0.23.0,<1.0",
     "httpx[http2]>=0.24.0",
+    # Security floors for packages we get transitively (fastapi, litellm, …).
+    # Declared explicitly so a fresh resolve cannot pull a vulnerable version
+    # back in — pip-audit flagged 28 advisories across these four on
+    # 2026-07-25, all on request-path code. See
+    # audit/2026-07-25-dependency-vulnerabilities.md. Floors only, no upper
+    # bound: let the resolver keep taking newer releases.
+    "starlette>=1.1.0",           # ASGI framework under the proxy
+    "python-multipart>=0.0.30",   # multipart request-body parsing
+    "aiohttp>=3.14.1",            # outbound HTTP
+    "pyjwt>=2.12.0",              # JWT verification for enterprise SSO
     "openai>=2.14.0",             # OpenAI API format support
-    "mcp>=1.0.0",                 # MCP server (cutctx_compress, retrieve, stats)
+    "mcp>=1.27.2",                # MCP server (>=1.27.2: PYSEC-2026-3481/3482/3483)
     "magika>=0.6.0",              # ML content detection for ContentRouter
     "zstandard>=0.20.0",          # Decompress zstd request bodies (Codex, etc.)
     "websockets>=13.0,<14.0",           # WebSocket proxy for /v1/responses (Codex gpt-5.4+)
@@ -84,6 +94,11 @@ dependencies = [
 ee = ["cutctx-ee"]
 # Proxy server dependencies are now included by default in the core package.
 proxy = []
+# Optional error tracking. Kept out of the core install deliberately: this is a
+# local-first product and nothing is transmitted unless an operator sets
+# CUTCTX_SENTRY_DSN. See cutctx/observability/error_tracking.py, which no-ops
+# entirely when the DSN is unset or this extra is not installed.
+sentry = ["sentry-sdk>=2.0.0"]
 # Production ASGI/WSGI server — Unix-only (gunicorn does not support Windows).
 # Kept separate from [proxy] so that dev, CI, and Windows users are not forced
 # to install a non-functional package.  Production deployments should use:

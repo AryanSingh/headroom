@@ -11,6 +11,7 @@ on:
       - 'tests/parity/**'
       - 'Makefile'
       - '.github/workflows/rust.yml'
+      - 'cutctx/**'
   pull_request:
     paths:
       - 'crates/**'
@@ -20,6 +21,7 @@ on:
       - 'tests/parity/**'
       - 'Makefile'
       - '.github/workflows/rust.yml'
+      - 'cutctx/**'
   schedule:
     # Nightly parity run at 07:17 UTC (weekdays only). Phase 0 allows failure.
     - cron: '17 7 * * 1-5'
@@ -143,11 +145,15 @@ jobs:
         with:
           tool: cargo-audit,cargo-deny
       - name: cargo audit
-        # RUSTSEC-2026-0176 applies only to PyList/PyTuple iterator nth;
-        # RUSTSEC-2026-0177 applies only to PyCFunction::new_closure.
-        # cutctx-py imports and calls none of those APIs (guarded by
-        # test_rust_audit_exceptions_are_limited_to_unused_pyo3_apis).
-        run: cargo audit --ignore RUSTSEC-2026-0176 --ignore RUSTSEC-2026-0177
+        # No --ignore waivers. RUSTSEC-2026-0176 and RUSTSEC-2026-0177 were
+        # previously waived on the grounds that cutctx-py never touches the
+        # affected PyO3 APIs. They are now *fixed* rather than waived: pyo3 was
+        # upgraded 0.24.1 -> 0.29.0 on 2026-07-26, and `cargo audit` reports
+        # zero vulnerabilities. Reachability arguments are fragile — a future
+        # call to PyList/PyTuple iterators or PyCFunction::new_closure would
+        # have silently made a waived advisory live. Prefer the upgrade, and
+        # keep this gate unwaived so new advisories fail loudly.
+        run: cargo audit
       - name: cargo deny check licenses
         continue-on-error: true
         run: cargo deny check licenses

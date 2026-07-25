@@ -112,6 +112,84 @@ def _restore_runtime_state():
         pass
 
 
+# KNOWN LIMITATION — cross-suite licensing tests.
+#
+# Running `pytest tests/ cutctx_ee/tests/` in ONE session still fails 3-4
+# licensing tests (test_license_routes.py checkout-seat/start-trial, and
+# test_license_validation_contract.py::test_remote_unavailability_preserves_local_fallback).
+# Reproduce quickly with:
+#
+#   pytest tests/ cutctx_ee/tests/ -p no:randomly \
+#       -k "license or seat or trial or entitlement or billing"
+#
+# Established so far: each suite is green on its own (tests/ 9,186 passed;
+# cutctx_ee/tests 53 passed), the affected tests pass individually even with the
+# EE suite collected, and CI never combines the two directories in one
+# invocation (see .github/workflows/ci.yml, which runs `pytest tests`). The
+# trigger is EE-suite participation rather than import order alone; the routes
+# end up with a real LicenseDB despite monkeypatching
+# `cutctx_ee.billing.license_db.get_license_db`. Not yet root-caused.
+#
+# Fixed along the way: `license_db` used to freeze its path from Path.home() at
+# import time, so collection captured the developer's real ~/.cutctx/licenses.db.
+# It now resolves per call and honours CUTCTX_LICENSE_DB_PATH.
+
+#: Node-id substrings identifying tests that touch licensing state. Only these
+#: get HOME redirected — see the fixture below for why that must not be global.
+_LICENSE_TEST_MARKERS = ("license", "licence", "seat", "trial", "entitlement", "billing")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_license_state(request, tmp_path, monkeypatch):
+    """Isolate licensing state so tests cannot read the developer's real data.
+
+    `LicenseDB` resolves its path from ``Path.home() / ".cutctx" /
+    "licenses.db"``, and `cutctx_ee.billing.client` keeps module-level
+    `_VALIDATION_CACHE` / `_CRL_CACHE` dicts. Without isolation, licensing
+    tests read the developer's real ~/.cutctx/licenses.db — which is why four
+    of them failed only when the OSS and EE suites shared a pytest session:
+    seats had been consumed and trial tokens marked used by earlier runs.
+
+    **HOME is redirected only for licensing tests, deliberately.** Redirecting
+    it for every test moved the HuggingFace/fastembed model caches (which live
+    under HOME) to a fresh tmp_path per test, forcing model re-initialisation
+    and pushing the suite from ~7.5 minutes past a 10-minute timeout. Cache
+    clearing is cheap, so that part stays global; the expensive part is scoped.
+    """
+    if any(marker in request.node.nodeid.lower() for marker in _LICENSE_TEST_MARKERS):
+        # Point the licence DB at a per-test file explicitly. Redirecting HOME
+        # alone is not sufficient: `license_db` used to freeze its path from
+        # Path.home() at import time, so a module imported during collection
+        # captured the real home directory before any fixture ran.
+        monkeypatch.setenv("CUTCTX_LICENSE_DB_PATH", str(tmp_path / "licenses.db"))
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("CUTCTX_HOME", str(tmp_path / ".cutctx"))
+
+    # Clear the module-level license caches to prevent cross-test pollution
+    try:
+        from cutctx_ee.billing import client
+
+        client._VALIDATION_CACHE.clear()
+        client._CRL_CACHE.clear()
+        client._CRL_CACHE["revoked"] = set()
+        client._CRL_CACHE["expires_at"] = 0.0
+    except Exception:
+        pass
+
+    yield
+
+    # Clean up after the test
+    try:
+        from cutctx_ee.billing import client
+
+        client._VALIDATION_CACHE.clear()
+        client._CRL_CACHE.clear()
+        client._CRL_CACHE["revoked"] = set()
+        client._CRL_CACHE["expires_at"] = 0.0
+    except Exception:
+        pass
+
+
 @pytest.fixture(autouse=True)
 def _cleanup_cutctx_logger():
     """Restore cutctx logger propagation and remove file handlers after

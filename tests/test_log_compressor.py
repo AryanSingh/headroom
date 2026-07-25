@@ -125,21 +125,53 @@ class TestLogLevelDetection:
     """Tests for log level detection in lines."""
 
     def test_detect_error_levels(self):
-        """ERROR, FATAL, CRITICAL are detected."""
+        """ERROR is detected in each casing."""
         compressor = LogCompressor()
 
         error_lines = [
             "ERROR: something went wrong",
             "error: file not found",
             "Error: Invalid input",
-            "FATAL: system crash",
-            "fatal error occurred",
-            "CRITICAL: database down",
         ]
 
         for line in error_lines:
             log_lines = compressor._parse_lines([line])
             assert log_lines[0].level == LogLevel.ERROR, f"Failed for: {line}"
+
+    def test_detect_fatal_levels_above_error(self):
+        """FATAL/CRITICAL classify as FATAL, not ERROR.
+
+        These used to collapse into LogLevel.ERROR, which meant a single
+        FATAL line competed with routine ERROR volume for the same
+        `max_errors` slots and could be dropped entirely. FATAL must be a
+        distinct, higher-ranked level so it always wins a slot.
+        """
+        compressor = LogCompressor()
+
+        fatal_lines = [
+            "FATAL: system crash",
+            "fatal error occurred",
+            "Fatal: unrecoverable",
+            "CRITICAL: database down",
+            "critical failure in disk subsystem",
+            "Critical: quorum lost",
+        ]
+
+        for line in fatal_lines:
+            log_lines = compressor._parse_lines([line])
+            assert log_lines[0].level == LogLevel.FATAL, f"Failed for: {line}"
+
+    def test_fatal_survives_high_error_volume(self):
+        """Regression guard for the dropped-FATAL defect."""
+        compressor = LogCompressor()
+        lines = [f"2026-01-01 ERROR svc failed id={i}" for i in range(400)]
+        lines[200] = "2026-01-01 FATAL svc CANARY_FATAL unrecoverable disk failure"
+
+        result = compressor.compress("\n".join(lines))
+
+        assert "CANARY_FATAL" in result.compressed, (
+            f"FATAL line was dropped. Output:\n{result.compressed}"
+        )
 
     def test_detect_fail_levels(self):
         """FAIL, FAILED are detected."""

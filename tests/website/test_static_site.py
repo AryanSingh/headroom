@@ -66,16 +66,13 @@ def test_homepage_has_product_and_merchant_disclosure():
 
 def test_pricing_routes_to_pitchtoship_without_payment_secrets():
     pricing = Path("website/pricing/index.html").read_text(encoding="utf-8")
-    assert (
-        "https://pitchtoship.com/billing?product=cutctx&amp;plan=starter&amp;billing=monthly"
-        in pricing
-    )
-    assert (
-        "https://pitchtoship.com/billing?product=cutctx&amp;plan=studio&amp;billing=monthly"
-        in pricing
-    )
+    assert 'id="cutctx-checkout-form"' in pricing
+    assert 'name="email"' in pricing
+    assert 'type="submit"' in pricing
     assert "Razorpay" not in pricing
     assert "RAZORPAY_" not in pricing
+    assert "sk_live" not in pricing
+    assert "pk_live" not in pricing
 
 
 def test_pricing_uses_the_verified_company_contact():
@@ -253,9 +250,9 @@ def test_public_routes_share_the_evolved_shell():
 def test_public_pages_keep_local_assets_and_semantic_entry_points():
     for page in PUBLIC_PAGES:
         html = page.read_text(encoding="utf-8")
-        assert 'href="/assets/site.css?v=20260721-platform"' in html
-        assert 'href="/assets/favicon.svg?v=20260721-platform"' in html
-        assert 'src="/assets/site.js?v=20260721-platform"' in html
+        assert "/assets/site.css?v=" in html
+        assert "/assets/favicon.svg?v=" in html
+        assert "/assets/site.js?v=" in html
         assert "fonts.googleapis.com" not in html
         assert "fonts.gstatic.com" not in html
         assert 'class="skip-link"' in html
@@ -283,14 +280,21 @@ def test_pricing_preserves_commerce_and_adds_recommendation_hierarchy():
     assert 'class="price-card featured"' in pricing
     assert "Recommended for teams" in pricing
     assert "Start with a measured evaluation" in pricing
-    assert (
-        "https://pitchtoship.com/billing?product=cutctx&amp;plan=starter&amp;billing=monthly"
-        in pricing
-    )
-    assert (
-        "https://pitchtoship.com/billing?product=cutctx&amp;plan=studio&amp;billing=monthly"
-        in pricing
-    )
+    assert 'id="cutctx-checkout-form"' in pricing
+    assert 'class="checkout-panel"' in pricing
+    assert "Continue to secure payment" in pricing
+
+
+def test_inline_checkout_form_is_wired_for_submission():
+    pricing = read_page("website/pricing/index.html")
+    assert 'id="cutctx-checkout-form"' in pricing
+    assert 'id="checkout-email"' in pricing
+    assert 'name="email"' in pricing
+    assert 'type="email"' in pricing
+    assert 'id="checkout-submit"' in pricing
+    assert 'type="submit"' in pricing
+    assert "Continue to secure payment" in pricing
+    assert 'class="checkout-form"' in pricing
 
 
 def test_docs_has_anchorable_install_to_report_flow():

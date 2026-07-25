@@ -5,7 +5,7 @@ export default function RouteSimulator({ draft, simulation, running, onRun }) {
   if (!draft)
     {return (
       <div className="routing-empty-state">
-        <FlaskConical size={22} />
+        <FlaskConical size={22} aria-hidden="true" />
         <strong>Create a draft first</strong>
         <span>
           The simulator evaluates the visible draft without executing a provider

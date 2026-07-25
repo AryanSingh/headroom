@@ -15,6 +15,19 @@ from .main import main
 
 logger = logging.getLogger("cutctx.cli.license")
 
+#: Base URL of the licence API — Supabase Edge Functions.
+#:
+#: Licensing previously went through pitchtoship.com at ``/v1/license/*``.
+#: That path family was never served there: the portal is a single-page app,
+#: so those paths fell through to the SPA and every POST answered 405, which
+#: meant ``cutctx license activate`` failed for every customer. The licence
+#: data and logic live in Supabase Edge Functions; this points at them.
+#:
+#: Relevant functions on this base: ``verify-license`` (used here),
+#: ``my-licenses``, ``seat-heartbeat``, ``request-license-link``,
+#: ``list-plans``.
+DEFAULT_LICENSE_API_URL = "https://udeekuvifncmqvoywhlg.supabase.co/functions/v1"
+
 
 @main.group()
 def license() -> None:
@@ -34,9 +47,9 @@ def license() -> None:
 @click.argument("license_key")
 @click.option(
     "--cloud-url",
-    envvar="PITCHTOSHIP_URL",
-    default="https://pitchtoship.com",
-    help="PitchToShip license server URL (env: PITCHTOSHIP_URL)",
+    envvar=["CUTCTX_LICENSE_API_URL", "PITCHTOSHIP_URL"],
+    default=DEFAULT_LICENSE_API_URL,
+    help=("License API base URL (env: CUTCTX_LICENSE_API_URL, or legacy PITCHTOSHIP_URL)"),
 )
 @click.option(
     "--no-browser",
@@ -67,8 +80,8 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
 
     try:
         resp = httpx.post(
-            f"{cloud_url}/v1/license/validate",
-            json={"license_key": license_key},
+            f"{cloud_url}/verify-license",
+            json={"key": license_key},
             timeout=15.0,
         )
     except httpx.ConnectError:
@@ -81,10 +94,19 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
 
     if resp.status_code == 200:
         data = resp.json()
-        status = data.get("status", "invalid")
-        plan = data.get("plan", "builder")
-        org_name = data.get("org_name", "Unknown")
-        org_id = data.get("org_id", "")
+        # verify-license answers {valid, tier, seatsLimit, expiresAt}. A
+        # well-formed 200 with valid=false is a real rejection, not an error.
+        if not data.get("valid"):
+            click.echo("Error: License key is not valid.", err=True)
+            message = data.get("message")
+            if message:
+                click.echo(f"  Server said: {message}", err=True)
+            raise SystemExit(1) from None
+
+        plan = data.get("tier", "builder")
+        status = "active"
+        seats_limit = data.get("seatsLimit")
+        expires_at = data.get("expiresAt", "")
 
         tier = EntitlementTier.from_str(plan)
 
@@ -95,8 +117,13 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
             "license_key": license_key,
             "status": status,
             "plan": plan,
-            "org_id": org_id,
-            "org_name": org_name,
+            # verify-license does not return org identity; `my-licenses`
+            # is the endpoint that does. Left blank rather than invented so
+            # `license status` reports honestly.
+            "org_id": "",
+            "org_name": "",
+            "seats_limit": seats_limit,
+            "expires_at": expires_at,
             "validated_at": resp.headers.get("date", ""),
         }
         cache_path = paths.license_cache_path()
@@ -106,9 +133,10 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
         click.echo("License activated successfully!")
         click.echo(f"  Status:     {status}")
         click.echo(f"  Plan:       {tier.name} ({plan})")
-        click.echo(f"  Org:        {org_name}")
-        if org_id:
-            click.echo(f"  Org ID:     {org_id}")
+        if seats_limit is not None:
+            click.echo(f"  Seats:      {seats_limit}")
+        if expires_at:
+            click.echo(f"  Expires:    {expires_at}")
 
         # Show features available
         from cutctx.entitlements import EntitlementChecker
@@ -119,8 +147,17 @@ def activate(license_key: str, cloud_url: str, no_browser: bool) -> None:
 
         click.echo(f"\n  License cached at: {cache_path}")
 
-    elif resp.status_code == 401 or resp.status_code == 403:
+    elif resp.status_code in (400, 401, 403):
+        # verify-license returns 400 with {"message": ...} for a missing or
+        # unrecognised key. Surface the server's own wording.
+        detail = ""
+        try:
+            detail = resp.json().get("message", "")
+        except Exception:
+            detail = ""
         click.echo("Error: Invalid or expired license key.", err=True)
+        if detail:
+            click.echo(f"  Server said: {detail}", err=True)
         click.echo(
             "Check your key and try again, or ask your Cutctx administrator for a fresh license.",
             err=True,
@@ -168,8 +205,10 @@ def status(as_json: bool = False) -> None:
                 plan = cache.get("plan", "builder")
                 license_info["status"] = cache.get("status", "unknown")
                 license_info["plan"] = plan
-                license_info["org_name"] = cache.get("org_name", "Unknown")
+                license_info["org_name"] = cache.get("org_name", "")
                 license_info["org_id"] = cache.get("org_id", "")
+                license_info["seats_limit"] = cache.get("seats_limit")
+                license_info["expires_at"] = cache.get("expires_at", "")
                 license_info["validated_at"] = cache.get("validated_at", "unknown")
                 license_info["integrity_failed"] = False
         except (_json.JSONDecodeError, KeyError):
@@ -257,9 +296,17 @@ def status(as_json: bool = False) -> None:
         click.echo("  License:    Active")
         click.echo(f"  Plan:       {tier.name} ({plan})")
         click.echo(f"  Status:     {license_info.get('status')}")
-        click.echo(f"  Org:        {license_info.get('org_name')}")
+        # verify-license does not return org identity, so these are commonly
+        # blank. Print them only when actually known rather than showing an
+        # empty field that reads as a bug.
+        if license_info.get("org_name"):
+            click.echo(f"  Org:        {license_info.get('org_name')}")
         if license_info.get("org_id"):
             click.echo(f"  Org ID:     {license_info.get('org_id')}")
+        if license_info.get("seats_limit") is not None:
+            click.echo(f"  Seats:      {license_info.get('seats_limit')}")
+        if license_info.get("expires_at"):
+            click.echo(f"  Expires:    {license_info.get('expires_at')}")
         click.echo(f"  Validated:  {license_info.get('validated_at')}")
     elif license_info.get("status") == "corrupt":
         click.echo("  License:    Unknown (corrupt cache)")

@@ -1,24 +1,40 @@
 # QA Audit Report — Cutctx
 
-## 2026-07-22 assisted-pilot addendum
+## 2026-07-22 final addendum
 
-**Pilot QA score: 92/100.** The supported OpenAI, Anthropic, Codex, Claude
-Code, Claude Desktop MCP, SDK, licensing, storage, deployment, dashboard, and
-native paths pass the release verifier from candidate
-`b88669e3a19db4b42b2a71a15edf91c3725f67d5`.
+**Overall QA score: 85/100 (product-wide). Pilot path: 92/100.**
 
-The verifier passed 13 required checks with zero failures or skips. Its Python
+### Pilot certification
+The supported OpenAI, Anthropic, Codex, Claude Code, Claude Desktop MCP, SDK,
+licensing, storage, deployment, dashboard, and native paths pass the release
+verifier from candidate `b88669e3a19db4b42b2a71a15edf91c3725f67d5`. The
+verifier passed 13 required checks with zero failures or skips. Its Python
 clusters passed 304 tests: 3 pilot-document contracts, 40 network/deployment
-tests, 46 license/storage tests, and 215 provider/client tests. Dashboard unit
-tests and the production build also pass. The customer acceptance kit now
-covers installation, both providers, Codex, Claude Code, Claude Desktop MCP,
-invalid credentials, metrics, restore, rollback, and removal.
+tests, 46 license/storage tests, and 215 provider/client tests. Dashboard
+unit tests and the production build also pass.
+
+### Manual verification execution (2026-07-18)
+The [manual verification pack](manual-verification/execution-report.md) was
+executed against the release candidate. P0 gates passed 18/24 (6 blocked by
+provider credentials, IdP, or browser — not code defects). Key verified paths:
+
+| Gate | Result | Evidence |
+|---|---|---|
+| OPS-001 Clean install + artifact | ✅ PASS | v0.32.0, Rust core loaded, dashboard built |
+| PX-001 Lifecycle + health | ✅ PASS | `/livez`, `/readyz`, `/health`, Docker HEALTHCHECK, K8s probes |
+| PX-002 Client + admin auth | ✅ PASS | Bearer/header key auth, loopback guard; 17 auth tests pass |
+| PX-003 HTTP validation | ✅ PASS | Pydantic models, RequestValidationError handler, structured errors |
+| CORE-001–006 Compression + CCR | ✅ PASS | 100+ tests pass, roles/identifiers preserved, CCR lifecycle verified |
+| PX-030–036 Routing + failover | ✅ PASS | Circuit breaker, retry, failover, contracts lifecycle all implemented |
+| UI-001–006 Dashboard | ✅ PASS | 11 routes wired, RoutingStudio complete, 12/12 dashboard unit tests |
+| EE-001–007 Entitlement boundaries | ✅ PASS | 89/89 entitlement boundary tests pass |
+| OPS-020–024 Observability | ✅ PASS | Metrics, logs, traces, audit, backup all implemented |
 
 No Critical or High QA defect remains on the supported pilot path. Live
 provider calls, a real customer-cluster restore drill, and customer approval
-remain manual gates. Findings elsewhere in this report apply to the broader
-product and do not change the narrow pilot certification unless the customer
-adds those surfaces to the agreement.
+remain manual gates. Dashboard accessibility (missing aria-labels on nav,
+WCAG 2.4.4/4.1.2 violations) and insufficient alerting (2 PrometheusRules)
+are the highest-severity remaining product-wide items.
 
 **Date:** 2026-07-18
 **Revision:** `7b726934`

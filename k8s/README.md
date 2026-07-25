@@ -110,7 +110,7 @@ Key metrics:
 
 ```bash
 # Update image tag
-kubectl set image deployment/cutctx-proxy cutctx-proxy=ghcr.io/cutctx/cutctx:v0.29.0 -n cutctx
+kubectl set image deployment/cutctx-proxy cutctx-proxy=ghcr.io/cutctx/cutctx:v0.31.0 -n cutctx # x-release-please-version
 
 # Watch rollout
 kubectl rollout status deployment/cutctx-proxy -n cutctx

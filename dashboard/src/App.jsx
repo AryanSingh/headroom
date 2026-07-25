@@ -104,9 +104,9 @@ function Sidebar({ open, onClose }) {
       <aside className={`sidebar-shell ${open ? 'open' : ''}`}>
         <div className="brand-lockup">
           <div className="brand-mark">
-            <Activity size={16} />
+            <Activity size={16} aria-hidden="true" />
           </div>
-          <h1>Cutctx</h1>
+          <h1 aria-hidden="true">Cutctx</h1>
         </div>
 
         <div className="sidebar-section">
@@ -191,7 +191,7 @@ function Topbar({
           aria-label="Toggle sidebar"
           type="button"
         >
-          <PanelLeftOpen size={18} />
+          <PanelLeftOpen size={18} aria-hidden="true" />
         </button>
 
         <div className="topbar-title-group">
@@ -233,11 +233,11 @@ function Topbar({
           type="button"
         >
           {theme === 'dark' ? (
-            <span className="icon-sun">
+            <span className="icon-sun" aria-hidden="true">
               <Sun size={16} />
             </span>
           ) : (
-            <span className="icon-moon">
+            <span className="icon-moon" aria-hidden="true">
               <Moon size={16} />
             </span>
           )}

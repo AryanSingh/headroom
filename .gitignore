@@ -19,6 +19,8 @@ scripts/*
 !scripts/changelog-gen.py
 !scripts/verify-versions.py
 !scripts/verify_pilot_release.py
+!scripts/migrate.py
+!scripts/loadtest_compress.py
 !scripts/run_remote_hosted_smoke.py
 !scripts/run_staged_gateway_smoke.py
 !scripts/run_staging_dashboard_smoke.py
@@ -45,6 +47,7 @@ scripts/*
 !scripts/export_kompress_v2_onnx.py
 !scripts/verify-backup.sh
 !scripts/assert_oss_wheel_clean.py
+!scripts/generate_openapi.py
 !scripts/build_ee_manifest.py
 !scripts/sign_artifacts.py
 !scripts/license_keygen.py
@@ -52,6 +55,8 @@ scripts/*
 !scripts/compile_ee.py
 !scripts/sync-plugin-versions.py
 !scripts/verify-versions.py
+!scripts/mypy_ratchet.py
+!scripts/.mypy_baseline.txt
 
 # Rust / Cargo build artifacts
 /target/

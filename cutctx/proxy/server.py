@@ -114,6 +114,7 @@ from cutctx.providers.registry import (
     format_backend_status,
     resolve_api_targets,
 )
+from cutctx.proxy.accuracy_guard import resolve_accuracy_guard_mode
 from cutctx.proxy.batch_router import BatchRouter, BatchRouterConfig
 
 # =============================================================================
@@ -676,6 +677,11 @@ class CutctxProxy(
         content_router._runtime_difftastic_enabled = config.difftastic_enabled
         content_router._runtime_difftastic_binary = config.difftastic_binary
         content_router._runtime_difftastic_context_lines = config.difftastic_context_lines
+        # Wire accuracy guard mode (resolved from config + env var).
+        content_router._runtime_accuracy_guard_mode = resolve_accuracy_guard_mode(
+            config_value=config.accuracy_guard,
+            env_var=os.environ.get("CUTCTX_ACCURACY_GUARD"),
+        )
         self._content_router = content_router
         from cutctx.proxy.interceptors import ToolResultInterceptorTransform
 
@@ -2423,6 +2429,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         version=__version__,
         lifespan=_lifespan,
     )
+    # Optional error tracking. A no-op unless CUTCTX_SENTRY_DSN is set AND the
+    # `sentry` extra is installed, so the local-first default is unchanged and
+    # nothing is transmitted without an operator opting in. Never raises.
+    try:
+        from cutctx.observability.error_tracking import init as _init_error_tracking
+
+        _init_error_tracking(release=__version__)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("Error tracking setup skipped: %s", exc)
+
     _rust_core_status, _rust_core_error = _check_rust_core()
     app.state.proxy = proxy
     app.state.started_at = time.time()
@@ -2665,6 +2681,104 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 else min(_UPSTREAM_CHECK_TTL, 10.0)
             )
             _upstream_check_cache["expires_at"] = time.monotonic() + ttl
+
+    # ─── Datastore readiness ──────────────────────────────────────────
+    # Readiness must reflect the backends a request actually needs. Probing
+    # only the upstream meant Kubernetes would route traffic to a pod whose
+    # CCR store was unreachable, and every request then failed at handler
+    # time instead of the pod being pulled from the endpoints list.
+    _DATASTORE_CHECK_TTL = 15.0
+    _datastore_check_cache: dict[str, Any] = {
+        "expires_at": 0.0,
+        "ok": True,
+        "error": None,
+        "backend": None,
+        "enabled": False,
+    }
+    _datastore_check_lock = asyncio.Lock()
+
+    def _ccr_backend_kind() -> str:
+        return (os.environ.get("CUTCTX_CCR_BACKEND") or "sqlite").strip().lower()
+
+    def _probe_sqlite_ccr() -> tuple[bool, str | None]:
+        """Open the CCR SQLite file and round-trip a trivial query."""
+        import sqlite3
+
+        db_path = os.environ.get("CUTCTX_CCR_DB_PATH") or os.path.expanduser("~/.cutctx/ccr.db")
+        # A not-yet-created store is not a failure: it is created lazily on
+        # first write. Only an existing-but-unusable file is unready.
+        if not os.path.exists(db_path):
+            return True, None
+        try:
+            conn = sqlite3.connect(db_path, timeout=2.0)
+            try:
+                conn.execute("SELECT 1").fetchone()
+            finally:
+                conn.close()
+            return True, None
+        except Exception as exc:
+            return False, f"sqlite {db_path}: {exc}"
+
+    async def _probe_redis_ccr() -> tuple[bool, str | None]:
+        """TCP-connect to the configured Redis endpoint.
+
+        A socket probe rather than a client PING so this works whether or
+        not the optional redis dependency is installed.
+        """
+        from urllib.parse import urlparse
+
+        raw = os.environ.get("CUTCTX_REDIS_URL", "").strip()
+        if not raw:
+            return False, "CUTCTX_CCR_BACKEND=redis but CUTCTX_REDIS_URL is unset"
+        parsed = urlparse(raw)
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 6379
+        try:
+            fut = asyncio.open_connection(host, port)
+            reader, writer = await asyncio.wait_for(fut, timeout=2.0)
+            writer.close()
+            with contextlib.suppress(Exception):
+                await writer.wait_closed()
+            del reader
+            return True, None
+        except Exception as exc:
+            return False, f"redis {host}:{port}: {exc}"
+
+    async def _check_datastores() -> None:
+        now = time.monotonic()
+        if now < float(_datastore_check_cache["expires_at"]):
+            return
+
+        async with _datastore_check_lock:
+            if time.monotonic() < float(_datastore_check_cache["expires_at"]):
+                return
+
+            kind = _ccr_backend_kind()
+            _datastore_check_cache["backend"] = kind
+            # An in-memory store has no external dependency to probe.
+            if kind == "memory":
+                _datastore_check_cache["enabled"] = False
+                _datastore_check_cache["ok"] = True
+                _datastore_check_cache["error"] = None
+            elif kind == "redis":
+                _datastore_check_cache["enabled"] = True
+                ok, err = await _probe_redis_ccr()
+                _datastore_check_cache["ok"] = ok
+                _datastore_check_cache["error"] = err
+            else:
+                _datastore_check_cache["enabled"] = True
+                ok, err = await asyncio.to_thread(_probe_sqlite_ccr)
+                _datastore_check_cache["ok"] = ok
+                _datastore_check_cache["error"] = err
+
+            # Retry failures sooner than successes so recovery is fast
+            # without making every probe poll hit the datastore.
+            ttl = (
+                _DATASTORE_CHECK_TTL
+                if _datastore_check_cache["ok"]
+                else min(_DATASTORE_CHECK_TTL, 5.0)
+            )
+            _datastore_check_cache["expires_at"] = time.monotonic() + ttl
 
     # Mirror the primary app's CORS behavior in the runtime app branch.
     _cors_origins = getattr(config, "cors_origins", None) or []
@@ -3238,6 +3352,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             upstream["url"] = _upstream_check_cache["url"]
             upstream["error"] = _upstream_check_cache["error"]
 
+        datastores = _component_health(
+            enabled=bool(_datastore_check_cache["enabled"]),
+            ready=bool(_datastore_check_cache["ok"]),
+            backend=_datastore_check_cache["backend"],
+        )
+        # As with upstream, the failure detail is operator-only — it can
+        # contain host/port and filesystem paths.
+        if include_upstream_details:
+            datastores["error"] = _datastore_check_cache["error"]
+
         return {
             "startup": _component_health(
                 enabled=True,
@@ -3269,6 +3393,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 ready=not proxy.component_init_errors,
                 errors=dict(proxy.component_init_errors),
             ),
+            "datastores": datastores,
             "upstream": upstream,
         }
 
@@ -3799,12 +3924,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     @app.get("/readyz")
     async def readyz():
         await _check_upstream()
+        await _check_datastores()
         payload = _health_payload(include_config=False)
         return JSONResponse(status_code=200 if payload["ready"] else 503, content=payload)
 
     @app.get("/health")
     async def health():
         await _check_upstream()
+        await _check_datastores()
         payload = _health_payload(include_config=False)
         return JSONResponse(status_code=200 if payload["ready"] else 503, content=payload)
 
@@ -3812,6 +3939,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     async def health_config(request: Request):
         await _require_local_admin_auth(request)
         await _check_upstream()
+        await _check_datastores()
         return JSONResponse(status_code=200, content=_health_payload(include_config=True))
 
     @app.get("/v1/version")

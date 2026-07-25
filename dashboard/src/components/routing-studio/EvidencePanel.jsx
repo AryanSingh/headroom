@@ -8,7 +8,7 @@ export default function EvidencePanel({ contract, evidence }) {
   if (!contract || !evidence) {
     return (
       <div className="routing-empty-state">
-        <BarChart3 size={22} />
+        <BarChart3 size={22} aria-hidden="true" />
         <strong>Evidence is collecting</strong>
         <span>Select a persisted contract version to inspect its rollout signals.</span>
       </div>
