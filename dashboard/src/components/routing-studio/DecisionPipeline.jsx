@@ -13,20 +13,20 @@ export default function DecisionPipeline({ receipt }) {
           {receipt.contract_id}@{receipt.contract_version}
         </strong>
       </div>
-      <ArrowRight size={16} />
+      <ArrowRight size={16} aria-hidden="true" />
       <div>
         <span>Eligible set</span>
         <strong>{receipt.eligible_candidates?.length || 1} deployment</strong>
       </div>
-      <ArrowRight size={16} />
+      <ArrowRight size={16} aria-hidden="true" />
       <div className="selected">
-        <CheckCircle2 size={15} />
+        <CheckCircle2 size={15} aria-hidden="true" />
         <span>Selected</span>
         <strong>{receipt.selected_deployment}</strong>
       </div>
       {rejected.length ? (
         <div className="pipeline-rejections">
-          <ShieldAlert size={15} />
+          <ShieldAlert size={15} aria-hidden="true" />
           <span>{rejected.length} rejected</span>
         </div>
       ) : null}

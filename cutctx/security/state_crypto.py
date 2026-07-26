@@ -136,7 +136,7 @@ def encrypt_json(data: dict[str, Any], key: bytes | None = None) -> str:
         key = derive_fernet_key()
     f = Fernet(key)
     plaintext = json.dumps(data, separators=(",", ":")).encode()
-    return f.encrypt(plaintext).decode()
+    return str(f.encrypt(plaintext).decode())
 
 
 def decrypt_json(token: str, key: bytes | None = None) -> dict[str, Any]:

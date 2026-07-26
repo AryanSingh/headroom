@@ -6,7 +6,7 @@ export default function RolloutPanel({ contract, evidence, busy, onAction }) {
   if (!contract) {
     return (
       <div className="routing-empty-state">
-        <ShieldCheck size={22} />
+        <ShieldCheck size={22} aria-hidden="true" />
         <strong>Select a contract</strong>
         <span>Rollout gates are evaluated per immutable version.</span>
       </div>

@@ -80,8 +80,14 @@ class LogFormat(Enum):
 
 
 class LogLevel(Enum):
-    """Log level for categorization."""
+    """Log level for categorization.
 
+    FATAL is a separate level ranking above ERROR. Collapsing the two
+    meant a lone FATAL line competed with routine ERROR volume for the
+    scarce ``max_errors`` slots and lost on positional tie-break.
+    """
+
+    FATAL = "fatal"
     ERROR = "error"
     FAIL = "fail"
     WARN = "warn"
@@ -89,6 +95,22 @@ class LogLevel(Enum):
     DEBUG = "debug"
     TRACE = "trace"
     UNKNOWN = "unknown"
+
+
+#: Severity rank for retention priority when slots are scarce. Higher
+#: wins. Kept separate from the score scale so existing score
+#: expectations stay unchanged while FATAL still outranks ERROR for
+#: eviction. Mirrors ``level_rank`` in the Rust implementation.
+_LEVEL_RANK: dict[LogLevel, int] = {
+    LogLevel.FATAL: 5,
+    LogLevel.ERROR: 4,
+    LogLevel.FAIL: 4,
+    LogLevel.WARN: 3,
+    LogLevel.INFO: 2,
+    LogLevel.UNKNOWN: 2,
+    LogLevel.DEBUG: 1,
+    LogLevel.TRACE: 0,
+}
 
 
 @dataclass(eq=False)
@@ -301,10 +323,13 @@ class LogCompressor:
         # the test path; the Rust path uses aho-corasick. Both share
         # the same keyword set.
         level_patterns = [
+            # FATAL precedes ERROR so a line carrying both keywords
+            # classifies at the higher severity.
             (
-                LogLevel.ERROR,
-                re.compile(r"\b(?:ERROR|error|Error|FATAL|fatal|Fatal|CRITICAL|critical)\b"),
+                LogLevel.FATAL,
+                re.compile(r"\b(?:FATAL|fatal|Fatal|CRITICAL|critical|Critical)\b"),
             ),
+            (LogLevel.ERROR, re.compile(r"\b(?:ERROR|error|Error)\b")),
             (LogLevel.FAIL, re.compile(r"\b(?:FAIL|FAILED|fail|failed|Fail|Failed)\b")),
             (LogLevel.WARN, re.compile(r"\b(?:WARN|WARNING|warn|warning|Warn|Warning)\b")),
             (LogLevel.INFO, re.compile(r"\b(?:INFO|info|Info)\b")),
@@ -335,10 +360,23 @@ class LogCompressor:
         for i, line in enumerate(lines):
             log_line = LogLine(line_number=i, content=line)
 
-            for level, pattern in level_patterns:
-                if pattern.search(line):
-                    log_line.level = level
-                    break
+            # Mirror Rust's MatchKind::LeftmostLongest: the level is decided
+            # by the *earliest* keyword in the line, longest wins a tie, then
+            # pattern order. Checking patterns in priority order instead
+            # (the previous behaviour) diverged from Rust — "WARN error"
+            # classified as ERROR here but Warn there.
+            best_key: tuple[int, int, int] | None = None
+            best_level: LogLevel | None = None
+            for idx, (level, pattern) in enumerate(level_patterns):
+                match = pattern.search(line)
+                if match is None:
+                    continue
+                key = (match.start(), -(match.end() - match.start()), idx)
+                if best_key is None or key < best_key:
+                    best_key = key
+                    best_level = level
+            if best_level is not None:
+                log_line.level = best_level
 
             for pattern in stack_trace_patterns:
                 if pattern.search(line):
@@ -365,6 +403,7 @@ class LogCompressor:
     def _score_line(self, log_line: LogLine) -> float:
         """Per-line importance scoring."""
         level_scores = {
+            LogLevel.FATAL: 1.0,
             LogLevel.ERROR: 1.0,
             LogLevel.FAIL: 1.0,
             LogLevel.WARN: 0.5,
@@ -389,6 +428,7 @@ class LogCompressor:
             all_strings, bias=bias, min_k=10, max_k=self.config.max_total_lines
         )
 
+        fatals: list[LogLine] = []
         errors: list[LogLine] = []
         fails: list[LogLine] = []
         warnings: list[LogLine] = []
@@ -397,7 +437,9 @@ class LogCompressor:
         current_stack: list[LogLine] = []
 
         for log_line in log_lines:
-            if log_line.level == LogLevel.ERROR:
+            if log_line.level == LogLevel.FATAL:
+                fatals.append(log_line)
+            elif log_line.level == LogLevel.ERROR:
                 errors.append(log_line)
             elif log_line.level == LogLevel.FAIL:
                 fails.append(log_line)
@@ -414,6 +456,10 @@ class LogCompressor:
             stack_traces.append(current_stack)
 
         selected: list[LogLine] = []
+        # Fatals get their own budget so routine ERROR volume can never
+        # crowd out the highest-severity line in the payload.
+        if fatals:
+            selected.extend(self._select_with_first_last(fatals, self.config.max_errors))
         if errors:
             selected.extend(self._select_with_first_last(errors, self.config.max_errors))
         if fails:
@@ -431,7 +477,12 @@ class LogCompressor:
         selected = sorted(set(selected), key=lambda x: x.line_number)
 
         if len(selected) > adaptive_max:
-            selected = sorted(selected, key=lambda x: x.score, reverse=True)
+            # Severity rank leads so the global cap cannot evict a FATAL
+            # line in favour of an equally-scored ERROR line.
+            selected = sorted(
+                selected,
+                key=lambda x: (-_LEVEL_RANK.get(x.level, 0), -x.score, x.line_number),
+            )
             selected = selected[:adaptive_max]
             selected = sorted(selected, key=lambda x: x.line_number)
 
@@ -504,6 +555,7 @@ class LogCompressor:
         self, selected: list[LogLine], all_lines: list[LogLine]
     ) -> tuple[str, dict[str, int]]:
         stats: dict[str, int] = {
+            "fatals": sum(1 for line in all_lines if line.level == LogLevel.FATAL),
             "errors": sum(1 for line in all_lines if line.level == LogLevel.ERROR),
             "fails": sum(1 for line in all_lines if line.level == LogLevel.FAIL),
             "warnings": sum(1 for line in all_lines if line.level == LogLevel.WARN),
@@ -514,14 +566,27 @@ class LogCompressor:
         output_lines = [line.content for line in selected]
         omitted = len(all_lines) - len(selected)
         if omitted > 0:
+            # Count by level over the *omitted* lines only. Whole-payload
+            # totals overstate the loss and — now that fatals are always
+            # retained — would claim a FATAL line was dropped when it is
+            # present in the output above.
+            kept = {line.line_number for line in selected}
+            omitted_lines = [line for line in all_lines if line.line_number not in kept]
+            # Every level is represented so the reported counts always sum
+            # to the declared omitted total. Leaving DEBUG/TRACE/unknown
+            # out made the marker under-report the loss.
             summary_parts: list[str] = []
-            for label, key in (
-                ("ERROR", "errors"),
-                ("FAIL", "fails"),
-                ("WARN", "warnings"),
-                ("INFO", "info"),
+            for label, level in (
+                ("FATAL", LogLevel.FATAL),
+                ("ERROR", LogLevel.ERROR),
+                ("FAIL", LogLevel.FAIL),
+                ("WARN", LogLevel.WARN),
+                ("INFO", LogLevel.INFO),
+                ("DEBUG", LogLevel.DEBUG),
+                ("TRACE", LogLevel.TRACE),
+                ("OTHER", LogLevel.UNKNOWN),
             ):
-                count = stats[key]
+                count = sum(1 for line in omitted_lines if line.level == level)
                 if count > 0:
                     summary_parts.append(f"{count} {label}")
             if summary_parts:

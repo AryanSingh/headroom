@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
 import time
 from pathlib import Path
@@ -15,8 +16,35 @@ from cutctx.storage.sqlite_schema import stamp_schema_version
 
 logger = logging.getLogger(__name__)
 
-_DB_PATH = Path.home() / ".cutctx" / "licenses.db"
+#: Env override for the licence DB location, matching the convention used by
+#: the other EE stores (CUTCTX_ORG_DB_PATH, CUTCTX_AUDIT_DB_PATH,
+#: CUTCTX_RBAC_DB_PATH, CUTCTX_SCIM_DB_PATH).
+LICENSE_DB_ENV = "CUTCTX_LICENSE_DB_PATH"
+
 _SCHEMA_VERSION = 1
+
+
+def resolve_db_path() -> Path:
+    """Resolve the licence DB path, honouring the env override.
+
+    Resolved on **every call**, not once at import. The previous module-level
+    ``_DB_PATH = Path.home() / ".cutctx" / "licenses.db"`` was evaluated when
+    the module was first imported, which had two consequences:
+
+    * the path could not be overridden at all — this was the only EE store
+      without an env override; and
+    * it silently captured whatever ``HOME`` happened to be at import time. In
+      a combined pytest session, importing this module during collection froze
+      the path to the developer's real ``~/.cutctx/licenses.db``, so tests read
+      and mutated real licence data. Three licensing tests failed only in that
+      configuration, because seats had been consumed and trial tokens marked
+      used by earlier runs.
+    """
+    override = os.environ.get(LICENSE_DB_ENV, "").strip()
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".cutctx" / "licenses.db"
+
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS licenses (
@@ -64,8 +92,8 @@ CREATE TABLE IF NOT EXISTS trials (
 
 
 def get_license_db() -> LicenseDB:
-    """Get or create the singleton license DB."""
-    return LicenseDB(_DB_PATH)
+    """Open the licence DB at its currently-configured path."""
+    return LicenseDB(resolve_db_path())
 
 
 class LicenseDB:

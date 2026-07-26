@@ -151,6 +151,164 @@ def _detect_content(content: str) -> DetectionResult:
     )
 
 
+#: Structural markers that only appear in real log/build output, never in a
+#: bare directory listing. A single one of these is enough to conclude "log".
+_STRUCTURAL_LOG_PATTERNS = (
+    re.compile(r"^\s*\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}"),  # ISO timestamp
+    re.compile(r"^\s*\[\d{2}:\d{2}:\d{2}\]"),  # bracketed clock time
+    re.compile(r"^\s*collected \d+ item", re.IGNORECASE),  # pytest
+    re.compile(r"^={3,}.*={3,}$"),  # pytest/section banner
+    re.compile(r"^\s*(Compiling|Finished|Running|error\[E\d+\])\b"),  # cargo
+    re.compile(r"^\s*Traceback \(most recent call last\)"),  # python traceback
+    re.compile(r"^\s*\d+ (passed|failed|skipped|error)", re.IGNORECASE),
+)
+
+
+def bash_content_routing_enabled() -> bool:
+    """Whether Bash output may be routed by content shape instead of excluded.
+
+    Defaults to **off**. `Bash` is on ``DEFAULT_EXCLUDE_TOOLS`` because
+    commit 4605fc197 found the text compressor mangling `tree`/`ls` output.
+    Routing log-shaped Bash output to the LogCompressor recovers a genuinely
+    valuable workload (build logs and test output are what it compresses best,
+    and it now provably retains FATAL/CRITICAL lines) — but misclassifying a
+    directory listing reintroduces the original bug on the request path.
+
+    So this ships opt-in. Enable with ``CUTCTX_BASH_CONTENT_ROUTING=1`` once
+    you have confirmed the classification behaves on your own traffic.
+    """
+    return os.environ.get("CUTCTX_BASH_CONTENT_ROUTING", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _is_directory_listing_output(content: str) -> bool:
+    """Detect if content looks like tree/ls directory listing output.
+
+    Directory listings are path-heavy, lack severity keywords, and typically
+    have low information density. This is used to protect tree/ls output from
+    compression while allowing log-shaped Bash output (pytest, cargo, npm, etc.)
+    to be routed to LogCompressor.
+
+    Args:
+        content: The content to analyze.
+
+    Returns:
+        True if content appears to be directory listing output (tree/ls style).
+    """
+    if not content or not content.strip():
+        return False
+
+    lines = content.split("\n")[:100]  # Check first 100 lines
+    if not lines:
+        return False
+
+    # Patterns that strongly indicate directory listing output
+    tree_indicators = 0
+    ls_indicators = 0
+    log_indicators = 0
+    path_lines = 0
+
+    # Patterns that indicate tree output
+    tree_patterns = [
+        re.compile(r"^[\s]*[└├│─]+\s*\w+"),  # tree box drawing chars
+        re.compile(r"^[a-zA-Z0-9_.-]+/$"),  # dir names ending in /
+        re.compile(r"^\s*\d+ file"),  # tree summary lines
+    ]
+
+    # Patterns that indicate ls output
+    ls_patterns = [
+        re.compile(r"^total\s+\d+"),  # ls header
+        re.compile(r"^drwx"),  # ls permission string
+        re.compile(r"^-rw"),  # ls file permission
+    ]
+
+    # Patterns that indicate LOG output (mutually exclusive with listings)
+    log_patterns = [
+        re.compile(r"\b(ERROR|FAIL|FAILED|FATAL|CRITICAL|WARNING|WARN)\b", re.IGNORECASE),
+        re.compile(r"^\s*\d{4}-\d{2}-\d{2}"),  # ISO timestamp
+        re.compile(r"^\s*\[\d{2}:\d{2}:\d{2}\]"),  # time format
+        re.compile(r"(pytest|cargo|npm|yarn|PASSED|FAILED)", re.IGNORECASE),  # build tool markers
+        re.compile(r"===+.*===+"),  # separator lines like in pytest
+        re.compile(r"^\s*collected \d+ item", re.IGNORECASE),  # pytest marker
+    ]
+
+    for line in lines:
+        # Detect log indicators
+        for pattern in log_patterns:
+            if pattern.search(line):
+                log_indicators += 1
+                break
+
+        # Detect tree/ls indicators
+        for pattern in tree_patterns:
+            if pattern.match(line):
+                tree_indicators += 1
+                break
+        for pattern in ls_patterns:
+            if pattern.match(line):
+                ls_indicators += 1
+                break
+
+        # Count lines that look like paths
+        if line.strip() and not line.strip().startswith("#"):
+            # Path-like: contains / or . or common filename patterns
+            if "/" in line or (re.match(r"^[\s]*[\w._-]+[\w./-]*$", line.strip())):
+                path_lines += 1
+
+    # Log evidence overrides listing detection — but ONE match is not enough.
+    # The severity pattern is case-insensitive and unanchored, so a single
+    # filename in an `ls` of a log directory ("error.log", "WARNING.md") would
+    # otherwise flip a directory listing into "this is a log" and get it
+    # compressed. That is exactly the failure commit 4605fc197 fixed by
+    # excluding Bash. Require corroboration: either several log-ish lines, or
+    # an unambiguous structural marker (timestamp / pytest banner), before
+    # overriding.
+    structural_log = any(
+        pattern.search(line) for line in lines for pattern in _STRUCTURAL_LOG_PATTERNS
+    )
+
+    non_empty_lines = sum(1 for line in lines if line.strip())
+    if non_empty_lines == 0:
+        return False
+
+    directory_indicators = tree_indicators + ls_indicators
+    path_density = path_lines / non_empty_lines if non_empty_lines > 0 else 0
+
+    # Precedence matters here, and it is deliberately conservative:
+    #   1. An unambiguous structural log marker wins outright.
+    #   2. Otherwise, real tree/ls syntax (box-drawing chars, permission
+    #      strings, a `total N` header) wins — those cannot appear by accident,
+    #      whereas the severity keywords CAN, as filenames. `ls` of a log
+    #      directory full of error.log / WARNING.md must stay a listing.
+    #   3. Only with no listing syntax at all do bare severity keywords decide,
+    #      and then several are required.
+    if structural_log:
+        is_listing = False
+    elif directory_indicators > 0:
+        is_listing = True
+    elif log_indicators >= 3:
+        is_listing = False
+    else:
+        is_listing = path_density > 0.7 and log_indicators == 0
+
+    logger.debug(
+        "_is_directory_listing_output: tree=%d, ls=%d, log=%d, path_density=%.2f, "
+        "is_listing=%s (lines=%d)",
+        tree_indicators,
+        ls_indicators,
+        log_indicators,
+        path_density,
+        is_listing,
+        non_empty_lines,
+    )
+
+    return is_listing
+
+
 def _create_content_signature(
     content_type: str,
     content: str,
@@ -889,6 +1047,10 @@ class ContentRouter(Transform):
         # Same pattern the existing ``_runtime_target_ratio`` /
         # ``_runtime_kompress_model`` fields below use.
         self._runtime_compression_policy: Any = None
+
+        # Runtime config for accuracy guard, set from ProxyConfig by the
+        # proxy during initialization (see server.py line ~679).
+        self._runtime_accuracy_guard_mode: str | None = None
 
         self._cache = CompressionCache()
 
@@ -1704,13 +1866,23 @@ class ContentRouter(Transform):
                             # Compatibility for third-party/custom compressors
                             # that implemented the older two-argument shape.
                             result = compressor.compress(content, bias=bias)
+                        # Apply accuracy guard if enabled (narrow seam: log-shaped payloads only).
+                        compressed_payload = result.compressed
+                        if self._runtime_accuracy_guard_mode:
+                            from cutctx.proxy.accuracy_guard import apply_accuracy_guard
+
+                            compressed_payload = apply_accuracy_guard(
+                                original=content,
+                                compressed=result.compressed,
+                                mode=self._runtime_accuracy_guard_mode,
+                            )
                         # Use the same word-count metric the rest of the
                         # router uses; `compressed_line_count` is in
                         # lines, not tokens — recording it here made
                         # ratios meaningless against `original_tokens`.
                         compressed, compressed_tokens = (
-                            result.compressed,
-                            len(result.compressed.split()),
+                            compressed_payload,
+                            len(compressed_payload.split()),
                         )
                         decision_reason = "log_compressor"
 
@@ -2743,20 +2915,39 @@ class ContentRouter(Transform):
             # Skip OpenAI-style tool messages for excluded tools
             # BUT: allow compression of old excluded-tool outputs beyond the
             # adaptive protection window (age-based decay).
+            # SPECIAL CASE: Bash tool is excluded to protect tree/ls output, but
+            # log-shaped Bash output (pytest, cargo, npm logs) should be routed to
+            # LogCompressor instead of being excluded wholesale.
             if role == "tool":
                 tool_call_id = message.get("tool_call_id", "")
+                tool_name = tool_name_map.get(tool_call_id, "")
                 if tool_call_id in excluded_tool_ids:
-                    if messages_from_end <= read_protection_window:
-                        # Recent — protect as before
+                    # Special handling for Bash: only exclude if it's directory listing output
+                    is_bash_log = (
+                        bash_content_routing_enabled()
+                        and tool_name in {"Bash", "bash"}
+                        and not _is_directory_listing_output(content)
+                    )
+                    if is_bash_log:
+                        # Bash output but it's log-shaped (build output, test logs, etc.)
+                        # Don't exclude it — let it be routed to LogCompressor
+                        logger.debug(
+                            "Bash tool output appears to be logs, not directory listing; "
+                            "allowing compression routing instead of excluding"
+                        )
+                        # Fall through to normal compression path (skip this exclusion block)
+                    elif messages_from_end <= read_protection_window:
+                        # Recent excluded-tool output — protect as before
                         result_slots[i] = message
                         transforms_applied.append("router:excluded:tool")
                         route_counts["excluded_tool"] += 1
                         continue
-                    # Old excluded-tool output — fall through to compression
-                    # (the LLM is unlikely to need exact content from this far back,
-                    # and CCR provides retrieval if it does)
+                    else:
+                        # Old excluded-tool output — fall through to compression
+                        # (the LLM is unlikely to need exact content from this far back,
+                        # and CCR provides retrieval if it does)
+                        pass
                 # Look up tool-specific compression bias for OpenAI tool messages
-                tool_name = tool_name_map.get(tool_call_id, "")
                 bias = self._get_tool_bias(tool_name) if tool_name else 1.0
 
             # Protection 1: Never compress user messages (unless overridden)

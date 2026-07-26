@@ -52,16 +52,28 @@ from cutctx.orchestration.registry import DynamicModelRegistry
 
 logger = logging.getLogger("cutctx.proxy.model_router")
 
-ModelRoutingMode = Literal["off", "balanced", "aggressive", "custom"]
+ModelRoutingMode = Literal["off", "auto", "balanced", "aggressive", "custom"]
 MODEL_ROUTING_SCORER_ARTIFACT_ENV = "CUTCTX_MODEL_ROUTING_SCORER_ARTIFACT"
 
+#: Synthetic model names that mean "pick for me" — Cursor Auto style.
+#: Clients send ``model=auto`` (or an alias); the router chooses a certified
+#: fast / medium / strong deployment from complexity, capabilities, and
+#: proven transport. No concrete source model is required.
+AUTO_MODEL_ALIASES = frozenset({"auto", "cutctx-auto", "cursor-auto"})
+
 _BALANCED_PRESET_NAMES = {
+    "auto",
     "codex-gpt54mini-high",
     "codex-opencode-slim",
     "oh-my-opencode-slim",
 }
 _AGGRESSIVE_PRESET_NAMES = {"economy"}
 _OFF_MODE_NAMES = {"", "off", "disabled", "false", "0", "none"}
+
+
+def is_auto_model(model: str | None) -> bool:
+    """Return True when ``model`` is the Cursor-style Auto synthetic name."""
+    return (model or "").strip().lower() in AUTO_MODEL_ALIASES
 
 
 def infer_request_capabilities(payload: dict[str, Any]) -> set[str]:
@@ -86,12 +98,17 @@ def infer_request_capabilities(payload: dict[str, Any]) -> set[str]:
 
 
 def normalize_model_routing_mode(mode: str | None) -> str:
-    """Normalize a routing mode or preset string to a dashboard mode."""
+    """Normalize a routing mode or preset string to a dashboard mode.
+
+    ``auto`` is the product-facing name for Cursor-style automatic routing
+    and aliases the historical ``balanced`` mode / ``codex-gpt54mini-high``
+    preset. Dashboard UIs should prefer the ``auto`` label.
+    """
     normalized = (mode or "").strip().lower()
     if normalized in _OFF_MODE_NAMES:
         return "off"
-    if normalized in {"balanced", "default"} | _BALANCED_PRESET_NAMES:
-        return "balanced"
+    if normalized in {"auto", "balanced", "default"} | _BALANCED_PRESET_NAMES:
+        return "auto"
     if normalized in {"aggressive"} | _AGGRESSIVE_PRESET_NAMES:
         return "aggressive"
     return "custom"
@@ -106,7 +123,7 @@ def model_routing_preset_for_mode(
     normalized = normalize_model_routing_mode(mode)
     if normalized == "off":
         return current_preset
-    if normalized == "balanced":
+    if normalized in {"auto", "balanced"}:
         return "codex-gpt54mini-high"
     if normalized == "aggressive":
         return "economy"
@@ -124,20 +141,40 @@ def model_routing_mode_for_state(
         return "off"
     normalized_preset = (preset or "").strip().lower()
     if normalized_preset in _BALANCED_PRESET_NAMES:
-        return "balanced"
+        return "auto"
     if normalized_preset in _AGGRESSIVE_PRESET_NAMES:
         return "aggressive"
     if normalized_preset in _OFF_MODE_NAMES:
         return "custom" if route_count and route_count > 0 else "off"
     if route_count and route_count > 0:
         return "custom"
-    return "balanced"
+    return "auto"
 
 
 class TaskComplexity(IntEnum):
     LOW = 1
     MEDIUM = 2
     HIGH = 3
+
+
+# Populated after TaskComplexity exists so the static Auto table can key on it.
+_AUTO_STATIC_TARGETS = {
+    "openai": {
+        TaskComplexity.LOW: "gpt-5.4-mini",
+        TaskComplexity.MEDIUM: "gpt-5.6-luna",
+        TaskComplexity.HIGH: "gpt-5.5",
+    },
+    "anthropic": {
+        TaskComplexity.LOW: "claude-haiku-4-5",
+        TaskComplexity.MEDIUM: "claude-sonnet-4-5",
+        TaskComplexity.HIGH: "claude-opus-4-5",
+    },
+    "google": {
+        TaskComplexity.LOW: "gemini-2.5-flash",
+        TaskComplexity.MEDIUM: "gemini-2.5-pro",
+        TaskComplexity.HIGH: "gemini-2.5-pro",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -887,6 +924,7 @@ class ModelRouterConfig:
         if normalized == "subrequest-haiku":
             return cls.subrequest_haiku_preset()
         if normalized in {
+            "auto",
             "codex-gpt54mini-high",
             "codex-opencode-slim",
             "oh-my-opencode-slim",
@@ -1002,7 +1040,7 @@ class ModelRouter:
         assessment = task_assessment
         if assessment is not None:
             task_complexity = assessment.complexity
-        if not self.config.enabled:
+        if not self.config.enabled and not is_auto_model(requested_model):
             return RoutingDecision(
                 source_model=requested_model,
                 reason="router_disabled",
@@ -1011,6 +1049,16 @@ class ModelRouter:
             return RoutingDecision(
                 source_model=requested_model,
                 reason="calibrated_scorer_required",
+            )
+        if is_auto_model(requested_model):
+            return self._route_auto(
+                requested_model,
+                task_complexity=task_complexity,
+                task_assessment=assessment,
+                client=client,
+                required_capabilities=required_capabilities,
+                transport_provider=transport_provider,
+                transport_account_id=transport_account_id,
             )
         if assessment is not None and assessment.complexity == TaskComplexity.HIGH:
             return RoutingDecision(
@@ -1168,6 +1216,177 @@ class ModelRouter:
             return {"reasoning": {"effort": "high"}}
         return None
 
+    def _route_auto(
+        self,
+        requested_model: str,
+        *,
+        task_complexity: TaskComplexity | None,
+        task_assessment: TaskComplexityAssessment | None,
+        client: str | None,
+        required_capabilities: set[str] | None,
+        transport_provider: str | None,
+        transport_account_id: str | None,
+    ) -> RoutingDecision:
+        """Pick a model for Cursor-style ``model=auto`` requests.
+
+        Unlike downgrade routing, Auto has no concrete source model — it
+        selects a certified (or static) deployment whose quality tier matches
+        the assessed complexity:
+
+        * LOW → fast
+        * MEDIUM → medium
+        * HIGH / unknown → strong
+
+        Prefer the proven transport provider/account when known.
+        """
+        complexity = (
+            task_assessment.complexity
+            if task_assessment is not None
+            else (task_complexity or TaskComplexity.HIGH)
+        )
+        catalog_pick = self._select_auto_catalog_candidate(
+            complexity,
+            required_capabilities=required_capabilities,
+            transport_provider=transport_provider,
+            transport_account_id=transport_account_id,
+        )
+        if catalog_pick is not None:
+            target_model, target_cost = catalog_pick
+            minimum_confidence = self._minimum_confidence_for(
+                client=client,
+                source_model=requested_model,
+                target_model=target_model,
+            )
+            if task_assessment is not None and task_assessment.confidence < minimum_confidence:
+                # Fail closed to the strong static default rather than refusing
+                # to answer — Auto must always resolve a concrete model.
+                target_model = self._static_auto_target(
+                    TaskComplexity.HIGH, transport_provider=transport_provider
+                )
+                return RoutingDecision(
+                    target_model=target_model,
+                    source_model=requested_model,
+                    routing_applied=True,
+                    reason="auto_strong_fallback_low_confidence",
+                    request_overrides=self._request_overrides_for_target(target_model),
+                    confidence=task_assessment.confidence,
+                    scorer=task_assessment.source,
+                    signals=task_assessment.signals,
+                )
+            return RoutingDecision(
+                target_model=target_model,
+                source_model=requested_model,
+                routing_applied=True,
+                reason="auto_catalog_selected",
+                target_cost_per_mtok=target_cost,
+                request_overrides=self._request_overrides_for_target(target_model),
+                confidence=task_assessment.confidence if task_assessment else None,
+                scorer=task_assessment.source if task_assessment else None,
+                signals=task_assessment.signals if task_assessment else (),
+            )
+
+        target_model = self._static_auto_target(complexity, transport_provider=transport_provider)
+        return RoutingDecision(
+            target_model=target_model,
+            source_model=requested_model,
+            routing_applied=True,
+            reason="auto_static_selected",
+            request_overrides=self._request_overrides_for_target(target_model),
+            confidence=task_assessment.confidence if task_assessment else None,
+            scorer=task_assessment.source if task_assessment else None,
+            signals=task_assessment.signals if task_assessment else (),
+        )
+
+    @staticmethod
+    def _auto_quality_tier(complexity: TaskComplexity) -> str:
+        if complexity == TaskComplexity.LOW:
+            return "fast"
+        if complexity == TaskComplexity.MEDIUM:
+            return "medium"
+        return "strong"
+
+    @staticmethod
+    def _static_auto_target(complexity: TaskComplexity, *, transport_provider: str | None) -> str:
+        provider = (transport_provider or "openai").strip().lower()
+        family = _AUTO_STATIC_TARGETS.get(provider) or _AUTO_STATIC_TARGETS["openai"]
+        return family[complexity]
+
+    def _select_auto_catalog_candidate(
+        self,
+        complexity: TaskComplexity,
+        *,
+        required_capabilities: set[str] | None,
+        transport_provider: str | None,
+        transport_account_id: str | None,
+    ) -> tuple[str, float | None] | None:
+        """Return ``(model_id, input_cost)`` for Auto from the certified catalog."""
+        if not self.config.catalog_routing or self.registry is None:
+            return None
+
+        required_tier = self._auto_quality_tier(complexity)
+        required = set(required_capabilities or set())
+        candidates: list[ModelRecord] = []
+        for candidate in self.registry.list(available_only=True):
+            if not self._catalog_record_is_certified(candidate):
+                continue
+            if transport_provider and candidate.provider != transport_provider:
+                continue
+            if transport_account_id and candidate.account_id != transport_account_id:
+                continue
+            if str(candidate.metadata.get("quality_tier", "")) != required_tier:
+                continue
+            if required and not required.issubset(set(candidate.capabilities or set())):
+                continue
+            candidates.append(candidate)
+        if not candidates:
+            # Soften: if the exact tier is empty, climb toward strong so Auto
+            # still answers. Prefer medium over fast when strong is missing
+            # for MEDIUM work, etc.
+            for fallback_tier in ("strong", "medium", "fast"):
+                if fallback_tier == required_tier:
+                    continue
+                for candidate in self.registry.list(available_only=True):
+                    if not self._catalog_record_is_certified(candidate):
+                        continue
+                    if transport_provider and candidate.provider != transport_provider:
+                        continue
+                    if transport_account_id and candidate.account_id != transport_account_id:
+                        continue
+                    if str(candidate.metadata.get("quality_tier", "")) != fallback_tier:
+                        continue
+                    if required and not required.issubset(set(candidate.capabilities or set())):
+                        continue
+                    candidates.append(candidate)
+                if candidates:
+                    break
+        if not candidates:
+            return None
+
+        def rank(candidate: ModelRecord) -> tuple[float, float, float, str]:
+            # For strong tier prefer higher reliability then lower latency;
+            # for fast/medium prefer lower cost first (same as downgrade path).
+            cost = float(candidate.input_cost_per_million or float("inf"))
+            if required_tier == "strong":
+                return (
+                    -float(candidate.reliability or 0.0),
+                    float(candidate.latency_ms or float("inf")),
+                    -cost,  # among equals, prefer the stronger (pricier) strong model
+                    candidate.deployment_key,
+                )
+            return (
+                cost,
+                -float(candidate.reliability or 0.0),
+                float(candidate.latency_ms or float("inf")),
+                candidate.deployment_key,
+            )
+
+        selected = min(candidates, key=rank)
+        return selected.id, (
+            float(selected.input_cost_per_million)
+            if selected.input_cost_per_million is not None
+            else None
+        )
+
     @staticmethod
     def _catalog_record_is_certified(record: ModelRecord) -> bool:
         metadata = record.metadata if isinstance(record.metadata, dict) else {}
@@ -1263,7 +1482,13 @@ class ModelRouter:
         transport_provider: str | None,
         transport_account_id: str | None,
     ) -> bool:
-        """Whether catalog safety gates are authoritative for this source."""
+        """Whether catalog safety gates are authoritative for this source.
+
+        Only *certified* inventory is authoritative. Provider refreshes often
+        leave account-scoped rows without ``routing_certified``, and those must
+        not block the static downgrade table (otherwise Auto mode silently stops
+        saving on machines with a local ``models.json`` cache).
+        """
 
         if not self.config.catalog_routing or self.registry is None:
             return False
@@ -1274,7 +1499,8 @@ class ModelRouter:
                 continue
             if transport_account_id and record.account_id != transport_account_id:
                 continue
-            return True
+            if self._catalog_record_is_certified(record):
+                return True
         return False
 
     def _minimum_confidence_for(
@@ -1663,6 +1889,19 @@ def prepare_model_routing(
         pass
 
     router = getattr(handler, "_model_router", None)
+    if is_auto_model(requested_model) and (
+        router is None or not getattr(getattr(router, "config", None), "enabled", False)
+    ):
+        # ``model=auto`` is Cursor-style product Auto: always resolve a
+        # concrete model. When routing is off, still apply the balanced
+        # preset for this request so Auto never fails closed as a no-op.
+        existing_registry = getattr(router, "registry", None) if router is not None else None
+        if existing_registry is None:
+            existing_registry = getattr(handler, "_model_registry", None)
+        router = ModelRouter(
+            config=ModelRouterConfig.codex_gpt54mini_high_preset(),
+            registry=existing_registry,
+        )
     if canary_model_routing and (
         router is None or not getattr(getattr(router, "config", None), "enabled", False)
     ):

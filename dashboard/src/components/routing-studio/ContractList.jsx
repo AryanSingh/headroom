@@ -13,7 +13,7 @@ export default function ContractList({ contracts, selected, onSelect, onNew }) {
           type="button"
           onClick={onNew}
         >
-          <Plus size={14} /> New contract
+          <Plus size={14} aria-hidden="true" /> New contract
         </button>
       </div>
       {contracts.length ? (
@@ -30,7 +30,7 @@ export default function ContractList({ contracts, selected, onSelect, onNew }) {
               onClick={() => onSelect(contract)}
               type="button"
             >
-              <FileCode2 size={16} />
+              <FileCode2 size={16} aria-hidden="true" />
               <span>
                 <strong>{contract.name}</strong>
                 <small>

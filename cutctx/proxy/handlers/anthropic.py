@@ -1063,8 +1063,6 @@ class AnthropicHandlerMixin:
             # is applied to the upstream call below.
             if getattr(self, "_model_router", None) is not None:
                 try:
-                    from dataclasses import replace as _dc_replace
-
                     from cutctx.orchestration import RoutingUnavailableError
                     from cutctx.proxy.model_router import (
                         infer_request_capabilities,
@@ -1100,7 +1098,12 @@ class AnthropicHandlerMixin:
                         # decision will be finalized (savings computed)
                         # by emit_request_outcome based on actual tokens.
                         model = routed_model
-                        body = _dc_replace(body, model=routed_model)
+                        # Body is a plain dict from request JSON (not a
+                        # dataclass). Mutating it in place + marking the
+                        # tracker is required so byte-faithful forwarding
+                        # does not replay the client model=auto bytes.
+                        body["model"] = routed_model
+                        body_mutation_tracker.mark_mutated("model_routing")
                 except RoutingUnavailableError:
                     raise
                 except Exception:

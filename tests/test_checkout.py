@@ -14,8 +14,8 @@ class TestCheckoutUrl:
         url = checkout_url("team")
         parsed = urlsplit(url)
         assert parsed.scheme == "https"
-        assert parsed.netloc == "pitchtoship.com"
-        assert parsed.path == "/billing"
+        assert parsed.netloc == "cutctx.com"
+        assert parsed.path == "/pricing/"
         assert parse_qs(parsed.query) == {
             "product": ["cutctx"],
             "plan": ["starter"],

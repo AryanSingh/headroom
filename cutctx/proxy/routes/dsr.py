@@ -76,7 +76,7 @@ def _resolve_target_user_id(
         return str(state_user)
     header_user = request.headers.get("X-Cutctx-User-Id", "").strip()
     if header_user:
-        return header_user
+        return str(header_user)
     raise HTTPException(
         status_code=400,
         detail=(

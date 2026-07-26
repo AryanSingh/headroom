@@ -207,7 +207,22 @@ class AnchorConfig:
 # Tool outputs that are reference data and must NOT be compressed.
 # Read/Glob/Grep contain exact file contents/search results the agent needs for edits.
 # Write/Edit record what changes were made — compressing them causes duplicate/conflicting edits.
-# Bash is NOT excluded — its outputs (build logs, test output) are ideal compression targets.
+# Bash: excluded by default. Optional content-shape routing — see below.
+#
+# BASH CONTENT-SHAPE ROUTING (opt-in, default OFF):
+# Bash is excluded because commit 4605fc197 found the text compressor mangling
+# `tree`/`ls` output. That exclusion also blocks build logs and test output,
+# which are the LogCompressor's strongest workload (95%+ reduction, and it now
+# provably retains FATAL/CRITICAL lines).
+#
+# Setting CUTCTX_BASH_CONTENT_ROUTING=1 applies the exclusion selectively by
+# content shape instead:
+#   - directory-listing output (tree/ls/find) → EXCLUDED, passes through intact
+#   - build/test log output (pytest/cargo/npm/make) → routed to LogCompressor
+# See `bash_content_routing_enabled` and `_is_directory_listing_output` in
+# cutctx/transforms/content_router.py for the classifier and its precedence
+# rules. It ships OFF because misclassifying a listing would reintroduce the
+# original mangling bug on the request path.
 DEFAULT_EXCLUDE_TOOLS: frozenset[str] = frozenset(
     {
         "Read",

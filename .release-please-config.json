@@ -24,6 +24,34 @@
           "type": "json",
           "path": "plugins/openclaw/package.json",
           "jsonpath": "$.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/cutctx-py/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "yaml",
+          "path": "helm/cutctx/Chart.yaml",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "yaml",
+          "path": "helm/cutctx/Chart.yaml",
+          "jsonpath": "$.appVersion"
+        },
+        {
+          "type": "yaml",
+          "path": "helm/cutctx/values.yaml",
+          "jsonpath": "$.image.tag"
+        },
+        {
+          "type": "generic",
+          "path": "k8s/deployment.yaml"
+        },
+        {
+          "type": "generic",
+          "path": "k8s/README.md"
         }
       ]
     }

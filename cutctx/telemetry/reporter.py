@@ -42,6 +42,11 @@ GRACE_PERIOD_SECONDS = 7 * 24 * 3600  # 7 days
 
 # Default cache location (workspace bucket, respects CUTCTX_WORKSPACE_DIR).
 LICENSE_CACHE_PATH = _paths.license_cache_path()
+#: Supabase edge-function base that actually serves the licence API. The
+#: marketing site below never served `/v1/license/*` — it is an SPA, so those
+#: paths fell through and answered HTTP 405 on POST.
+_SUPABASE_FUNCTIONS_BASE = "https://udeekuvifncmqvoywhlg.supabase.co/functions/v1"
+
 _DEFAULT_LICENSE_API_URL = (
     os.environ.get("PITCHTOSHIP_URL")
     or os.environ.get("CUTCTX_LICENSE_API_URL")
@@ -107,9 +112,13 @@ class UsageReporter:
         cloud_url: str = _DEFAULT_LICENSE_API_URL,
         report_interval: int = 300,
         cache_path: Path | None = None,
+        license_api_url: str | None = None,
     ):
         self._license_key = license_key
         self._cloud_url = cloud_url.rstrip("/")
+        # Separate from cloud_url: licence validation lives on the Supabase
+        # edge-function base, while cloud_url still addresses the portal.
+        self._license_api_url_override = license_api_url.rstrip("/") if license_api_url else None
         self._report_interval = report_interval
         self._cache_path = cache_path or LICENSE_CACHE_PATH
         self._license_info: LicenseInfo | None = None
@@ -129,6 +138,18 @@ class UsageReporter:
         """Most recent validation result (None until validate_license ran)."""
         return self._license_info
 
+    def _license_api_url(self) -> str:
+        """Base URL of the licence API (Supabase edge functions).
+
+        Deliberately separate from ``self._cloud_url``, which still addresses
+        the PitchToShip site for anything that genuinely lives there.
+        Resolution order: constructor argument, ``CUTCTX_LICENSE_API_URL``,
+        then the deployed edge-function base.
+        """
+        if self._license_api_url_override:
+            return self._license_api_url_override
+        return (os.environ.get("CUTCTX_LICENSE_API_URL") or _SUPABASE_FUNCTIONS_BASE).rstrip("/")
+
     async def validate_license(self) -> LicenseInfo:
         """Validate the license key against the cloud API.
 
@@ -136,9 +157,14 @@ class UsageReporter:
         """
         try:
             client = await self._get_client()
+            # `verify-license` on the Supabase edge-function base, NOT
+            # `/v1/license/validate` on the marketing site: that host is an SPA
+            # and answered HTTP 405 for every POST, so this validation silently
+            # never succeeded. The response handling below already tolerates
+            # both shapes (it falls back to `valid` and `tier`).
             resp = await client.post(
-                f"{self._cloud_url}/v1/license/validate",
-                json={"license_key": self._license_key},
+                f"{self._license_api_url()}/verify-license",
+                json={"key": self._license_key},
                 timeout=10.0,
             )
             if resp.status_code == 200:
@@ -343,6 +369,14 @@ class UsageReporter:
 
         try:
             client = await self._get_client()
+            # NOTE: there is no usage-reporting edge function among the seven
+            # deployed (create-order, list-plans, my-licenses,
+            # request-license-link, seat-heartbeat, verify-license,
+            # verify-payment), so this POST currently 405s and the block below
+            # simply does nothing. Left pointing at the portal rather than
+            # guessed at: seat occupancy is already tracked by seat-heartbeat,
+            # and inventing an endpoint here would repeat the mistake that
+            # broke licence activation. Wire it up when the endpoint exists.
             resp = await client.post(
                 f"{self._cloud_url}/v1/license/usage",
                 json=payload,

@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
 # Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 
-"""PitchToShip license validation client.
+"""Hosted CutCtx license validation client.
 
-Optional integration — Cutctx works WITHOUT PitchToShip.
-When PITCHTOSHIP_URL is set, license validation, trial, and seat
-management are delegated to PitchToShip's centralized API.
+New ``cutctx_*`` keys validate against Supabase Edge Functions
+(``verify-license``, ``seat-heartbeat``) with no PitchToShip dependency.
+The optional ``PITCHTOSHIP_URL`` path remains only for legacy non-``cutctx_``
+keys when an operator explicitly configures it.
 
-Security model:
-  1. Online:  PitchToShip verifies license in DB, returns ECDSA-signed token
-  2. Offline: Cutctx verifies cached signed token using PitchToShip's public key
-  3. Tamper:  Signature verification fails → fail closed (deny access)
+Security model for hosted keys:
+  1. Online:  Supabase verifies the key and returns tier / seats / expiry
+  2. Capacity: seat-heartbeat enforces concurrent device occupancy
+  3. Failure: 4xx answers deny; 5xx / network allow offline fallbacks
 """
 
 from __future__ import annotations
@@ -84,7 +85,7 @@ def _encrypt_cache(data: str) -> bytes:
         from cryptography.fernet import Fernet
 
         key = base64.urlsafe_b64encode(_get_cache_key())
-        return Fernet(key).encrypt(data.encode("utf-8"))
+        return bytes(Fernet(key).encrypt(data.encode("utf-8")))
     except ImportError:
         # Fallback: write plaintext if cryptography not available
         return data.encode("utf-8")
@@ -358,7 +359,7 @@ def _get_cached_signed_token(license_key: str) -> str | None:
         cache = json.loads(decrypted)
         entry = cache.get(license_key)
         if entry and entry.get("signed_token"):
-            return entry["signed_token"]
+            return str(entry["signed_token"])
     except (json.JSONDecodeError, KeyError):
         pass
     return None

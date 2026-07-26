@@ -27,12 +27,33 @@ def test_checkout_seat_rejects_html_portal(monkeypatch):
 
 
 def test_checkout_seat_accepts_json_success(monkeypatch):
+    """Seats are claimed via the `seat-heartbeat` edge function.
+
+    Verified contract: POST {"key", "hwid"} -> {"accepted", "seats_used",
+    "seats_limit"}. The old `/v1/license/checkout-seat` path was never served
+    and answered HTTP 405, so every seat claim failed.
+    """
+    calls = []
+
+    def capture(url, **kwargs):
+        calls.append((url, kwargs))
+        return _FakeResponse(200, payload={"accepted": True, "seats_used": 1, "seats_limit": 500})
+
+    monkeypatch.setattr(client.httpx, "post", capture)
+
+    assert client.checkout_seat("lic-1", "user-1") is True
+    assert calls[0][0] == f"{client.get_license_api_url()}/seat-heartbeat"
+    assert calls[0][1]["json"] == {"key": "lic-1", "hwid": "user-1"}
+
+
+def test_checkout_seat_rejects_when_not_accepted(monkeypatch):
+    """A 200 carrying accepted=false is a definite denial, e.g. seats exhausted."""
     monkeypatch.setattr(
         client.httpx,
         "post",
-        lambda *args, **kwargs: _FakeResponse(200, payload={"status": "ok"}),
+        lambda *a, **k: _FakeResponse(200, payload={"accepted": False, "seats_used": 500}),
     )
-    assert client.checkout_seat("lic-1", "user-1") is True
+    assert client.checkout_seat("lic-1", "user-1") is False
 
 
 def test_checkout_seat_uses_hosted_heartbeat_for_cutctx_key(monkeypatch):
@@ -107,16 +128,20 @@ def test_strict_mode_is_enabled_for_unrecognized_values(monkeypatch):
     assert client._strict_mode() is True
 
 
+# `checkout` now targets the Supabase edge-function base; the rest still
+# address the portal because no edge function has been verified for them.
 @pytest.mark.parametrize(
-    ("operation", "expected_url"),
+    ("operation", "expected_base", "expected_url"),
     [
-        ("activate", "/v1/license/activate"),
-        ("checkout", "/v1/license/checkout-seat"),
-        ("start_trial", "/v1/license/start-trial"),
-        ("check_trial", "/v1/license/check-trial"),
+        ("activate", "portal", "/v1/license/activate"),
+        ("checkout", "license_api", "/seat-heartbeat"),
+        ("start_trial", "portal", "/v1/license/start-trial"),
+        ("check_trial", "portal", "/v1/license/check-trial"),
     ],
 )
-def test_license_service_key_is_sent_to_portal_calls(monkeypatch, operation, expected_url):
+def test_license_service_key_is_sent_to_portal_calls(
+    monkeypatch, operation, expected_base, expected_url
+):
     monkeypatch.setenv("CUTCTX_LICENSE_SERVICE_API_KEY", "service-key")
     monkeypatch.setenv("CUTCTX_ADMIN_API_KEY", "must-not-be-sent")
     calls = []
@@ -126,6 +151,8 @@ def test_license_service_key_is_sent_to_portal_calls(monkeypatch, operation, exp
         payload = {"status": "activated"} if operation == "activate" else {"status": "ok"}
         if operation == "check_trial":
             payload = {"active": True}
+        elif operation == "checkout":
+            payload = {"accepted": True, "seats_used": 1, "seats_limit": 500}
         return _FakeResponse(200, payload=payload)
 
     monkeypatch.setattr(client.httpx, "post", capture)
@@ -138,43 +165,102 @@ def test_license_service_key_is_sent_to_portal_calls(monkeypatch, operation, exp
     else:
         assert client.is_trial_active("trial-1") is True
 
-    assert calls[0][0] == f"{client.get_portal_url()}{expected_url}"
+    base = client.get_portal_url() if expected_base == "portal" else client.get_license_api_url()
+    assert calls[0][0] == f"{base}{expected_url}"
     assert calls[0][1]["headers"] == {"X-Cutctx-Admin-Key": "service-key"}
     assert calls[0][1]["timeout"] == 5.0
     assert isinstance(calls[0][1]["json"], dict)
 
 
-def test_crl_service_key_is_sent_without_using_admin_key(monkeypatch):
+def test_revocation_check_sends_service_key_without_using_admin_key(monkeypatch):
+    """Revocation is answered by `verify-license`, not a CRL endpoint.
+
+    There is no CRL function in the licence API. The former implementation
+    fetched `/v1/license/crl` from the marketing site, which is a single-page
+    app: it answered 200 with HTML, JSON parsing failed, and strict mode then
+    denied every licence including valid paid ones.
+    """
     monkeypatch.setenv("CUTCTX_LICENSE_SERVICE_API_KEY", "service-key")
     monkeypatch.setenv("CUTCTX_ADMIN_API_KEY", "must-not-be-sent")
-    client._CRL_CACHE["revoked"] = set()
-    client._CRL_CACHE["expires_at"] = 0.0
+    client._VALIDATION_CACHE.clear()
     calls = []
 
     def capture(url, **kwargs):
         calls.append((url, kwargs))
-        return _FakeResponse(200, payload={"revoked": []})
+        return _FakeResponse(200, payload={"valid": True, "tier": "enterprise"})
 
-    monkeypatch.setattr(client.httpx, "get", capture)
+    monkeypatch.setattr(client.httpx, "post", capture)
 
     assert client.is_revoked("lic-1") is False
+    assert calls[0][0] == f"{client.get_license_api_url()}/verify-license"
+    assert calls[0][1]["json"] == {"key": "lic-1"}
     assert calls[0][1]["headers"] == {"X-Cutctx-Admin-Key": "service-key"}
 
 
-def test_crl_call_omits_service_header_when_not_configured(monkeypatch):
+def test_revocation_check_omits_service_header_when_not_configured(monkeypatch):
     monkeypatch.delenv("CUTCTX_LICENSE_SERVICE_API_KEY", raising=False)
-    client._CRL_CACHE["revoked"] = set()
-    client._CRL_CACHE["expires_at"] = 0.0
+    client._VALIDATION_CACHE.clear()
     calls = []
 
     def capture(url, **kwargs):
         calls.append(kwargs)
-        return _FakeResponse(200, payload={"revoked": []})
+        return _FakeResponse(200, payload={"valid": True})
 
-    monkeypatch.setattr(client.httpx, "get", capture)
+    monkeypatch.setattr(client.httpx, "post", capture)
 
     assert client.is_revoked("lic-1") is False
     assert "headers" not in calls[0]
+
+
+def test_invalid_key_is_reported_revoked(monkeypatch):
+    monkeypatch.delenv("CUTCTX_LICENSE_SERVICE_API_KEY", raising=False)
+    client._VALIDATION_CACHE.clear()
+    monkeypatch.setattr(
+        client.httpx,
+        "post",
+        lambda *a, **k: _FakeResponse(200, payload={"valid": False}),
+    )
+    assert client.is_revoked("lic-revoked") is True
+
+
+def test_html_response_does_not_silently_validate(monkeypatch):
+    """The original defect: an SPA answering 200 with HTML must not be
+    mistaken for a licence answer."""
+    monkeypatch.delenv("CUTCTX_LICENSE_SERVICE_API_KEY", raising=False)
+    monkeypatch.setenv("CUTCTX_LICENSE_STRICT_MODE", "0")  # fail-open for this check
+    client._VALIDATION_CACHE.clear()
+    monkeypatch.setattr(
+        client.httpx,
+        "post",
+        lambda *a, **k: _FakeResponse(200, content_type="text/html; charset=utf-8"),
+    )
+    # Dev mode allows boot; the point is that HTML is not parsed as a verdict.
+    assert client.is_revoked("lic-1") is False
+
+    # In strict mode the same unusable reply must deny.
+    monkeypatch.setenv("CUTCTX_LICENSE_STRICT_MODE", "1")
+    client._VALIDATION_CACHE.clear()
+    assert client.is_revoked("lic-1") is True
+
+
+def test_cached_answer_is_reused_on_network_failure(monkeypatch):
+    monkeypatch.delenv("CUTCTX_LICENSE_SERVICE_API_KEY", raising=False)
+    client._VALIDATION_CACHE.clear()
+    monkeypatch.setattr(
+        client.httpx,
+        "post",
+        lambda *a, **k: _FakeResponse(200, payload={"valid": True}),
+    )
+    assert client.is_revoked("lic-1") is False
+
+    def boom(*a, **k):
+        raise RuntimeError("network down")
+
+    # Force the cache to look stale so a refresh is attempted and fails.
+    client._VALIDATION_CACHE["lic-1"] = (0.0, False)
+    monkeypatch.setattr(client.httpx, "post", boom)
+    # Strict mode would deny, but a previous definite answer exists, so it wins.
+    assert client.is_revoked("lic-1") is False
 
 
 @pytest.mark.parametrize("operation", ["activate", "checkout", "start_trial", "check_trial"])

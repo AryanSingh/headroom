@@ -106,6 +106,7 @@ def test_select_dedupe_add_context_and_format_output(monkeypatch: pytest.MonkeyP
 
     output, stats = compressor._format_output(selected, log_lines)
     assert stats == {
+        "fatals": 0,
         "errors": 1,
         "fails": 1,
         "warnings": 2,
@@ -113,7 +114,11 @@ def test_select_dedupe_add_context_and_format_output(monkeypatch: pytest.MonkeyP
         "total": 9,
         "selected": 6,
     }
-    assert output.endswith("[3 lines omitted: 1 ERROR, 1 FAIL, 2 WARN, 1 INFO]")
+    # The marker counts *omitted* lines only, and the counts sum to the
+    # declared total. It previously reported whole-payload totals — five
+    # counts for three omitted lines, naming ERROR/FAIL/WARN lines that are
+    # actually retained in the output above.
+    assert output.endswith("[3 lines omitted: 1 INFO, 2 OTHER]")
 
 
 def test_log_compressor_compress_and_ccr_paths() -> None:

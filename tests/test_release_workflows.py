@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 
@@ -234,25 +235,45 @@ def test_rust_ci_generates_and_retains_llvm_coverage_artifact() -> None:
     assert "if-no-files-found: error" in workflow
 
 
-def test_workspace_pins_reachable_security_fixed_pyo3_release() -> None:
-    """Keep the extension on the smallest PyO3 release fixing its reachable advisory."""
+def test_workspace_pins_security_fixed_pyo3_release() -> None:
+    """PyO3 must stay at or above the release that FIXES its advisories.
+
+    Previously this pinned 0.24.1 and relied on CI waivers, on the grounds that
+    the extension never calls the affected APIs. That was replaced on 2026-07-26
+    by upgrading to 0.29.0, which closes RUSTSEC-2026-0176 (out-of-bounds read
+    in PyList/PyTuple iterators) and RUSTSEC-2026-0177 (missing Sync bound on
+    PyCFunction::new_closure) outright. Reachability arguments decay: the day
+    someone uses one of those APIs, a waived advisory becomes live silently.
+    """
     cargo = (ROOT / "Cargo.toml").read_text(encoding="utf-8")
 
     assert 'rust-version = "1.80"' in cargo
-    assert 'pyo3 = { version = "0.24.1", features = ["abi3-py310"] }' in cargo
+
+    match = re.search(r'pyo3 = \{ version = "(\d+)\.(\d+)\.(\d+)"', cargo)
+    assert match, "workspace Cargo.toml must pin pyo3 explicitly"
+    major, minor = int(match.group(1)), int(match.group(2))
+    assert (major, minor) >= (0, 29), (
+        f"pyo3 pinned at {match.group(0)!r}; RUSTSEC-2026-0176 and "
+        "RUSTSEC-2026-0177 are only fixed in >=0.29.0"
+    )
+    assert 'features = ["abi3-py310"]' in cargo
 
 
-def test_rust_audit_exceptions_are_limited_to_unused_pyo3_apis() -> None:
-    """PyO3 waivers are allowed only for APIs the extension never imports or calls."""
-    extension = (ROOT / "crates" / "cutctx-py" / "src" / "lib.rs").read_text(encoding="utf-8")
+def test_rust_audit_runs_without_advisory_waivers() -> None:
+    """`cargo audit` must gate on all advisories, with no --ignore waivers.
+
+    The PyO3 advisories that motivated the previous waivers are fixed by the
+    0.29.0 upgrade, so the waivers were removed. A waiver hides an advisory
+    based on a reachability claim that nothing continuously verifies; an
+    unwaived gate fails loudly the moment a new advisory lands.
+    """
     workflow = (ROOT / ".github" / "workflows" / "rust.yml").read_text(encoding="utf-8")
 
-    assert "new_closure" not in extension
-    assert "new_closure_bound" not in extension
-    assert "PyCFunction" not in extension
-    assert "PyList" not in extension
-    assert "PyTuple" not in extension
-    assert "cargo audit --ignore RUSTSEC-2026-0176 --ignore RUSTSEC-2026-0177" in workflow
+    assert "run: cargo audit" in workflow
+    assert "--ignore RUSTSEC" not in workflow, (
+        "cargo audit waivers reintroduced — prefer upgrading the crate. If a "
+        "waiver is genuinely unavoidable, document why here and in rust.yml."
+    )
 
 
 def test_proxy_pins_security_fixed_lru_release() -> None:

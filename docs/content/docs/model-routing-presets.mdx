@@ -10,11 +10,29 @@ Cutctx supports an opt-in named model-routing preset through `CUTCTX_MODEL_ROUTI
 ## Canonical preset
 
 - `codex-gpt54mini-high`
+- `auto` — product alias for the same preset (Cursor-style Auto)
 
 ## Compatibility aliases
 
 - `codex-opencode-slim`
 - `oh-my-opencode-slim`
+
+## Cursor-style Auto (`model=auto`)
+
+Clients can send `model=auto` (also `cutctx-auto` / `cursor-auto`). The router
+then **selects** a certified deployment from task complexity instead of
+downgrading from a concrete source model:
+
+| Complexity | Quality tier | Typical OpenAI pick | Typical Anthropic pick |
+|---|---|---|---|
+| LOW | fast | `gpt-5.4-mini` (+ `reasoning.effort=high`) | `claude-haiku-4-5` |
+| MEDIUM | medium | `gpt-5.6-luna` | `claude-sonnet-4-5` |
+| HIGH | strong | `gpt-5.5` / `gpt-5.6-*` | `claude-opus-4-5` |
+
+Auto still prefers the proven transport provider/account and fails over to a
+static family table when the live catalog has no match. Dashboard routing mode
+**Auto** enables the same balanced preset for downgrades when clients keep a
+strong default model.
 
 ## Evidence-gated Claude three-tier preset
 
@@ -33,7 +51,8 @@ Claude behavior and does not enable this second downgrade.
 
 ## Behavior
 
-The preset is intentionally conservative:
+The Auto / balanced preset is intentionally conservative for **downgrades**
+from a concrete requested model:
 
 - High-complexity GPT-5-tier and Claude-tier work stays on the originally requested model.
 - Low-complexity GPT tasks route to `gpt-5.4-mini`.
@@ -41,6 +60,9 @@ The preset is intentionally conservative:
 - Low-complexity Claude tasks route to the next cheaper Claude tier.
 - Routed low-complexity requests also receive `reasoning: { effort: "high" }` on OpenAI request paths.
 - The canonical preset explicitly allows `gpt-5.4-mini` and `gpt-5.6-luna` on Codex/ChatGPT subscription transports; arbitrary custom targets remain blocked unless explicitly allowlisted.
+
+When the requested model is the synthetic `auto` name, selection is
+**tier-based** (fast / medium / strong) rather than a downgrade — see above.
 
 ## Capability-certified catalog routing
 

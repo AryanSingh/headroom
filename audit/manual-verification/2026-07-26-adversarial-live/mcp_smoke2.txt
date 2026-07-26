@@ -1,0 +1,16 @@
+TOOLS ['cutctx_compress', 'cutctx_retrieve', 'cutctx_stats', 'cutctx_proxy_start', 'cutctx_scan', 'cutctx_audit', 'cutctx_orgs']
+COMPRESS_OK True {
+  "compressed": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word w
+RETRIEVE_OK True {
+  "hash": "e25d04694c4d0661",
+  "source": "local",
+  "original_content": "word word word word word word word word word word word word word word word word word
+STATS {
+  "session_duration_seconds": 0,
+  "compressions": 1,
+  "retrievals": 1,
+  "total_input_tokens": 2164,
+  "total_output_tokens": 2164,
+  "total_tokens_saved": 0,
+  "savings_percent": 0.0,
+  "estimated_cost_saved_usd": 0

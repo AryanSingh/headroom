@@ -29,12 +29,12 @@ def test_legacy_admin_config_flags_orchestrator_surface() -> None:
         )
         assert response.status_code == 200
         assert response.json()["config"]["orchestrator"] is True
-        assert response.json()["config"]["orchestrator_mode"] == "balanced"
+        assert response.json()["config"]["orchestrator_mode"] == "auto"
 
         stats2 = client.get("/stats", headers={"x-cutctx-admin-key": "admin_12345"})
         payload2 = stats2.json()
         assert payload2["config"]["orchestrator"] is True
-        assert payload2["model_routing"]["mode"] == "balanced"
+        assert payload2["model_routing"]["mode"] == "auto"
 
         response2 = client.post(
             "/admin/config/flags",
@@ -143,9 +143,9 @@ def test_config_flags_enable_orchestrator_uses_configured_preset_routes() -> Non
 
         payload = stats.json()
         assert payload["config"]["orchestrator"] is True
-        assert payload["config"]["orchestrator_mode"] == "balanced"
+        assert payload["config"]["orchestrator_mode"] == "auto"
         assert payload["model_routing"]["preset"] == "codex-gpt54mini-high"
-        assert payload["model_routing"]["mode"] == "balanced"
+        assert payload["model_routing"]["mode"] == "auto"
         assert payload["model_routing"]["configured_routes"] == len(
             ModelRouterConfig.codex_gpt54mini_high_preset().routes
         )
@@ -201,12 +201,12 @@ def test_config_flags_supports_balanced_and_aggressive_modes() -> None:
             headers={"x-cutctx-admin-key": "admin_12345"},
         )
         assert response.status_code == 200
-        assert response.json()["applied_live"]["orchestrator_mode"]["mode"] == "balanced"
+        assert response.json()["applied_live"]["orchestrator_mode"]["mode"] == "auto"
 
         stats = client.get("/stats", headers={"x-cutctx-admin-key": "admin_12345"})
         payload = stats.json()
         assert payload["config"]["orchestrator"] is True
-        assert payload["model_routing"]["mode"] == "balanced"
+        assert payload["model_routing"]["mode"] == "auto"
         assert payload["model_routing"]["preset"] == "codex-gpt54mini-high"
         assert (
             app.state.proxy._model_router.registry

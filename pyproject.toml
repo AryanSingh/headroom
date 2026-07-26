@@ -53,19 +53,29 @@ dependencies = [
     "tiktoken>=0.5.0",            # Tokenizer for all compressors
     "pydantic>=2.0.0",            # Config and data models
     "litellm>=1.86.2,<2.0",        # Model registry, pricing, and provider support
-    "click>=8.1.0",               # CLI framework
+    "click>=8.3.3",               # CLI framework (>=8.3.3: PYSEC-2026-2132)
     "rich>=13.0.0",               # Rich terminal output
     "opentelemetry-api>=1.24.0",  # Safe no-op OTEL API for instrumentation
     "ast-grep-cli>=0.30.0",       # AST-aware code slicing (CodeCompressor); binary wheel
-    "cryptography>=46.0.0",       # Fernet encryption for local state + HMAC for license cache
+    "cryptography>=48.0.1",       # Fernet encryption for local state + HMAC for license cache
     "fastapi>=0.115.0",
     "uvicorn>=0.23.0,<1.0",
     "httpx[http2]>=0.24.0",
+    # Security floors for packages we get transitively (fastapi, litellm, …).
+    # Declared explicitly so a fresh resolve cannot pull a vulnerable version
+    # back in — pip-audit flagged 28 advisories across these four on
+    # 2026-07-25, all on request-path code. See
+    # audit/2026-07-25-dependency-vulnerabilities.md. Floors only, no upper
+    # bound: let the resolver keep taking newer releases.
+    "starlette>=1.1.0",           # ASGI framework under the proxy
+    "python-multipart>=0.0.30",   # multipart request-body parsing
+    "aiohttp>=3.14.1",            # outbound HTTP
+    "pyjwt>=2.12.0",              # JWT verification for enterprise SSO
     "openai>=2.14.0",             # OpenAI API format support
-    "mcp>=1.0.0",                 # MCP server (cutctx_compress, retrieve, stats)
+    "mcp>=1.27.2",                # MCP server (>=1.27.2: PYSEC-2026-3481/3482/3483)
     "magika>=0.6.0",              # ML content detection for ContentRouter
     "zstandard>=0.20.0",          # Decompress zstd request bodies (Codex, etc.)
-    "websockets>=13.0,<14.0",           # WebSocket proxy for /v1/responses (Codex gpt-5.4+)
+    "websockets>=15.0",           # WebSocket proxy for /v1/responses (Codex gpt-5.4+); legacy client API available in 14+ (GHSA-f4xh-w4cj-qxq8 blocker resolved)
     "onnxruntime>=1.19.2",        # Kompress ONNX INT8 text compression (no torch needed)
     "transformers>=4.30.0,<6.0",  # Tokenizer only (for Kompress)
     "watchdog>=4.0.0",            # File watcher for live code graph reindexing (--code-graph)
@@ -84,6 +94,11 @@ dependencies = [
 ee = ["cutctx-ee"]
 # Proxy server dependencies are now included by default in the core package.
 proxy = []
+# Optional error tracking. Kept out of the core install deliberately: this is a
+# local-first product and nothing is transmitted unless an operator sets
+# CUTCTX_SENTRY_DSN. See cutctx/observability/error_tracking.py, which no-ops
+# entirely when the DSN is unset or this extra is not installed.
+sentry = ["sentry-sdk>=2.0.0"]
 # Production ASGI/WSGI server — Unix-only (gunicorn does not support Windows).
 # Kept separate from [proxy] so that dev, CI, and Windows users are not forced
 # to install a non-functional package.  Production deployments should use:
@@ -98,7 +113,7 @@ code = [
 ]
 # ML-based compression with Kompress (ModernBERT).
 ml = [
-    "torch>=2.0.0",
+    "torch>=2.13.0",
     "transformers>=4.30.0,<6.0",
     # transformers >= 5.x requires huggingface-hub >= 1.5.0,<2.0; pinning
     # the floor here prevents Kompress from silently falling back to
@@ -122,7 +137,7 @@ memory-stack = [
 # Apple-Silicon GPU (MPS) offload for the memory embedder. Opt in at runtime with
 # CUTCTX_EMBEDDER_RUNTIME=pytorch_mps. macOS-only; intentionally excluded from [all].
 pytorch-mps = [
-    "torch>=2.0.0; sys_platform == 'darwin'",
+    "torch>=2.13.0; sys_platform == 'darwin'",
     "sentence-transformers>=2.2.0; sys_platform == 'darwin'",
 ]
 # Semantic relevance scoring with embeddings.
@@ -214,7 +229,7 @@ mcp = [
 voice = [
     "onnxruntime>=1.19.2",
     "transformers>=4.30.0,<6.0",
-    "torch>=2.0.0",
+    "torch>=2.13.0",
 ]
 # Voice training (includes voice deps + training extras)
 voice-train = [
@@ -284,7 +299,7 @@ dev = [
     "fastapi>=0.115.0",
     "uvicorn>=0.23.0,<1.0",
     "httpx[http2]>=0.24.0",
-    "websockets>=13.0,<14.0",
+    "websockets>=15.0",
     "playwright>=1.30.0",
     "opentelemetry-exporter-otlp-proto-http>=1.24.0",
     "ollama>=0.4.0",
@@ -351,6 +366,57 @@ Changelog = "https://github.com/cutctx/cutctx/blob/main/CHANGELOG.md"
 name = "pypi"
 url = "https://pypi.org/simple/"
 default = true
+
+# uv resolves ALL extras into one universal lockfile by default, so any two
+# extras with incompatible transitive requirements make `uv lock`/`uv sync`
+# fail outright for every invocation, not just ones that request both. That
+# happened here: [demo-integrations]'s `vllm` pin caps torch at <=2.11.0
+# across every vllm release, while [ml] (pulled in by [all]) requires
+# torch>=2.13.0 for a security fix (audit/2026-07-25-dependency-vulnerabilities.md).
+# Nobody installs demo-integrations (Linux/GPU vllm demo path) together with
+# the general-purpose ML bundle in practice — declaring the conflict lets uv
+# fork the lock into non-overlapping solutions per uv's own suggested fix
+# ("resolution failed for an environment that is not the current one,
+# consider limiting the environments with tool.uv.environments").
+#
+# uv does NOT propagate a conflict declared on one extra to a composite extra
+# that merely lists `cutctx-ai[that-extra,...]` in its own dependency array —
+# every extra name that can be requested on its own and pulls in
+# torch>=2.13.0, directly or transitively, needs its own entry here. That set
+# (computed by walking the `cutctx-ai[...]` self-references in every extra,
+# not by trial and error) is: ml, pytorch-mps, voice, voice-train (voice +
+# training extras), all, and full. If a future extra starts requiring
+# torch>=2.13.0 (directly, or by referencing one of these), add it here too,
+# or `uv lock` fails universally again for everyone, not just CI — confirm
+# with `uv lock --dry-run` after any change to torch's floor or to which
+# extras include ml/pytorch-mps/voice.
+[tool.uv]
+conflicts = [
+    [
+        { extra = "ml" },
+        { extra = "demo-integrations" },
+    ],
+    [
+        { extra = "pytorch-mps" },
+        { extra = "demo-integrations" },
+    ],
+    [
+        { extra = "voice" },
+        { extra = "demo-integrations" },
+    ],
+    [
+        { extra = "voice-train" },
+        { extra = "demo-integrations" },
+    ],
+    [
+        { extra = "all" },
+        { extra = "demo-integrations" },
+    ],
+    [
+        { extra = "full" },
+        { extra = "demo-integrations" },
+    ],
+]
 
 # Open-core workspace: the proprietary commercial distribution is a separate member
 # so `uv` installs it editable in dev. Its source is the repo-root `cutctx_ee/`

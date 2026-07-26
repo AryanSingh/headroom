@@ -1,0 +1,5 @@
+TOOLS ['cutctx_compress', 'cutctx_retrieve', 'cutctx_stats', 'cutctx_proxy_start', 'cutctx_scan', 'cutctx_audit', 'cutctx_orgs']
+COMPRESS True {
+  "compressed": "token token token token token token token token token token token token token token token token token token token token token token token tok
+RETRIEVE True
+STATS_OK True

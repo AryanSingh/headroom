@@ -1,0 +1,28 @@
+Reading additional input from stdin...
+2026-07-26T08:11:13.316797Z ERROR codex_models_manager::manager: failed to refresh available models: stream disconnected before completion: error sending request for url (http://127.0.0.1:55991/v1/models?client_version=0.145.0)
+2026-07-26T08:11:13.520315Z ERROR codex_models_manager::manager: failed to refresh available models: stream disconnected before completion: error sending request for url (http://127.0.0.1:55991/v1/models?client_version=0.145.0)
+OpenAI Codex v0.145.0
+--------
+workdir: /Users/aryansingh/Documents/Claude/Projects/headroom
+model: gpt-5.4
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: medium
+reasoning summaries: none
+session id: 019f9d7a-6a25-7771-b2ed-9fb06d3a4bd7
+--------
+user
+Reply with exactly ZZDESKCDX55 and nothing else.
+2026-07-26T08:11:18.270904Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: Connection refused (os error 61), url: ws://127.0.0.1:55991/v1/responses
+2026-07-26T08:11:18.464562Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: Connection refused (os error 61), url: ws://127.0.0.1:55991/v1/responses
+2026-07-26T08:11:18.792476Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: Connection refused (os error 61), url: ws://127.0.0.1:55991/v1/responses
+ERROR: Reconnecting... 2/5
+2026-07-26T08:11:19.348396Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: Connection refused (os error 61), url: ws://127.0.0.1:55991/v1/responses
+ERROR: Reconnecting... 3/5
+2026-07-26T08:11:20.354220Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: Connection refused (os error 61), url: ws://127.0.0.1:55991/v1/responses
+ERROR: Reconnecting... 4/5
+2026-07-26T08:11:22.235112Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: Connection refused (os error 61), url: ws://127.0.0.1:55991/v1/responses
+ERROR: Reconnecting... 5/5
+2026-07-26T08:11:25.523541Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: Connection refused (os error 61), url: ws://127.0.0.1:55991/v1/responses
+warning: Falling back from WebSockets to HTTPS transport. stream disconnected before completion: Connection refused (os error 61)

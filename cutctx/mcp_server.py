@@ -104,7 +104,7 @@ async def _check_proxy() -> bool:
     try:
         async with httpx.AsyncClient(timeout=2) as c:
             r = await c.get(f"{PROXY_URL}/health")
-            return r.status_code < 400
+            return bool(r.status_code < 400)
     except Exception:
         return False
 
