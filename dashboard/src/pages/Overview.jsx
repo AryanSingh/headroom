@@ -1002,7 +1002,7 @@ function MetricCard({
   className = '',
 }) {
   return (
-    <article className={`metric-card ${className}`.trim()}>
+    <article className={`metric-card metric-panel ${className}`.trim()}>
       <div className="metric-primary">
         <span className="metric-label">{label}</span>
         <div className="metric-value">{value}</div>
@@ -2854,6 +2854,14 @@ export default function Overview({ searchQuery = '' }) {
       ) : (
         <div className="metric-grid metric-grid-four">
           <MetricCard
+            icon={Coins}
+            iconColor="amber"
+            label="Money saved"
+            value={formatCurrency(effectiveSavingsUsd)}
+            footnote={`${moneySavedFootnote} · ${formatCurrency(effectiveCreatedSavingsUsd)} created by Cutctx, ${formatCurrency(effectiveObservedProviderSavingsUsd)} observed at provider`}
+            className="metric-card-emphasis savings-hero"
+          />
+          <MetricCard
             icon={PiggyBank}
             iconColor="green"
             label="Tokens saved"
@@ -2883,14 +2891,6 @@ export default function Overview({ searchQuery = '' }) {
                 ? `${formatPercent(proxyCompressionPercent)} whole-request proxy reduction`
                 : 'Compressible-token savings rate'
             }
-          />
-          <MetricCard
-            icon={Coins}
-            iconColor="amber"
-            label="Money saved"
-            value={formatCurrency(effectiveSavingsUsd)}
-            footnote={`${moneySavedFootnote} · ${formatCurrency(effectiveCreatedSavingsUsd)} created by Cutctx, ${formatCurrency(effectiveObservedProviderSavingsUsd)} observed at provider`}
-            className="metric-card-emphasis"
           />
         </div>
       )}

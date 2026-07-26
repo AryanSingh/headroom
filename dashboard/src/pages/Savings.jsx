@@ -61,7 +61,7 @@ function EmptyState({ icon: Icon, title, description }) {
 
 function MetricCard({ icon: Icon, iconColor, label, value, footnote, className = '' }) {
   return (
-    <div className={`metric-card ${className}`.trim()}>
+    <div className={`metric-card metric-panel ${className}`.trim()}>
       <div className="metric-header">
         <div className="metric-icon" style={{ color: `var(--${iconColor})` }} aria-hidden="true">
           <Icon size={18} />
@@ -499,7 +499,7 @@ export default function Savings() {
               label="Cutctx-created savings"
               value={formatCurrency(createdSavingsUsd)}
               footnote={`${formatPercent(createdSavingsRate)} incremental reduction · ${formatNumber(createdSavingsTokens)} attributed tokens`}
-              className="metric-card-emphasis"
+              className="metric-card-emphasis savings-hero"
             />
             <MetricCard
               icon={Coins}
