@@ -367,6 +367,57 @@ name = "pypi"
 url = "https://pypi.org/simple/"
 default = true
 
+# uv resolves ALL extras into one universal lockfile by default, so any two
+# extras with incompatible transitive requirements make `uv lock`/`uv sync`
+# fail outright for every invocation, not just ones that request both. That
+# happened here: [demo-integrations]'s `vllm` pin caps torch at <=2.11.0
+# across every vllm release, while [ml] (pulled in by [all]) requires
+# torch>=2.13.0 for a security fix (audit/2026-07-25-dependency-vulnerabilities.md).
+# Nobody installs demo-integrations (Linux/GPU vllm demo path) together with
+# the general-purpose ML bundle in practice — declaring the conflict lets uv
+# fork the lock into non-overlapping solutions per uv's own suggested fix
+# ("resolution failed for an environment that is not the current one,
+# consider limiting the environments with tool.uv.environments").
+#
+# uv does NOT propagate a conflict declared on one extra to a composite extra
+# that merely lists `cutctx-ai[that-extra,...]` in its own dependency array —
+# every extra name that can be requested on its own and pulls in
+# torch>=2.13.0, directly or transitively, needs its own entry here. That set
+# (computed by walking the `cutctx-ai[...]` self-references in every extra,
+# not by trial and error) is: ml, pytorch-mps, voice, voice-train (voice +
+# training extras), all, and full. If a future extra starts requiring
+# torch>=2.13.0 (directly, or by referencing one of these), add it here too,
+# or `uv lock` fails universally again for everyone, not just CI — confirm
+# with `uv lock --dry-run` after any change to torch's floor or to which
+# extras include ml/pytorch-mps/voice.
+[tool.uv]
+conflicts = [
+    [
+        { extra = "ml" },
+        { extra = "demo-integrations" },
+    ],
+    [
+        { extra = "pytorch-mps" },
+        { extra = "demo-integrations" },
+    ],
+    [
+        { extra = "voice" },
+        { extra = "demo-integrations" },
+    ],
+    [
+        { extra = "voice-train" },
+        { extra = "demo-integrations" },
+    ],
+    [
+        { extra = "all" },
+        { extra = "demo-integrations" },
+    ],
+    [
+        { extra = "full" },
+        { extra = "demo-integrations" },
+    ],
+]
+
 # Open-core workspace: the proprietary commercial distribution is a separate member
 # so `uv` installs it editable in dev. Its source is the repo-root `cutctx_ee/`
 # package (symlinked into packaging/cutctx-ee/). It is excluded from the OSS wheel

@@ -30,5 +30,10 @@
     "javascript-obfuscator": "^5.4.3",
     "vite": "^8.0.12",
     "vite-plugin-javascript-obfuscator": "^3.1.0"
+  },
+  "overrides": {
+    "eslint-plugin-jsx-a11y": {
+      "eslint": "$eslint"
+    }
   }
 }

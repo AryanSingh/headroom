@@ -82,7 +82,7 @@ public class CutctxHttpTransport {
      * @throws IOException          If an I/O error occurs
      * @throws InterruptedException If the thread is interrupted
      */
-    public <T> HttpResponse<T> send(HttpClient httpClient, HttpRequest request)
+    public HttpResponse<Void> send(HttpClient httpClient, HttpRequest request)
             throws IOException, InterruptedException {
         HttpRequest rewritten = rewrite(request);
         return httpClient.send(rewritten, HttpResponse.BodyHandlers.discarding());
