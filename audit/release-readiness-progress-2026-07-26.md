@@ -11,7 +11,7 @@ Git is the source of truth; this file is the human-readable ledger.
 
 | Commit | Summary |
 |---|---|
-| *(pending)* | Cursor-style Auto routing + billing/a11y/prometheus gap closure |
+| `1d7bae89` | Cursor-style Auto routing + billing/a11y/prometheus gap closure |
 | `95d8647b` | SPDX header for hosted license tests; billing status docs |
 | `7cd7ca45` | Merge `origin/main` hosted Supabase billing into this branch |
 | `8a8853ab` | Seat checkout + telemetry validation → Supabase edge functions |
