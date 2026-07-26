@@ -164,6 +164,17 @@ def create_license_validation_router(
 
     @router.post("/v1/license/activate", dependencies=admin_deps)
     async def activate_license(req: ActivateRequest) -> dict:
+        from cutctx_ee.billing.pitchtoship_client import heartbeat_seat, verify_license
+
+        hosted_result = verify_license(req.license_key, req.instance_id)
+        if hosted_result is not None:
+            if not hosted_result.get("valid"):
+                raise HTTPException(status_code=403, detail=hosted_result)
+            heartbeat = heartbeat_seat(req.license_key, req.instance_id)
+            if not heartbeat or not heartbeat.get("accepted"):
+                raise HTTPException(status_code=409, detail={"error": "activation_rejected"})
+            return {"status": "ok"}
+
         from cutctx_ee.billing.license_db import get_license_db
 
         db = get_license_db()
@@ -183,6 +194,17 @@ def create_license_validation_router(
 
     @router.post("/v1/license/checkout-seat", dependencies=admin_deps)
     async def checkout_seat(req: CheckoutSeatRequest) -> dict:
+        from cutctx_ee.billing.pitchtoship_client import heartbeat_seat, verify_license
+
+        hosted_result = verify_license(req.license_key, req.user_id)
+        if hosted_result is not None:
+            if not hosted_result.get("valid"):
+                raise HTTPException(status_code=403, detail=hosted_result)
+            heartbeat = heartbeat_seat(req.license_key, req.user_id)
+            if not heartbeat or not heartbeat.get("accepted"):
+                raise HTTPException(status_code=429, detail={"error": "no_seats_available"})
+            return {"status": "ok"}
+
         from cutctx_ee.billing.license_db import get_license_db
 
         db = get_license_db()

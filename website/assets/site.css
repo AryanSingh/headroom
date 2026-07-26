@@ -367,6 +367,8 @@ h1, h2, h3, p { text-wrap: pretty; }
 .license-card h3 { margin: 0; font-size: 1.05rem; }
 .license-card p { margin: 0.45rem 0 0; color: var(--ink-soft); }
 .license-card code { overflow-wrap: anywhere; }
+.license-card-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1rem; }
+.license-card-actions .button { min-height: 2.5rem; }
 .checkout-panel { margin-top: 1.25rem; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: linear-gradient(145deg, rgba(112,237,189,0.1), rgba(8,17,29,0.96)); padding: clamp(1.35rem, 4vw, 2rem); }
 .checkout-panel h2 { margin: 0.45rem 0 0; font-size: clamp(1.65rem, 3vw, 2.45rem); letter-spacing: -0.05em; }
 .checkout-panel > p { color: var(--ink-soft); }
