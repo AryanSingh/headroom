@@ -295,3 +295,33 @@ class GeminiWriter(ContextWriter):
             gemini_md.write_text(full_content, encoding="utf-8")
 
         return result
+
+
+# =============================================================================
+# Cursor Writer (Cursor IDE)
+# =============================================================================
+
+
+class CursorWriter(ContextWriter):
+    """Writes learned patterns to .cursorrules for Cursor."""
+
+    def write(
+        self,
+        recommendations: list[Recommendation],
+        project: ProjectInfo,
+        dry_run: bool = True,
+    ) -> WriteResult:
+        result = WriteResult()
+        result.dry_run = dry_run
+
+        if not recommendations:
+            return result
+
+        cursorrules = project.context_file or (project.project_path / ".cursorrules")
+        full_content = _merge_into_file(cursorrules, recommendations)
+        result.add(cursorrules, full_content)
+        if not dry_run:
+            cursorrules.parent.mkdir(parents=True, exist_ok=True)
+            cursorrules.write_text(full_content, encoding="utf-8")
+
+        return result

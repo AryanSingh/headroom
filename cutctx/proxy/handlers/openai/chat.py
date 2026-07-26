@@ -246,6 +246,14 @@ class OpenAIChatMixin:
 
         model = body.get("model", "unknown")
         requested_model = model
+        if classify_client(dict(request.headers.items())) == "cursor":
+            from cutctx.providers.cursor.upstream import strip_cursor_ide_model_prefix
+
+            stripped_model, stripped = strip_cursor_ide_model_prefix(model)
+            if stripped:
+                model = stripped_model
+                body["model"] = stripped_model
+                requested_model = stripped_model
         messages = body.get("messages", [])
         request_savings_metadata = extract_savings_metadata(
             request_headers=request.headers,

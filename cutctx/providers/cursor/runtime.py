@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from cutctx.providers.claude import proxy_base_url as claude_proxy_base_url
 from cutctx.providers.codex import proxy_base_url as codex_proxy_base_url
+from cutctx.providers.cursor.cli import find_agent_cli, find_ide_cli
 from cutctx.proxy.project_context import with_project_prefix
 
 
@@ -34,7 +35,14 @@ def render_setup_lines(port: int, project: str | None = None) -> list[str]:
     """Render the Cursor setup instructions for the local proxy."""
     targets = build_proxy_targets(port, project)
     lines = [
-        "  Cutctx proxy is running. Configure Cursor:",
+        "  Cutctx proxy is running. Cursor harness configuration applied:",
+        "",
+        "  Project config:  .cursor/config.json",
+        "  Harness hooks:   .cursor/hooks.json",
+        "  MCP registry:    .cursor/mcp.json and ~/.cursor/mcp.json (when installed)",
+        "",
+        "  App (IDE): open this workspace in Cursor — BYOK models use the URLs below.",
+        "  CLI: run `cutctx wrap cursor --launch-cli` or pass agent args after `--`.",
         "",
         "  For OpenAI models:",
         f"    Base URL:  {targets.openai_base_url}",
@@ -44,10 +52,27 @@ def render_setup_lines(port: int, project: str | None = None) -> list[str]:
         f"    Base URL:  {targets.anthropic_base_url}",
         "    API Key:   your-anthropic-api-key",
         "",
-        "  In Cursor:",
-        "    Settings > Models > OpenAI API Key > Override OpenAI Base URL",
-        f"    Set to: {targets.openai_base_url}",
+        "  Cursor reads project config automatically. If you use global BYOK",
+        "  settings instead, open Cursor Settings > Models and confirm the",
+        f"  override base URL matches: {targets.openai_base_url}",
+        "",
+        "  IDE Agent workaround for built-in model names:",
+        "    Add a custom model named cutctx-<slug> (e.g. cutctx-gpt-4o).",
+        "    Cursor hijacks gpt-* / claude-* to api2.cursor.sh; the cutctx-",
+        "    prefix forces traffic through the BYOK base URL above.",
+        "",
+        "  CLI subscription:",
+        "    `cutctx wrap cursor --launch-cli` routes agent traffic through",
+        "    this proxy and forwards subscription API calls to api2.cursor.sh.",
     ]
+    agent_cli = find_agent_cli()
+    ide_cli = find_ide_cli()
+    if agent_cli or ide_cli:
+        lines.append("")
+        if agent_cli:
+            lines.append(f"  Cursor Agent CLI found at: {agent_cli}")
+        if ide_cli:
+            lines.append(f"  Cursor IDE launcher found at: {ide_cli}")
     if project:
         lines += [
             "",

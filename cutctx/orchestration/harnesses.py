@@ -49,6 +49,17 @@ _COMPATIBILITY = (
         hidden_session_sharing=False,
         notes="Provider/plugin configuration supports explicit task artifacts.",
     ),
+    HarnessCompatibility(
+        id="cursor",
+        support_level=SupportLevel.CONFIGURED,
+        routing=True,
+        artifact_handoffs=True,
+        hidden_session_sharing=False,
+        notes=(
+            "Project .cursor/config.json, hooks, and MCP serve the IDE app and "
+            "Cursor Agent CLI; BYOK IDE traffic routes through the local proxy."
+        ),
+    ),
 )
 
 

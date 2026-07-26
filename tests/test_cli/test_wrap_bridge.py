@@ -180,6 +180,12 @@ def test_wrap_cursor_prepare_only_injects_cursorrules(monkeypatch, tmp_path: Pat
         cursorrules = Path(".cursorrules")
         assert cursorrules.exists()
         assert "cutctx:rtk-instructions" in cursorrules.read_text()
+        config = Path(".cursor/config.json")
+        assert config.exists()
+        hooks = Path(".cursor/hooks.json")
+        assert hooks.exists()
+        mcp = Path(".cursor/mcp.json")
+        assert mcp.exists()
 
 
 def test_wrap_cursor_prepare_only_uses_lean_ctx_when_configured(

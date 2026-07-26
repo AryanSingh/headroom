@@ -56,8 +56,8 @@ class TestGetPlugin:
         assert plugin.display_name == "Claude Code"
 
     def test_get_unknown_raises_keyerror(self):
-        with pytest.raises(KeyError, match="Unknown agent.*cursor"):
-            get_plugin("cursor")
+        with pytest.raises(KeyError, match="Unknown agent.*definitely-not-a-real-agent-xyz"):
+            get_plugin("definitely-not-a-real-agent-xyz")
 
     def test_error_message_lists_available(self):
         with pytest.raises(KeyError, match="claude"):
@@ -76,6 +76,7 @@ class TestAutoDetect:
         with (
             patch.object(get_registry()["claude"], "detect", return_value=False),
             patch.object(get_registry()["codex"], "detect", return_value=False),
+            patch.object(get_registry()["cursor"], "detect", return_value=False),
             patch.object(get_registry()["gemini"], "detect", return_value=False),
         ):
             assert auto_detect_plugins() == []

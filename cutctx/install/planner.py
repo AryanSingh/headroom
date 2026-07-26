@@ -45,13 +45,17 @@ def _binary_name(target: ToolTarget) -> str | None:
 def detect_targets() -> list[str]:
     """Auto-detect available tool targets on the current host."""
 
+    from cutctx.providers.cursor.cli import find_agent_cli, find_ide_cli
+
     detected: list[str] = []
     for target in SUPPORTED_TARGETS:
         binary = _binary_name(target)
         if binary and shutil.which(binary):
             detected.append(target.value)
             continue
-        if target == ToolTarget.CURSOR and shutil.which("cursor"):
+        if target == ToolTarget.CURSOR and (
+            shutil.which("cursor") or find_agent_cli() or find_ide_cli()
+        ):
             detected.append(target.value)
     return detected
 
