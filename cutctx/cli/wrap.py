@@ -3828,7 +3828,8 @@ def cursor(
             agents=["cursor"],
             registrars=[registrar],
         )
-        mcp_detail = mcp_results.get("cursor").detail if mcp_results.get("cursor") else None
+        cursor_result = mcp_results.get("cursor")
+        mcp_detail = cursor_result.detail if cursor_result else None
 
     if prepare_only:
         return

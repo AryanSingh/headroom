@@ -93,18 +93,14 @@ def apply_proxy_config(
     root = (cwd or Path.cwd()).resolve()
     project_path = project_config_path(root)
     project_payload = _read_json(project_path)
+    openai_value = project_payload.get("openai")
     project_payload["openai"] = {
-        **(
-            project_payload.get("openai") if isinstance(project_payload.get("openai"), dict) else {}
-        ),
+        **(openai_value if isinstance(openai_value, dict) else {}),
         "baseUrl": openai_url,
     }
+    anthropic_value = project_payload.get("anthropic")
     project_payload["anthropic"] = {
-        **(
-            project_payload.get("anthropic")
-            if isinstance(project_payload.get("anthropic"), dict)
-            else {}
-        ),
+        **(anthropic_value if isinstance(anthropic_value, dict) else {}),
         "baseUrl": anthropic_url,
     }
     project_payload[_CUTCTX_META_KEY] = {
