@@ -1285,9 +1285,7 @@ class ModelRouter:
                 signals=task_assessment.signals if task_assessment else (),
             )
 
-        target_model = self._static_auto_target(
-            complexity, transport_provider=transport_provider
-        )
+        target_model = self._static_auto_target(complexity, transport_provider=transport_provider)
         return RoutingDecision(
             target_model=target_model,
             source_model=requested_model,
@@ -1308,9 +1306,7 @@ class ModelRouter:
         return "strong"
 
     @staticmethod
-    def _static_auto_target(
-        complexity: TaskComplexity, *, transport_provider: str | None
-    ) -> str:
+    def _static_auto_target(complexity: TaskComplexity, *, transport_provider: str | None) -> str:
         provider = (transport_provider or "openai").strip().lower()
         family = _AUTO_STATIC_TARGETS.get(provider) or _AUTO_STATIC_TARGETS["openai"]
         return family[complexity]

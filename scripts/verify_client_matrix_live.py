@@ -196,12 +196,24 @@ def main() -> int:
         for path in ("/livez", "/readyz"):
             resp = client.get(path)
             results.append(
-                CaseResult(f"health.{path.strip('/')}", resp.status_code == 200, "200", str(resp.status_code))
+                CaseResult(
+                    f"health.{path.strip('/')}",
+                    resp.status_code == 200,
+                    "200",
+                    str(resp.status_code),
+                )
             )
 
         stats = client.get("/stats", headers={"x-cutctx-admin-key": ADMIN})
         mode = (stats.json() or {}).get("model_routing", {}).get("mode")
-        results.append(CaseResult("stats.mode", mode in {"auto", "off", "aggressive"}, "auto|off|aggressive", str(mode)))
+        results.append(
+            CaseResult(
+                "stats.mode",
+                mode in {"auto", "off", "aggressive"},
+                "auto|off|aggressive",
+                str(mode),
+            )
+        )
 
         flipped = client.post(
             "/config/flags",
@@ -213,12 +225,40 @@ def main() -> int:
 
         cases: list[tuple[str, str, str, set[str], str, str]] = [
             ("chat.auto.low", "chat", "auto", FAST, "Rename this variable.", "fast"),
-            ("chat.auto.high", "chat", "auto", STRONG, "Implement durable workflow cancellation.", "strong"),
-            ("chat.adv.security", "chat", "gpt-5.5", {"gpt-5.5"}, "Audit the authentication flow for vulnerabilities.", "stay"),
+            (
+                "chat.auto.high",
+                "chat",
+                "auto",
+                STRONG,
+                "Implement durable workflow cancellation.",
+                "strong",
+            ),
+            (
+                "chat.adv.security",
+                "chat",
+                "gpt-5.5",
+                {"gpt-5.5"},
+                "Audit the authentication flow for vulnerabilities.",
+                "stay",
+            ),
             ("messages.auto.low", "messages", "auto", FAST, "Rename this variable.", "fast"),
-            ("messages.auto.high", "messages", "auto", STRONG, "Implement model routing end to end.", "strong"),
+            (
+                "messages.auto.high",
+                "messages",
+                "auto",
+                STRONG,
+                "Implement model routing end to end.",
+                "strong",
+            ),
             ("responses.auto.low", "responses", "auto", FAST, "Rename this variable.", "fast"),
-            ("responses.strong.high", "responses", "gpt-5.5", {"gpt-5.5"}, "Implement durable workflow cancellation.", "stay"),
+            (
+                "responses.strong.high",
+                "responses",
+                "gpt-5.5",
+                {"gpt-5.5"},
+                "Implement durable workflow cancellation.",
+                "stay",
+            ),
         ]
         for name, wire, model, expect, prompt, label in cases:
             before = len(capture.models)

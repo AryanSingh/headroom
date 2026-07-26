@@ -42,9 +42,7 @@ class UpstreamCapture:
         self.kwargs: list[dict[str, Any]] = []
         self.stream_flags: list[bool] = []
 
-    async def __call__(
-        self, method, url, headers, body, stream=False, **kwargs
-    ):  # noqa: ANN001
+    async def __call__(self, method, url, headers, body, stream=False, **kwargs):  # noqa: ANN001
         payload = body if isinstance(body, dict) else {}
         self.models.append(str(payload.get("model", "")))
         self.bodies.append(payload)

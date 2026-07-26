@@ -37,9 +37,7 @@ class UpstreamCapture:
         self.models: list[str] = []
         self.bodies: list[dict[str, Any]] = []
 
-    async def __call__(
-        self, method, url, headers, body, stream=False, **kwargs
-    ):  # noqa: ANN001
+    async def __call__(self, method, url, headers, body, stream=False, **kwargs):  # noqa: ANN001
         payload = body if isinstance(body, dict) else {}
         self.models.append(str(payload.get("model", "")))
         self.bodies.append(payload)
@@ -180,7 +178,12 @@ def test_e2e_auto_anthropic_low_and_high(routing_app) -> None:
     high = _messages(
         client,
         "auto",
-        [{"role": "user", "content": "Implement model routing in the proxy and test it end to end."}],
+        [
+            {
+                "role": "user",
+                "content": "Implement model routing in the proxy and test it end to end.",
+            }
+        ],
     )
     assert high.status_code == 200, high.text
     assert capture.models[-1] in STRONG
