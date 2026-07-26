@@ -177,17 +177,31 @@ def activate_instance(license_key: str, instance_id: str) -> bool:
 
 
 def checkout_seat(license_key: str, user_id: str) -> bool:
-    """Checkout or renew a seat lease.
+    """Claim or renew a seat for ``user_id``.
 
-    Portal errors and unavailable seats deny the request in strict mode,
-    which is the default. Set ``CUTCTX_LICENSE_STRICT_MODE=0`` only for
-    explicitly chosen offline development environments to preserve the
-    legacy fail-open behavior for network exceptions.
+    Backed by the ``seat-heartbeat`` edge function. The previous
+    implementation posted to ``/v1/license/checkout-seat`` on the marketing
+    site, which does not serve it — that host is an SPA, so the request got
+    HTTP 405 and every seat claim failed.
+
+    Verified contract (note the field names differ from `verify-license`'s
+    `key`-only body; `licenseKey`/`license_key` are both rejected with 400)::
+
+        POST <base>/seat-heartbeat   {"key": …, "hwid": …}
+        200  {"accepted": true, "seats_used": 1, "seats_limit": 500}
+
+    `user_id` is sent as ``hwid``: the function keys occupancy on a device
+    identifier, and the caller's per-user identity is what we have.
+
+    Failure semantics are unchanged. An explicit rejection (``accepted:
+    false``), a seat-limit response, or a 429 denies the seat. Network errors
+    deny in strict mode (the default) and allow when
+    ``CUTCTX_LICENSE_STRICT_MODE=0`` is set for offline development.
     """
     try:
         resp = httpx.post(
-            f"{get_portal_url()}/v1/license/checkout-seat",
-            json={"license_key": license_key, "user_id": user_id, "lease_duration": 3600.0},
+            f"{get_license_api_url()}/seat-heartbeat",
+            json={"key": license_key, "hwid": user_id},
             **_service_request_kwargs(timeout=5.0),
         )
         if resp.status_code == 429:
@@ -195,7 +209,7 @@ def checkout_seat(license_key: str, user_id: str) -> bool:
         if resp.status_code != 200 or not _response_is_json(resp):
             return False
         payload = resp.json()
-        return isinstance(payload, dict) and payload.get("status") in {"ok", "seat_leased"}
+        return isinstance(payload, dict) and bool(payload.get("accepted"))
     except Exception:
         return not _strict_mode()
 

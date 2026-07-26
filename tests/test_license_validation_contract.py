@@ -131,13 +131,17 @@ def test_remote_unavailability_preserves_local_fallback(monkeypatch) -> None:
 def test_usage_reporter_normalizes_valid_tier_response(tmp_path) -> None:
     async def scenario() -> None:
         def validate(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/v1/license/validate"
-            assert json.loads(request.content) == {"license_key": "lic_test"}
+            # `verify-license` with a `key` field, not `/v1/license/validate`
+            # with `license_key`. The old path was never served by the
+            # marketing site and answered HTTP 405 for every POST.
+            assert request.url.path == "/fn/verify-license"
+            assert json.loads(request.content) == {"key": "lic_test"}
             return httpx.Response(200, json={"valid": True, "tier": "business", "seats": 3})
 
         reporter = UsageReporter(
             license_key="lic_test",
             cloud_url="https://licenses.example",
+            license_api_url="https://licenses.example/fn",
             cache_path=tmp_path / "license.json",
         )
         reporter._http_client = httpx.AsyncClient(transport=httpx.MockTransport(validate))

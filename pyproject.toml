@@ -75,7 +75,7 @@ dependencies = [
     "mcp>=1.27.2",                # MCP server (>=1.27.2: PYSEC-2026-3481/3482/3483)
     "magika>=0.6.0",              # ML content detection for ContentRouter
     "zstandard>=0.20.0",          # Decompress zstd request bodies (Codex, etc.)
-    "websockets>=13.0,<14.0",           # WebSocket proxy for /v1/responses (Codex gpt-5.4+)
+    "websockets>=15.0",           # WebSocket proxy for /v1/responses (Codex gpt-5.4+); legacy client API available in 14+ (GHSA-f4xh-w4cj-qxq8 blocker resolved)
     "onnxruntime>=1.19.2",        # Kompress ONNX INT8 text compression (no torch needed)
     "transformers>=4.30.0,<6.0",  # Tokenizer only (for Kompress)
     "watchdog>=4.0.0",            # File watcher for live code graph reindexing (--code-graph)
@@ -113,7 +113,7 @@ code = [
 ]
 # ML-based compression with Kompress (ModernBERT).
 ml = [
-    "torch>=2.0.0",
+    "torch>=2.13.0",
     "transformers>=4.30.0,<6.0",
     # transformers >= 5.x requires huggingface-hub >= 1.5.0,<2.0; pinning
     # the floor here prevents Kompress from silently falling back to
@@ -137,7 +137,7 @@ memory-stack = [
 # Apple-Silicon GPU (MPS) offload for the memory embedder. Opt in at runtime with
 # CUTCTX_EMBEDDER_RUNTIME=pytorch_mps. macOS-only; intentionally excluded from [all].
 pytorch-mps = [
-    "torch>=2.0.0; sys_platform == 'darwin'",
+    "torch>=2.13.0; sys_platform == 'darwin'",
     "sentence-transformers>=2.2.0; sys_platform == 'darwin'",
 ]
 # Semantic relevance scoring with embeddings.
@@ -229,7 +229,7 @@ mcp = [
 voice = [
     "onnxruntime>=1.19.2",
     "transformers>=4.30.0,<6.0",
-    "torch>=2.0.0",
+    "torch>=2.13.0",
 ]
 # Voice training (includes voice deps + training extras)
 voice-train = [
@@ -299,7 +299,7 @@ dev = [
     "fastapi>=0.115.0",
     "uvicorn>=0.23.0,<1.0",
     "httpx[http2]>=0.24.0",
-    "websockets>=13.0,<14.0",
+    "websockets>=15.0",
     "playwright>=1.30.0",
     "opentelemetry-exporter-otlp-proto-http>=1.24.0",
     "ollama>=0.4.0",

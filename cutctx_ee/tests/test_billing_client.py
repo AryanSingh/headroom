@@ -27,12 +27,33 @@ def test_checkout_seat_rejects_html_portal(monkeypatch):
 
 
 def test_checkout_seat_accepts_json_success(monkeypatch):
+    """Seats are claimed via the `seat-heartbeat` edge function.
+
+    Verified contract: POST {"key", "hwid"} -> {"accepted", "seats_used",
+    "seats_limit"}. The old `/v1/license/checkout-seat` path was never served
+    and answered HTTP 405, so every seat claim failed.
+    """
+    calls = []
+
+    def capture(url, **kwargs):
+        calls.append((url, kwargs))
+        return _FakeResponse(200, payload={"accepted": True, "seats_used": 1, "seats_limit": 500})
+
+    monkeypatch.setattr(client.httpx, "post", capture)
+
+    assert client.checkout_seat("lic-1", "user-1") is True
+    assert calls[0][0] == f"{client.get_license_api_url()}/seat-heartbeat"
+    assert calls[0][1]["json"] == {"key": "lic-1", "hwid": "user-1"}
+
+
+def test_checkout_seat_rejects_when_not_accepted(monkeypatch):
+    """A 200 carrying accepted=false is a definite denial, e.g. seats exhausted."""
     monkeypatch.setattr(
         client.httpx,
         "post",
-        lambda *args, **kwargs: _FakeResponse(200, payload={"status": "ok"}),
+        lambda *a, **k: _FakeResponse(200, payload={"accepted": False, "seats_used": 500}),
     )
-    assert client.checkout_seat("lic-1", "user-1") is True
+    assert client.checkout_seat("lic-1", "user-1") is False
 
 
 def test_checkout_seat_fails_closed_on_portal_exception_by_default(monkeypatch):
@@ -85,16 +106,20 @@ def test_strict_mode_is_enabled_for_unrecognized_values(monkeypatch):
     assert client._strict_mode() is True
 
 
+# `checkout` now targets the Supabase edge-function base; the rest still
+# address the portal because no edge function has been verified for them.
 @pytest.mark.parametrize(
-    ("operation", "expected_url"),
+    ("operation", "expected_base", "expected_url"),
     [
-        ("activate", "/v1/license/activate"),
-        ("checkout", "/v1/license/checkout-seat"),
-        ("start_trial", "/v1/license/start-trial"),
-        ("check_trial", "/v1/license/check-trial"),
+        ("activate", "portal", "/v1/license/activate"),
+        ("checkout", "license_api", "/seat-heartbeat"),
+        ("start_trial", "portal", "/v1/license/start-trial"),
+        ("check_trial", "portal", "/v1/license/check-trial"),
     ],
 )
-def test_license_service_key_is_sent_to_portal_calls(monkeypatch, operation, expected_url):
+def test_license_service_key_is_sent_to_portal_calls(
+    monkeypatch, operation, expected_base, expected_url
+):
     monkeypatch.setenv("CUTCTX_LICENSE_SERVICE_API_KEY", "service-key")
     monkeypatch.setenv("CUTCTX_ADMIN_API_KEY", "must-not-be-sent")
     calls = []
@@ -104,6 +129,8 @@ def test_license_service_key_is_sent_to_portal_calls(monkeypatch, operation, exp
         payload = {"status": "activated"} if operation == "activate" else {"status": "ok"}
         if operation == "check_trial":
             payload = {"active": True}
+        elif operation == "checkout":
+            payload = {"accepted": True, "seats_used": 1, "seats_limit": 500}
         return _FakeResponse(200, payload=payload)
 
     monkeypatch.setattr(client.httpx, "post", capture)
@@ -116,7 +143,8 @@ def test_license_service_key_is_sent_to_portal_calls(monkeypatch, operation, exp
     else:
         assert client.is_trial_active("trial-1") is True
 
-    assert calls[0][0] == f"{client.get_portal_url()}{expected_url}"
+    base = client.get_portal_url() if expected_base == "portal" else client.get_license_api_url()
+    assert calls[0][0] == f"{base}{expected_url}"
     assert calls[0][1]["headers"] == {"X-Cutctx-Admin-Key": "service-key"}
     assert calls[0][1]["timeout"] == 5.0
     assert isinstance(calls[0][1]["json"], dict)
