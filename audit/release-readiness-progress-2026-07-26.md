@@ -107,20 +107,45 @@ Tests: `tests/test_model_router_auto.py` (9) + `tests/test_model_routing_adversa
 | Routing mode tabs: `role="tablist"` / `aria-selected` | ✅ |
 | ASGI cloud default no longer pitchtoship.com | ✅ Supabase functions base |
 
+## Exhaustive client adversarial campaign (2026-07-26)
+
+Plan + results: `audit/2026-07-26-exhaustive-client-adversarial-plan.md`  
+Bug ledger: `audit/2026-07-26-adversarial-bug-ledger.md`
+
+| Gate | Status |
+|---|---|
+| New hermetic suite `tests/test_client_matrix_adversarial_e2e.py` | ✅ 18/18 |
+| Process harness `scripts/verify_client_matrix_live.py` | ✅ 16/16 |
+| Routing quality `unsafe_downgrade_rate` | ✅ 0.0 |
+| Prior landmines (Auto mutate, catalog, WS keepalive, zstd, #746, sub WS, byte-faithful) | ✅ re-verified |
+| Pilot verifier 13/13 | ❌ 12/13 — rust-tests disk full (env); `cutctx-core` lib tests 896 passed |
+| LIVE-* Claude/Codex/Cursor | ⛔ BLOCKED — no `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`; Cursor CLI missing |
+| Desktop operator checklists | ⛔ BLOCKED — apps present; Claude Desktop MCP not installed; no signed live turns |
+| Playwright orchestrator | ⛔ BLOCKED — Chromium not installed |
+| Open S0/S1 | ✅ none |
+
+**Campaign verdict: FAIL** (full exit gate / release claim). Hermetic named-client core is green; live/desktop evidence incomplete.
+
 ## Open items (post-pilot)
 
 - [ ] Broader dashboard a11y (Overview/Savings duration tabs, contrast)
 - [ ] Full rename of `pitchtoship_client.py` module (docstring updated; shim deferred)
 - [ ] Playwright a11y scan in CI
 - [ ] Customer-cluster restore drill (runbook exists, drill not executed)
-- [ ] Live provider E2E with customer keys
+- [ ] Live provider E2E with customer keys (**required to clear adversarial campaign**)
 - [ ] Legal review of TERMS.md
 - [ ] Root-cause EE+OSS combined pytest session pollution (3–4 tests)
 - [ ] IDE/plugin UX: advertise Auto as a selectable model in VS Code / JetBrains
+- [ ] Free disk + re-run `scripts/verify_pilot_release.py` rust-tests
+- [ ] `npx playwright install` + re-run `dashboard/e2e/orchestrator.spec.js`
+- [ ] `cutctx mcp install --agent claude-desktop --gateway` + Desktop operator turns
+- [ ] CCR adversarial suite debt (`benchmarks/adversarial_ccr_tests.py` 21/36) — ADV-20260726-012
 
 ## Verdict
 
-**Pilot-ready.** Named, supported customers can proceed. Self-serve commerce
+**Pilot-ready** for hermetic/named-client proxy behavior. Self-serve commerce
 runs on Supabase Edge Functions with no PitchToShip runtime dependency.
-Orchestrator Auto routing now matches Cursor Auto semantics for
-`model=auto` and the dashboard Auto mode.
+Orchestrator Auto routing matches Cursor Auto semantics for `model=auto`.
+
+**Not campaign-PASS** for exhaustive live Claude/Codex/Cursor adversarial
+sign-off until LIVE-* and Desktop checklists clear (see campaign FAIL above).

@@ -19,6 +19,7 @@ scripts/*
 !scripts/changelog-gen.py
 !scripts/verify-versions.py
 !scripts/verify_pilot_release.py
+!scripts/verify_client_matrix_live.py
 !scripts/migrate.py
 !scripts/loadtest_compress.py
 !scripts/run_remote_hosted_smoke.py

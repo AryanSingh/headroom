@@ -6,22 +6,6 @@ Plan: `audit/2026-07-26-exhaustive-client-adversarial-plan.md`
 Severity: S0 | S1 | S2 | S3 | GAP | BLOCKED
 Status: OPEN | FIXED | PASS | WAIVED | BLOCKED
 
-Entry format:
-
-```text
-ID: ADV-YYYYMMDD-NNN
-Sev: S0|S1|S2|S3|GAP|BLOCKED
-Client: Claude Code|Codex|Cursor Desktop|…
-Module: routing|compress|ws|…
-Status: OPEN|FIXED|PASS|WAIVED|BLOCKED
-Repro: exact commands + body shape
-Expected vs Actual:
-Root cause (if known):
-Fix / waiver:
-Regression test path:
-Evidence:
-```
-
 ---
 
 ## Prior landmines (re-verify)
@@ -33,13 +17,13 @@ ID: ADV-20260726-001
 Sev: S0
 Client: Claude Code
 Module: routing
-Status: PASS (re-verify pending Phase A)
-Repro: POST /v1/messages model=auto low-complexity prompt with backend=anthropic; inspect UpstreamCapture body + mutation reasons
-Expected vs Actual: body["model"] rewritten to fast tier; mark_mutated("model_routing") present when routed
-Root cause (if known): Previously Auto resolved but Anthropic path did not mutate upstream body
-Fix / waiver: handlers/anthropic.py mutates body + mark_mutated("model_routing")
-Regression test path: tests/test_model_routing_adversarial_e2e.py::test_e2e_auto_anthropic_low_and_high; tests/test_client_matrix_adversarial_e2e.py
-Evidence:
+Status: PASS
+Repro: POST /v1/messages model=auto low-complexity; UpstreamCapture model in FAST
+Expected vs Actual: routed model applied on Anthropic path
+Root cause (if known): Previously Auto resolved but body not mutated
+Fix / waiver: handlers/anthropic.py + mark_mutated("model_routing")
+Regression test path: tests/test_model_routing_adversarial_e2e.py; tests/test_client_matrix_adversarial_e2e.py::test_messages_auto_low_routes_fast
+Evidence: Phase A pack1 + client-matrix 18/18 (2026-07-26)
 ```
 
 ### ADV-20260726-002 — Uncertified catalog must not block static downgrades
@@ -49,13 +33,11 @@ ID: ADV-20260726-002
 Sev: S0
 Client: Cursor CLI / Codex
 Module: routing
-Status: PASS (re-verify pending Phase A)
-Repro: Pollute models.json with uncertified inventory; request strong+LOW; expect static downgrade
-Expected vs Actual: Downgrade to gpt-5.4-mini still occurs
-Root cause (if known): _catalog_manages_source incorrectly treated uncertified inventory as authoritative
-Fix / waiver: certification required for catalog-managed source
+Status: PASS
+Repro: strong+LOW with routing preset; expect Mini downgrade
+Expected vs Actual: gpt-5.4-mini
 Regression test path: tests/test_model_router.py; tests/test_model_routing_adversarial_e2e.py
-Evidence:
+Evidence: Phase A pack3 model_router suite green
 ```
 
 ### ADV-20260726-003 — LiteLLM backend bypasses _retry_request mocks
@@ -66,12 +48,10 @@ Sev: S3
 Client: test harness
 Module: routing / test design
 Status: PASS (constraint documented)
-Repro: ProxyConfig(backend="openai") installs LiteLLM; monkeypatch of _retry_request never sees bodies
-Expected vs Actual: Capture must use backend="anthropic" so anthropic_backend is None
-Root cause (if known): LiteLLM path does not call _retry_request
-Fix / waiver: All client-matrix / routing e2e fixtures use backend="anthropic"
+Repro: backend="openai" bypasses capture
+Expected vs Actual: fixtures use backend="anthropic"
 Regression test path: tests/test_client_matrix_adversarial_e2e.py fixture docstring
-Evidence:
+Evidence: suite green with capture
 ```
 
 ### ADV-20260726-004 — uvicorn WS ping 20s → Codex mid-turn drop
@@ -81,13 +61,11 @@ ID: ADV-20260726-004
 Sev: S1
 Client: Codex CLI
 Module: ws
-Status: PASS (re-verify pending Phase A)
-Repro: Idle >20s between tool turns on /v1/responses WS
-Expected vs Actual: Keepalive configured so mid-turn drop does not occur
-Root cause (if known): Default uvicorn ping interval too aggressive
-Fix / waiver: keepalive tuning
-Regression test path: tests/test_codex_uvicorn_keepalive.py
-Evidence:
+Status: PASS
+Repro: run_server kwargs ws_ping_interval/timeout
+Expected vs Actual: 600/600
+Regression test path: tests/test_codex_uvicorn_keepalive.py; matrix test_adv_ws_keepalive_config
+Evidence: landmine re-verify 2026-07-26 PASS
 ```
 
 ### ADV-20260726-005 — Content-Encoding left after zstd decode → chatgpt.com 400
@@ -97,13 +75,11 @@ ID: ADV-20260726-005
 Sev: S1
 Client: ChatGPT Sub Codex
 Module: compress / ws
-Status: PASS (re-verify pending Phase A)
-Repro: Responses request with Content-Encoding: zstd; decode body then forward
-Expected vs Actual: Encoding header dropped after decode so upstream does not 400
-Root cause (if known): Header retained after transparent decode
-Fix / waiver: drop Content-Encoding after decode
+Status: PASS
+Repro: zstd-encoded Responses body
+Expected vs Actual: content-encoding dropped after decode
 Regression test path: tests/test_openai_codex_routing.py::test_handle_openai_responses_drops_encoding_after_decoding_zstd
-Evidence:
+Evidence: landmine re-verify PASS; matrix HTTP path asserts no encoding on JSON POST
 ```
 
 ### ADV-20260726-006 — Custom ANTHROPIC_BASE_URL without ENABLE_TOOL_SEARCH
@@ -113,13 +89,11 @@ ID: ADV-20260726-006
 Sev: S1
 Client: Claude Code
 Module: wrap
-Status: PASS (re-verify pending Phase A)
-Repro: cutctx wrap claude; inspect launched env for ENABLE_TOOL_SEARCH
-Expected vs Actual: ENABLE_TOOL_SEARCH=true injected so tool-search works via proxy
-Root cause (if known): Claude Code disables tool-search when BASE_URL is custom unless flag set
-Fix / waiver: wrap injects ENABLE_TOOL_SEARCH
+Status: PASS
+Repro: cutctx wrap claude injects ENABLE_TOOL_SEARCH
+Expected vs Actual: ENABLE_TOOL_SEARCH=true
 Regression test path: tests/test_issue_746_tool_search.py
-Evidence:
+Evidence: landmine re-verify PASS; wrap-e2e log shows ENABLE_TOOL_SEARCH=true
 ```
 
 ### ADV-20260726-007 — Subscription WS model downgrade forbidden
@@ -129,13 +103,11 @@ ID: ADV-20260726-007
 Sev: S0
 Client: ChatGPT Sub Codex
 Module: routing
-Status: PASS (re-verify pending Phase A)
-Repro: Subscription WS turn with allowlisted strong model + low-complexity prompt
-Expected vs Actual: Requested model preserved; no Mini downgrade
-Root cause (if known): Subscription path must not apply Auto downgrades
-Fix / waiver: subscription websocket preserve requested model
+Status: PASS
+Repro: prepare_model_routing(..., implicit_downgrade_allowed=False, allow_transport_safe_targets=False)
+Expected vs Actual: gpt-5.6-sol preserved
 Regression test path: tests/test_model_router.py::test_subscription_websocket_preserves_requested_model
-Evidence:
+Evidence: landmine re-verify PASS
 ```
 
 ### ADV-20260726-008 — Byte-faithful forwarding when body_mutated=False
@@ -145,26 +117,155 @@ ID: ADV-20260726-008
 Sev: S0
 Client: all
 Module: proxy
-Status: PASS (re-verify pending Phase A)
-Repro: Request that does not mutate body; compare original_body_bytes to upstream wire
-Expected vs Actual: Exact bytes forwarded when body_mutated=False
-Root cause (if known): JSON re-serialize could alter bytes
-Fix / waiver: original_body_bytes path
+Status: PASS
+Repro: tests/test_proxy_byte_faithful_forwarding.py
+Expected vs Actual: original bytes forwarded
 Regression test path: tests/test_proxy_byte_faithful_forwarding.py
-Evidence:
+Evidence: Phase A pack2 PASS
 ```
 
 ---
 
 ## New findings (campaign)
 
-_(Filled as Phase A–E execute.)_
+### ADV-20260726-009 — Tool surface defaults slim 100+ tools to 16
+
+```text
+ID: ADV-20260726-009
+Sev: S3
+Client: Cursor CLI / Codex (chat tools)
+Module: compress / tool_surface
+Status: PASS (by design)
+Repro: POST /v1/chat/completions with 120 tools
+Expected vs Actual: upstream receives <= CUTCTX_TOOL_SURFACE_MAX_TOOLS (default 16); request 200
+Root cause (if known): cutctx/proxy/tool_surface.py default max 16
+Fix / waiver: By design; Claude tool-search path uses ENABLE_TOOL_SEARCH instead of eager schemas
+Regression test path: tests/test_client_matrix_adversarial_e2e.py::test_adv_protocol_oversized_tools_chat
+Evidence: matrix suite PASS
+```
+
+### ADV-20260726-010 — Pilot rust-tests disk exhaustion
+
+```text
+ID: ADV-20260726-010
+Sev: S3
+Client: CI / operator machine
+Module: build
+Status: BLOCKED (env)
+Repro: scripts/verify_pilot_release.py → cargo test --workspace
+Expected vs Actual: link failed errno=28 No space left on device
+Root cause (if known): large target/ + sandbox cargo cache; ~25G free but linker write failed mid-build
+Fix / waiver: Free disk / clean target; focused cargo test -p cutctx-core --lib = 896 passed
+Regression test path: n/a (environment)
+Evidence: /tmp/phase_a_pilot.txt; /tmp/phase_a_rust_core.txt
+```
+
+### ADV-20260726-011 — Wrap e2e OpenClaw npm tsup failure
+
+```text
+ID: ADV-20260726-011
+Sev: S3
+Client: OpenClaw (non-goal for this campaign)
+Module: wrap
+Status: OPEN (out of named-client scope)
+Repro: e2e/wrap/run.py → cutctx wrap openclaw --plugin-path …
+Expected vs Actual: npm run build fails Cannot find module './chunk-DI5BO6XE.js' (tsup)
+Root cause (if known): local plugin npm install incomplete/corrupt chunk
+Fix / waiver: Out of campaign non-goals; named clients Claude/Codex/Cursor verified earlier in same run
+Regression test path: e2e/wrap/run.py
+Evidence: /tmp/phase_a_wrap.txt
+```
+
+### ADV-20260726-012 — CCR adversarial suite AttributeError debt
+
+```text
+ID: ADV-20260726-012
+Sev: S2
+Client: compression benchmark (not single named client path)
+Module: compress / SmartCrusher
+Status: OPEN
+Repro: .venv/bin/python benchmarks/adversarial_ccr_tests.py → 21/36
+Expected vs Actual: 4 CRITICAL failures AttributeError: 'str' object has no attribute 'get' on nested/string shapes; several EXTREME scale timeouts treated as fail
+Root cause (if known): adversarial harness assumes dict-shaped tool outputs in places
+Fix / waiver: Track as benchmark debt; named-client byte-faithful + log fidelity landmines PASS. Waiver candidate for pilot if not on Messages/Responses happy path.
+Regression test path: benchmarks/adversarial_ccr_tests.py
+Evidence: /tmp/phase_a_ccr.txt
+```
+
+### ADV-20260726-013 — Playwright Chromium missing
+
+```text
+ID: ADV-20260726-013
+Sev: BLOCKED
+Client: dashboard
+Module: stats/dash
+Status: BLOCKED
+Repro: cd dashboard && npx playwright test e2e/orchestrator.spec.js
+Expected vs Actual: browserType.launch Executable doesn't exist (chromium_headless_shell)
+Root cause (if known): Playwright browsers not installed in this environment
+Fix / waiver: npx playwright install chromium (requires operator approval)
+Regression test path: dashboard/e2e/orchestrator.spec.js
+Evidence: Phase E run 2026-07-26
+```
 
 ---
 
 ## LIVE-* / Desktop BLOCKED rows
 
-_(Filled during Phase C–D.)_
+```text
+ID: ADV-20260726-014
+Sev: BLOCKED
+Client: Claude Code
+Module: live
+Status: BLOCKED
+Repro: LIVE-CC-1/2/3
+Expected vs Actual: ANTHROPIC_API_KEY missing (Claude CLI 2.1.214 present)
+Evidence: Phase C capability probe
+```
+
+```text
+ID: ADV-20260726-015
+Sev: BLOCKED
+Client: Codex CLI / ChatGPT Sub
+Module: live
+Status: BLOCKED
+Repro: LIVE-CDX-1/2/3
+Expected vs Actual: OPENAI_API_KEY missing; ~/.codex/auth.json present but live spend not executed
+Evidence: Phase C capability probe
+```
+
+```text
+ID: ADV-20260726-016
+Sev: BLOCKED
+Client: Cursor CLI
+Module: live
+Status: BLOCKED
+Repro: LIVE-CUR-1/2
+Expected vs Actual: cursor CLI not on PATH (Cursor.app present)
+Evidence: Phase C capability probe
+```
+
+```text
+ID: ADV-20260726-017
+Sev: BLOCKED
+Client: Claude Desktop
+Module: mcp
+Status: BLOCKED
+Repro: cutctx mcp status
+Expected vs Actual: Claude Desktop MCP not configured; hosted model requests correctly reported as not proxy-routable
+Evidence: mcp status output 2026-07-26; docs claim check PASS
+```
+
+```text
+ID: ADV-20260726-018
+Sev: BLOCKED
+Client: Cursor Desktop / Codex Desktop
+Module: desktop operator
+Status: BLOCKED
+Repro: Phase D operator turns
+Expected vs Actual: Apps present; no signed live operator session this campaign
+Evidence: /Applications/{Cursor,Claude,ChatGPT}.app present
+```
 
 ---
 
@@ -172,7 +273,9 @@ _(Filled during Phase C–D.)_
 
 | Status | Count |
 |---|---|
-| OPEN S0/S1 | 0 (pending scan) |
-| PASS landmines | 8 pending re-verify |
-| BLOCKED live | 0 pending |
-| GAP | 0 |
+| OPEN S0/S1 | **0** |
+| PASS landmines | 8 |
+| BLOCKED live/desktop/playwright | 5 entries (014–018) + 013 |
+| OPEN S2 (CCR debt) | 1 (012) |
+| OPEN S3 (OpenClaw wrap / disk) | 2 (010–011) |
+| PASS by-design S3 | 1 (009) |
