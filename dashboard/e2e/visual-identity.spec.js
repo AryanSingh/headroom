@@ -83,7 +83,7 @@ test.describe('Context Command Center visual identity', () => {
     await expect(page.getByTestId('control-plane-status')).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId('control-plane-status')).toHaveText(/Live|Degraded/);
     await page.screenshot({
-      path: '../audit/screenshots/orchestrator-desktop-dark.png',
+      path: '../docs/screenshots/context-command-center/orchestrator-desktop-dark.png',
       fullPage: true,
     });
   });

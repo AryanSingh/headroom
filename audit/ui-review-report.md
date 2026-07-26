@@ -13,13 +13,13 @@ The dashboard now presents a coherent **Context Command Center** identity: Sora 
 
 | Surface | Evidence |
 |---|---|
-| Overview desktop dark | `audit/screenshots/overview-desktop-dark.png` |
-| Overview desktop light | `audit/screenshots/overview-desktop-light.png` |
-| Overview mobile 390×844 | `audit/screenshots/overview-mobile-dark.png` |
-| Savings desktop | `audit/screenshots/savings-desktop-dark.png` |
-| Orchestrator desktop | `audit/screenshots/orchestrator-desktop-dark.png` |
-| Governance desktop | `audit/screenshots/governance-desktop-dark.png` |
-| Security desktop | `audit/screenshots/security-desktop-dark.png` |
+| Overview desktop dark | `docs/screenshots/context-command-center/overview-desktop-dark.png` |
+| Overview desktop light | `docs/screenshots/context-command-center/overview-desktop-light.png` |
+| Overview mobile 390×844 | `docs/screenshots/context-command-center/overview-mobile-dark.png` |
+| Savings desktop | `docs/screenshots/context-command-center/savings-desktop-dark.png` |
+| Orchestrator desktop | `docs/screenshots/context-command-center/orchestrator-desktop-dark.png` |
+| Governance desktop | `docs/screenshots/context-command-center/governance-desktop-dark.png` |
+| Security desktop | `docs/screenshots/context-command-center/security-desktop-dark.png` |
 
 ## Findings
 
