@@ -71,4 +71,20 @@ test.describe('Context Command Center visual identity', () => {
     await expect(page.locator('.sidebar-shell')).not.toHaveClass(/open/);
     await expect(toggle).toBeFocused();
   });
+
+  test('Orchestrator exposes live control-plane status badge', async ({ page }) => {
+    await page.route('**/policy**', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+    });
+    await page.route('**/safe-savings**', async route => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+    });
+    await page.goto('/dashboard/orchestrator');
+    await expect(page.getByTestId('control-plane-status')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('control-plane-status')).toHaveText(/Live|Degraded/);
+    await page.screenshot({
+      path: '../audit/screenshots/orchestrator-desktop-dark.png',
+      fullPage: true,
+    });
+  });
 });
