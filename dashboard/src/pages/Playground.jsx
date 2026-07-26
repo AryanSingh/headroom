@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { readStoredAdminKey, writeStoredAdminKey } from '../lib/admin-auth';
 import { getProxyUrl } from '../lib/api';
 import { formatInteger, formatPercent } from '../lib/format';
+import { PageHeader } from '../components/PageHeader';
 
 const DEMO_PROMPT = [
   'Summarize the dashboard screenshot and the repeated build logs.',
@@ -48,9 +49,9 @@ function generateDemoImageDataUrl() {
   context.fill();
 
   context.fillStyle = '#e7f5ff';
-  context.font = '700 64px Inter, Arial, sans-serif';
+  context.font = '700 64px Sora, IBM Plex Sans, sans-serif';
   context.fillText('Cutctx Command Center', 96, 112);
-  context.font = '400 30px Inter, Arial, sans-serif';
+  context.font = '400 30px IBM Plex Sans, sans-serif';
   context.fillStyle = '#9db9c8';
   context.fillText('Live proxy savings, multimodal compression, and request telemetry', 96, 160);
 
@@ -218,7 +219,11 @@ export default function Playground() {
 
   return (
     <section className="page-stack">
-
+      <PageHeader
+        eyebrow="Diagnostics"
+        title="Playground"
+        description="Build a live compression request and inspect the transformed payload before it hits a provider."
+      />
 
       {error && <div className="alert-card" role="alert">{error}</div>}
 
