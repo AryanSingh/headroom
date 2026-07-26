@@ -64,18 +64,30 @@ def test_homepage_has_product_and_merchant_disclosure():
     assert "guaranteed" not in home.lower()
 
 
-def test_pricing_routes_to_pitchtoship_without_payment_secrets():
+def test_pricing_uses_database_backed_checkout_without_payment_secrets():
     pricing = Path("website/pricing/index.html").read_text(encoding="utf-8")
-    assert (
-        "https://pitchtoship.com/billing?product=cutctx&amp;plan=starter&amp;billing=monthly"
-        in pricing
-    )
-    assert (
-        "https://pitchtoship.com/billing?product=cutctx&amp;plan=studio&amp;billing=monthly"
-        in pricing
-    )
+    assert 'src="/assets/pricing.js?v=20260723-inline-checkout"' in pricing
+    assert 'data-plan-price="starter"' in pricing
+    assert 'data-plan-price="studio"' in pricing
+    assert 'data-plan-select="starter"' in pricing
+    assert 'data-plan-select="studio"' in pricing
     assert "Razorpay" not in pricing
     assert "RAZORPAY_" not in pricing
+
+
+def test_pricing_explains_checkout_and_license_management():
+    pricing = read_page("website/pricing/index.html")
+    assert ">Choose Team<" in pricing
+    assert ">Choose Business<" in pricing
+    assert "Secure CutCtx checkout" in pricing
+    assert 'href="/licenses"' in pricing
+    assert "Licenses" in pricing
+
+
+def test_docs_explains_how_to_activate_and_recover_a_paid_license():
+    docs = read_page("website/docs/index.html")
+    assert "cutctx license activate &lt;license-key&gt;" in docs
+    assert 'href="/licenses/"' in docs
 
 
 def test_pricing_uses_the_verified_company_contact():
@@ -162,6 +174,14 @@ def test_public_navigation_reaches_platform_destinations():
         html = page.read_text(encoding="utf-8")
         assert 'href="/routing/"' in html
         assert 'href="/integrations/"' in html
+
+
+def test_public_navigation_exposes_purchase_and_license_management():
+    home = read_page("website/index.html")
+    pricing = read_page("website/pricing/index.html")
+    assert 'href="/pricing/"' in home
+    assert 'href="/licenses/' in home
+    assert 'href="/licenses' in pricing
 
 
 def test_pricing_does_not_invent_routing_entitlements():
@@ -253,7 +273,10 @@ def test_public_routes_share_the_evolved_shell():
 def test_public_pages_keep_local_assets_and_semantic_entry_points():
     for page in PUBLIC_PAGES:
         html = page.read_text(encoding="utf-8")
-        assert 'href="/assets/site.css?v=20260721-platform"' in html
+        assert (
+            'href="/assets/site.css?v=20260721-platform"' in html
+            or 'href="/assets/site.css?v=20260723-inline-checkout"' in html
+        )
         assert 'href="/assets/favicon.svg?v=20260721-platform"' in html
         assert 'src="/assets/site.js?v=20260721-platform"' in html
         assert "fonts.googleapis.com" not in html
@@ -283,14 +306,16 @@ def test_pricing_preserves_commerce_and_adds_recommendation_hierarchy():
     assert 'class="price-card featured"' in pricing
     assert "Recommended for teams" in pricing
     assert "Start with a measured evaluation" in pricing
-    assert (
-        "https://pitchtoship.com/billing?product=cutctx&amp;plan=starter&amp;billing=monthly"
-        in pricing
-    )
-    assert (
-        "https://pitchtoship.com/billing?product=cutctx&amp;plan=studio&amp;billing=monthly"
-        in pricing
-    )
+    assert 'data-plan-select="starter"' in pricing
+    assert 'data-plan-select="studio"' in pricing
+
+
+def test_pricing_uses_the_two_dollar_introductory_offer_for_paid_plans():
+    pricing = read_page("website/pricing/index.html")
+    assert pricing.count('data-plan-price=') == 2
+    assert "$2 <small>/ month</small>" not in pricing
+    assert "$1,500" not in pricing
+    assert "$3,500" not in pricing
 
 
 def test_docs_has_anchorable_install_to_report_flow():

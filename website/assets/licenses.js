@@ -62,6 +62,25 @@ function dateLabel(value) {
   return Number.isNaN(date.getTime()) ? 'No expiry date' : date.toLocaleDateString();
 }
 
+function downloadLicense(license) {
+  const licenseText = [
+    'CutCtx License',
+    `License key: ${license.key}`,
+    `Tier: ${license.tier}`,
+    `Status: ${license.status}`,
+    `Seat limit: ${license.seatsLimit}`,
+    `Expires: ${dateLabel(license.expiresAt)}`,
+  ].join('\n') + '\n';
+  const url = URL.createObjectURL(new Blob([licenseText], { type: 'text/plain;charset=utf-8' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `${license.tier}-cutctx-license.txt`;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 function renderLicenses(licenses) {
   results.hidden = false;
   list.replaceChildren();
@@ -84,7 +103,15 @@ function renderLicenses(licenses) {
     key.append(keyValue);
     const details = document.createElement('p');
     details.textContent = `${license.status} · expires ${dateLabel(license.expiresAt)} · ${license.seatsUsed}/${license.seatsLimit} seats`;
-    card.append(title, key, details);
+    const actions = document.createElement('div');
+    actions.className = 'license-card-actions';
+    const downloadButton = document.createElement('button');
+    downloadButton.className = 'button button-secondary';
+    downloadButton.type = 'button';
+    downloadButton.textContent = 'Download key';
+    downloadButton.addEventListener('click', () => downloadLicense(license));
+    actions.append(downloadButton);
+    card.append(title, key, details, actions);
     list.append(card);
   }
 }
