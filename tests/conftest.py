@@ -3,10 +3,21 @@
 # CRITICAL: Must be set before ANY imports that could trigger sentence_transformers
 # The Rust tokenizers use parallelism that deadlocks with pytest-asyncio
 import os
+import tempfile
+from pathlib import Path
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["CUTCTX_CCR_BACKEND"] = "memory"
 os.environ.setdefault("CUTCTX_WEBHOOKS_IN_MEMORY", "1")
+# Keep prefix-tracker SQLite off the developer home directory. Proxy tests
+# spin up create_app() which opens SessionTrackerStore on first request; without
+# this, sandboxed CI and contributor machines can hit "unable to open database
+# file" when ~/.cutctx is not writable.
+_prefix_tracker_dir = tempfile.mkdtemp(prefix="cutctx-prefix-tracker-")
+os.environ.setdefault(
+    "CUTCTX_PREFIX_TRACKER_DB_PATH",
+    str(Path(_prefix_tracker_dir) / "prefix_tracker.db"),
+)
 # Secure-by-default: tests need a known admin key for admin endpoints.
 # The test mode bypass (CUTCTX_TEST_MODE) has been REMOVED as a security
 # hardening measure. Tests authenticate via this key instead.
@@ -43,9 +54,7 @@ except ImportError:
 import json
 import logging
 import shutil
-import tempfile
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import Mock
 
 import pytest

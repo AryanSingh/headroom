@@ -14,9 +14,19 @@ should be regenerated only when approved type-checking improvements reduce
 the error count. Ratcheting prevents regression.
 """
 
+import re
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
+
+#: Matches "path/to/file.py:123: error: message  [code]" so the line number can
+#: be stripped. Comparing errors verbatim (including line numbers) made the
+#: ratchet fail on any edit that shifted lines: adding 40 lines to a file
+#: re-reported every pre-existing error below the insertion as "new". A gate
+#: that cries wolf on ordinary refactors gets ignored, so identity is
+#: (file, message) and the count per file is what's compared.
+_LOCATION = re.compile(r"^(?P<path>[^:]+):(?P<line>\d+):(?P<rest>.*)$")
 
 
 def get_baseline_path() -> Path:
@@ -51,14 +61,37 @@ def load_baseline() -> list[str]:
         return [line.rstrip() for line in f if line.strip()]
 
 
+def _normalise(line: str) -> str:
+    """Strip the line number so an error keeps its identity across edits."""
+    match = _LOCATION.match(line)
+    if not match:
+        return line
+    return f"{match.group('path')}:{match.group('rest')}"
+
+
+def _is_noise(line: str) -> bool:
+    """Summary/notes lines vary with the error count and carry no signal."""
+    return line.startswith("Found ") or line.startswith("Success:") or ": note:" in line
+
+
 def find_new_errors(current: list[str], baseline: list[str]) -> list[str]:
-    """Return errors in current but not in baseline (true NEW errors)."""
-    baseline_set = set(baseline)
-    # Filter out summary lines (they will differ with error count changes)
-    summary_prefix = "Found "
-    new_errors = [
-        err for err in current if err not in baseline_set and not err.startswith(summary_prefix)
-    ]
+    """Return errors present more often now than in the baseline.
+
+    Line numbers are ignored (see `_LOCATION`). Multiplicity still matters: if a
+    file had two instances of an error and now has three, that third is new and
+    is reported — so the count per (file, message) can never silently grow.
+    """
+    baseline_counts = Counter(_normalise(line) for line in baseline if not _is_noise(line))
+    seen: Counter[str] = Counter()
+
+    new_errors: list[str] = []
+    for line in current:
+        if _is_noise(line):
+            continue
+        key = _normalise(line)
+        seen[key] += 1
+        if seen[key] > baseline_counts.get(key, 0):
+            new_errors.append(line)
     return new_errors
 
 

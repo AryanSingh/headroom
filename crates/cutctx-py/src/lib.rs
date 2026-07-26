@@ -236,7 +236,11 @@ impl PyDiffCompressorConfig {
 /// methods (not `@property`) — Python callers reach them via `.method()`.
 /// The Python adapter wraps and re-exposes them as properties for full
 /// dataclass compatibility.
-#[pyclass(name = "DiffCompressionResult", module = "cutctx._core", skip_from_py_object)]
+#[pyclass(
+    name = "DiffCompressionResult",
+    module = "cutctx._core",
+    skip_from_py_object
+)]
 struct PyDiffCompressionResult {
     inner: DiffCompressionResult,
 }
@@ -325,7 +329,11 @@ impl PyDiffCompressionResult {
 /// present in the Python dataclass. Returned only from `compress_with_stats`,
 /// which the Python adapter exposes as a method on the wrapper. `Vec`s are
 /// returned as Python lists; the `BTreeMap` becomes a `dict`.
-#[pyclass(name = "DiffCompressorStats", module = "cutctx._core", skip_from_py_object)]
+#[pyclass(
+    name = "DiffCompressorStats",
+    module = "cutctx._core",
+    skip_from_py_object
+)]
 struct PyDiffCompressorStats {
     inner: DiffCompressorStats,
 }
@@ -470,8 +478,7 @@ impl PyDiffCompressor {
     ) -> (PyDiffCompressionResult, PyDiffCompressorStats) {
         let content = content.to_string();
         let context = context.to_string();
-        let (result, stats) =
-            py.detach(|| self.inner.compress_with_stats(&content, &context));
+        let (result, stats) = py.detach(|| self.inner.compress_with_stats(&content, &context));
         (
             PyDiffCompressionResult { inner: result },
             PyDiffCompressorStats { inner: stats },
@@ -1122,7 +1129,11 @@ fn keyword_registry_snapshot(py: Python<'_>) -> Py<PyDict> {
 // store. This avoids dragging a second CCR backend into Rust before the
 // Phase 3g pipeline formalization owns CCR end-to-end.
 
-#[pyclass(name = "SearchCompressorConfig", module = "cutctx._core", from_py_object)]
+#[pyclass(
+    name = "SearchCompressorConfig",
+    module = "cutctx._core",
+    from_py_object
+)]
 #[derive(Clone)]
 struct PySearchCompressorConfig {
     inner: RustSearchConfig,
@@ -1173,7 +1184,11 @@ impl PySearchCompressorConfig {
     }
 }
 
-#[pyclass(name = "SearchCompressionResult", module = "cutctx._core", skip_from_py_object)]
+#[pyclass(
+    name = "SearchCompressionResult",
+    module = "cutctx._core",
+    skip_from_py_object
+)]
 struct PySearchCompressionResult {
     inner: RustSearchResult,
     stats: RustSearchStats,
@@ -1236,7 +1251,11 @@ impl PySearchCompressionResult {
     }
 }
 
-#[pyclass(name = "SearchCompressor", module = "cutctx._core", skip_from_py_object)]
+#[pyclass(
+    name = "SearchCompressor",
+    module = "cutctx._core",
+    skip_from_py_object
+)]
 struct PySearchCompressor {
     inner: RustSearchCompressor,
 }
@@ -1373,7 +1392,11 @@ impl PyLogCompressorConfig {
     }
 }
 
-#[pyclass(name = "LogCompressionResult", module = "cutctx._core", skip_from_py_object)]
+#[pyclass(
+    name = "LogCompressionResult",
+    module = "cutctx._core",
+    skip_from_py_object
+)]
 struct PyLogCompressionResult {
     inner: RustLogResult,
     stats: RustLogStats,
@@ -1648,7 +1671,11 @@ fn compress_openai_responses_live_zone(
 ///
 /// Wraps `cutctx_core::stack_graph::StackGraphManager` in a `Mutex` for
 /// thread safety (the inner struct is not `Send`/`Sync` by default).
-#[pyclass(name = "StackGraphManager", module = "cutctx._core", skip_from_py_object)]
+#[pyclass(
+    name = "StackGraphManager",
+    module = "cutctx._core",
+    skip_from_py_object
+)]
 struct PyStackGraphManager {
     inner: Mutex<cutctx_core::stack_graph::StackGraphManager>,
 }
