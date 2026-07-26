@@ -55,13 +55,25 @@ logger = logging.getLogger("cutctx.proxy.model_router")
 ModelRoutingMode = Literal["off", "balanced", "aggressive", "custom"]
 MODEL_ROUTING_SCORER_ARTIFACT_ENV = "CUTCTX_MODEL_ROUTING_SCORER_ARTIFACT"
 
+#: Synthetic model names that mean "pick for me" — Cursor Auto style.
+#: Clients send ``model=auto`` (or an alias); the router chooses a certified
+#: fast / medium / strong deployment from complexity, capabilities, and
+#: proven transport. No concrete source model is required.
+AUTO_MODEL_ALIASES = frozenset({"auto", "cutctx-auto", "cursor-auto"})
+
 _BALANCED_PRESET_NAMES = {
+    "auto",
     "codex-gpt54mini-high",
     "codex-opencode-slim",
     "oh-my-opencode-slim",
 }
 _AGGRESSIVE_PRESET_NAMES = {"economy"}
 _OFF_MODE_NAMES = {"", "off", "disabled", "false", "0", "none"}
+
+
+def is_auto_model(model: str | None) -> bool:
+    """Return True when ``model`` is the Cursor-style Auto synthetic name."""
+    return (model or "").strip().lower() in AUTO_MODEL_ALIASES
 
 
 def infer_request_capabilities(payload: dict[str, Any]) -> set[str]:
@@ -86,12 +98,17 @@ def infer_request_capabilities(payload: dict[str, Any]) -> set[str]:
 
 
 def normalize_model_routing_mode(mode: str | None) -> str:
-    """Normalize a routing mode or preset string to a dashboard mode."""
+    """Normalize a routing mode or preset string to a dashboard mode.
+
+    ``auto`` is the product-facing name for Cursor-style automatic routing
+    and aliases the historical ``balanced`` mode / ``codex-gpt54mini-high``
+    preset. Dashboard UIs should prefer the ``auto`` label.
+    """
     normalized = (mode or "").strip().lower()
     if normalized in _OFF_MODE_NAMES:
         return "off"
-    if normalized in {"balanced", "default"} | _BALANCED_PRESET_NAMES:
-        return "balanced"
+    if normalized in {"auto", "balanced", "default"} | _BALANCED_PRESET_NAMES:
+        return "auto"
     if normalized in {"aggressive"} | _AGGRESSIVE_PRESET_NAMES:
         return "aggressive"
     return "custom"
@@ -106,7 +123,7 @@ def model_routing_preset_for_mode(
     normalized = normalize_model_routing_mode(mode)
     if normalized == "off":
         return current_preset
-    if normalized == "balanced":
+    if normalized in {"auto", "balanced"}:
         return "codex-gpt54mini-high"
     if normalized == "aggressive":
         return "economy"
@@ -124,20 +141,40 @@ def model_routing_mode_for_state(
         return "off"
     normalized_preset = (preset or "").strip().lower()
     if normalized_preset in _BALANCED_PRESET_NAMES:
-        return "balanced"
+        return "auto"
     if normalized_preset in _AGGRESSIVE_PRESET_NAMES:
         return "aggressive"
     if normalized_preset in _OFF_MODE_NAMES:
         return "custom" if route_count and route_count > 0 else "off"
     if route_count and route_count > 0:
         return "custom"
-    return "balanced"
+    return "auto"
 
 
 class TaskComplexity(IntEnum):
     LOW = 1
     MEDIUM = 2
     HIGH = 3
+
+
+# Populated after TaskComplexity exists so the static Auto table can key on it.
+_AUTO_STATIC_TARGETS = {
+    "openai": {
+        TaskComplexity.LOW: "gpt-5.4-mini",
+        TaskComplexity.MEDIUM: "gpt-5.6-luna",
+        TaskComplexity.HIGH: "gpt-5.5",
+    },
+    "anthropic": {
+        TaskComplexity.LOW: "claude-haiku-4-5",
+        TaskComplexity.MEDIUM: "claude-sonnet-4-5",
+        TaskComplexity.HIGH: "claude-opus-4-5",
+    },
+    "google": {
+        TaskComplexity.LOW: "gemini-2.5-flash",
+        TaskComplexity.MEDIUM: "gemini-2.5-pro",
+        TaskComplexity.HIGH: "gemini-2.5-pro",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -1011,6 +1048,16 @@ class ModelRouter:
             return RoutingDecision(
                 source_model=requested_model,
                 reason="calibrated_scorer_required",
+            )
+        if is_auto_model(requested_model):
+            return self._route_auto(
+                requested_model,
+                task_complexity=task_complexity,
+                task_assessment=assessment,
+                client=client,
+                required_capabilities=required_capabilities,
+                transport_provider=transport_provider,
+                transport_account_id=transport_account_id,
             )
         if assessment is not None and assessment.complexity == TaskComplexity.HIGH:
             return RoutingDecision(

@@ -17,10 +17,12 @@ _DEFAULT_PORTAL_URL = "https://pitchtoship.com"
 _HOSTED_LICENSE_URL = os.environ.get(
     "CUTCTX_LICENSE_SUPABASE_URL", "https://udeekuvifncmqvoywhlg.supabase.co"
 ).rstrip("/")
-_HOSTED_LICENSE_ANON_KEY = os.environ.get(
-    "CUTCTX_LICENSE_SUPABASE_ANON_KEY",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkZWVrdXZpZm5jbXF2b3l3aGxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3OTQ3NjUsImV4cCI6MjEwMDM3MDc2NX0.Jhg4l0uf1ccwT-2Om3Ae3HOjy9SaCvX6EHnZ1FGhRGA",
-)
+#: Optional anon key. Deliberately has NO hardcoded default: `verify-license`
+#: and `seat-heartbeat` were both verified to work with no auth header at all,
+#: so embedding a JWT in the source bought nothing and committed a credential
+#: for no reason. Set CUTCTX_LICENSE_SUPABASE_ANON_KEY only if the functions
+#: are later put behind the anon role.
+_HOSTED_LICENSE_ANON_KEY = os.environ.get("CUTCTX_LICENSE_SUPABASE_ANON_KEY", "")
 
 #: Base URL of the licence API — Supabase Edge Functions.
 #:
@@ -59,7 +61,9 @@ def _post_hosted_license(endpoint: str, payload: dict) -> dict | None:
         response = httpx.post(
             f"{_HOSTED_LICENSE_URL}/functions/v1/{endpoint}",
             json=payload,
-            headers={"apikey": _HOSTED_LICENSE_ANON_KEY},
+            # Only send apikey if one is configured; these functions do not
+            # require it today.
+            headers={"apikey": _HOSTED_LICENSE_ANON_KEY} if _HOSTED_LICENSE_ANON_KEY else None,
             timeout=5.0,
         )
         if response.status_code >= 500 or not _response_is_json(response):
@@ -228,9 +232,7 @@ def checkout_seat(license_key: str, user_id: str) -> bool:
     ``CUTCTX_LICENSE_STRICT_MODE=0`` is set for offline development.
     """
     if _is_hosted_cutctx_key(license_key):
-        payload = _post_hosted_license(
-            "seat-heartbeat", {"key": license_key, "hwid": user_id}
-        )
+        payload = _post_hosted_license("seat-heartbeat", {"key": license_key, "hwid": user_id})
         if payload is None:
             return not _strict_mode()
         return payload.get("accepted") is True

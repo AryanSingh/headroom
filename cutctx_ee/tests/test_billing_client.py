@@ -64,7 +64,9 @@ def test_checkout_seat_uses_hosted_heartbeat_for_cutctx_key(monkeypatch):
         return {"accepted": True}
 
     monkeypatch.setattr(client, "_post_hosted_license", hosted_post)
-    monkeypatch.setattr(client.httpx, "post", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError()))
+    monkeypatch.setattr(
+        client.httpx, "post", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError())
+    )
 
     assert client.checkout_seat("cutctx_enterprise", "user-1") is True
     assert calls == [("seat-heartbeat", {"key": "cutctx_enterprise", "hwid": "user-1"})]
