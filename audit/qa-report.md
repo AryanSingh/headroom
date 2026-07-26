@@ -1,5 +1,65 @@
 # QA Audit Report — Cutctx
 
+## 2026-07-26 release certification
+
+**Overall QA score: 88/100 (product-wide). Pilot path: 95/100.**
+
+**Branch:** `release-readiness-2026-07-26` @ `ed938126` (+ verifier fixes)
+**Method:** Independent re-verification of `audit/2026-07-25-release-readiness-audit.md`
+blockers, full pilot release verifier, targeted regression tests, load test replay.
+
+### Verdict: **GREEN — pilot-ready**
+
+All 13 required pilot release verifier checks pass with zero failures. The
+2026-07-25 blockers (BLK-01 through BLK-08) are closed on this branch.
+
+| Blocker | Status | Evidence |
+|---|---|---|
+| BLK-01 Log FATAL/ERROR retention | ✅ Fixed | FATAL is distinct level above ERROR; 720/720 preserved under load |
+| BLK-02 Accuracy guard | ✅ Fixed | `CUTCTX_ACCURACY_GUARD` enforced; 370 tests in `test_accuracy_guard.py` |
+| BLK-03 Savings claims | ✅ Fixed | README publishes fleet-wide 0.7% alongside per-workload 47–92% |
+| BLK-04 Failing tests on main | ✅ Fixed | Website tests updated; full suite green |
+| BLK-05 CI gaps | ✅ Fixed | Rust, Go, Java SDK workflows added; dashboard in CI |
+| BLK-06 Migrations | ✅ Fixed | `scripts/migrate.py` + SQLite upgrade path; 581 migration tests |
+| BLK-07 `/readyz` depth | ✅ Fixed | Probes CCR datastore; K8s NotReady on datastore failure |
+| BLK-08 Undocumented env vars | ✅ Fixed | `docs/configuration-reference.md` (190 vars) |
+
+### Quality gates (executed 2026-07-26)
+
+| Gate | Result |
+|---|---|
+| Pilot release verifier (`scripts/verify_pilot_release.py`) | **13/13 passed** |
+| Python tests (`tests/`) | 9,186 passed, 469 skipped |
+| EE tests (`cutctx_ee/tests/`) | 53 passed |
+| Rust tests (`cargo test --workspace`) | 1,495 passed |
+| Dashboard lint/build/tests | lint clean, build OK, 13/13 |
+| Go SDK tests | 27 passed |
+| Java SDK tests | 7 passed |
+| Load test (`audit/2026-07-26-first-load-test.md`) | 603 req/s peak, 720/720 FATAL preserved |
+| `ruff check` / `ruff format --check` | clean |
+| `cargo fmt --check` | clean |
+
+### Remaining gaps (non-blocking for pilot)
+
+| Item | Severity | Notes |
+|---|---|---|
+| Dashboard accessibility | Medium | aria-labels, tab roles, contrast — polish for GA |
+| Self-serve billing | Medium | PitchToShip dependency; direct Stripe deferred |
+| Live provider E2E | Manual gate | Requires customer API keys |
+| Customer restore drill | Manual gate | Runbook in `docs/runbooks/backup-restore.md` |
+| EE cross-suite pytest | Low | 3–4 tests fail only when `tests/` + `cutctx_ee/tests/` combined; CI runs separately |
+| SOC 2 / legal review | External | TERMS.md draft; procurement blocker for enterprise |
+
+### Customer-type verdict
+
+| Customer type | Verdict |
+|---|---|
+| Named pilot (supported, NDA) | ✅ **GO** |
+| Self-serve (unassisted signup) | ❌ **NO-GO** — billing + a11y gaps |
+| Enterprise (SSO, procurement) | ⚠️ **CONDITIONAL** — needs staging + legal |
+
+---
+
 ## 2026-07-22 final addendum
 
 **Overall QA score: 85/100 (product-wide). Pilot path: 92/100.**
