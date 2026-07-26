@@ -312,7 +312,7 @@ def test_pricing_preserves_commerce_and_adds_recommendation_hierarchy():
 
 def test_pricing_uses_the_two_dollar_introductory_offer_for_paid_plans():
     pricing = read_page("website/pricing/index.html")
-    assert pricing.count('data-plan-price=') == 2
+    assert pricing.count("data-plan-price=") == 2
     assert "$2 <small>/ month</small>" not in pricing
     assert "$1,500" not in pricing
     assert "$3,500" not in pricing

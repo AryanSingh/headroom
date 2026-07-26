@@ -183,9 +183,7 @@ def checkout_seat(license_key: str, user_id: str) -> bool:
     legacy fail-open behavior for network exceptions.
     """
     if _is_hosted_cutctx_key(license_key):
-        payload = _post_hosted_license(
-            "seat-heartbeat", {"key": license_key, "hwid": user_id}
-        )
+        payload = _post_hosted_license("seat-heartbeat", {"key": license_key, "hwid": user_id})
         if payload is None:
             return not _strict_mode()
         return payload.get("accepted") is True
