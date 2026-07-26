@@ -4571,7 +4571,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         if "orchestrator_mode" in payload:
             _apply_orchestrator_mode(str(payload["orchestrator_mode"]))
         if "orchestrator" in payload:
-            _apply_orchestrator_mode("balanced" if bool(payload["orchestrator"]) else "off")
+            _apply_orchestrator_mode("auto" if bool(payload["orchestrator"]) else "off")
 
         model_router = getattr(proxy, "_model_router", None)
         router_config = getattr(model_router, "config", None)

@@ -44,12 +44,15 @@ All 13 required pilot release verifier checks pass with zero failures. The
 | Item | Severity | Notes |
 |---|---|---|
 | Dashboard accessibility | Medium | aria-labels, tab roles, contrast — polish for GA |
-| Self-serve billing | ✅ Closed | Website checkout + license portal call Supabase Edge Functions (`list-plans`, `create-order`, `verify-payment`, `my-licenses`, `request-license-link`). Hosted `cutctx_*` keys validate via `verify-license` / `seat-heartbeat` without `PITCHTOSHIP_URL`. Razorpay is payment UI only; secrets stay server-side. |
+| Self-serve billing | ✅ Closed | Website checkout + license portal call Supabase Edge Functions (`list-plans`, `create-order`, `verify-payment`, `my-licenses`, `request-license-link`). Hosted `cutctx_*` keys validate via `verify-license` / `seat-heartbeat` without `PITCHTOSHIP_URL`. Razorpay is payment UI only; secrets stay server-side. CLI deep links point at `cutctx.com/pricing/` and `/licenses/`. |
+| Cursor-style Auto routing | ✅ Closed | `model=auto` selects fast/mid/strong from complexity; dashboard mode labeled Auto; preset alias `auto` |
+| Prometheus alert metrics | ✅ Closed | Rules retargeted to `cutctx_requests_*` / `cutctx_latency_ms_*` |
+| Dashboard ErrorBoundary | ✅ Closed | Resets on route change |
 | Live provider E2E | Manual gate | Requires customer API keys |
 | Customer restore drill | Manual gate | Runbook in `docs/runbooks/backup-restore.md` |
 | EE cross-suite pytest | Low | 3–4 tests fail only when `tests/` + `cutctx_ee/tests/` combined; CI runs separately |
 | SOC 2 / legal review | External | TERMS.md draft; procurement blocker for enterprise |
-| Dashboard accessibility | Medium | aria-labels, tab roles, contrast — polish for GA |
+| Dashboard accessibility | Medium | Main routing tabs fixed; Overview/Savings duration tabs + contrast remain |
 
 ### Customer-type verdict
 

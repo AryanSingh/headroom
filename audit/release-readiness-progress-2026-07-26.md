@@ -11,6 +11,8 @@ Git is the source of truth; this file is the human-readable ledger.
 
 | Commit | Summary |
 |---|---|
+| *(pending)* | Cursor-style Auto routing + billing/a11y/prometheus gap closure |
+| `95d8647b` | SPDX header for hosted license tests; billing status docs |
 | `7cd7ca45` | Merge `origin/main` hosted Supabase billing into this branch |
 | `8a8853ab` | Seat checkout + telemetry validation → Supabase edge functions |
 | `f05fa5fe` | QA certification docs (13/13 verifier, score 88/100) |
@@ -75,23 +77,47 @@ Verified after merging `origin/main` (2026-07-26):
 | `website/assets/licenses.js` | Supabase `my-licenses`, `request-license-link` | No |
 | Hosted `cutctx_*` keys | Supabase `verify-license`, `seat-heartbeat` | No (`PITCHTOSHIP_URL` unset) |
 | `cutctx license activate` | Supabase `verify-license` default | No |
+| CLI / EE deep links | `cutctx.com/pricing/` + `/licenses/` | No |
 | Legacy `pitchtoship_client` non-`cutctx_` path | Only if `PITCHTOSHIP_URL` is set | Optional / unused for new keys |
-| `cutctx/billing.py` deep links | Still name PitchToShip in comments; not used by website checkout | Dead for self-serve path |
 
-Evidence: 86 billing/license/website tests passed (1 skipped) after merge.
+Evidence: 86 billing/license/website tests passed (1 skipped) after merge; deep-link tests updated to cutctx.com.
+
+## Cursor-style Auto routing (2026-07-26)
+
+| Capability | Status | Evidence |
+|---|---|---|
+| Synthetic `model=auto` / `cutctx-auto` / `cursor-auto` | ✅ | Selects fast/medium/strong from complexity |
+| Dashboard mode labeled **Auto** (was Balanced) | ✅ | `dashboard/src/pages/Orchestrator.jsx` |
+| `CUTCTX_MODEL_ROUTING_PRESET=auto` alias | ✅ | Same as `codex-gpt54mini-high` |
+| Auto works even when routing toggle is Off | ✅ | Request still resolves a concrete model |
+| Catalog + static family fallbacks | ✅ | OpenAI / Anthropic / Google static tables |
+| Docs | ✅ | `docs/content/docs/model-routing-presets.mdx` |
+
+Tests: `tests/test_model_router_auto.py` (9) + dashboard orchestrator suite green.
+
+## Other gaps closed this pass
+
+| Item | Status |
+|---|---|
+| Prometheus alerts pointed at real `cutctx_*` metrics | ✅ `k8s/prometheus-rules.yaml` |
+| Dashboard ErrorBoundary resets on navigation | ✅ `dashboard/src/App.jsx` |
+| Routing mode tabs: `role="tablist"` / `aria-selected` | ✅ |
+| ASGI cloud default no longer pitchtoship.com | ✅ Supabase functions base |
 
 ## Open items (post-pilot)
 
-- [ ] Dashboard accessibility (aria-labels, tab roles, contrast)
-- [ ] Rename/retire leftover PitchToShip module names and `cutctx/billing.py` deep-link helper
+- [ ] Broader dashboard a11y (Overview/Savings duration tabs, contrast)
+- [ ] Full rename of `pitchtoship_client.py` module (docstring updated; shim deferred)
 - [ ] Playwright a11y scan in CI
 - [ ] Customer-cluster restore drill (runbook exists, drill not executed)
 - [ ] Live provider E2E with customer keys
 - [ ] Legal review of TERMS.md
 - [ ] Root-cause EE+OSS combined pytest session pollution (3–4 tests)
+- [ ] IDE/plugin UX: advertise Auto as a selectable model in VS Code / JetBrains
 
 ## Verdict
 
 **Pilot-ready.** Named, supported customers can proceed. Self-serve commerce
 runs on Supabase Edge Functions with no PitchToShip runtime dependency.
-Enterprise procurement and a11y polish remain open.
+Orchestrator Auto routing now matches Cursor Auto semantics for
+`model=auto` and the dashboard Auto mode.

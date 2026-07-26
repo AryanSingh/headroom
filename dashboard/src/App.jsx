@@ -52,6 +52,12 @@ class ErrorBoundary extends Component {
     }
   }
 
+  componentDidUpdate(prevProps) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -61,6 +67,7 @@ class ErrorBoundary extends Component {
             {this.state.error?.toString()}
           </pre>
           <button
+            type="button"
             onClick={() => window.location.reload()}
             style={{ marginTop: 'var(--space-xl)', padding: 'var(--space-md) var(--space-xl)', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 600, border: 'none' }}
           >
@@ -71,6 +78,11 @@ class ErrorBoundary extends Component {
     }
     return this.props.children;
   }
+}
+
+function RouteErrorBoundary({ children }) {
+  const location = useLocation();
+  return <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>;
 }
 
 const navItems = [
@@ -377,7 +389,7 @@ function AppFrame() {
           onToggleSidebar={toggleSidebar}
         />
         <main className="page-shell" id="main-content" tabIndex="-1">
-          <ErrorBoundary>
+          <RouteErrorBoundary>
             <Suspense fallback={<div className="page-shell" role="status">Loading dashboard…</div>}>
               <Routes>
                 <Route path="/" element={<Overview searchQuery={searchQuery} />} />
@@ -393,7 +405,7 @@ function AppFrame() {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
-          </ErrorBoundary>
+          </RouteErrorBoundary>
         </main>
       </div>
     </div>

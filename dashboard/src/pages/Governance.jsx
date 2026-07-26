@@ -139,7 +139,7 @@ const FEATURE_CONFIG = [
       "Choose Off, Balanced, or Aggressive on the dedicated routing page.",
     tier: "free",
     liveToggle: false,
-    statPath: (stats) => stats?.model_routing?.mode || (stats?.config?.orchestrator ? "balanced" : "off"),
+    statPath: (stats) => stats?.model_routing?.mode || (stats?.config?.orchestrator ? "auto" : "off"),
   },
   {
     key: "audit",

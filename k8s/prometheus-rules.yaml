@@ -8,12 +8,42 @@ spec:
     - name: cutctx.rules
       rules:
         - alert: HighErrorRate
-          expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+          # Proxy exports cutctx_requests_* — not the generic http_requests_total
+          # names that previously made this rule a no-op.
+          expr: |
+            (
+              rate(cutctx_requests_failed_total[5m])
+              /
+              clamp_min(rate(cutctx_requests_total[5m]), 1e-9)
+            ) > 0.05
           for: 5m
           labels:
             severity: critical
+          annotations:
+            summary: Cutctx proxy error rate is elevated
+            description: >
+              More than 5% of requests are failing over the last 5 minutes.
         - alert: HighLatency
-          expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])) > 2.0
+          # Latency is exported as sum/count in milliseconds, not a histogram.
+          expr: |
+            (
+              rate(cutctx_latency_ms_sum[5m])
+              /
+              clamp_min(rate(cutctx_latency_ms_count[5m]), 1e-9)
+            ) > 2000
           for: 5m
           labels:
             severity: warning
+          annotations:
+            summary: Cutctx proxy mean latency is elevated
+            description: >
+              Mean request latency exceeds 2 seconds over the last 5 minutes.
+        - alert: UpstreamFailureSpike
+          expr: increase(cutctx_requests_failed_total[15m]) > 50
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Cutctx proxy is accumulating request failures
+            description: >
+              More than 50 failed requests in a 15-minute window.

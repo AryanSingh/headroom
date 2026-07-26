@@ -2,10 +2,11 @@
 # Copyright (c) 2025-2026 Cutctx Labs. All rights reserved.
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.
 
-"""CutCtx hosted commerce links managed by PitchToShip.
+"""CutCtx hosted commerce links for checkout and license recovery.
 
-PitchToShip owns Razorpay checkout and customer account management. This
-module creates safe hosted links and keeps payment secrets out of CutCtx.
+Self-serve checkout and license management live on cutctx.com and are backed
+by Supabase Edge Functions. This module only builds safe deep links into those
+surfaces — it never creates payment orders or handles gateway credentials.
 """
 
 from __future__ import annotations
@@ -16,10 +17,12 @@ from urllib.parse import urlencode
 
 logger = logging.getLogger("cutctx.billing")
 
-PITCHTOSHIP_BASE_URL = os.environ.get(
-    "PITCHTOSHIP_URL",
-    "https://pitchtoship.com",
+CUTCTX_SITE_URL = os.environ.get(
+    "CUTCTX_SITE_URL",
+    os.environ.get("PITCHTOSHIP_URL", "https://cutctx.com"),
 ).rstrip("/")
+# Backward-compatible alias — older call sites and env docs still use the name.
+PITCHTOSHIP_BASE_URL = CUTCTX_SITE_URL
 
 TIER_TO_PLAN = {
     "team": "starter",
@@ -33,7 +36,11 @@ def get_checkout_url(
     email: str | None = None,
     billing: str = "annual",
 ) -> str:
-    """Build a hosted PitchToShip Razorpay billing link."""
+    """Build a CutCtx pricing deep link for the given plan.
+
+    Checkout itself is completed on the pricing page via Supabase
+    ``create-order`` / ``verify-payment``. This helper only deep-links there.
+    """
     if plan not in {"starter", "studio", "portfolio"}:
         logger.warning("Unknown plan %r, defaulting to starter", plan)
         plan = "starter"
@@ -49,18 +56,18 @@ def get_checkout_url(
             **({"email": email.strip()} if email and email.strip() else {}),
         }
     )
-    return f"{PITCHTOSHIP_BASE_URL}/billing?{query}"
+    return f"{CUTCTX_SITE_URL}/pricing/?{query}"
 
 
 def get_portal_url(email: str) -> str:
-    """Build a hosted PitchToShip customer-account link."""
+    """Build a CutCtx license-portal deep link."""
     if not email:
-        return f"{PITCHTOSHIP_BASE_URL}/account"
-    return f"{PITCHTOSHIP_BASE_URL}/account?{urlencode({'email': email.strip()})}"
+        return f"{CUTCTX_SITE_URL}/licenses/"
+    return f"{CUTCTX_SITE_URL}/licenses/?{urlencode({'email': email.strip()})}"
 
 
 def map_tier_to_plan(tier: str) -> str:
-    """Map a CutCtx tier name to a PitchToShip plan key."""
+    """Map a CutCtx tier name to a hosted plan key."""
     plan = TIER_TO_PLAN.get(tier.lower().strip())
     if plan is None:
         logger.warning("Unknown tier %r for mapping, defaulting to starter", tier)

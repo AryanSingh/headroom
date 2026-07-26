@@ -30,7 +30,7 @@ def test_routing_status_displays_live_safe_savings_decision(
             {
                 "experience_enabled": True,
                 "enabled": True,
-                "mode": "balanced",
+                "mode": "auto",
                 "preset": "codex-gpt54mini-high",
                 "route_count": 1,
                 "routes": [
