@@ -27,22 +27,22 @@
   --text-4xl: 2.5rem;
 
   /* Border radius */
-  --radius-sm: 6px;
+  --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
   --radius-full: 9999px;
 
-  /* Font families */
-  --font-display: 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
-  --font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
+  /* Font families — Context Command Center identity */
+  --font-display: 'Sora', 'IBM Plex Sans', sans-serif;
+  --font-body: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
 
   /* Layout */
-  --sidebar-width: 250px;
-  --sidebar-width-collapsed: 60px;
-  --topbar-height: 72px;
+  --sidebar-width: 240px;
+  --sidebar-width-collapsed: 64px;
+  --topbar-height: 64px;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -51,43 +51,43 @@
 
 :root,
 .dark {
-  --surface-0: #0c0d12;
-  --surface-1: #12131a;
-  --surface-2: #1a1b24;
-  --surface-3: #22232e;
-  --surface-4: #2a2b38;
-  --surface-raised: rgba(26, 27, 36, 0.85);
-  --surface-overlay: rgba(12, 13, 18, 0.92);
+  --surface-0: #090A0E;
+  --surface-1: #0F1117;
+  --surface-2: #161922;
+  --surface-3: #1E2230;
+  --surface-4: #272C3A;
+  --surface-raised: rgba(15, 17, 23, 0.92);
+  --surface-overlay: rgba(9, 10, 14, 0.94);
   --surface-canvas: var(--surface-0);
   --surface-panel: var(--surface-1);
   --surface-elevated: var(--surface-2);
 
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-default: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --border-focus: rgba(45, 212, 191, 0.5);
+  --border-subtle: rgba(232, 234, 240, 0.06);
+  --border-default: rgba(232, 234, 240, 0.10);
+  --border-strong: rgba(232, 234, 240, 0.18);
+  --border-focus: rgba(31, 203, 170, 0.55);
 
-  --text-primary: #f0f0f4;
-  --text-secondary: #a9b1c7;
-  --text-tertiary: #8b95a5;
-  --text-inverse: #0c0d12;
+  --text-primary: #E8EAF0;
+  --text-secondary: #9AA3B5;
+  --text-tertiary: #6F788C;
+  --text-inverse: #090A0E;
   --text-muted: var(--text-tertiary);
 
-  --accent: #2dd4bf;
-  --accent-muted: rgba(45, 212, 191, 0.12);
-  --accent-strong: rgba(45, 212, 191, 0.25);
+  --accent: #1FCBAA;
+  --accent-muted: rgba(31, 203, 170, 0.12);
+  --accent-strong: rgba(31, 203, 170, 0.22);
 
-  --blue: #60a5fa;
-  --blue-muted: rgba(96, 165, 250, 0.12);
+  --blue: #5B9CF5;
+  --blue-muted: rgba(91, 156, 245, 0.12);
 
-  --amber: #fbbf24;
-  --amber-muted: rgba(251, 191, 36, 0.12);
+  --amber: #E8B84A;
+  --amber-muted: rgba(232, 184, 74, 0.12);
 
-  --red: #f87171;
-  --red-muted: rgba(248, 113, 113, 0.12);
+  --red: #F07178;
+  --red-muted: rgba(240, 113, 120, 0.12);
 
-  --green: #34d399;
-  --green-muted: rgba(52, 211, 153, 0.12);
+  --green: #3DDC97;
+  --green-muted: rgba(61, 220, 151, 0.12);
 
   --state-neutral: var(--text-secondary);
   --state-neutral-surface: var(--surface-2);
@@ -101,20 +101,20 @@
   --state-error: var(--red);
   --state-error-surface: var(--red-muted);
 
-  --purple: #a78bfa;
-  --purple-muted: rgba(167, 139, 250, 0.12);
+  --purple: #8B9BB8;
+  --purple-muted: rgba(139, 155, 184, 0.12);
 
-  --chart-1: #2dd4bf;
-  --chart-2: #60a5fa;
-  --chart-3: #fbbf24;
-  --chart-4: #a78bfa;
-  --chart-5: #f87171;
-  --chart-6: #34d399;
+  --chart-1: #1FCBAA;
+  --chart-2: #5B9CF5;
+  --chart-3: #E8B84A;
+  --chart-4: #8B9BB8;
+  --chart-5: #F07178;
+  --chart-6: #3DDC97;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 32px -4px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 24px rgba(45, 212, 191, 0.06);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 14px -2px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 28px -6px rgba(0, 0, 0, 0.55);
+  --shadow-glow: none;
 
   color-scheme: dark;
 }
@@ -124,43 +124,43 @@
    ═══════════════════════════════════════════════════════════════ */
 
 .light {
-  --surface-0: #ffffff;
-  --surface-1: #f9fafc;
-  --surface-2: #eef2f7;
-  --surface-3: #e1e7f0;
-  --surface-4: #cfd8e5;
-  --surface-raised: rgba(255, 255, 255, 0.94);
-  --surface-overlay: rgba(255, 255, 255, 0.98);
+  --surface-0: #F7F8FA;
+  --surface-1: #FFFFFF;
+  --surface-2: #EEF1F6;
+  --surface-3: #E2E6EF;
+  --surface-4: #D0D6E2;
+  --surface-raised: rgba(255, 255, 255, 0.96);
+  --surface-overlay: rgba(247, 248, 250, 0.96);
   --surface-canvas: var(--surface-0);
   --surface-panel: var(--surface-1);
   --surface-elevated: var(--surface-2);
 
-  --border-subtle: rgba(15, 23, 42, 0.08);
-  --border-default: rgba(15, 23, 42, 0.14);
-  --border-strong: rgba(15, 23, 42, 0.24);
-  --border-focus: rgba(13, 148, 136, 0.5);
+  --border-subtle: rgba(18, 20, 26, 0.06);
+  --border-default: rgba(18, 20, 26, 0.12);
+  --border-strong: rgba(18, 20, 26, 0.20);
+  --border-focus: rgba(15, 118, 110, 0.5);
 
-  --text-primary: #111318;
-  --text-secondary: #2f3748;
-  --text-tertiary: #4f596d;
-  --text-inverse: #f0f0f4;
+  --text-primary: #12141A;
+  --text-secondary: #3A4254;
+  --text-tertiary: #5C6578;
+  --text-inverse: #E8EAF0;
   --text-muted: var(--text-tertiary);
 
-  --accent: #0d9488;
-  --accent-muted: rgba(13, 148, 136, 0.08);
-  --accent-strong: rgba(13, 148, 136, 0.16);
+  --accent: #0F766E;
+  --accent-muted: rgba(15, 118, 110, 0.08);
+  --accent-strong: rgba(15, 118, 110, 0.16);
 
-  --blue: #2563eb;
+  --blue: #2563EB;
   --blue-muted: rgba(37, 99, 235, 0.08);
 
-  --amber: #d97706;
-  --amber-muted: rgba(217, 119, 6, 0.08);
+  --amber: #B45309;
+  --amber-muted: rgba(180, 83, 9, 0.08);
 
-  --red: #dc2626;
+  --red: #DC2626;
   --red-muted: rgba(220, 38, 38, 0.08);
 
-  --green: #059669;
-  --green-muted: rgba(5, 150, 105, 0.08);
+  --green: #047857;
+  --green-muted: rgba(4, 120, 87, 0.08);
 
   --state-neutral: var(--text-secondary);
   --state-neutral-surface: var(--surface-2);
@@ -174,20 +174,20 @@
   --state-error: var(--red);
   --state-error-surface: var(--red-muted);
 
-  --purple: #7c3aed;
-  --purple-muted: rgba(124, 58, 237, 0.08);
+  --purple: #4B5568;
+  --purple-muted: rgba(75, 85, 104, 0.08);
 
-  --chart-1: #0d9488;
-  --chart-2: #2563eb;
-  --chart-3: #d97706;
-  --chart-4: #7c3aed;
-  --chart-5: #dc2626;
-  --chart-6: #059669;
+  --chart-1: #0F766E;
+  --chart-2: #2563EB;
+  --chart-3: #B45309;
+  --chart-4: #4B5568;
+  --chart-5: #DC2626;
+  --chart-6: #047857;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 32px -4px rgba(0, 0, 0, 0.1);
-  --shadow-glow: 0 0 24px rgba(13, 148, 136, 0.04);
+  --shadow-sm: 0 1px 2px rgba(18, 20, 26, 0.05);
+  --shadow-md: 0 4px 12px -2px rgba(18, 20, 26, 0.08);
+  --shadow-lg: 0 8px 24px -4px rgba(18, 20, 26, 0.10);
+  --shadow-glow: none;
 
   color-scheme: light;
 }
