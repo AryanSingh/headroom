@@ -558,3 +558,48 @@ def generate(tier: str, org: str, seats: int, expiry: str | None, dry_run: bool)
         click.echo()
         click.echo("To activate this license, run:")
         click.echo(f"  cutctx license activate {signed_key}")
+
+
+@license.command("token")
+@click.option("--subject", default=None, help="Seat subject (defaults to the current OS user).")
+@click.option("--ttl-hours", default=12.0, show_default=True, help="Token lifetime in hours.")
+@click.option("--header", "as_header", is_flag=True, help="Print as an HTTP header line.")
+def license_token(subject: str | None, ttl_hours: float, as_header: bool) -> None:
+    """Mint a signed user token for paid provider traffic.
+
+    \b
+    Paid plans gate provider requests on X-Cutctx-User-Token so each request
+    is bound to a seat. `cutctx wrap` attaches this automatically; use this
+    command for clients you launch yourself.
+
+    \b
+    Examples:
+        cutctx license token
+        cutctx license token --header
+        curl -H "$(cutctx license token --header)" http://127.0.0.1:8787/v1/messages ...
+
+    \b
+    Seats are counted per subject, so reuse one subject per human rather
+    than minting a fresh identity per run.
+    """
+    from cutctx.auth.user_token_secret import load_or_create_secret
+    from cutctx.cli.wrap import _resolve_license_key, _resolve_seat_subject
+
+    license_key = _resolve_license_key()
+    if not license_key:
+        raise click.ClickException(
+            "No license key found. Builder-tier installs do not need a user token; "
+            "paid plans need `cutctx license activate <key>` first."
+        )
+    try:
+        from cutctx_ee.user_tokens import issue_user_token
+    except ImportError as exc:
+        raise click.ClickException("User tokens require the commercial cutctx_ee package.") from exc
+
+    token = issue_user_token(
+        subject or _resolve_seat_subject(),
+        load_or_create_secret(),
+        license_key,
+        ttl_seconds=ttl_hours * 3600.0,
+    )
+    click.echo(f"X-Cutctx-User-Token: {token}" if as_header else token)

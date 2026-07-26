@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "cutctx": {
+      "command": "cutctx",
+      "args": ["mcp", "serve"]
+    }
+  }
+}

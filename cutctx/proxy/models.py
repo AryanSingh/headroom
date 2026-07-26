@@ -20,6 +20,23 @@ _DEFAULT_LICENSE_API_URL = (
     or "https://pitchtoship.com"
 )
 
+
+def _load_user_token_secret() -> str | None:
+    """Read the shared user-token secret, without provisioning one.
+
+    Read-only on purpose: the issuing side creates the secret. A proxy that
+    minted its own would hand out a value no client has, turning a missing
+    secret into a signature mismatch that is harder to diagnose than the
+    honest "not configured" state.
+    """
+    try:
+        from cutctx.auth.user_token_secret import load_secret
+
+        return load_secret()
+    except Exception:  # pragma: no cover - defensive during early import
+        return os.environ.get("CUTCTX_USER_TOKEN_HMAC_SECRET")
+
+
 # =============================================================================
 # Data Models
 # =============================================================================
@@ -447,9 +464,12 @@ class ProxyConfig:
     license_report_interval: int = 300
     # HMAC verifier for signed, user-scoped provider tokens. Required for
     # paid provider traffic so a seat is associated with a non-spoofable user.
-    user_token_hmac_secret: str | None = field(
-        default_factory=lambda: os.environ.get("CUTCTX_USER_TOKEN_HMAC_SECRET")
-    )
+    #
+    # Falls back to the machine-local secret that `cutctx wrap` and
+    # `cutctx license token` sign with. Without this fallback a licensed
+    # proxy needs the operator to hand-set the env var on both halves, and
+    # getting it wrong fails as an opaque 503 on every request.
+    user_token_hmac_secret: str | None = field(default_factory=lambda: _load_user_token_secret())
 
     # Entitlement tier (auto-detected from license if set, or manual override).
     # Values: "builder" (free), "team", "business", "enterprise".

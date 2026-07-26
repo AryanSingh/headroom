@@ -1079,16 +1079,102 @@ def _apply_project_header_env(env: dict[str, str]) -> None:
     project = _project_name_from_cwd()
     if not project:
         return
-    header_line = f"{_PROJECT_HEADER_NAME}: {project}"
+    _append_custom_header(env, _PROJECT_HEADER_NAME, project)
+
+
+_USER_TOKEN_HEADER_NAME = "X-Cutctx-User-Token"
+
+
+def _append_custom_header(env: dict[str, str], name: str, value: str) -> None:
+    """Add ``name: value`` to ``ANTHROPIC_CUSTOM_HEADERS``, user override wins.
+
+    Claude Code reads that variable as newline-separated ``Name: value``
+    lines and attaches them to every API request.
+    """
+    header_line = f"{name}: {value}"
     existing = env.get("ANTHROPIC_CUSTOM_HEADERS")
-    if existing:
-        for line in existing.splitlines():
-            name = line.split(":", 1)[0].strip()
-            if name.lower() == _PROJECT_HEADER_NAME.lower():
-                return  # user override wins
-        env["ANTHROPIC_CUSTOM_HEADERS"] = f"{existing}\n{header_line}"
-    else:
+    if not existing:
         env["ANTHROPIC_CUSTOM_HEADERS"] = header_line
+        return
+    for line in existing.splitlines():
+        if line.split(":", 1)[0].strip().lower() == name.lower():
+            return  # user override wins
+    env["ANTHROPIC_CUSTOM_HEADERS"] = f"{existing}\n{header_line}"
+
+
+def _resolve_seat_subject() -> str:
+    """Stable per-user identity a seat is leased to.
+
+    Deliberately not per-process or per-directory: seats are counted per
+    subject, so anything that varies per session would burn a seat on every
+    launch and exhaust the licence.
+    """
+    import getpass
+
+    try:
+        return getpass.getuser() or "cutctx-user"
+    except Exception:
+        return os.environ.get("USER") or os.environ.get("USERNAME") or "cutctx-user"
+
+
+def _apply_user_token_header(env: dict[str, str], *, verbose: bool = False) -> bool:
+    """Attach a signed user token when a paid licence is configured.
+
+    The proxy's seat gate demands this header for any plan above ``builder``.
+    Nothing used to send it, so a licensed proxy 503'd every request. Builder
+    installs need no token, so a missing licence is a silent no-op rather
+    than an error.
+
+    Returns True when a token was attached.
+    """
+    license_key = _resolve_license_key()
+    if not license_key:
+        return False  # builder tier — the seat gate does not apply
+    try:
+        from cutctx.auth.user_token_secret import load_or_create_secret
+        from cutctx_ee.user_tokens import issue_user_token
+
+        token = issue_user_token(_resolve_seat_subject(), load_or_create_secret(), license_key)
+    except ImportError:
+        # OSS install with a licence key set but no EE package: the proxy
+        # cannot verify tokens either, so there is nothing useful to send.
+        if verbose:
+            click.echo("  User token: cutctx_ee not installed; skipping")
+        return False
+    except Exception as exc:
+        click.echo(f"  Warning: could not mint a Cutctx user token: {exc}")
+        return False
+
+    _append_custom_header(env, _USER_TOKEN_HEADER_NAME, token)
+    env.setdefault("CUTCTX_USER_TOKEN", token)
+    if verbose:
+        click.echo(f"  User token: issued for '{_resolve_seat_subject()}' (seat-bound)")
+    return True
+
+
+def _resolve_license_key() -> str | None:
+    """Find the active licence key the same way the proxy does."""
+    from_env = os.environ.get("CUTCTX_LICENSE_KEY")
+    if from_env and from_env.strip():
+        return from_env.strip()
+    key_file = Path.home() / ".cutctx" / "license_key.txt"
+    if key_file.exists():
+        try:
+            value = key_file.read_text(encoding="utf-8").strip()
+            if value:
+                return value
+        except OSError:
+            pass
+    try:
+        import json as _json
+
+        from cutctx import paths as _p
+
+        payload = _json.loads(_p.license_cache_path().read_text(encoding="utf-8"))
+        key = (payload.get("payload") or {}).get("license_key")
+        return str(key).strip() or None if key else None
+    except Exception:
+        return None
 
 
 def _inject_codex_provider_config(port: int) -> None:
@@ -2959,6 +3045,10 @@ def claude(
         # Per-project savings attribution: tag every request with the launch
         # directory's name via X-Cutctx-Project (user override wins).
         _apply_project_header_env(env)
+
+        # Paid plans gate provider traffic on a signed, seat-bound user
+        # token. Without it a licensed proxy 503s every Claude Code request.
+        _apply_user_token_header(env, verbose=verbose)
 
         # Issue #746: keep Claude Code's on-demand tool loading on through the
         # proxy so tool schemas are not eagerly materialized into local context.
