@@ -181,6 +181,7 @@ class WorkflowStateStore:
                     transaction.lock: Any | None = None
 
                 def __enter__(transaction) -> None:
+                    assert transaction.store._redis is not None
                     transaction.lock = transaction.store._redis.lock(
                         f"{transaction.store._redis_key}:lock", timeout=15, blocking_timeout=10
                     )

@@ -85,7 +85,7 @@ def _encrypt_cache(data: str) -> bytes:
         from cryptography.fernet import Fernet
 
         key = base64.urlsafe_b64encode(_get_cache_key())
-        return Fernet(key).encrypt(data.encode("utf-8"))
+        return bytes(Fernet(key).encrypt(data.encode("utf-8")))
     except ImportError:
         # Fallback: write plaintext if cryptography not available
         return data.encode("utf-8")
@@ -359,7 +359,7 @@ def _get_cached_signed_token(license_key: str) -> str | None:
         cache = json.loads(decrypted)
         entry = cache.get(license_key)
         if entry and entry.get("signed_token"):
-            return entry["signed_token"]
+            return str(entry["signed_token"])
     except (json.JSONDecodeError, KeyError):
         pass
     return None

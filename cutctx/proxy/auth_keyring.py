@@ -75,7 +75,7 @@ def get_api_key(provider: str) -> str:
             key = keyring.get_password("cutctx", env_var_name)
             if key:
                 logger.debug(f"Retrieved {env_var_name} from OS keyring")
-                return key.strip()
+                return str(key.strip())
         except Exception as e:
             logger.warning(f"Failed to read from OS keyring for {env_var_name}: {e}")
 
