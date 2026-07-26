@@ -947,6 +947,42 @@ pre {
   letter-spacing: -0.04em;
 }
 
+.control-plane-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.control-plane-status.is-live {
+  border-color: color-mix(in srgb, var(--state-success) 40%, var(--border-default));
+  background: var(--state-success-surface);
+  color: var(--state-success);
+}
+
+.control-plane-status.is-live::before,
+.control-plane-status.is-degraded::before {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.control-plane-status.is-degraded {
+  border-color: color-mix(in srgb, var(--state-warning) 40%, var(--border-default));
+  background: var(--state-warning-surface);
+  color: var(--state-warning);
+}
+
 .metric-header {
   display: flex;
   justify-content: space-between;

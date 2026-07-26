@@ -540,20 +540,27 @@ export default function Orchestrator({ searchQuery = "" }) {
             </div>
           </div>
           <div
+            className="control-plane-status-group"
             style={{
               display: "flex",
               alignItems: "center",
               gap: "0.75rem",
-              background: "var(--surface-2)",
-              padding: "0.5rem 1rem",
-              borderRadius: "8px",
             }}
           >
+            <span
+              className={`control-plane-status ${health?.status === "healthy" || health?.ready ? "is-live" : "is-degraded"}`}
+              data-testid="control-plane-status"
+            >
+              {health?.status === "healthy" || health?.ready ? "Live" : "Degraded"}
+            </span>
             <span
               style={{
                 fontSize: "0.85rem",
                 fontWeight: 500,
                 color: activeMode !== "off" ? "var(--text-primary)" : "var(--text-secondary)",
+                background: "var(--surface-2)",
+                padding: "0.5rem 1rem",
+                borderRadius: "var(--radius-md)",
               }}
             >
               {activeMode === "off" ? "Routing off" : `Routing ${activeMode}`}
