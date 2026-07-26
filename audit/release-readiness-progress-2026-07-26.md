@@ -11,8 +11,10 @@ Git is the source of truth; this file is the human-readable ledger.
 
 | Commit | Summary |
 |---|---|
+| `8a8853ab` | Seat checkout + telemetry validation → Supabase edge functions |
+| `f05fa5fe` | QA certification docs (13/13 verifier, score 88/100) |
+| `cbefb1e8` | Mypy ratchet line-number fix, test DB isolation, Rust fmt |
 | `ed938126` | Close all P0 blockers: log fidelity, licensing, readiness, security, docs |
-| *(pending)* | Verifier polish: SPDX header, Rust fmt, test DB isolation |
 
 ## Blocker closure
 
@@ -35,6 +37,8 @@ Git is the source of truth; this file is the human-readable ledger.
 | Issue | Status | Evidence |
 |---|---|---|
 | `license activate` → HTTP 405 | ✅ Fixed | Repointed to Supabase verify-license edge function |
+| `checkout_seat` → HTTP 405 | ✅ Fixed | Repointed to seat-heartbeat edge function |
+| `UsageReporter.validate_license` → HTTP 405 | ✅ Fixed | Same verify-license endpoint |
 | `is_revoked()` false positive | ✅ Fixed | CRL replaced with verify-license + cache |
 | `license_db` frozen path | ✅ Fixed | Per-call resolution + `CUTCTX_LICENSE_DB_PATH` |
 
