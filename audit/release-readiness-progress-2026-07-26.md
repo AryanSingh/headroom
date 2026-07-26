@@ -11,6 +11,7 @@ Git is the source of truth; this file is the human-readable ledger.
 
 | Commit | Summary |
 |---|---|
+| `7cd7ca45` | Merge `origin/main` hosted Supabase billing into this branch |
 | `8a8853ab` | Seat checkout + telemetry validation → Supabase edge functions |
 | `f05fa5fe` | QA certification docs (13/13 verifier, score 88/100) |
 | `cbefb1e8` | Mypy ratchet line-number fix, test DB isolation, Rust fmt |
@@ -64,10 +65,25 @@ See `audit/2026-07-26-first-load-test.md`:
 scripts/verify_pilot_release.py → 13/13 passed (2026-07-26)
 ```
 
+## Billing / commerce (post-merge verification)
+
+Verified after merging `origin/main` (2026-07-26):
+
+| Surface | Backend | PitchToShip required? |
+|---|---|---|
+| `website/assets/pricing.js` | Supabase `list-plans`, `create-order`, `verify-payment` | No |
+| `website/assets/licenses.js` | Supabase `my-licenses`, `request-license-link` | No |
+| Hosted `cutctx_*` keys | Supabase `verify-license`, `seat-heartbeat` | No (`PITCHTOSHIP_URL` unset) |
+| `cutctx license activate` | Supabase `verify-license` default | No |
+| Legacy `pitchtoship_client` non-`cutctx_` path | Only if `PITCHTOSHIP_URL` is set | Optional / unused for new keys |
+| `cutctx/billing.py` deep links | Still name PitchToShip in comments; not used by website checkout | Dead for self-serve path |
+
+Evidence: 86 billing/license/website tests passed (1 skipped) after merge.
+
 ## Open items (post-pilot)
 
 - [ ] Dashboard accessibility (aria-labels, tab roles, contrast)
-- [ ] Direct Stripe checkout (decouple from PitchToShip)
+- [ ] Rename/retire leftover PitchToShip module names and `cutctx/billing.py` deep-link helper
 - [ ] Playwright a11y scan in CI
 - [ ] Customer-cluster restore drill (runbook exists, drill not executed)
 - [ ] Live provider E2E with customer keys
@@ -76,5 +92,6 @@ scripts/verify_pilot_release.py → 13/13 passed (2026-07-26)
 
 ## Verdict
 
-**Pilot-ready.** Named, supported customers can proceed. Self-serve GA and
-enterprise procurement remain blocked on the open items above.
+**Pilot-ready.** Named, supported customers can proceed. Self-serve commerce
+runs on Supabase Edge Functions with no PitchToShip runtime dependency.
+Enterprise procurement and a11y polish remain open.

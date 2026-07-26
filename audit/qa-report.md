@@ -44,18 +44,19 @@ All 13 required pilot release verifier checks pass with zero failures. The
 | Item | Severity | Notes |
 |---|---|---|
 | Dashboard accessibility | Medium | aria-labels, tab roles, contrast — polish for GA |
-| Self-serve billing | Medium | PitchToShip dependency; direct Stripe deferred |
+| Self-serve billing | ✅ Closed | Website checkout + license portal call Supabase Edge Functions (`list-plans`, `create-order`, `verify-payment`, `my-licenses`, `request-license-link`). Hosted `cutctx_*` keys validate via `verify-license` / `seat-heartbeat` without `PITCHTOSHIP_URL`. Razorpay is payment UI only; secrets stay server-side. |
 | Live provider E2E | Manual gate | Requires customer API keys |
 | Customer restore drill | Manual gate | Runbook in `docs/runbooks/backup-restore.md` |
 | EE cross-suite pytest | Low | 3–4 tests fail only when `tests/` + `cutctx_ee/tests/` combined; CI runs separately |
 | SOC 2 / legal review | External | TERMS.md draft; procurement blocker for enterprise |
+| Dashboard accessibility | Medium | aria-labels, tab roles, contrast — polish for GA |
 
 ### Customer-type verdict
 
 | Customer type | Verdict |
 |---|---|
 | Named pilot (supported, NDA) | ✅ **GO** |
-| Self-serve (unassisted signup) | ❌ **NO-GO** — billing + a11y gaps |
+| Self-serve (unassisted signup) | ⚠️ **CONDITIONAL** — commerce path works; a11y + legal polish remain |
 | Enterprise (SSO, procurement) | ⚠️ **CONDITIONAL** — needs staging + legal |
 
 ---
