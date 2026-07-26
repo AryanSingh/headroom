@@ -50,9 +50,9 @@ _CODEX_PROVIDER_MARKER_END = "# --- end Cutctx init provider ---"
 _CODEX_FEATURE_MARKER_START = "# --- Cutctx init features ---"
 _CODEX_FEATURE_MARKER_END = "# --- end Cutctx init features ---"
 _CODEX_PROVIDER_ALIASES = ("cutctx", "cutctx")
-_SUPPORTED_TARGETS = ("claude", "copilot", "codex", "gemini", "openclaw")
+_SUPPORTED_TARGETS = ("claude", "copilot", "codex", "gemini", "openclaw", "cursor")
 _LOCAL_TARGETS = {"claude", "codex"}
-_GLOBAL_TARGETS = {"claude", "copilot", "codex", "gemini", "openclaw"}
+_GLOBAL_TARGETS = {"claude", "copilot", "codex", "gemini", "openclaw", "cursor"}
 _STARTUP_READY_TIMEOUT_SECONDS = 15
 
 
@@ -871,6 +871,84 @@ def _init_zed(*, port: int) -> None:
     click.echo("Restart Zed to activate Cutctx provider routing.")
 
 
+def _init_cursor_byok(*, port: int) -> None:
+    """Point the Cursor app's BYOK override at the local proxy.
+
+    This is the only Cursor path the full pipeline reaches: BYOK requests are
+    ordinary OpenAI-format HTTP, so compression and model routing both apply.
+    Cursor's subscription models are unaffected — they never consult this
+    setting.
+
+    We write the base URL and clear the inert ``settings.json`` keys, but
+    never the API key: Cursor stores it encrypted and it is the user's
+    secret to enter in Cursor's own UI.
+    """
+    from cutctx.providers.cursor import byok
+
+    target_url = byok.proxy_base_url(port)
+
+    removed = byok.prune_ineffective_settings()
+    if removed:
+        click.echo(f"Removed inert settings.json keys: {', '.join(removed)}")
+        click.echo("  (Cursor registers no such settings; they never routed anything.)")
+
+    state = byok.read_byok_state()
+    if state is None:
+        click.echo("Cursor app state not found — open Cursor once, then re-run with --byok.")
+        return
+
+    if state.routes_to(target_url):
+        click.echo(f"Cursor BYOK already points at {target_url}")
+    else:
+        try:
+            snapshot = byok.write_byok_base_url(target_url)
+        except byok.CursorRunningError as exc:
+            click.echo(f"Skipped BYOK write: {exc}")
+            click.echo("  Or set it manually: Settings > Models > Override OpenAI Base URL")
+            click.echo(f"  Value: {target_url}")
+            return
+        except (OSError, RuntimeError) as exc:
+            click.echo(f"Could not update Cursor BYOK settings: {exc}")
+            return
+        click.echo(f"Cursor BYOK base URL set to {target_url}")
+        if snapshot is not None:
+            click.echo(f"  Previous values saved to {snapshot}")
+
+    if not state.has_api_key:
+        click.echo("")
+        click.echo("Remaining manual step — Cutctx never handles your API key:")
+        click.echo("  Settings > Models > OpenAI API Key — paste your key and Verify.")
+    click.echo("")
+    click.echo("Note: this covers BYOK requests only. Cursor's subscription models")
+    click.echo("(auto, composer, ...) run on Cursor's backend and bypass the proxy.")
+
+
+def _init_cursor(*, port: int) -> None:
+    """Install the durable Cutctx integration for Cursor (app + CLI).
+
+    Deliberately writes no environment variables. Cursor ignores
+    ``OPENAI_BASE_URL`` / ``ANTHROPIC_BASE_URL``: the app reads its endpoint
+    from its own settings UI and the CLI speaks protobuf to Cursor's backend.
+    Exporting them would look like a working install while changing nothing.
+
+    The durable part is MCP registration, which
+    :func:`_install_cutctx_mcp_for_targets` performs for the ``cursor``
+    target right after this returns. What is left is the one step Cutctx
+    cannot do for the user — the app's BYOK base-URL override, which lives
+    behind a settings dialog.
+    """
+    from cutctx.providers.cursor import build_proxy_targets
+
+    targets = build_proxy_targets(port)
+    click.echo("Configured Cursor — Cutctx MCP server registered for the app and cursor-agent.")
+    click.echo("Restart Cursor (and start new cursor-agent sessions) to load it.")
+    click.echo("")
+    click.echo("Cursor's own models do not route through the proxy. To put the full")
+    click.echo("compression + model-routing pipeline behind the Cursor app, use BYOK:")
+    click.echo("  Settings > Models > OpenAI API Key > Override OpenAI Base URL")
+    click.echo(f"  Set to: {targets.openai_base_url}")
+
+
 def _run_init_targets(
     *,
     targets: list[str],
@@ -880,6 +958,7 @@ def _run_init_targets(
     anyllm_provider: str | None,
     region: str | None,
     memory: bool,
+    cursor_byok: bool = False,
 ) -> None:
     logger.debug(
         "run_init_targets: targets=%s global_scope=%s port=%s backend=%s memory=%s",
@@ -889,7 +968,9 @@ def _run_init_targets(
         backend,
         memory,
     )
-    runtime_targets = [target for target in targets if target != "openclaw"]
+    # openclaw ships its own plugin bootstrap; cursor ignores base-URL env
+    # vars entirely. Neither belongs in the env-var runtime manifest.
+    runtime_targets = [target for target in targets if target not in {"openclaw", "cursor"}]
     profile = _ensure_runtime_manifest(
         global_scope=global_scope,
         targets=runtime_targets,
@@ -918,11 +999,14 @@ def _run_init_targets(
             _init_windsurf(port=port)
         elif target == "zed":
             _init_zed(port=port)
+        elif target == "cursor":
+            _init_cursor(port=port)
+            if cursor_byok:
+                _init_cursor_byok(port=port)
 
-    # Register the Cutctx MCP server with every targeted agent that has
-    # a registrar implemented. Wave 1 covers Claude Code; subsequent waves
-    # add Cursor / Codex / Continue / Cline / Windsurf / Goose without
-    # touching the call sites.
+    # Register the Cutctx MCP server with every targeted agent that has a
+    # registrar implemented (Claude Code, Claude Desktop, Codex, Cursor).
+    # Further registrars slot in without touching the call sites.
     _install_cutctx_mcp_for_targets(targets=targets, port=port)
 
 
@@ -1128,6 +1212,31 @@ def init_zed(ctx: click.Context) -> None:
     """Install durable Cutctx integration for Zed."""
     _run_init_targets(
         targets=["zed"],
+        global_scope=bool(_ctx_value(ctx, "global_scope")),
+        port=int(_ctx_value(ctx, "port") or 8787),
+        backend=str(_ctx_value(ctx, "backend") or "anthropic"),
+        anyllm_provider=_ctx_value(ctx, "anyllm_provider"),
+        region=_ctx_value(ctx, "region"),
+        memory=bool(_ctx_value(ctx, "memory")),
+    )
+
+
+@init.command("cursor")
+@click.option(
+    "--byok",
+    is_flag=True,
+    help=(
+        "Also point the Cursor app's BYOK override at the proxy so OpenAI "
+        "BYOK requests get full compression and model routing. Requires "
+        "Cursor to be closed. Does not affect subscription models."
+    ),
+)
+@click.pass_context
+def init_cursor(ctx: click.Context, byok: bool) -> None:
+    """Install durable Cutctx integration for Cursor (app + cursor-agent CLI)."""
+    _run_init_targets(
+        cursor_byok=byok,
+        targets=["cursor"],
         global_scope=bool(_ctx_value(ctx, "global_scope")),
         port=int(_ctx_value(ctx, "port") or 8787),
         backend=str(_ctx_value(ctx, "backend") or "anthropic"),

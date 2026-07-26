@@ -18,9 +18,14 @@ DEFAULT_PROXY_URL = "http://127.0.0.1:8787"
 def get_all_registrars() -> list[MCPRegistrar]:
     """Return one instance of every registrar implemented today.
 
-    The list grows as we add adapters for Cursor, Continue, Cline, etc.
+    The list grows as we add adapters for Continue, Cline, etc.
     """
-    return [ClaudeRegistrar(), ClaudeDesktopRegistrar(), CodexRegistrar(), CursorRegistrar()]
+    return [
+        ClaudeRegistrar(),
+        ClaudeDesktopRegistrar(),
+        CodexRegistrar(),
+        CursorRegistrar(),
+    ]
 
 
 def _resolve_cutctx_command() -> str:

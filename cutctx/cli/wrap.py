@@ -89,6 +89,7 @@ from cutctx.providers.copilot import (
 from cutctx.providers.copilot import (
     validate_configuration as _validate_copilot_configuration,
 )
+from cutctx.providers.cursor import CLI_BINARY as _CURSOR_CLI_BINARY
 from cutctx.providers.cursor import (
     apply_proxy_config as _apply_cursor_proxy_config,
 )
@@ -107,6 +108,7 @@ from cutctx.providers.cursor import (
 from cutctx.providers.cursor import (
     find_ide_cli as _find_cursor_ide_cli,
 )
+from cutctx.providers.cursor import render_cli_setup_lines as _render_cursor_cli_setup_lines
 from cutctx.providers.cursor import (
     render_setup_lines as _render_cursor_setup_lines,
 )
@@ -2436,8 +2438,15 @@ def _launch_tool(
     openai_api_url: str | None = None,
     copilot_api_token: str | None = None,
     client_credential_origin: str | None = None,
+    launch_note: str = "API routed through Cutctx",
 ) -> None:
-    """Common logic: start proxy, launch tool, clean up."""
+    """Common logic: start proxy, launch tool, clean up.
+
+    ``launch_note`` is the parenthetical on the "Launching ..." line. It
+    defaults to the proxy-routed claim that holds for most tools, but hosts
+    whose model endpoint we cannot repoint (``cursor-agent``) must override
+    it — printing "API routed through Cutctx" there would be false.
+    """
     proxy_holder: list[subprocess.Popen | None] = [None]
     cleanup = _make_cleanup(proxy_holder, port)
     _register_proxy_client(port)
@@ -2477,7 +2486,7 @@ def _launch_tool(
             _setup_code_graph(verbose=False)
 
         click.echo()
-        click.echo(f"  Launching {tool_label} (API routed through Cutctx)...")
+        click.echo(f"  Launching {tool_label} ({launch_note})...")
         for var in env_vars_display:
             click.echo(f"  {var}")
         if args:
@@ -2698,7 +2707,8 @@ def wrap() -> None:
         cutctx wrap gemini              # Google Gemini CLI
         cutctx wrap copilot -- --model claude-sonnet-4-20250514
         cutctx wrap aider               # Aider
-        cutctx wrap cursor              # Cursor (prints config instructions)
+        cutctx wrap cursor              # Cursor app (prints BYOK config instructions)
+        cutctx wrap cursor-agent        # Cursor CLI (Cutctx via MCP)
         cutctx wrap cline               # Cline (VS Code; prints config instructions)
         cutctx wrap continue            # Continue (VS Code/JetBrains; injects systemMessage)
         cutctx wrap goose               # Goose (Block) CLI
@@ -3903,6 +3913,136 @@ def cursor(
         memory=memory,
         agent_type="cursor",
         print_setup_lines=_print_cursor_setup,
+    )
+
+
+# =============================================================================
+# Cursor CLI (cursor-agent)
+# =============================================================================
+
+
+def _ensure_cursor_mcp(*, verbose: bool = False) -> str | None:
+    """Register and approve the Cutctx MCP server for Cursor.
+
+    Returns ``cursor-agent``'s own status word for the server (``ready``,
+    ``not loaded (needs approval)``, ...) so the caller can report ground
+    truth instead of assuming the write took effect. Never raises — MCP is an
+    enhancement, and a Cursor session without it still works.
+    """
+    try:
+        from cutctx.mcp_registry import build_cutctx_spec
+        from cutctx.mcp_registry.cursor import CursorRegistrar
+    except ImportError as exc:  # pragma: no cover - optional MCP extra
+        if verbose:
+            click.echo(f"  MCP registration unavailable: {exc}")
+        return None
+
+    registrar = CursorRegistrar()
+    try:
+        result = registrar.register_server(build_cutctx_spec())
+    except Exception as exc:  # pragma: no cover - defensive
+        click.echo(f"  Warning: could not register Cutctx MCP with Cursor: {exc}")
+        return None
+
+    if result.ok:
+        click.echo(f"  Cutctx MCP: {result.status.value} ({result.detail})")
+    else:
+        click.echo(f"  Cutctx MCP: {result.status.value} — {result.detail}")
+        click.echo("    Re-run with `cutctx mcp install --agent cursor --force` to overwrite.")
+    return registrar.cli_server_state("cutctx")
+
+
+@wrap.command("cursor-agent", context_settings={"ignore_unknown_options": True})
+@click.option("--port", "-p", default=8787, type=int, help="Proxy port (default: 8787)")
+@click.option(
+    "--no-context-tool",
+    "--no-rtk",
+    "no_rtk",
+    is_flag=True,
+    help="Skip CLI context-tool setup",
+)
+@click.option("--no-mcp", is_flag=True, help="Skip Cutctx MCP registration")
+@click.option("--no-proxy", is_flag=True, help="Skip proxy startup (use existing proxy)")
+@click.option("--learn", is_flag=True, help="Enable live traffic learning")
+@click.option("--memory", is_flag=True, help="Enable persistent cross-session memory")
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option("--prepare-only", is_flag=True, hidden=True)
+@click.argument("agent_args", nargs=-1, type=click.UNPROCESSED)
+def cursor_agent(
+    port: int,
+    no_rtk: bool,
+    no_mcp: bool,
+    no_proxy: bool,
+    learn: bool,
+    memory: bool,
+    verbose: bool,
+    prepare_only: bool,
+    agent_args: tuple,
+) -> None:
+    """Launch the Cursor CLI (cursor-agent) with Cutctx wired in over MCP.
+
+    \b
+    Unlike `cutctx wrap claude`, this does NOT route model traffic through
+    the proxy: cursor-agent speaks binary protobuf to Cursor's own backend,
+    which has no repointable base URL and runs inference on Cursor's side.
+    Cutctx reaches this host over MCP instead — on-demand compress/retrieve
+    tools, plus gateway-compressed output from other MCP servers.
+
+    \b
+    What this command does:
+      1. Registers the Cutctx MCP server in ~/.cursor/mcp.json
+      2. Runs `cursor-agent mcp enable cutctx` (without this the server
+         stays "needs approval" and loads no tools)
+      3. Sets up the selected CLI context tool in .cursorrules
+      4. Starts the proxy that backs the MCP tools
+      5. Launches cursor-agent, passing through any extra arguments
+
+    \b
+    Examples:
+        cutctx wrap cursor-agent                     # Interactive session
+        cutctx wrap cursor-agent -- -p "fix the bug" # Print mode
+        cutctx wrap cursor-agent --no-mcp            # Context tool + proxy only
+    """
+    cursorrules: Path | None = Path.cwd() / ".cursorrules" if not no_rtk else None
+    if not no_rtk:
+        _setup_context_tool_for_agent(
+            agent="cursor",
+            agent_display="Cursor CLI",
+            marker_path=cursorrules,
+            on_rtk_ready=lambda _rtk: _inject_rtk_instructions(
+                cast(Path, cursorrules), verbose=verbose
+            ),
+            verbose=verbose,
+        )
+
+    mcp_state: str | None = None
+    if not no_mcp:
+        mcp_state = _ensure_cursor_mcp(verbose=verbose)
+
+    if prepare_only:
+        return
+
+    binary = shutil.which(_CURSOR_CLI_BINARY)
+    if not binary:
+        click.echo(f"Error: '{_CURSOR_CLI_BINARY}' not found in PATH.")
+        click.echo("Install the Cursor CLI: https://cursor.com/cli")
+        raise SystemExit(1)
+
+    for line in _render_cursor_cli_setup_lines(port, mcp_state=mcp_state):
+        click.echo(line)
+
+    _launch_tool(
+        binary,
+        agent_args,
+        os.environ.copy(),
+        port,
+        no_proxy,
+        "Cursor CLI",
+        [],
+        learn=learn,
+        memory=memory,
+        agent_type="cursor",
+        launch_note="Cutctx via MCP; model traffic stays on Cursor's backend",
     )
 
 

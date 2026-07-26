@@ -42,6 +42,13 @@ def _binary_name(target: ToolTarget) -> str | None:
     return str(target.value)
 
 
+#: Cursor ships two binaries and either one means "Cursor is installed here":
+#: ``cursor`` is the app's shell launcher, ``cursor-agent`` is the CLI. A
+#: CLI-only install has no ``cursor`` on PATH, so probing that name alone
+#: silently skipped the target.
+_CURSOR_BINARIES = ("cursor", "cursor-agent")
+
+
 def detect_targets() -> list[str]:
     """Auto-detect available tool targets on the current host."""
 
@@ -54,7 +61,9 @@ def detect_targets() -> list[str]:
             detected.append(target.value)
             continue
         if target == ToolTarget.CURSOR and (
-            shutil.which("cursor") or find_agent_cli() or find_ide_cli()
+            any(shutil.which(b) for b in _CURSOR_BINARIES)
+            or find_agent_cli()
+            or find_ide_cli()
         ):
             detected.append(target.value)
     return detected

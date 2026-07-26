@@ -1,4 +1,4 @@
-"""Cursor-specific provider helpers."""
+"""Cursor-specific provider helpers (app + ``cursor-agent`` CLI)."""
 
 from .cli import (
     CURSOR_AGENT_BIN_ENV,
@@ -24,7 +24,13 @@ from .hooks import (
     project_hooks_path,
     remove_project_hooks,
 )
-from .runtime import CursorProxyTargets, build_proxy_targets, render_setup_lines
+from .runtime import (
+    CLI_BINARY,
+    CursorProxyTargets,
+    build_proxy_targets,
+    render_cli_setup_lines,
+    render_setup_lines,
+)
 from .upstream import (
     CURSOR_IDE_MODEL_PREFIX,
     CURSOR_TARGET_API_URL_ENV,
@@ -35,6 +41,7 @@ from .upstream import (
 )
 
 __all__ = [
+    "CLI_BINARY",
     "CURSOR_AGENT_BIN_ENV",
     "CURSOR_IDE_BIN_ENV",
     "CURSOR_IDE_MODEL_PREFIX",
@@ -58,6 +65,7 @@ __all__ = [
     "project_hooks_path",
     "project_mcp_path",
     "remove_project_hooks",
+    "render_cli_setup_lines",
     "render_setup_lines",
     "resolve_cursor_target_api_url",
     "revert_proxy_config",

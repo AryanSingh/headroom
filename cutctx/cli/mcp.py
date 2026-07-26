@@ -113,7 +113,7 @@ def mcp() -> None:
     "--gateway",
     is_flag=True,
     help=(
-        "Also route the Claude Desktop app's other MCP servers through "
+        "Also route other MCP servers in Claude Desktop and Cursor through "
         "`cutctx mcp gateway` so their tool outputs are compressed automatically."
     ),
 )
@@ -122,16 +122,17 @@ def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool, gateway: b
 
     \b
     By default this installs into every agent that has a registrar and is
-    detected on this system (Claude Code today; Cursor / Codex / Continue /
-    others added in subsequent releases). Pass ``--agent NAME`` one or more
-    times to restrict the installation.
+    detected on this system (Claude Code, Claude Desktop, Codex, and Cursor —
+    whose single config serves both the app and the cursor-agent CLI). Pass
+    ``--agent NAME`` one or more times to restrict the installation.
 
     \b
     Examples:
         cutctx mcp install                              # every detected agent
         cutctx mcp install --agent claude               # Claude Code only
         cutctx mcp install --agent claude-desktop       # Claude Desktop app only
-        cutctx mcp install --gateway                    # + compress Desktop MCP traffic
+        cutctx mcp install --agent cursor               # Cursor app + CLI only
+        cutctx mcp install --gateway                    # + compress Desktop/Cursor MCP traffic
         cutctx mcp install --proxy-url http://localhost:9000
     """
     try:
@@ -166,36 +167,47 @@ def mcp_install(proxy_url: str, agents: tuple[str, ...], force: bool, gateway: b
 
     if gateway:
         from cutctx.mcp_registry.claude_desktop import ClaudeDesktopRegistrar
+        from cutctx.mcp_registry.cursor import CursorRegistrar
 
-        desktop = ClaudeDesktopRegistrar()
-        if desktop.detect():
-            click.echo("\nRouting Claude Desktop MCP servers through the gateway...")
-            statuses = desktop.wrap_servers_with_gateway()
+        # Both hosts run models on endpoints we cannot repoint, so wrapping
+        # their other MCP servers is the only place compression can apply.
+        for host in (ClaudeDesktopRegistrar(), CursorRegistrar()):
+            if not host.detect():
+                click.echo(f"\n--gateway: {host.display_name} not detected; nothing to wrap.")
+                continue
+            click.echo(f"\nRouting {host.display_name} MCP servers through the gateway...")
+            statuses = host.wrap_servers_with_gateway()
+            if not statuses:
+                click.echo("  (no other MCP servers configured)")
             for server, status in statuses.items():
                 click.echo(f"  {server}: {status}")
-            if desktop.last_backup_path is not None:
-                click.echo(f"  (backed up config to {desktop.last_backup_path})")
-            click.echo("  Restart Claude Desktop for the gateway to take effect.")
-        else:
-            click.echo("\n--gateway: Claude Desktop not detected; nothing to wrap.")
+            if host.last_backup_path is not None:
+                click.echo(f"  (backed up config to {host.last_backup_path})")
+            click.echo(f"  Restart {host.display_name} for the gateway to take effect.")
 
-    desktop_result = results.get("claude-desktop")
-    desktop_succeeded = bool(desktop_result and desktop_result.ok)
-    cli_agent_succeeded = any(
-        name != "claude-desktop" and result.ok for name, result in results.items()
+    # Hosts whose model endpoint cannot be repointed at the proxy. Telling
+    # their users to set ANTHROPIC_BASE_URL would be advice that silently
+    # does nothing, so they get the MCP-only next steps instead.
+    unproxyable = {
+        name: display
+        for name, display in (("claude-desktop", "Claude Desktop"), ("cursor", "Cursor"))
+        if (result := results.get(name)) is not None and result.ok
+    }
+    proxy_agent_succeeded = any(
+        name not in unproxyable and result.ok for name, result in results.items()
     )
     click.echo("\nNext steps:")
     click.echo("  1. Start the Cutctx proxy if it is not running: cutctx proxy")
     step = 2
-    if desktop_succeeded:
-        click.echo(f"  {step}. Restart Claude Desktop so it loads the Cutctx MCP configuration.")
+    for display in unproxyable.values():
+        click.echo(f"  {step}. Restart {display} so it loads the Cutctx MCP configuration.")
         step += 1
         click.echo(
-            f"  {step}. Claude Desktop hosted model requests do not use the proxy; "
-            "Cutctx works there through MCP tools and gateway-compressed MCP tool output."
+            f"  {step}. {display} model requests do not use the proxy; Cutctx works there "
+            "through MCP tools and gateway-compressed MCP tool output."
         )
         step += 1
-    if cli_agent_succeeded:
+    if proxy_agent_succeeded:
         click.echo(
             f"  {step}. Start your agent through the proxy: ANTHROPIC_BASE_URL={proxy_url} claude"
         )
@@ -398,24 +410,42 @@ def mcp_status() -> None:
         click.echo("Proxy Status:   ? (httpx not installed)")
 
     from cutctx.mcp_registry.claude_desktop import ClaudeDesktopRegistrar
+    from cutctx.mcp_registry.cursor import CursorRegistrar
 
-    desktop = ClaudeDesktopRegistrar()
-    if not desktop.detect():
-        click.echo("Claude Desktop: - Not detected")
-        return
+    # Claude Desktop and Cursor share a shape: a JSON config we own, a model
+    # endpoint we cannot repoint, and compression that therefore has to reach
+    # them through MCP. Report them with the same three lines.
+    for host, label in (
+        (ClaudeDesktopRegistrar(), "Claude Desktop"),
+        (CursorRegistrar(), "Cursor"),
+    ):
+        # Match the column the checks above align to ("Claude Code:    ✓").
+        field = f"{label + ':':<16}"
+        indent = " " * 16
+        if not host.detect():
+            click.echo(f"{field}- Not detected")
+            continue
 
-    if desktop.get_server("cutctx") is None:
-        click.echo("Claude Desktop: ✗ Cutctx MCP not configured")
-        click.echo("                cutctx mcp install --agent claude-desktop --gateway")
-    else:
-        click.echo("Claude Desktop: ✓ Cutctx MCP configured")
-        click.echo(f"                {desktop.config_path}")
-        click.echo("                Restart Claude Desktop after configuration changes")
+        if host.get_server("cutctx") is None:
+            click.echo(f"{field}✗ Cutctx MCP not configured")
+            click.echo(f"{indent}cutctx mcp install --agent {host.name} --gateway")
+        else:
+            click.echo(f"{field}✓ Cutctx MCP configured")
+            click.echo(f"{indent}{host.config_path}")
+            click.echo(f"{indent}Restart {label} after configuration changes")
 
-    wrapped = desktop.gateway_wrapped_servers()
-    noun = "server" if len(wrapped) == 1 else "servers"
-    click.echo(f"Desktop gateway: {len(wrapped)} {noun} wrapped")
-    click.echo("Hosted model requests: not proxy-routable; use MCP tools/gateway in Desktop")
+        # Cursor's CLI keeps a separate approval list, so a configured server
+        # can still be inert. Surface its own words rather than guessing.
+        cli_state = getattr(host, "cli_server_state", None)
+        if cli_state is not None:
+            state = cli_state("cutctx")
+            if state is not None:
+                click.echo(f"{indent}cursor-agent: {state}")
+
+        wrapped = host.gateway_wrapped_servers()
+        noun = "server" if len(wrapped) == 1 else "servers"
+        click.echo(f"{label} gateway: {len(wrapped)} {noun} wrapped")
+        click.echo(f"{label} model requests: not proxy-routable; use MCP tools/gateway instead")
 
 
 @mcp.command("serve")

@@ -292,9 +292,9 @@ class TestMCPStatusCommand:
 
         assert result.exit_code == 0
         assert "Claude Desktop: ✓ Cutctx MCP configured" in result.output
-        assert "Desktop gateway: 1 server wrapped" in result.output
+        assert "Claude Desktop gateway: 1 server wrapped" in result.output
         assert "Restart Claude Desktop" in result.output
-        assert "Hosted model requests: not proxy-routable" in result.output
+        assert "Claude Desktop model requests: not proxy-routable" in result.output
 
     def test_status_reports_detected_desktop_without_cutctx(
         self,
@@ -345,7 +345,7 @@ class TestMCPInstallGuidance:
 
         assert result.exit_code == 0
         assert "Restart Claude Desktop" in result.output
-        assert "hosted model requests do not use the proxy" in result.output
+        assert "model requests do not use the proxy" in result.output
         assert "ANTHROPIC_BASE_URL=" not in result.output
 
     def test_default_install_ignores_undetected_desktop_for_guidance(
@@ -394,7 +394,7 @@ class TestMCPInstallGuidance:
 
         assert result.exit_code == 0
         assert "Restart Claude Desktop" in result.output
-        assert "hosted model requests do not use the proxy" in result.output
+        assert "model requests do not use the proxy" in result.output
         assert "ANTHROPIC_BASE_URL=" in result.output
 
 
@@ -526,3 +526,52 @@ class TestMCPUninstallWithClaudeCLI:
         assert result.exit_code == 0
         subcommands = [c[2] for c in calls]
         assert "remove" not in subcommands
+
+
+class TestCursorGuidance:
+    """Cursor is MCP-only: install and status output must never imply otherwise."""
+
+    def test_cursor_install_does_not_claim_base_url_routes_models(
+        self,
+        mock_mcp_available,
+        monkeypatch,
+    ):
+        """Cursor ignores ANTHROPIC_BASE_URL, so suggesting it would be a lie."""
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.install_everywhere",
+            lambda **_kwargs: {"cursor": RegisterResult(RegisterStatus.REGISTERED, "configured")},
+        )
+        monkeypatch.setattr("cutctx.mcp_registry.any_succeeded", lambda _results: True)
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.format_results",
+            lambda *_args, **_kwargs: ["cursor: registered"],
+        )
+
+        result = CliRunner().invoke(main, ["mcp", "install", "--agent", "cursor"])
+
+        assert result.exit_code == 0
+        assert "Restart Cursor" in result.output
+        assert "Cursor model requests do not use the proxy" in result.output
+        assert "ANTHROPIC_BASE_URL=" not in result.output
+
+    def test_status_surfaces_cursor_cli_approval_state(self, mock_claude_config_path, tmp_path, monkeypatch):
+        """A configured-but-unapproved server loads no tools; say so."""
+        cursor_dir = tmp_path / ".cursor"
+        cursor_dir.mkdir()
+        (cursor_dir / "mcp.json").write_text(
+            json.dumps({"mcpServers": {"cutctx": {"command": "/opt/bin/cutctx"}}})
+        )
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.cursor.default_config_dir",
+            lambda home=None: cursor_dir,
+        )
+        monkeypatch.setattr(
+            "cutctx.mcp_registry.cursor.CursorRegistrar.cli_server_state",
+            lambda _self, _name: "not loaded (needs approval)",
+        )
+
+        result = CliRunner().invoke(main, ["mcp", "status"])
+
+        assert result.exit_code == 0
+        assert "Cursor:" in result.output
+        assert "cursor-agent: not loaded (needs approval)" in result.output

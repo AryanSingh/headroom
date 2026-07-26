@@ -31,6 +31,39 @@ def build_proxy_targets(port: int, project: str | None = None) -> CursorProxyTar
     )
 
 
+#: Binary name of the Cursor CLI agent. Note this is *not* ``cursor`` — that
+#: is the app's shell launcher, which is why plain ``which("cursor")`` misses
+#: a CLI-only install.
+CLI_BINARY = "cursor-agent"
+
+
+def render_cli_setup_lines(port: int, *, mcp_state: str | None) -> list[str]:
+    """Render what Cutctx does and does not cover for ``cursor-agent``.
+
+    The CLI sends binary protobuf (Connect RPC) to Cursor's own backend, so
+    unlike Claude Code there is no base URL to repoint: compression and model
+    routing cannot apply to its model traffic. Saying so plainly is the point
+    of this block — a user who expects proxy savings here and is not told
+    otherwise will read a flat savings chart as a bug.
+    """
+    lines = [
+        "  Cursor CLI is wired to Cutctx over MCP:",
+        "",
+        f"    cutctx MCP server:  {mcp_state or 'registered in ~/.cursor/mcp.json'}",
+        f"    Proxy (MCP backend): http://127.0.0.1:{port}",
+        "",
+        "  Available in-session: cutctx_compress, cutctx_retrieve, cutctx_scan,",
+        "  cutctx_stats, cutctx_audit — plus gateway-compressed output from any",
+        "  other MCP server (`cutctx mcp install --gateway`).",
+        "",
+        "  Not covered: cursor-agent sends binary protobuf to Cursor's own",
+        "  backend, so its model traffic cannot be compressed or re-routed by",
+        "  the proxy. For the full pipeline use `cutctx wrap claude`, or the",
+        "  Cursor app in BYOK mode (`cutctx wrap cursor`).",
+    ]
+    return lines
+
+
 def render_setup_lines(port: int, project: str | None = None) -> list[str]:
     """Render the Cursor setup instructions for the local proxy."""
     targets = build_proxy_targets(port, project)

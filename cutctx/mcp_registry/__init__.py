@@ -6,9 +6,10 @@ writes ``~/.cursor/mcp.json``, Codex patches a TOML file, and so on. This
 module provides a uniform interface so cutctx can install its MCP server
 (``cutctx mcp serve``) into every detected agent.
 
-Wave 1 ships :class:`ClaudeRegistrar`, :class:`CodexRegistrar`, and
-:class:`CursorRegistrar`. Other registrars (Continue, Cline, Windsurf, Goose,
-OpenHands) are added in subsequent waves without changing the calling code.
+Registrars ship for Claude Code, Claude Desktop, Codex, and Cursor (whose
+single ``~/.cursor/mcp.json`` serves both the app and the ``cursor-agent``
+CLI). Further registrars (Continue, Cline, Windsurf, Goose, OpenHands) can be
+added without changing the calling code.
 """
 
 from __future__ import annotations
