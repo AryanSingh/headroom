@@ -1871,7 +1871,7 @@ def create_admin_router(
             tracker.stop_sweeper()
 
     def _apply_orchestrator_toggle(value: bool) -> None:
-        _apply_orchestrator_mode("balanced" if value else "off")
+        _apply_orchestrator_mode("auto" if value else "off")
 
     def _apply_orchestrator_mode(mode: str) -> None:
         from cutctx.proxy.model_router import (
@@ -1988,7 +1988,9 @@ def create_admin_router(
 
                 applied_live[key] = {"enabled": enabled}
                 if key == "orchestrator_mode":
-                    applied_live[key] = {"mode": str(value)}
+                    from cutctx.proxy.model_router import normalize_model_routing_mode
+
+                    applied_live[key] = {"mode": normalize_model_routing_mode(str(value))}
                 if raw_key != key:
                     applied_live[raw_key] = {"enabled": enabled, "normalized_to": key}
                 continue

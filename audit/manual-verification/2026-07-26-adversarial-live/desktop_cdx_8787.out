@@ -1,0 +1,19 @@
+Reading additional input from stdin...
+OpenAI Codex v0.145.0
+--------
+workdir: /Users/aryansingh/Documents/Claude/Projects/headroom
+model: gpt-5.4
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: medium
+reasoning summaries: none
+session id: 019f9d7a-cb22-7403-8b8a-794b02819ea2
+--------
+user
+Reply with exactly ZZDESKCDX77 and nothing else.
+codex
+ZZDESKCDX77
+tokens used
+13,298
+ZZDESKCDX77

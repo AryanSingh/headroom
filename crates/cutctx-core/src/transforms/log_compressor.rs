@@ -104,8 +104,15 @@ impl LogFormat {
 
 /// Per-line log level. ERROR/FAIL are scored equivalently — the
 /// distinction is cosmetic (preserved for parity with Python's enum).
+///
+/// `Fatal` (FATAL/CRITICAL) is deliberately a *separate* level ranking
+/// above `Error`. Collapsing it into `Error` meant a lone FATAL line
+/// competed on equal terms with routine ERROR noise for the scarce
+/// `max_errors` slots and lost on positional tie-break, silently
+/// dropping the highest-severity line in the payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LogLevel {
+    Fatal,
     Error,
     Fail,
     Warn,
@@ -118,6 +125,7 @@ pub enum LogLevel {
 impl LogLevel {
     pub fn as_str(&self) -> &'static str {
         match self {
+            LogLevel::Fatal => "fatal",
             LogLevel::Error => "error",
             LogLevel::Fail => "fail",
             LogLevel::Warn => "warn",
@@ -347,12 +355,15 @@ impl LevelClassifier {
         // first-match wins. AhoCorasick's MatchKind::LeftmostFirst gives
         // us pattern-order priority on left-equal matches.
         let entries: &[(LogLevel, &[&str])] = &[
+            // Fatal precedes Error so a line carrying both keywords
+            // classifies at the higher severity.
             (
-                LogLevel::Error,
+                LogLevel::Fatal,
                 &[
-                    "ERROR", "error", "Error", "FATAL", "fatal", "Fatal", "CRITICAL", "critical",
+                    "FATAL", "fatal", "Fatal", "CRITICAL", "critical", "Critical",
                 ],
             ),
+            (LogLevel::Error, &["ERROR", "error", "Error"]),
             (
                 LogLevel::Fail,
                 &["FAIL", "FAILED", "fail", "failed", "Fail", "Failed"],
@@ -773,6 +784,7 @@ impl LogCompressor {
             compute_optimal_k(&all_strings, bias, 10, Some(self.config.max_total_lines));
 
         // Single pass to categorize (Python does 4).
+        let mut fatals: Vec<LogLine> = Vec::new();
         let mut errors: Vec<LogLine> = Vec::new();
         let mut fails: Vec<LogLine> = Vec::new();
         let mut warnings: Vec<LogLine> = Vec::new();
@@ -782,6 +794,7 @@ impl LogCompressor {
 
         for line in log_lines {
             match line.level {
+                LogLevel::Fatal => fatals.push(line.clone()),
                 LogLevel::Error => errors.push(line.clone()),
                 LogLevel::Fail => fails.push(line.clone()),
                 LogLevel::Warn => warnings.push(line.clone()),
@@ -807,6 +820,11 @@ impl LogCompressor {
         // line-number-ordered output without an extra sort pass.
         let _ = (); // appease style; the BTreeSet ordering relies on Ord impl below.
 
+        // Fatals are inserted first and counted against their own budget
+        // so they can never be crowded out by routine ERROR volume.
+        for line in self.select_with_first_last(&fatals, self.config.max_errors) {
+            selected.insert(line);
+        }
         for line in self.select_with_first_last(&errors, self.config.max_errors) {
             selected.insert(line);
         }
@@ -859,11 +877,18 @@ impl LogCompressor {
         let mut ordered: Vec<LogLine> = selected.into_iter().collect();
         if ordered.len() > adaptive_max {
             stats.lines_dropped_by_global_cap += ordered.len() - adaptive_max;
-            // Sort by score desc, take top adaptive_max, restore line order.
+            // Sort by severity rank desc, then score desc, take top
+            // adaptive_max, restore line order. Severity leads so the
+            // global cap cannot evict a FATAL line in favour of an
+            // equally-scored ERROR line.
             ordered.sort_by(|a, b| {
-                b.score
-                    .partial_cmp(&a.score)
-                    .unwrap_or(std::cmp::Ordering::Equal)
+                level_rank(b.level)
+                    .cmp(&level_rank(a.level))
+                    .then_with(|| {
+                        b.score
+                            .partial_cmp(&a.score)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    })
                     .then_with(|| a.line_number.cmp(&b.line_number))
             });
             ordered.truncate(adaptive_max);
@@ -936,6 +961,7 @@ impl LogCompressor {
         all_lines: &[LogLine],
     ) -> (String, BTreeMap<String, u64>) {
         let mut stats: BTreeMap<String, u64> = BTreeMap::new();
+        stats.insert("fatals".into(), count_level(all_lines, LogLevel::Fatal));
         stats.insert("errors".into(), count_level(all_lines, LogLevel::Error));
         stats.insert("fails".into(), count_level(all_lines, LogLevel::Fail));
         stats.insert("warnings".into(), count_level(all_lines, LogLevel::Warn));
@@ -947,14 +973,30 @@ impl LogCompressor {
 
         let omitted = all_lines.len().saturating_sub(selected.len());
         if omitted > 0 {
+            // Count by level over the *omitted* lines only. Reporting
+            // whole-payload totals here overstates the loss and — now
+            // that fatals are always retained — would claim a FATAL line
+            // was dropped when it is present in the output above.
+            let kept: BTreeSet<usize> = selected.iter().map(|l| l.line_number).collect();
+            let omitted_lines: Vec<&LogLine> = all_lines
+                .iter()
+                .filter(|l| !kept.contains(&l.line_number))
+                .collect();
+            // Every level is represented so the reported counts always sum
+            // to the declared omitted total. Leaving DEBUG/TRACE/unknown
+            // out made the marker under-report the loss.
             let mut summary_parts: Vec<String> = Vec::new();
-            for (label, key) in [
-                ("ERROR", "errors"),
-                ("FAIL", "fails"),
-                ("WARN", "warnings"),
-                ("INFO", "info"),
+            for (label, level) in [
+                ("FATAL", LogLevel::Fatal),
+                ("ERROR", LogLevel::Error),
+                ("FAIL", LogLevel::Fail),
+                ("WARN", LogLevel::Warn),
+                ("INFO", LogLevel::Info),
+                ("DEBUG", LogLevel::Debug),
+                ("TRACE", LogLevel::Trace),
+                ("OTHER", LogLevel::Unknown),
             ] {
-                let n = stats.get(key).copied().unwrap_or(0);
+                let n = omitted_lines.iter().filter(|l| l.level == level).count();
                 if n > 0 {
                     summary_parts.push(format!("{} {}", n, label));
                 }
@@ -994,9 +1036,24 @@ impl Ord for LogLine {
     }
 }
 
+/// Severity rank used for retention priority when slots are scarce.
+/// Higher wins. Kept separate from `score_log_line` so the existing
+/// score scale (and every test pinned to it) stays unchanged while
+/// FATAL still outranks ERROR for eviction purposes.
+fn level_rank(level: LogLevel) -> u8 {
+    match level {
+        LogLevel::Fatal => 5,
+        LogLevel::Error | LogLevel::Fail => 4,
+        LogLevel::Warn => 3,
+        LogLevel::Info | LogLevel::Unknown => 2,
+        LogLevel::Debug => 1,
+        LogLevel::Trace => 0,
+    }
+}
+
 fn score_log_line(line: &LogLine) -> f32 {
     let level_score: f32 = match line.level {
-        LogLevel::Error | LogLevel::Fail => 1.0,
+        LogLevel::Fatal | LogLevel::Error | LogLevel::Fail => 1.0,
         LogLevel::Warn => 0.5,
         LogLevel::Info | LogLevel::Unknown => 0.1,
         LogLevel::Debug => 0.05,
@@ -1278,9 +1335,94 @@ mod tests {
         .collect::<Vec<_>>();
         let selected = vec![all_lines[0].clone()];
         let (output, stats) = c.format_output(&selected, &all_lines);
-        assert!(output.contains("[3 lines omitted: 1 ERROR, 1 WARN, 2 INFO]"));
+        // The omission marker counts *omitted* lines only. The ERROR line
+        // is retained, so it must not be listed as omitted — previously
+        // this reported "1 ERROR, 1 WARN, 2 INFO", four counts for three
+        // omitted lines, naming a severity that was actually present.
+        assert!(
+            output.contains("[3 lines omitted: 1 WARN, 2 INFO]"),
+            "unexpected omission marker: {output}"
+        );
+        // `stats` retains whole-payload totals; only the marker changed.
         assert_eq!(stats["errors"], 1);
         assert_eq!(stats["info"], 2);
+    }
+
+    #[test]
+    fn fatal_lines_survive_error_volume() {
+        // Regression guard: a lone FATAL line must not be evicted by
+        // routine ERROR volume competing for the same `max_errors` slots.
+        let c = cmp();
+        let mut lines: Vec<String> = (0..400)
+            .map(|i| format!("2026-01-01 ERROR svc failed id={i}"))
+            .collect();
+        lines[200] = "2026-01-01 FATAL svc CANARY_FATAL unrecoverable disk failure".to_string();
+        let refs: Vec<&str> = lines.iter().map(|s| s.as_str()).collect();
+        let (result, _stats) = c.compress(&refs.join("\n"), 1.0);
+        assert!(
+            result.compressed.contains("CANARY_FATAL"),
+            "FATAL line was dropped; output was:\n{}",
+            result.compressed
+        );
+    }
+
+    #[test]
+    fn omission_marker_counts_sum_to_declared_total() {
+        // The marker is the user's only signal about what was dropped. If
+        // the per-level counts don't sum to the declared total, the marker
+        // silently under-reports the loss.
+        let c = cmp();
+        let levels = ["INFO", "WARN", "ERROR", "DEBUG", "TRACE", "plain text"];
+        let lines: Vec<String> = (0..600)
+            .map(|i| format!("2026-01-01 {} svc msg id={i}", levels[i % levels.len()]))
+            .collect();
+        let refs: Vec<&str> = lines.iter().map(|s| s.as_str()).collect();
+        let (result, _) = c.compress(&refs.join("\n"), 1.0);
+        let marker = result
+            .compressed
+            .lines()
+            .find(|l| l.contains("lines omitted"))
+            .expect("expected an omission marker");
+        let declared: usize = marker
+            .trim_start_matches('[')
+            .split_whitespace()
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let summed: usize = marker
+            .split_once(':')
+            .unwrap()
+            .1
+            .split(',')
+            .map(|p| {
+                p.trim()
+                    .split_whitespace()
+                    .next()
+                    .unwrap()
+                    .parse::<usize>()
+                    .unwrap()
+            })
+            .sum();
+        assert_eq!(declared, summed, "marker under-reports: {marker}");
+    }
+
+    #[test]
+    fn fatal_classifies_above_error() {
+        let c = cmp();
+        let parsed = c.parse_lines(&[
+            "FATAL boom",
+            "CRITICAL boom",
+            "Critical boom",
+            "ERROR boom",
+            "INFO fine",
+        ]);
+        assert_eq!(parsed[0].level, LogLevel::Fatal);
+        assert_eq!(parsed[1].level, LogLevel::Fatal);
+        assert_eq!(parsed[2].level, LogLevel::Fatal);
+        assert_eq!(parsed[3].level, LogLevel::Error);
+        assert_eq!(parsed[4].level, LogLevel::Info);
+        assert!(level_rank(LogLevel::Fatal) > level_rank(LogLevel::Error));
     }
 
     #[test]

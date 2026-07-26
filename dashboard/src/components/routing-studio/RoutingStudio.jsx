@@ -291,7 +291,7 @@ export default function RoutingStudio() {
             onClick={() => selectWorkspace(id)}
             onKeyDown={(event) => onTabKeyDown(event, index)}
           >
-            <Icon size={15} />
+            <Icon size={15} aria-hidden="true" />
             {label}
           </button>
         ))}

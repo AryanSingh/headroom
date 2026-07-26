@@ -37,7 +37,9 @@ def test_hosted_cutctx_verification_maps_enterprise_response(monkeypatch):
 
 def test_hosted_cutctx_definitive_rejection_does_not_try_legacy_portal(monkeypatch):
     monkeypatch.setattr(client, "_post_hosted_license", lambda *_args: {"valid": False})
-    monkeypatch.setattr(client, "_post", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError()))
+    monkeypatch.setattr(
+        client, "_post", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError())
+    )
 
     assert client.verify_license("cutctx_invalid", "machine-1") == {"valid": False}
 
@@ -100,5 +102,7 @@ def test_verify_signed_token_accepts_a_signature_with_high_bit_der_integer():
         .decode("ascii")
     )
     assert client.verify_signed_token(token, pem) == {"tier": "builder"}
+
+
 # SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
 # Proprietary and confidential. NOT licensed under Apache-2.0. See LICENSE-COMMERCIAL and LICENSING.md.

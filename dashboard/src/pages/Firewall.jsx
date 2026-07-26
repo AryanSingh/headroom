@@ -112,7 +112,7 @@ export default function Firewall({ searchQuery = '' }) {
           note="Loaded signature rules"
         />
         <MetricCard
-          icon={<ShieldAlert size={18} />}
+          icon={<ShieldAlert size={18} aria-hidden="true" />}
           label="Blocks"
           value={loading ? '—' : stats?.blocks == null ? '—' : formatInteger(stats?.blocks)}
           note={
@@ -122,13 +122,13 @@ export default function Firewall({ searchQuery = '' }) {
           }
         />
         <MetricCard
-          icon={<ShieldCheck size={18} />}
+          icon={<ShieldCheck size={18} aria-hidden="true" />}
           label="Mode"
           value={loading ? '—' : stats?.enabled ? 'Active' : 'Disabled'}
           note="Live firewall posture"
         />
         <MetricCard
-          icon={<AlertTriangle size={18} />}
+          icon={<AlertTriangle size={18} aria-hidden="true" />}
           label="Events"
           value={loading ? '—' : formatInteger(events.length)}
           note="Recent audit trail rows"
@@ -316,7 +316,7 @@ function MetricCard({ icon, label, value, note }) {
     <article className="metric-card">
       <div className="metric-header">
         <span className="metric-label">{label}</span>
-        <div className="metric-icon">{icon}</div>
+        <div className="metric-icon" aria-hidden="true">{icon}</div>
       </div>
       <div className="metric-value">{value}</div>
       <div className="metric-footnote">{note}</div>

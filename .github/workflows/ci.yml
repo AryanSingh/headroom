@@ -98,6 +98,12 @@ jobs:
       - name: mypy
         continue-on-error: true
         run: mypy cutctx --ignore-missing-imports
+      # The full mypy run above stays advisory — there is a large existing
+      # error backlog. This ratchet is the real gate: it fails only on errors
+      # that are NOT in scripts/.mypy_baseline.txt, so the backlog cannot grow
+      # while it is being burnt down. Regenerate the baseline when it shrinks.
+      - name: mypy ratchet (fails only on NEW type errors)
+        run: python scripts/mypy_ratchet.py
       - name: Python compile smoke
         run: python -m compileall -q cutctx cutctx_ee
       - name: repo hygiene

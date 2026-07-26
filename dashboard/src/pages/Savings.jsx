@@ -63,7 +63,7 @@ function MetricCard({ icon: Icon, iconColor, label, value, footnote, className =
   return (
     <div className={`metric-card ${className}`.trim()}>
       <div className="metric-header">
-        <div className="metric-icon" style={{ color: `var(--${iconColor})` }}>
+        <div className="metric-icon" style={{ color: `var(--${iconColor})` }} aria-hidden="true">
           <Icon size={18} />
         </div>
         <div className="metric-label">{label}</div>

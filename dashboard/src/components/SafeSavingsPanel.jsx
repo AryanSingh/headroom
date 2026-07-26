@@ -32,7 +32,7 @@ export default function SafeSavingsPanel({
     <section className="panel" aria-labelledby="safe-savings-heading">
       <div className="section-heading">
         <div className="heading-with-icon">
-          <div className="heading-icon">
+          <div className="heading-icon" aria-hidden="true">
             <ShieldCheck size={18} />
           </div>
           <div>

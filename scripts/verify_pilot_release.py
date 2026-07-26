@@ -226,9 +226,7 @@ def build_report(checks: Sequence[Check] = CHECKS) -> dict[str, object]:
         "optional_failed": optional_failures,
         "skipped": sum(1 for result in results if result["status"] == "skipped"),
         "checks": results,
-        "external_signoffs": [
-            {"name": signoff, "status": "open"} for signoff in EXTERNAL_SIGNOFFS
-        ],
+        "external_signoffs": [{"name": signoff, "status": "open"} for signoff in EXTERNAL_SIGNOFFS],
     }
 
 

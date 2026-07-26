@@ -45,6 +45,8 @@ jobs:
       - run: uv sync --extra dev
       - run: npm ci
         working-directory: dashboard
+      - run: npm test
+        working-directory: dashboard
       - run: npm run lint
         working-directory: dashboard
       - run: npm run build

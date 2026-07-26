@@ -1,0 +1,780 @@
+Found 563 errors in 96 files (checked 579 source files)
+cutctx/cache/backends/sqlite.py:66: error: Incompatible types in assignment (expression has type "Any | None", variable has type "Connection")  [assignment]
+cutctx/cache/prefix_tracker.py:499: error: Incompatible types in assignment (expression has type "PrefixCacheTracker | None", variable has type "PrefixCacheTracker")  [assignment]
+cutctx/ccr/__init__.py:52: error: Cannot assign to a type  [misc]
+cutctx/ccr/__init__.py:52: note: Error code "misc" not covered by "type: ignore" comment
+cutctx/ccr/response_handler.py:164: error: "CCRResponseHandler" has no attribute "memoize_interceptor"  [attr-defined]
+cutctx/ccr/response_handler.py:614: error: "CCRResponseHandler" has no attribute "memoize_interceptor"  [attr-defined]
+cutctx/ccr/store.py:133: error: Returning Any from function declared to return "str | None"  [no-any-return]
+cutctx/cli/audit.py:138: error: "object" has no attribute "items"  [attr-defined]
+cutctx/cli/capabilities.py:184: error: "object" has no attribute "__iter__"; maybe "__dir__" or "__str__"? (not iterable)  [attr-defined]
+cutctx/cli/capabilities.py:236: error: "object" has no attribute "__iter__"; maybe "__dir__" or "__str__"? (not iterable)  [attr-defined]
+cutctx/cli/capabilities.py:240: error: "object" has no attribute "__iter__"; maybe "__dir__" or "__str__"? (not iterable)  [attr-defined]
+cutctx/cli/capabilities.py:320: error: Argument 1 to "join" of "str" has incompatible type "object"; expected "Iterable[str]"  [arg-type]
+cutctx/cli/config_check.py:186: error: Incompatible types in assignment (expression has type "dict[str, str]", variable has type "DeploymentSecurityIssue")  [assignment]
+cutctx/cli/config_check.py:187: error: Value of type "DeploymentSecurityIssue" is not indexable  [index]
+cutctx/cli/config_check.py:188: error: Value of type "DeploymentSecurityIssue" is not indexable  [index]
+cutctx/cli/evals.py:1218: error: Argument 2 to "setdefault" of "MutableMapping" has incompatible type "int"; expected "str"  [arg-type]
+cutctx/cli/evals.py:1221: error: Argument 2 to "load_dataset_by_name" has incompatible type "**dict[str, str]"; expected "int | None"  [arg-type]
+cutctx/cli/global_routing.py:209: error: Returning Any from function declared to return "bool"  [no-any-return]
+cutctx/cli/global_routing.py:282: error: Incompatible types in assignment (expression has type "str | None", variable has type "str")  [assignment]
+cutctx/cli/learn.py:211: error: Argument 1 to "append" of "list" has incompatible type "tuple[str, LearnPlugin, list[ProjectInfo]]"; expected "tuple[str, LearnPlugin, list[object]]"  [arg-type]
+cutctx/cli/learn.py:238: error: Name "agent_configs" already defined on line 196  [no-redef]
+cutctx/cli/proxy.py:1254: error: Argument "difftastic_binary" to "ProxyConfig" has incompatible type "str | None"; expected "str"  [arg-type]
+cutctx/cli/report.py:147: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/cli/report.py:25: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/cli/savings.py:116: error: Function is missing a type annotation for one or more arguments  [no-untyped-def]
+cutctx/cli/savings.py:259: error: Item "int" of "int | dict[Never, Never]" has no attribute "items"  [union-attr]
+cutctx/cli/savings.py:283: error: Item "int" of "int | dict[Never, Never]" has no attribute "values"  [union-attr]
+cutctx/cli/savings.py:285: error: Item "int" of "int | dict[Never, Never]" has no attribute "items"  [union-attr]
+cutctx/cli/savings.py:56: error: Returning Any from function declared to return "dict[str, Any]"  [no-any-return]
+cutctx/cli/savings.py:77: error: Argument "path" to "SavingsTracker" has incompatible type "Path"; expected "str | None"  [arg-type]
+cutctx/cli/savings.py:83: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/cli/tools.py:183: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/cli/wrap.py:1896: error: Returning Any from function declared to return "int"  [no-any-return]
+cutctx/cli/wrap.py:286: error: Returning Any from function declared to return "bool"  [no-any-return]
+cutctx/client.py:392: error: Item "None" of "str | None" has no attribute "strip"  [union-attr]
+cutctx/compression/task_aware.py:373: error: Argument 2 to "compress" of "UniversalCompressor" has incompatible type "str | None"; expected "ContentType | None"  [arg-type]
+cutctx/context_policy.py:314: error: Incompatible types in assignment (expression has type "TeamBudget | None", variable has type "AgentBudget | None")  [assignment]
+cutctx/graph/graphify.py:829: error: Cannot assign to a method  [method-assign]
+cutctx/graph/resolver.py:150: error: Returning Any from function declared to return "dict[str, Any] | None"  [no-any-return]
+cutctx/graph/resolver.py:154: error: Returning Any from function declared to return "int"  [no-any-return]
+cutctx/graph/resolver.py:158: error: Returning Any from function declared to return "int"  [no-any-return]
+cutctx/integrations/langchain/agents.py:232: error: Returning Any from function declared to return "str"  [no-any-return]
+cutctx/integrations/llamaindex/postprocessor.py:79: error: Returning Any from function declared to return "type"  [no-any-return]
+cutctx/intercept/macos.py:171: error: Incompatible types in assignment (expression has type "str | int", target has type "str")  [assignment]
+cutctx/learn/aggregate.py:68: error: Need type annotation for "totals"  [var-annotated]
+cutctx/mcp_gateway.py:302: error: Item "None" of "StreamWriter | None" has no attribute "write"  [union-attr]
+cutctx/mcp_gateway.py:303: error: Item "None" of "StreamWriter | None" has no attribute "drain"  [union-attr]
+cutctx/mcp_gateway.py:307: error: Item "None" of "StreamWriter | None" has no attribute "can_write_eof"  [union-attr]
+cutctx/mcp_gateway.py:309: error: Item "None" of "StreamWriter | None" has no attribute "write_eof"  [union-attr]
+cutctx/mcp_gateway.py:314: error: Item "None" of "StreamReader | None" has no attribute "readline"  [union-attr]
+cutctx/mcp_server.py:564: error: Unexpected keyword argument "aliases" for "Tool"  [call-arg]
+cutctx/mcp_server.py:588: error: Unexpected keyword argument "aliases" for "Tool"  [call-arg]
+cutctx/mcp_server.py:615: error: Unexpected keyword argument "aliases" for "Tool"  [call-arg]
+cutctx/mcp_server.py:633: error: Unexpected keyword argument "aliases" for "Tool"  [call-arg]
+cutctx/memory/adapters/embedders.py:186: error: "Tensor" not callable  [operator]
+cutctx/memory/backends/usearch_store.py:170: error: Incompatible types in assignment (expression has type "Index | None", variable has type "Index")  [assignment]
+cutctx/memory/factory.py:339: error: Incompatible types in assignment (expression has type "UsearchMemoryBackend", variable has type "VectorBackend")  [assignment]
+cutctx/memory/factory.py:344: error: "Literal[VectorBackend.USEARCH]" has no attribute "initialize"  [attr-defined]
+cutctx/memory/factory.py:345: error: Incompatible return value type (got "Literal[VectorBackend.USEARCH]", expected "VectorIndex")  [return-value]
+cutctx/memory/storage_router.py:352: error: Incompatible types in assignment (expression has type "TeamSyncWrapper", variable has type "LocalBackend")  [assignment]
+cutctx/memory/tests/test_team_sync.py:3: error: Module "datetime" has no attribute "UTC"  [attr-defined]
+cutctx/memory/tests/test_team_sync.py:8: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/memory/tests/test_value.py:20: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/memory/tests/test_value.py:20: note: Use "-> None" if function does not return a value
+cutctx/memory/tests/test_value.py:36: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/memory/tests/test_value.py:36: note: Use "-> None" if function does not return a value
+cutctx/memory/tests/test_value.py:47: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/memory/tests/test_value.py:47: note: Use "-> None" if function does not return a value
+cutctx/memory/tests/test_value.py:7: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/memory/tests/test_value.py:7: note: Use "-> None" if function does not return a value
+cutctx/observability/memory_impact.py:25: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/orchestration/config.py:201: error: Argument 1 to "Path" has incompatible type "Path | str | None"; expected "str | PathLike[str]"  [arg-type]
+cutctx/orchestration/contracts.py:129: error: Returning Any from function declared to return "dict[str, Any]"  [no-any-return]
+cutctx/orchestration/engine.py:390: error: "object" has no attribute "__iter__"; maybe "__dir__" or "__str__"? (not iterable)  [attr-defined]
+cutctx/orchestration/engine.py:391: error: "object" has no attribute "__iter__"; maybe "__dir__" or "__str__"? (not iterable)  [attr-defined]
+cutctx/orchestration/engine.py:393: error: "object" has no attribute "__iter__"; maybe "__dir__" or "__str__"? (not iterable)  [attr-defined]
+cutctx/orchestration/engine.py:401: error: No overload variant of "int" matches argument type "object"  [call-overload]
+cutctx/orchestration/engine.py:401: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+cutctx/orchestration/engine.py:401: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+cutctx/orchestration/engine.py:401: note: Possible overload variants:
+cutctx/orchestration/engine.py:406: error: No overload variant of "int" matches argument type "object"  [call-overload]
+cutctx/orchestration/engine.py:406: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+cutctx/orchestration/engine.py:406: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+cutctx/orchestration/engine.py:406: note: Possible overload variants:
+cutctx/orchestration/engine.py:411: error: Argument 1 to "float" has incompatible type "object"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+cutctx/orchestration/engine.py:588: error: Argument 1 to "float" has incompatible type "object"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+cutctx/orchestration/policy_bundle.py:23: error: Item "CompiledRoutingPolicy" of "OrchestrationConfig | CompiledRoutingPolicy" has no attribute "settings"  [union-attr]
+cutctx/orchestration/policy_bundle.py:26: error: Item "CompiledRoutingPolicy" of "OrchestrationConfig | CompiledRoutingPolicy" has no attribute "settings"  [union-attr]
+cutctx/orchestration/policy_bundle.py:36: error: Item "CompiledRoutingPolicy" of "OrchestrationConfig | CompiledRoutingPolicy" has no attribute "providers"  [union-attr]
+cutctx/orchestration/scheduler.py:90: error: Incompatible types in assignment (expression has type "list[dict[str, Any]]", variable has type "bool")  [assignment]
+cutctx/orchestration/scheduler.py:94: error: Value of type "Literal[True]" is not indexable  [index]
+cutctx/orchestration/service.py:1358: error: Argument 1 to "Path" has incompatible type "Path | str | None"; expected "str | PathLike[str]"  [arg-type]
+cutctx/orchestration/service.py:317: error: Argument "live" to "compare_decisions" has incompatible type "ContractDecisionReceipt | None"; expected "ContractDecisionReceipt"  [arg-type]
+cutctx/orchestration/service.py:384: error: Unsupported operand types for > ("float" and "None")  [operator]
+cutctx/orchestration/service.py:384: note: Left operand is of type "float | None"
+cutctx/orchestration/service.py:385: error: Unsupported operand types for < ("float" and "None")  [operator]
+cutctx/orchestration/service.py:385: note: Left operand is of type "float | None"
+cutctx/orchestration/workflow.py:137: error: Argument 1 to "loads" has incompatible type "Awaitable[Any] | Any"; expected "str | bytes | bytearray"  [arg-type]
+cutctx/orchestration/workflow.py:173: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/orchestration/workflow.py:184: error: Item "None" of "Redis | None" has no attribute "lock"  [union-attr]
+cutctx/orchestration/workflow.py:191: error: Function is missing a type annotation for one or more arguments  [no-untyped-def]
+cutctx/orchestration/workflow.py:216: error: Function is missing a type annotation for one or more arguments  [no-untyped-def]
+cutctx/policy_learning.py:106: error: Argument 1 to "float" has incompatible type "object"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+cutctx/policy_learning.py:107: error: Argument 1 to "float" has incompatible type "object"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+cutctx/providers/antigravity/runtime.py:27: error: Argument 1 to "Path" has incompatible type "str | PathLike[str] | None"; expected "str | PathLike[str]"  [arg-type]
+cutctx/providers/proxy_routes.py:96: error: Argument 1 to "join" of "str" has incompatible type "list[Any | None]"; expected "Iterable[str]"  [arg-type]
+cutctx/proxy/auth_keyring.py:8: error: Incompatible types in assignment (expression has type "None", variable has type Module)  [assignment]
+cutctx/proxy/cost.py:942: error: Name "RequestSavingsBreakdown" is not defined  [name-defined]
+cutctx/proxy/ensemble.py:379: error: Returning Any from function declared to return "dict[str, Any]"  [no-any-return]
+cutctx/proxy/helpers.py:3211: error: "_Decompress" has no attribute "process"  [attr-defined]
+cutctx/proxy/intelligence_pipeline.py:475: error: Incompatible types in assignment (expression has type "float | None", variable has type "float")  [assignment]
+cutctx/proxy/interceptors/graph_interceptor.py:252: error: Incompatible types in assignment (expression has type "Path", variable has type "str | None")  [assignment]
+cutctx/proxy/interceptors/graph_interceptor.py:253: error: Item "None" of "str | None" has no attribute "parts"  [union-attr]
+cutctx/proxy/interceptors/graph_interceptor.py:253: error: Item "str" of "str | None" has no attribute "parts"  [union-attr]
+cutctx/proxy/interceptors/graph_interceptor.py:96: error: Returning Any from function declared to return "GraphifyIndex | None"  [no-any-return]
+cutctx/proxy/interceptors/graph_interceptor.py:98: error: Returning Any from function declared to return "GraphifyIndex | None"  [no-any-return]
+cutctx/proxy/memoizer.py:118: error: Returning Any from function declared to return "str"  [no-any-return]
+cutctx/proxy/model_routing_evals.py:243: error: Item "Awaitable[list[Any]]" of "Awaitable[list[Any]] | list[Any]" has no attribute "__iter__" (not iterable)  [union-attr]
+cutctx/proxy/model_routing_evals.py:243: note: Maybe you forgot to use "await"?
+cutctx/proxy/outcome.py:1021: error: Argument 1 to "record" of "SavingsCanaryCoordinator" has incompatible type "str"; expected "Literal['control', 'mutable_tail', 'tool_api_slimming', 'model_routing']"  [arg-type]
+cutctx/proxy/outcome.py:1170: error: Argument 1 to "float" has incompatible type "str | None"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+cutctx/proxy/outcome.py:1178: error: Argument 1 to "int" has incompatible type "str | None"; expected "str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc"  [arg-type]
+cutctx/proxy/prometheus_metrics.py:872: error: Incompatible types in assignment (expression has type "_UnlockedExportLock", variable has type "Lock")  [assignment]
+cutctx/proxy/prometheus_metrics.py:873: error: "PrometheusMetrics" has no attribute "_is_export_snapshot"  [attr-defined]
+cutctx/proxy/rate_limiter.py:188: error: Dict entry 10 has incompatible type "str": "dict[str, float | str] | None"; expected "str": "float | int"  [dict-item]
+cutctx/proxy/request_logger.py:456: error: Incompatible types in assignment (expression has type "RequestLog", variable has type "dict[Any, Any]")  [assignment]
+cutctx/proxy/request_logger.py:457: error: "dict[Any, Any]" has no attribute "request_id"  [attr-defined]
+cutctx/proxy/request_logger.py:458: error: No overload variant of "asdict" matches argument type "dict[Any, Any]"  [call-overload]
+cutctx/proxy/request_logger.py:458: error: Returning Any from function declared to return "dict[Any, Any] | None"  [no-any-return]
+cutctx/proxy/request_logger.py:458: note:     def [_T] asdict(obj: DataclassInstance, *, dict_factory: Callable[[list[tuple[str, Any]]], _T]) -> _T
+cutctx/proxy/request_logger.py:458: note:     def asdict(obj: DataclassInstance) -> dict[str, Any]
+cutctx/proxy/request_logger.py:458: note: Possible overload variants:
+cutctx/proxy/routes/admin.py:1003: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1020: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1060: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1077: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1101: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1117: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1145: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1162: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1178: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1210: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1235: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1273: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1297: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1313: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1343: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1368: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1403: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1425: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1472: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1499: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1521: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1544: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1565: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1584: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1595: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1609: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1622: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1633: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1644: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1661: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1675: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1684: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1715: error: Argument 1 to "record_feedback" of "SavingsCanaryCoordinator" has incompatible type "str"; expected "Literal['control', 'mutable_tail', 'tool_api_slimming', 'model_routing']"  [arg-type]
+cutctx/proxy/routes/admin.py:1727: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1735: error: Argument 1 to "promote" of "SavingsCanaryCoordinator" has incompatible type "str"; expected "Literal['control', 'mutable_tail', 'tool_api_slimming', 'model_routing']"  [arg-type]
+cutctx/proxy/routes/admin.py:1928: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:1946: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2019: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2062: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2082: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2092: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2105: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2118: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2172: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2198: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2230: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2268: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2279: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2290: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2307: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2322: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2347: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2358: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2399: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2421: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2468: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2558: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2571: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:2651: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:284: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:342: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:357: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:397: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:417: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:441: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:480: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:510: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:532: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:575: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:590: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+cutctx/proxy/routes/admin.py:612: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:626: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:656: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:673: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:697: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:711: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:734: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:737: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+cutctx/proxy/routes/admin.py:773: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:819: error: Value of type "Collection[str]" is not indexable  [index]
+cutctx/proxy/routes/admin.py:821: error: Value of type "Collection[str]" is not indexable  [index]
+cutctx/proxy/routes/admin.py:838: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:891: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:906: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:930: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:945: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/admin.py:979: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/routes/license.py:45: error: All conditional function variants must have identical signatures  [misc]
+cutctx/proxy/routes/license.py:45: note:     def get_license_db() -> Any
+cutctx/proxy/routes/license.py:45: note:     def get_license_db() -> LicenseDB
+cutctx/proxy/routes/license.py:45: note: Original:
+cutctx/proxy/routes/license.py:45: note: Redefinition:
+cutctx/proxy/routes/license.py:70: error: "object" has no attribute "active"  [attr-defined]
+cutctx/proxy/routes/license_validation.py:267: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
+cutctx/proxy/routes/residency.py:109: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
+cutctx/proxy/routes/secrets.py:75: error: Returning Any from function declared to return "list[dict[str, Any]]"  [no-any-return]
+cutctx/proxy/savings_canary.py:334: error: Argument 1 to "_ArmMetrics" has incompatible type "**dict[str, int | float]"; expected "int"  [arg-type]
+cutctx/proxy/savings_canary.py:337: error: No overload variant of "fromkeys" of "dict" matches argument type "object"  [call-overload]
+cutctx/proxy/savings_canary.py:337: note:     def [_KT, _VT, _T, _S] fromkeys(cls, Iterable[_T], _S, /) -> dict[_T, _S]
+cutctx/proxy/savings_canary.py:337: note:     def [_KT, _VT, _T] fromkeys(cls, Iterable[_T], None = ..., /) -> dict[_T, Any | None]
+cutctx/proxy/savings_canary.py:337: note: Possible overload variants:
+cutctx/proxy/savings_pricing.py:8: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/savings_tracker.py:1041: error: Argument 1 to "_coverage_payload" has incompatible type "object"; expected "int"  [arg-type]
+cutctx/proxy/savings_tracker.py:1042: error: Argument 2 to "_coverage_payload" has incompatible type "object"; expected "int"  [arg-type]
+cutctx/proxy/savings_tracker.py:1701: error: Incompatible types in assignment (expression has type "float", variable has type "int")  [assignment]
+cutctx/proxy/savings_tracker.py:2741: error: Unsupported target for indexed assignment ("object")  [index]
+cutctx/proxy/savings_tracker.py:2745: error: Unsupported target for indexed assignment ("object")  [index]
+cutctx/proxy/savings_tracker.py:2749: error: Unsupported target for indexed assignment ("object")  [index]
+cutctx/proxy/savings_tracker.py:648: error: Incompatible types in assignment (expression has type "Any | None", variable has type "str")  [assignment]
+cutctx/proxy/server.py:1554: error: Incompatible types in assignment (expression has type "EpisodicSessionTracker", variable has type "None")  [assignment]
+cutctx/proxy/server.py:1666: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+cutctx/proxy/server.py:1670: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+cutctx/proxy/server.py:2552: error: "CutctxProxy" has no attribute "_streaming_redactor"  [attr-defined]
+cutctx/proxy/server.py:2579: error: "CutctxProxy" has no attribute "_model_router"  [attr-defined]
+cutctx/proxy/server.py:2580: error: "CutctxProxy" has no attribute "_model_router"  [attr-defined]
+cutctx/proxy/server.py:2581: error: "ProxyConfig" has no attribute "orchestrator_enabled"  [attr-defined]
+cutctx/proxy/server.py:2584: error: "CutctxProxy" has no attribute "_model_router"  [attr-defined]
+cutctx/proxy/server.py:2588: error: "CutctxProxy" has no attribute "_model_router"  [attr-defined]
+cutctx/proxy/server.py:2593: error: "CutctxProxy" has no attribute "_orchestration_service"  [attr-defined]
+cutctx/proxy/server.py:2594: error: "CutctxProxy" has no attribute "_model_router"  [attr-defined]
+cutctx/proxy/server.py:2595: error: "CutctxProxy" has no attribute "_model_router"  [attr-defined]
+cutctx/proxy/server.py:2595: error: "CutctxProxy" has no attribute "_orchestration_service"  [attr-defined]
+cutctx/proxy/server.py:2598: error: "CutctxProxy" has no attribute "_orchestration_service"  [attr-defined]
+cutctx/proxy/server.py:281: error: Incompatible types in assignment (expression has type "dict[str, Any]", target has type "str")  [assignment]
+cutctx/proxy/server.py:3647: error: Argument 1 to "consume_counter" of "MfaStore" has incompatible type "Any | None"; expected "str"  [arg-type]
+cutctx/proxy/server.py:4491: error: "ProxyConfig" has no attribute "orchestrator_enabled"  [attr-defined]
+cutctx/proxy/server.py:4505: error: "CutctxProxy" has no attribute "_model_router"  [attr-defined]
+cutctx/proxy/server.py:4506: error: "ProxyConfig" has no attribute "orchestrator_enabled"  [attr-defined]
+cutctx/proxy/server.py:4511: error: "ProxyConfig" has no attribute "orchestrator_enabled"  [attr-defined]
+cutctx/proxy/server.py:4517: error: "CutctxProxy" has no attribute "_model_router"  [attr-defined]
+cutctx/proxy/server.py:4518: error: "ProxyConfig" has no attribute "orchestrator_enabled"  [attr-defined]
+cutctx/proxy/server.py:4548: error: Incompatible types in assignment (expression has type "EpisodicSessionTracker", variable has type "None")  [assignment]
+cutctx/proxy/server.py:4660: error: "CutctxProxy" has no attribute "_orchestration_service"  [attr-defined]
+cutctx/proxy/server.py:4663: error: "CutctxProxy" has no attribute "_orchestration_service"  [attr-defined]
+cutctx/proxy/server.py:676: error: "ContentRouter" has no attribute "_runtime_difftastic_enabled"  [attr-defined]
+cutctx/proxy/server.py:677: error: "ContentRouter" has no attribute "_runtime_difftastic_binary"  [attr-defined]
+cutctx/proxy/server.py:678: error: "ContentRouter" has no attribute "_runtime_difftastic_context_lines"  [attr-defined]
+cutctx/proxy/server.py:897: error: "CCRResponseHandler" has no attribute "memoize_interceptor"  [attr-defined]
+cutctx/proxy/structured_output.py:457: error: Returning Any from function declared to return "str"  [no-any-return]
+cutctx/proxy/webhook_stores.py:162: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/proxy/webhook_stores.py:184: error: Returning Any from function declared to return "bytes"  [no-any-return]
+cutctx/proxy/webhook_stores.py:188: error: Returning Any from function declared to return "str"  [no-any-return]
+cutctx/savings/types.py:186: error: Incompatible types in assignment (expression has type "float", variable has type "int")  [assignment]
+cutctx/security/integrity.py:54: error: Returning Any from function declared to return "dict[str, Any] | None"  [no-any-return]
+cutctx/security/mfa.py:205: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/security/mfa.py:264: error: Returning Any from function declared to return "bool"  [no-any-return]
+cutctx/security/mfa.py:279: error: Returning Any from function declared to return "bool"  [no-any-return]
+cutctx/security/state_crypto.py:153: error: Returning Any from function declared to return "dict[str, Any]"  [no-any-return]
+cutctx/security/state_crypto.py:257: error: Returning Any from function declared to return "dict[str, Any] | None"  [no-any-return]
+cutctx/security/state_crypto.py:299: error: Returning Any from function declared to return "dict[str, Any] | None"  [no-any-return]
+cutctx/security/state_crypto.py:308: error: Returning Any from function declared to return "dict[str, Any] | None"  [no-any-return]
+cutctx/shared_context.py:774: error: Argument 1 to "append" of "list" has incompatible type "tuple[str, str]"; expected "str"  [arg-type]
+cutctx/shared_context.py:809: error: Unpacking a string is disallowed  [misc]
+cutctx/shared_context.py:810: error: Cannot determine type of "content_hash"  [has-type]
+cutctx/shared_context.py:810: error: Cannot determine type of "workspace_key"  [has-type]
+cutctx/shared_context.py:814: error: Cannot determine type of "content_hash"  [has-type]
+cutctx/telemetry/outcome.py:33: error: Need type annotation for "_handlers" (hint: "_handlers: list[<type>] = ...")  [var-annotated]
+cutctx/telemetry/outcome.py:36: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/telemetry/outcome.py:40: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/telemetry/tests/test_dp.py:15: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/telemetry/tests/test_dp.py:15: note: Use "-> None" if function does not return a value
+cutctx/telemetry/tests/test_dp.py:23: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/telemetry/tests/test_dp.py:23: note: Use "-> None" if function does not return a value
+cutctx/telemetry/tests/test_dp.py:66: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/telemetry/tests/test_dp.py:66: note: Use "-> None" if function does not return a value
+cutctx/telemetry/tests/test_dp.py:6: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/telemetry/tests/test_dp.py:6: note: Use "-> None" if function does not return a value
+cutctx/telemetry/tests/test_episodes.py:15: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/telemetry/tests/test_episodes.py:21: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/telemetry/tests/test_episodes.py:38: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/telemetry/tests/test_episodes.py:38: note: Use "-> None" if function does not return a value
+cutctx/telemetry/tests/test_episodes.py:72: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/telemetry/tests/test_episodes.py:72: note: Use "-> None" if function does not return a value
+cutctx/tests/test_billing_integration.py:104: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_billing_integration.py:117: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_billing_integration.py:117: note: Use "-> None" if function does not return a value
+cutctx/tests/test_billing_integration.py:129: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_billing_integration.py:129: note: Use "-> None" if function does not return a value
+cutctx/tests/test_billing_integration.py:145: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_billing_integration.py:145: note: Use "-> None" if function does not return a value
+cutctx/tests/test_billing_integration.py:156: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_billing_integration.py:156: note: Use "-> None" if function does not return a value
+cutctx/tests/test_billing_integration.py:41: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_billing_integration.py:45: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_billing_integration.py:45: note: Use "-> None" if function does not return a value
+cutctx/tests/test_billing_integration.py:56: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_billing_integration.py:65: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_billing_integration.py:79: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:113: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:113: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:132: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:132: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:140: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:154: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:154: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:160: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:160: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:176: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:182: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+cutctx/tests/test_context_budget.py:184: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:18: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:18: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:200: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:200: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:206: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:206: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:211: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:211: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:216: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:216: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:221: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:221: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:227: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:227: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:233: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:233: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:250: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:250: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:258: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:258: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:25: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:25: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:272: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:272: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:284: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:284: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:294: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:294: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:300: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:300: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:313: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:313: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:324: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:324: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:331: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:331: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:338: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:338: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:34: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:34: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:354: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:354: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:368: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:368: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:373: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:373: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:388: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:388: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:400: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:400: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:410: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:410: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:424: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:424: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:429: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:429: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:434: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:434: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:43: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:445: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:445: note: Use "-> None" if function does not return a value
+cutctx/tests/test_context_budget.py:60: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:77: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_context_budget.py:93: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:112: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:112: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:134: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:134: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:157: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:157: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:179: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:179: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:195: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:195: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:214: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:214: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:229: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:229: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:251: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:251: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:25: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:25: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:261: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:261: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:279: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:279: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:291: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:291: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:304: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:304: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:323: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:323: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:334: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:334: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:349: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:349: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:368: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:368: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:378: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:378: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:391: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:391: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:40: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:40: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:414: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:414: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:424: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:424: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:435: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:435: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:448: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:448: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:61: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:61: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:82: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:82: note: Use "-> None" if function does not return a value
+cutctx/tests/test_dedup.py:95: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_dedup.py:95: note: Use "-> None" if function does not return a value
+cutctx/tests/test_episodic_ccr_bridge.py:8: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_episodic_ccr_bridge.py:8: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:113: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:113: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:140: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:140: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:153: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:153: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:158: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:158: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:172: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:172: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:200: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:229: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:25: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:25: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:260: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:278: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:278: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:283: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:283: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:288: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:288: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:294: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:29: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:29: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:319: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:342: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:34: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:34: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:359: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:385: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:385: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:393: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:393: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:401: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:40: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:40: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:413: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:425: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:425: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:430: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:430: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:434: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:440: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:467: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:46: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:46: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:474: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:502: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:508: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:52: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:52: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:541: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:541: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:545: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:56: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:56: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:571: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:571: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:589: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:589: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:614: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:614: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:619: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:619: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:61: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:61: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:623: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:635: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:657: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:657: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:664: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:66: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:66: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:680: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:74: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:74: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:82: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:82: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:93: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:93: note: Use "-> None" if function does not return a value
+cutctx/tests/test_multi_agent.py:97: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_multi_agent.py:97: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:119: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:119: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:125: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:125: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:139: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:139: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:155: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:155: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:174: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:174: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:190: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:190: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:206: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:206: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:213: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:213: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:21: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:21: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:229: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:229: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:238: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:238: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:259: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:259: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:287: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:287: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:293: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:293: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:29: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:29: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:317: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:317: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:328: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:328: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:337: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:337: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:357: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:357: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:367: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:367: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:36: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:36: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:379: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:379: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:392: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:392: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:408: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:408: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:41: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:41: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:450: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:450: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:49: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:49: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:58: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:58: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:70: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:70: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:81: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:81: note: Use "-> None" if function does not return a value
+cutctx/tests/test_profiles.py:98: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_profiles.py:98: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:104: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:104: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:117: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:117: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:130: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:130: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:138: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:138: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:146: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:146: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:155: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:155: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:160: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:160: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:166: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:166: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:176: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:176: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:188: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:188: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:201: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:201: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:218: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:218: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:224: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:224: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:230: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:230: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:237: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:237: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:244: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:244: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:259: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:259: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:272: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:272: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:286: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:286: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:300: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:300: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:306: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:306: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:312: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:312: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:325: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:325: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:341: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:341: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:347: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:347: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:353: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:353: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:359: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:359: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:367: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:367: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:384: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:401: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:417: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:42: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:431: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:449: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:466: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:466: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:474: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:474: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:480: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:515: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:515: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:526: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:526: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:537: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:537: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:548: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:548: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:559: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:559: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:571: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:571: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:592: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:607: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:621: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:636: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:650: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:664: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:678: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:67: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:693: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:714: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:737: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:737: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:745: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:745: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:752: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:752: note: Use "-> None" if function does not return a value
+cutctx/tests/test_task_aware.py:763: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:787: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:821: error: Function is missing a type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:90: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/tests/test_task_aware.py:90: note: Use "-> None" if function does not return a value
+cutctx/training/label_builder.py:34: error: Need type annotation for "retrieval_map" (hint: "retrieval_map: dict[<type>, <type>] = ...")  [var-annotated]
+cutctx/transforms/content_router.py:1601: error: Item "None" of "str | None" has no attribute "split"  [union-attr]
+cutctx/transforms/content_router.py:1772: error: Item "None" of "str | None" has no attribute "split"  [union-attr]
+cutctx/transforms/diff_compressor.py:320: error: Function is missing a type annotation for one or more arguments  [no-untyped-def]
+cutctx/transforms/diff_compressor.py:328: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx/transforms/llmlingua_compressor.py:200: error: Returning Any from function declared to return "int"  [no-any-return]
+cutctx_ee/audit/store.py:113: error: Incompatible default for argument "previous_hash" (default has type "None", argument has type "str")  [assignment]
+cutctx_ee/audit/store.py:113: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+cutctx_ee/audit/store.py:113: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+cutctx_ee/audit/store.py:87: error: Incompatible default for argument "previous_hash" (default has type "None", argument has type "str")  [assignment]
+cutctx_ee/audit/store.py:87: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+cutctx_ee/audit/store.py:87: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+cutctx_ee/billing/client.py:105: error: Unsupported operand types for > ("float" and "set[str]")  [operator]
+cutctx_ee/billing/client.py:105: note: Right operand is of type "set[str] | float"
+cutctx_ee/billing/client.py:144: error: Argument 1 to "len" has incompatible type "set[str] | float"; expected "Sized"  [arg-type]
+cutctx_ee/billing/client.py:152: error: Unsupported operand types for > ("float" and "set[str]")  [operator]
+cutctx_ee/billing/client.py:152: note: Right operand is of type "set[str] | float"
+cutctx_ee/billing/client.py:62: error: Function is missing a type annotation  [no-untyped-def]
+cutctx_ee/billing/license_db.py:100: error: "object" has no attribute "stripe_subscription_id"  [attr-defined]
+cutctx_ee/billing/license_db.py:101: error: "object" has no attribute "created_at"  [attr-defined]
+cutctx_ee/billing/license_db.py:102: error: "object" has no attribute "expires_at"  [attr-defined]
+cutctx_ee/billing/license_db.py:103: error: "object" has no attribute "active"  [attr-defined]
+cutctx_ee/billing/license_db.py:112: error: Argument 2 to "execute" of "Connection" has incompatible type "object"; expected "SupportsLenAndGetItem[str | Buffer | int | float | None | Any] | Mapping[str, str | Buffer | int | float | None | Any]"  [arg-type]
+cutctx_ee/billing/license_db.py:152: error: "object" has no attribute "stripe_customer_id"  [attr-defined]
+cutctx_ee/billing/license_db.py:158: error: "object" has no attribute "active"  [attr-defined]
+cutctx_ee/billing/license_db.py:160: error: "object" has no attribute "expires_at"  [attr-defined]
+cutctx_ee/billing/license_db.py:164: error: "object" has no attribute "tier"  [attr-defined]
+cutctx_ee/billing/license_db.py:165: error: "object" has no attribute "seats"  [attr-defined]
+cutctx_ee/billing/license_db.py:166: error: "object" has no attribute "expires_at"  [attr-defined]
+cutctx_ee/billing/license_db.py:200: error: "object" has no attribute "seats"  [attr-defined]
+cutctx_ee/billing/license_db.py:220: error: "object" has no attribute "seats"  [attr-defined]
+cutctx_ee/billing/license_db.py:313: error: "object" has no attribute "seats"  [attr-defined]
+cutctx_ee/billing/license_db.py:326: error: "object" has no attribute "seats"  [attr-defined]
+cutctx_ee/billing/license_db.py:379: error: Returning Any from function declared to return "bool"  [no-any-return]
+cutctx_ee/billing/license_db.py:96: error: "object" has no attribute "tier"  [attr-defined]
+cutctx_ee/billing/license_db.py:97: error: "object" has no attribute "customer_email"  [attr-defined]
+cutctx_ee/billing/license_db.py:98: error: "object" has no attribute "seats"  [attr-defined]
+cutctx_ee/billing/license_db.py:99: error: "object" has no attribute "stripe_customer_id"  [attr-defined]
+cutctx_ee/billing/license_token.py:54: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx_ee/billing/pitchtoship_client.py:121: error: Returning Any from function declared to return "dict[str, Any] | None"  [no-any-return]
+cutctx_ee/billing/pitchtoship_client.py:138: error: Returning Any from function declared to return "dict[str, Any] | None"  [no-any-return]
+cutctx_ee/billing/pitchtoship_client.py:160: error: Returning Any from function declared to return "str | None"  [no-any-return]
+cutctx_ee/billing/pitchtoship_client.py:181: error: Returning Any from function declared to return "str | None"  [no-any-return]
+cutctx_ee/billing/pitchtoship_client.py:200: error: Returning Any from function declared to return "str | None"  [no-any-return]
+cutctx_ee/billing/pitchtoship_client.py:262: error: Argument 3 to "verify" of "DSAPublicKey" has incompatible type "ECDSA"; expected "Prehashed | HashAlgorithm"  [arg-type]
+cutctx_ee/billing/pitchtoship_client.py:262: error: Argument 3 to "verify" of "RSAPublicKey" has incompatible type "ECDSA"; expected "AsymmetricPadding"  [arg-type]
+cutctx_ee/billing/pitchtoship_client.py:262: error: Item "DHPublicKey" of "DHPublicKey | DSAPublicKey | RSAPublicKey | EllipticCurvePublicKey | Ed25519PublicKey | Ed448PublicKey | X25519PublicKey | X448PublicKey" has no attribute "verify"  [union-attr]
+cutctx_ee/billing/pitchtoship_client.py:262: error: Item "X25519PublicKey" of "DHPublicKey | DSAPublicKey | RSAPublicKey | EllipticCurvePublicKey | Ed25519PublicKey | Ed448PublicKey | X25519PublicKey | X448PublicKey" has no attribute "verify"  [union-attr]
+cutctx_ee/billing/pitchtoship_client.py:262: error: Item "X448PublicKey" of "DHPublicKey | DSAPublicKey | RSAPublicKey | EllipticCurvePublicKey | Ed25519PublicKey | Ed448PublicKey | X25519PublicKey | X448PublicKey" has no attribute "verify"  [union-attr]
+cutctx_ee/billing/pitchtoship_client.py:262: error: Missing positional argument "algorithm" in call to "verify" of "RSAPublicKey"  [call-arg]
+cutctx_ee/billing/pitchtoship_client.py:262: error: Too many arguments for "verify" of "Ed25519PublicKey"  [call-arg]
+cutctx_ee/billing/pitchtoship_client.py:262: error: Too many arguments for "verify" of "Ed448PublicKey"  [call-arg]
+cutctx_ee/billing/pitchtoship_client.py:266: error: Returning Any from function declared to return "dict[str, Any] | None"  [no-any-return]
+cutctx_ee/billing/pitchtoship_client.py:311: error: Returning Any from function declared to return "str | None"  [no-any-return]
+cutctx_ee/memory_service/api.py:42: error: Function is missing a return type annotation  [no-untyped-def]
+cutctx_ee/memory_service/store.py:102: error: Incompatible types in assignment (expression has type "str", variable has type "Column[str]")  [assignment]
+cutctx_ee/memory_service/store.py:103: error: Incompatible types in assignment (expression has type "float", variable has type "Column[float]")  [assignment]
+cutctx_ee/memory_service/store.py:140: error: Incompatible types in assignment (expression has type "datetime | Column[datetime]", variable has type "Column[datetime]")  [assignment]
+cutctx_ee/memory_service/store.py:147: error: Incompatible types in assignment (expression has type "datetime", variable has type "Column[datetime]")  [assignment]
+cutctx_ee/memory_service/store.py:156: error: Incompatible types in assignment (expression has type "dict[Any, Any]", variable has type "Column[Any]")  [assignment]
+cutctx_ee/memory_service/store.py:60: error: Incompatible types in assignment (expression has type "float", variable has type "Column[float]")  [assignment]
+cutctx_ee/retention.py:171: error: Unsupported operand types for + ("None" and "int")  [operator]
+cutctx_ee/retention.py:171: note: Left operand is of type "int | None"
+cutctx_ee/retention.py:198: error: Unsupported operand types for + ("None" and "int")  [operator]
+cutctx_ee/retention.py:198: note: Left operand is of type "int | None"
+cutctx_ee/retention.py:199: error: Unsupported operand types for + ("None" and "int")  [operator]
+cutctx_ee/retention.py:199: note: Left operand is of type "int | None"
+cutctx_ee/retention.py:200: error: Unsupported operand types for + ("None" and "int")  [operator]
+cutctx_ee/retention.py:200: note: Left operand is of type "int | None"
+cutctx_ee/retention.py:201: error: Unsupported operand types for + ("None" and "int")  [operator]
+cutctx_ee/retention.py:201: note: Left operand is of type "int | None"
+cutctx_ee/retention.py:202: error: Incompatible types in assignment (expression has type "float", target has type "int | None")  [assignment]
+cutctx_ee/retention.py:203: error: Unsupported operand types for + ("None" and "int")  [operator]
+cutctx_ee/retention.py:203: note: Left operand is of type "int | None"
+cutctx_ee/retention.py:223: error: "CompressionStore" has no attribute "cleanup_expired"; maybe "_clean_expired"?  [attr-defined]
+cutctx_ee/retention.py:225: error: "CompressionStore" has no attribute "truncate"  [attr-defined]
+cutctx_ee/retention.py:226: error: Returning Any from function declared to return "int"  [no-any-return]
+cutctx_ee/sso.py:413: error: Argument "auth" to "post" of "AsyncClient" has incompatible type "tuple[str, str] | None"; expected "tuple[str | bytes, str | bytes] | Callable[[Request], Request] | Auth | UseClientDefault"  [arg-type]
+cutctx_ee/sso.py:551: error: Argument 1 to "get" of "AsyncClient" has incompatible type "str | None"; expected "URL | str"  [arg-type]
+cutctx_ee/sso.py:565: error: Returning Any from function declared to return "str"  [no-any-return]
+cutctx_ee/sso.py:583: error: Returning Any from function declared to return "list[str]"  [no-any-return]
+cutctx_ee/sso.py:607: error: Returning Any from function declared to return "str"  [no-any-return]
+cutctx_ee/trial.py:206: error: Returning Any from function declared to return "bool"  [no-any-return]

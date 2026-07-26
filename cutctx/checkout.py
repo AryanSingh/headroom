@@ -1,7 +1,8 @@
 """Checkout redirect and upgrade URL generation.
 
-Provides checkout URLs for PitchToShip payment flow and upgrade links
-that entitlement errors point users to.
+Provides CutCtx pricing deep links and upgrade URLs that entitlement errors
+point users to. Payment itself is handled on cutctx.com via Supabase Edge
+Functions — this module never talks to a payment gateway.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ _SUPPORT_EMAIL = "hello@aoexl.com"
 
 
 def checkout_url(tier: str, org_id: str | None = None) -> str:
-    """Generate a PitchToShip checkout URL for upgrading to the given tier.
+    """Generate a CutCtx pricing deep link for upgrading to the given tier.
 
     Args:
         tier: Target tier name ("team", "business", or "enterprise").
@@ -37,7 +38,8 @@ def checkout_url(tier: str, org_id: str | None = None) -> str:
 
     url = get_checkout_url(map_tier_to_plan(normalized_tier), billing="annual")
     if org_id:
-        url = f"{url}&{urlencode({'org': org_id})}"
+        separator = "&" if "?" in url else "?"
+        url = f"{url}{separator}{urlencode({'org': org_id})}"
 
     logger.debug("Generated checkout URL for tier=%s: %s", tier, url)
     return url

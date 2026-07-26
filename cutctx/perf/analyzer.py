@@ -428,7 +428,15 @@ def format_report(report: PerfReport) -> str:
         total_before = sum(r.tokens_before for r in records)
         total_after = sum(r.tokens_after for r in records)
         total_saved = sum(r.tokens_saved for r in records)
-        pct = (total_saved / total_before * 100) if total_before > 0 else 0
+        # Calculate percentage using (total_after + total_saved) as denominator
+        # to account for tool schema and other non-message compression savings.
+        # When tool schema savings are present, tokens_saved can exceed tokens_before,
+        # so we use the adjusted denominator: total_after + total_saved ≈ original_tokens
+        pct = (
+            (total_saved / (total_after + total_saved) * 100)
+            if (total_after + total_saved) > 0
+            else 0
+        )
 
         lines.append(f"Requests:     {len(records)}")
         lines.append(f"Tokens:       {total_before:,} -> {total_after:,} ({pct:.1f}% reduction)")
@@ -444,8 +452,16 @@ def format_report(report: PerfReport) -> str:
         lines.append("-" * 40)
         for model, model_recs in sorted(by_model.items()):
             m_saved = sum(r.tokens_saved for r in model_recs)
-            m_before = sum(r.tokens_before for r in model_recs)
-            m_pct = (m_saved / m_before * 100) if m_before > 0 else 0
+            m_after = sum(r.tokens_after for r in model_recs)
+            # Denominator is (m_after + m_saved), not tokens_before. `tokens_saved`
+            # aggregates savings from every source — message compression, tool
+            # schema compression, tool-surface slimming, memoization, routing —
+            # while `tokens_before` counts message tokens only. When tool-schema
+            # savings dominate, saved can exceed tokens_before and the ratio went
+            # above 100% (minimax-m3 reported 119%). (after + saved) reconstructs
+            # the true pre-compression total and is equivalent to the old formula
+            # for message-only compression.
+            m_pct = (m_saved / (m_after + m_saved) * 100) if (m_after + m_saved) > 0 else 0
             list_price = _get_list_price(model)
             price_str = f"${list_price:.2f}/MTok" if list_price else "unknown"
             est_str = (
@@ -672,7 +688,7 @@ def build_perf_summary(report: PerfReport) -> dict:
                 "tokens_before": m_before,
                 "tokens_after": m_after,
                 "tokens_saved": m_saved,
-                "savings_pct": _pct(m_saved, m_before),
+                "savings_pct": _pct(m_saved, m_after + m_saved),
                 "list_price_per_mtok": _get_list_price(model),
             }
         )
@@ -707,7 +723,7 @@ def build_perf_summary(report: PerfReport) -> dict:
         "total_tokens_before": total_before,
         "total_tokens_after": total_after,
         "tokens_saved": total_saved,
-        "savings_pct": _pct(total_saved, total_before),
+        "savings_pct": _pct(total_saved, total_after + total_saved),
         "cache_read_tokens": total_cr,
         "cache_write_tokens": total_cw,
         "cache_hit_pct": cache_hit_pct,

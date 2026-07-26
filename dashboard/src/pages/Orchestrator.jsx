@@ -21,10 +21,10 @@ const ROUTING_MODES = [
     description: "No routing — every request uses the model you asked for.",
   },
   {
-    value: "balanced",
-    label: "Balanced",
+    value: "auto",
+    label: "Auto",
     description:
-      "Route clear low-complexity work to a lower-cost compatible model; ambiguous or high-risk work stays on the requested model.",
+      "Like Cursor Auto: pick a fast, mid, or strong certified model from task complexity. Send model=auto from clients, or keep a strong default and let low-risk turns downgrade.",
   },
   {
     value: "aggressive",
@@ -36,9 +36,9 @@ const ROUTING_MODES = [
 
 function RoutingModeSelector({ value, onChange, disabled }) {
   return (
-    <div className="tab-group" aria-label="Routing mode selector">
+    <div className="tab-group" role="tablist" aria-label="Routing mode">
       {ROUTING_MODES.map((mode) => {
-        const active = value === mode.value;
+        const active = value === mode.value || (mode.value === "auto" && value === "balanced");
         return (
           <button
             key={mode.value}
@@ -46,8 +46,9 @@ function RoutingModeSelector({ value, onChange, disabled }) {
             onClick={() => onChange(mode.value)}
             disabled={disabled}
             type="button"
+            role="tab"
             title={mode.description}
-            aria-pressed={active}
+            aria-selected={active}
           >
             {mode.label}
           </button>
@@ -335,14 +336,15 @@ export default function Orchestrator({ searchQuery = "" }) {
   };
 
   const modelRouting = stats?.model_routing || {};
-  const backendMode = modelRouting.mode || (modelRouting.requested ? "balanced" : "off");
+  const rawBackendMode = modelRouting.mode || (modelRouting.requested ? "auto" : "off");
+  const backendMode = rawBackendMode === "balanced" ? "auto" : rawBackendMode;
   const pendingMode = optimisticMode?.mode ?? null;
   const activeMode = pendingMode ?? backendMode;
   const currentPreset =
     modelRouting.preset ||
     (activeMode === "aggressive"
       ? "economy"
-      : activeMode === "balanced"
+      : activeMode === "auto" || activeMode === "balanced"
         ? "codex-gpt54mini-high"
         : "none");
   const usdSaved = Math.max(
@@ -401,8 +403,8 @@ export default function Orchestrator({ searchQuery = "" }) {
     ? "A custom routing preset is active. Choosing a preset will replace it."
     : activeMode === "aggressive"
       ? "Aggressive (economy preset) chooses the cheapest certified compatible model after role bindings and safety gates are applied; high-risk work stays on the requested model."
-      : activeMode === "balanced"
-        ? "Balanced (codex-gpt54mini-high preset) routes clear low-complexity work to a lower-cost compatible model and keeps ambiguous or high-risk work on the requested model."
+      : activeMode === "auto" || activeMode === "balanced"
+        ? "Auto (codex-gpt54mini-high) works like Cursor Auto: send model=auto to pick fast/mid/strong from complexity, or keep a strong default and let clear low-risk turns use a cheaper certified model."
         : "Off disables routing while preserving locked role assignments.";
 
   useEffect(() => {
@@ -505,7 +507,7 @@ export default function Orchestrator({ searchQuery = "" }) {
 
       {modelRouting.mode === "custom" ? (
         <div className="alert-card" role="status">
-          A custom routing preset is active. Choosing Off, Balanced, or Aggressive will replace it.
+          A custom routing preset is active. Choosing Off, Auto, or Aggressive will replace it.
         </div>
       ) : null}
 
