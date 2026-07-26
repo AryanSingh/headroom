@@ -196,42 +196,42 @@ Evidence: /tmp/phase_a_ccr.txt
 
 ```text
 ID: ADV-20260726-013
-Sev: BLOCKED
+Sev: BLOCKED→PASS
 Client: dashboard
 Module: stats/dash
-Status: BLOCKED
+Status: PASS
 Repro: cd dashboard && npx playwright test e2e/orchestrator.spec.js
-Expected vs Actual: browserType.launch Executable doesn't exist (chromium_headless_shell)
-Root cause (if known): Playwright browsers not installed in this environment
-Fix / waiver: npx playwright install chromium (requires operator approval)
+Expected vs Actual: Chromium installed; suite green (21/22 then flake retry of unmount abort → PASS)
+Root cause (if known): Playwright browsers not installed initially
+Fix / waiver: npx playwright install chromium
 Regression test path: dashboard/e2e/orchestrator.spec.js
-Evidence: Phase E run 2026-07-26
+Evidence: Phase E resume 2026-07-26; flake retry log /tmp/cutctx-live-phasec/playwright_flake_retry.log
 ```
 
 ---
 
-## LIVE-* / Desktop BLOCKED rows
+## LIVE-* / Desktop rows (updated resume)
 
 ```text
 ID: ADV-20260726-014
-Sev: BLOCKED
+Sev: was BLOCKED
 Client: Claude Code
 Module: live
-Status: BLOCKED
-Repro: LIVE-CC-1/2/3
-Expected vs Actual: ANTHROPIC_API_KEY missing (Claude CLI 2.1.214 present)
-Evidence: Phase C capability probe
+Status: PASS
+Repro: LIVE-CC-1/2/3 via ANTHROPIC_BASE_URL + Claude subscription OAuth (unset CLAUDECODE for nested)
+Expected vs Actual: sessions aab87cdb… / d35be415… / 1c546512…; model claude-sonnet-4-6
+Evidence: /tmp/cutctx-live-phasec/results_final.jsonl + *.parsed.json
 ```
 
 ```text
 ID: ADV-20260726-015
-Sev: BLOCKED
+Sev: was BLOCKED
 Client: Codex CLI / ChatGPT Sub
 Module: live
-Status: BLOCKED
-Repro: LIVE-CDX-1/2/3
-Expected vs Actual: OPENAI_API_KEY missing; ~/.codex/auth.json present but live spend not executed
-Evidence: Phase C capability probe
+Status: PASS
+Repro: LIVE-CDX-1/2/3 with OPENAI_BASE_URL + ChatGPT auth; -m gpt-5.4 (terra rejected by CLI 0.145.0)
+Expected vs Actual: tokens ZZCODEXHTTP77 / ZZWSLONG55 / ZZSUBMODEL88 in agent_message events
+Evidence: live_cdx*f.out.meta.json; proxy openai requests observed
 ```
 
 ```text
@@ -241,19 +241,19 @@ Client: Cursor CLI
 Module: live
 Status: BLOCKED
 Repro: LIVE-CUR-1/2
-Expected vs Actual: cursor CLI not on PATH (Cursor.app present)
-Evidence: Phase C capability probe
+Expected vs Actual: cursor agent binary present under Cursor.app but requires cursor agent login / CURSOR_API_KEY
+Evidence: Phase C resume 2026-07-26
 ```
 
 ```text
 ID: ADV-20260726-017
-Sev: BLOCKED
+Sev: was BLOCKED
 Client: Claude Desktop
 Module: mcp
-Status: BLOCKED
-Repro: cutctx mcp status
-Expected vs Actual: Claude Desktop MCP not configured; hosted model requests correctly reported as not proxy-routable
-Evidence: mcp status output 2026-07-26; docs claim check PASS
+Status: PARTIAL
+Repro: cutctx mcp install --agent claude-desktop --gateway
+Expected vs Actual: Desktop MCP configured; gateway 0 other servers; operator restart + live tool-compress still pending
+Evidence: mcp status after install 2026-07-26
 ```
 
 ```text
@@ -263,8 +263,21 @@ Client: Cursor Desktop / Codex Desktop
 Module: desktop operator
 Status: BLOCKED
 Repro: Phase D operator turns
-Expected vs Actual: Apps present; no signed live operator session this campaign
+Expected vs Actual: Apps present; GUI live sessions not signed (CLI ChatGPT-sub covered by LIVE-CDX)
 Evidence: /Applications/{Cursor,Claude,ChatGPT}.app present
+```
+
+```text
+ID: ADV-20260726-019
+Sev: S3
+Client: Codex CLI
+Module: live / models
+Status: OPEN (env/compat)
+Repro: default model gpt-5.6-terra via ChatGPT sub
+Expected vs Actual: 400 "requires a newer version of Codex" on CLI 0.145.0; workaround -m gpt-5.4
+Root cause (if known): CLI/model catalog skew vs ChatGPT default
+Fix / waiver: document supported model pin for live harness; upgrade Codex when available
+Evidence: live_cdx1.out turn.failed prior to model pin
 ```
 
 ---
@@ -275,7 +288,10 @@ Evidence: /Applications/{Cursor,Claude,ChatGPT}.app present
 |---|---|
 | OPEN S0/S1 | **0** |
 | PASS landmines | 8 |
-| BLOCKED live/desktop/playwright | 5 entries (014–018) + 013 |
+| LIVE PASS | CC-1/2/3, CDX-1/2/3, MEM |
+| BLOCKED remaining | CUR-1/2 + Desktop GUI (018) |
+| PARTIAL | Claude Desktop MCP (017) |
 | OPEN S2 (CCR debt) | 1 (012) |
-| OPEN S3 (OpenClaw wrap / disk) | 2 (010–011) |
+| OPEN S3 | OpenClaw wrap / disk / terra CLI skew (010–011, 019) |
 | PASS by-design S3 | 1 (009) |
+| Playwright | PASS (013) |

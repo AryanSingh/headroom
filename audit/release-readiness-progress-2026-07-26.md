@@ -119,12 +119,12 @@ Bug ledger: `audit/2026-07-26-adversarial-bug-ledger.md`
 | Routing quality `unsafe_downgrade_rate` | ✅ 0.0 |
 | Prior landmines (Auto mutate, catalog, WS keepalive, zstd, #746, sub WS, byte-faithful) | ✅ re-verified |
 | Pilot verifier 13/13 | ❌ 12/13 — rust-tests disk full (env); `cutctx-core` lib tests 896 passed |
-| LIVE-* Claude/Codex/Cursor | ⛔ BLOCKED — no `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`; Cursor CLI missing |
-| Desktop operator checklists | ⛔ BLOCKED — apps present; Claude Desktop MCP not installed; no signed live turns |
-| Playwright orchestrator | ⛔ BLOCKED — Chromium not installed |
+| LIVE-* Claude/Codex/Cursor | ✅ CC/CDX/MEM PASS; ⛔ CUR BLOCKED (`cursor agent login` / `CURSOR_API_KEY`) |
+| Desktop operator checklists | ⚠️ Claude Desktop MCP installed; Cursor/ChatGPT GUI turns still unsigned |
+| Playwright orchestrator | ✅ Chromium installed; suite green after one flake retry |
 | Open S0/S1 | ✅ none |
 
-**Campaign verdict: FAIL** (full exit gate / release claim). Hermetic named-client core is green; live/desktop evidence incomplete.
+**Campaign verdict: FAIL** (full exit gate / release claim) — residual: LIVE-CUR auth, Desktop GUI sign-off, pilot rust disk, CCR 21/36.
 
 ## Open items (post-pilot)
 
@@ -136,10 +136,12 @@ Bug ledger: `audit/2026-07-26-adversarial-bug-ledger.md`
 - [ ] Legal review of TERMS.md
 - [ ] Root-cause EE+OSS combined pytest session pollution (3–4 tests)
 - [ ] IDE/plugin UX: advertise Auto as a selectable model in VS Code / JetBrains
-- [ ] Free disk + re-run `scripts/verify_pilot_release.py` rust-tests
-- [ ] `npx playwright install` + re-run `dashboard/e2e/orchestrator.spec.js`
-- [ ] `cutctx mcp install --agent claude-desktop --gateway` + Desktop operator turns
+- [x] `npx playwright install` + re-run `dashboard/e2e/orchestrator.spec.js` (PASS after flake retry)
+- [x] `cutctx mcp install --agent claude-desktop --gateway` (configured; Desktop restart + live tool turn still operator)
+- [ ] Cursor agent login / `CURSOR_API_KEY` for LIVE-CUR-1/2
+- [ ] Cursor Desktop + ChatGPT Desktop GUI operator checklist sign-off
 - [ ] CCR adversarial suite debt (`benchmarks/adversarial_ccr_tests.py` 21/36) — ADV-20260726-012
+- [ ] Free disk + re-run `scripts/verify_pilot_release.py` rust-tests
 
 ## Verdict
 
@@ -148,4 +150,5 @@ runs on Supabase Edge Functions with no PitchToShip runtime dependency.
 Orchestrator Auto routing matches Cursor Auto semantics for `model=auto`.
 
 **Not campaign-PASS** for exhaustive live Claude/Codex/Cursor adversarial
-sign-off until LIVE-* and Desktop checklists clear (see campaign FAIL above).
+sign-off until LIVE-CUR + Desktop GUI checklists clear (Claude/Codex/MEM live
+and Playwright cleared 2026-07-26 resume).

@@ -58,45 +58,47 @@ Deliverable artifacts:
 
 ### Phase C — Live agents
 
+Resumed 2026-07-26 with Claude **subscription** OAuth (CLI), Codex **ChatGPT** auth (`~/.codex/auth.json` `auth_mode=chatgpt`), and project `CUTCTX_UPSTREAM_OPENAI_API_KEY` → session `OPENAI_API_KEY`. Ephemeral proxy `--model-routing-preset auto` on port `55756`. Nested-Claude runs require `unset CLAUDECODE`. Default Codex model `gpt-5.6-terra` rejected by CLI 0.145.0 — live CDX used `-m gpt-5.4`.
+
 | ID | Result | Missing / evidence |
 |---|---|---|
-| LIVE-CC-1 | **BLOCKED** | `ANTHROPIC_API_KEY` unset in environment |
-| LIVE-CC-2 | **BLOCKED** | same |
-| LIVE-CC-3 | **BLOCKED** | same |
-| LIVE-CDX-1 | **BLOCKED** | `OPENAI_API_KEY` unset (Codex CLI present `0.145.0`; `~/.codex/auth.json` exists but live spend not executed) |
-| LIVE-CDX-2 | **BLOCKED** | same |
-| LIVE-CDX-3 | **BLOCKED** | same |
-| LIVE-CUR-1 | **BLOCKED** | `cursor` CLI binary not on PATH |
-| LIVE-CUR-2 | **BLOCKED** | same |
-| LIVE-MEM | **BLOCKED** | no live provider key for memory two-turn |
+| LIVE-CC-1 | **PASS** | Rename `greet`→`say_hello` via `ANTHROPIC_BASE_URL` + Claude Code 2.1.63; session `aab87cdb-9137-45ee-a479-b7aadb373a83`; model `claude-sonnet-4-6` |
+| LIVE-CC-2 | **PASS** | Fixed `bug.py` add(); code fence present; session `d35be415-1814-4d26-8cf1-4ae42f27be3a`; no unsafe GPT Mini |
+| LIVE-CC-3 | **PASS** | `ENABLE_TOOL_SEARCH=true`; marker `ZZTOOLSEARCH99`; session `1c546512-1d36-44f7-8792-387d32dae038` |
+| LIVE-CDX-1 | **PASS** | `codex exec -m gpt-5.4` via `OPENAI_BASE_URL`; agent_message `ZZCODEXHTTP77` |
+| LIVE-CDX-2 | **PASS** | `sleep 35` tool loop; agent_message `ZZWSLONG55`; no mid-turn disconnect; rc=0 |
+| LIVE-CDX-3 | **PASS** | ChatGPT-sub path `-m gpt-5.4`; agent_message `ZZSUBMODEL88` (ADV-007 hermetic still covers downgrade forbid) |
+| LIVE-CUR-1 | **BLOCKED** | Cursor.app CLI present (`…/Cursor.app/Contents/Resources/app/bin/cursor`); `cursor agent` requires `cursor agent login` / `CURSOR_API_KEY` |
+| LIVE-CUR-2 | **BLOCKED** | same auth gate |
+| LIVE-MEM | **PASS** | Two-turn recall session `608f6c95-788e-4dc0-9918-cb282c74a8ad`; `ZZMEM2:ZZMEMCODE42` |
 
-Claude Code CLI present (`2.1.214`). Cursor Desktop app present but CLI missing.
+Regression after live: hermetic client-matrix **18/18**; `verify_client_matrix_live.py` **16/16**.
 
 ### Phase D — Desktops
 
 | Checklist | Result | Notes |
 |---|---|---|
 | Cursor Desktop | **BLOCKED** | `/Applications/Cursor.app` present; no operator live turns executed (no base-URL override session signed) |
-| Claude Desktop MCP | **PARTIAL / BLOCKED live** | Docs claim check **PASS** (`docs/superpowers/specs/2026-07-21-claude-desktop-routing-operability-design.md` correctly states hosted models cannot use Messages proxy / must not set `ANTHROPIC_BASE_URL` for hosted traffic). `cutctx mcp status`: Desktop MCP **not configured**; gateway 0 servers. Live tool-compress/retrieve not executed |
-| Codex Desktop / ChatGPT | **BLOCKED** | `/Applications/ChatGPT.app` present; no operator long-WS / zstd session signed |
+| Claude Desktop MCP | **PARTIAL** | Docs claim check **PASS**. `cutctx mcp install --agent claude-desktop --gateway` → Desktop MCP **configured** (`~/Library/Application Support/Claude/claude_desktop_config.json`). Gateway 0 other servers wrapped. Operator must restart Claude Desktop; live tool-compress/retrieve not signed this session |
+| Codex Desktop / ChatGPT | **BLOCKED** | `/Applications/ChatGPT.app` present; no operator long-WS / zstd GUI session signed (CLI ChatGPT-sub covered by LIVE-CDX-*) |
 
 ### Phase E — Dashboard
 
 | Check | Result | Notes |
 |---|---|---|
 | Orchestrator pytest `/stats` | **PASS** | `tests/test_dashboard_orchestrator.py` + matrix `/stats` mode APIs; landmine re-run 39 passed |
-| Playwright `orchestrator.spec.js` | **BLOCKED** | Chromium headless shell missing under Playwright cache; `npx playwright install` not approved in-session |
+| Playwright `orchestrator.spec.js` | **PASS*** | Chromium installed (`npx playwright install chromium`). Full suite 21/22 then flake retry of `silently aborts a pending load on unmount` → **PASS**. Net: orchestrator e2e green after one flake retry |
 
 ### Coverage matrix evidence IDs
 
 | | Wrap | Auth | Compress | CCR | Routing | Memory | License | Stream/WS | MCP | Stats |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Claude Code | W1=`#746`+wrap-e2e | A1=`test_auth_*` | C1=byte-faithful+log fidelity landmine | R1=agent_e2e | M1=matrix+routing-adv | Mem1=hermetic agent_e2e / LIVE-MEM BLOCKED | L1=pilot license pack | S1=messages matrix | — | D1=matrix `/stats` |
-| Claude Desktop | W2=`mcp status` | — | C2*=docs+MCP gateway (live BLOCKED) | — | — | Mem2*=BLOCKED | L2=pilot | — | MCP1=docs PASS; install BLOCKED | D2=mcp status truthful |
-| Codex CLI | W3=wrap-e2e+`test_wrap_codex` | A2=`test_auth_*` | C3=zstd ADV-005 | R2=agent_e2e | M2=matrix responses | Mem3=hermetic | L3=pilot | S2=WS packs+ADV-004 | — | D3=matrix+live harness |
-| ChatGPT Sub | W4=wrap config | A3=subscription headers unit | C4=zstd drop | R3=opaque resume unit | M3†=ADV-007 | Mem4=hermetic | L4=pilot | S3=WS lifecycle | — | D4=stats |
-| Cursor CLI | W5=`test_provider_cursor`+wrap help | A4=UA matrix | C5=byte-faithful | R4=agent_e2e patterns | M4=chat matrix | Mem5=hermetic | L5=pilot | S4=chat stream hermetic | — | D5=matrix |
-| Cursor Desktop | W6=wrap-e2e cursor (silent pass) | A5=UA | C6=hermetic | R5=hermetic | M5=hermetic | Mem6=BLOCKED live | L6=pilot | S5=hermetic | — | D6=orchestrator unit |
+| Claude Code | W1=`#746`+wrap-e2e+LIVE-CC | A1=`test_auth_*`+sub OAuth live | C1=byte-faithful+LIVE-CC | R1=agent_e2e | M1=matrix+LIVE-CC | Mem1=LIVE-MEM PASS | L1=pilot license pack | S1=messages matrix+LIVE-CC | MCP2=install attempted | D1=matrix `/stats` |
+| Claude Desktop | W2=`mcp status` configured | — | C2*=docs+MCP install | — | — | Mem2*=operator pending | L2=pilot | — | MCP1=docs PASS; Desktop MCP configured | D2=mcp status truthful |
+| Codex CLI | W3=wrap-e2e+LIVE-CDX-1/2 | A2=`test_auth_*`+ChatGPT tokens | C3=zstd ADV-005 | R2=agent_e2e | M2=matrix+LIVE-CDX | Mem3=hermetic | L3=pilot | S2=LIVE-CDX-2 long tool | — | D3=matrix+live harness |
+| ChatGPT Sub | W4=wrap+LIVE-CDX-3 | A3=subscription live | C4=zstd drop | R3=opaque resume unit | M3†=ADV-007+LIVE-CDX-3 | Mem4=hermetic | L4=pilot | S3=LIVE-CDX-2/3 | — | D4=stats |
+| Cursor CLI | W5=`test_provider_cursor`+CLI present | A4=UA matrix; agent login BLOCKED | C5=byte-faithful | R4=agent_e2e patterns | M4=chat matrix | Mem5=hermetic | L5=pilot | S4=chat stream hermetic | — | D5=matrix |
+| Cursor Desktop | W6=wrap-e2e cursor (silent pass) | A5=UA | C6=hermetic | R5=hermetic | M5=hermetic | Mem6=BLOCKED live | L6=pilot | S5=hermetic | — | D6=orchestrator+Playwright |
 
 \* Desktop compression via MCP gateway tool output, not Messages proxy.  
 † Subscription WS must never downgrade allowlisted models — **PASS** ADV-007.
@@ -107,14 +109,13 @@ Claude Code CLI present (`2.1.214`). Cursor Desktop app present but CLI missing.
 
 ### Campaign verdict
 
-**FAIL** against full exit gate (release claim).
+**FAIL** against full exit gate (release claim) — narrowed residual gaps.
 
-Reasons (all required for PASS):
+Reasons remaining:
 
 1. Phase A pilot verifier not 13/13 (rust-tests disk exhaustion) — mitigated by focused `cutctx-core` green, but gate unmet.
-2. Phase C all LIVE-* **BLOCKED** (missing provider keys / Cursor CLI) — allowed as BLOCKED rows, but **≠ release PASS**.
-3. Phase D operator live checklists not signed (apps present; MCP Desktop not installed).
-4. Phase E Playwright **BLOCKED** (browser binary missing).
-5. CCR adversarial suite 21/36 (S2 debt) — waiver-eligible for named-client release but not green.
+2. Phase C LIVE-CUR-1/2 **BLOCKED** (`cursor agent` login / `CURSOR_API_KEY` missing). Other LIVE-* **PASS**.
+3. Phase D Cursor Desktop + ChatGPT Desktop GUI operator turns still unsigned; Claude Desktop MCP configured but live tool-compress after app restart not signed.
+4. CCR adversarial suite 21/36 (S2 debt) — waiver-eligible for named-client release but not green.
 
-Hermetic named-client core is green: client-matrix **18/18**, process harness **16/16**, routing quality **unsafe Mini = 0**, landmines **PASS**, zero open S0/S1.
+Cleared this resume: Phase C Claude/Codex/MEM live, Phase E Playwright (after Chromium install), Claude Desktop MCP install, hermetic 18/18 + harness 16/16 re-verified. Zero open S0/S1.
