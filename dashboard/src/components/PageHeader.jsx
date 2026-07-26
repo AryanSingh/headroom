@@ -4,7 +4,7 @@ export function PageHeader({ eyebrow, title, description, actions, status }) {
       <div className="page-header-copy">
         {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
         <div className="page-header-title-row">
-          <h1>{title}</h1>
+          <h1 className="page-header-title">{title}</h1>
           {status ? <div className="page-header-status">{status}</div> : null}
         </div>
         {description ? <p>{description}</p> : null}
