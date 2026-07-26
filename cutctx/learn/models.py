@@ -101,13 +101,14 @@ class SessionEvent:
     agent_duration_ms: int = 0
     agent_prompt: str = ""
 
-    # For error type — claude.py, codex.py, and gemini.py plugins all construct
-    # SessionEvent(type="error", ..., error_category=...) when they detect error
-    # content in a transcript. This field was missing entirely, so every one of
-    # those call sites raised TypeError at runtime the moment scan_project()
-    # actually encountered error content — with no try/except around the call
-    # in aggregate.py or cli/learn.py, this crashed `cutctx learn` outright for
-    # the exact workload it exists to handle ("mine failed sessions").
+    # For error type — claude.py, codex.py, gemini.py, and cursor.py all
+    # construct SessionEvent(type="error", ..., error_category=...) when they
+    # detect error content in a transcript. This field was missing entirely,
+    # so every one of those call sites raised TypeError at runtime the moment
+    # scan_project() actually encountered error content — with no try/except
+    # around the call in aggregate.py or cli/learn.py, this crashed
+    # `cutctx learn` outright for the exact workload it exists to handle
+    # ("mine failed sessions").
     error_category: ErrorCategory = ErrorCategory.UNKNOWN
 
 

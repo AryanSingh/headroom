@@ -9,6 +9,7 @@ from .base import MCPRegistrar, RegisterResult, RegisterStatus, ServerSpec
 from .claude import ClaudeRegistrar
 from .claude_desktop import ClaudeDesktopRegistrar
 from .codex import CodexRegistrar
+from .cursor import CursorRegistrar
 
 #: Default proxy URL used when none is given.
 DEFAULT_PROXY_URL = "http://127.0.0.1:8787"
@@ -19,7 +20,7 @@ def get_all_registrars() -> list[MCPRegistrar]:
 
     The list grows as we add adapters for Cursor, Continue, Cline, etc.
     """
-    return [ClaudeRegistrar(), ClaudeDesktopRegistrar(), CodexRegistrar()]
+    return [ClaudeRegistrar(), ClaudeDesktopRegistrar(), CodexRegistrar(), CursorRegistrar()]
 
 
 def _resolve_cutctx_command() -> str:

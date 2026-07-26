@@ -57,6 +57,8 @@ from cutctx.copilot_auth import (
     resolve_copilot_api_url,
     resolve_subscription_bearer_token,
 )
+from cutctx.mcp_registry.cursor import CursorRegistrar
+from cutctx.mcp_registry.install import build_cutctx_spec, install_everywhere
 from cutctx.providers.aider import build_launch_env as _build_aider_launch_env
 from cutctx.providers.claude import proxy_base_url as _claude_proxy_base_url
 from cutctx.providers.codex import build_launch_env as _build_codex_launch_env
@@ -87,7 +89,27 @@ from cutctx.providers.copilot import (
 from cutctx.providers.copilot import (
     validate_configuration as _validate_copilot_configuration,
 )
-from cutctx.providers.cursor import render_setup_lines as _render_cursor_setup_lines
+from cutctx.providers.cursor import (
+    apply_proxy_config as _apply_cursor_proxy_config,
+)
+from cutctx.providers.cursor import (
+    build_agent_endpoint_url as _build_cursor_agent_endpoint_url,
+)
+from cutctx.providers.cursor import (
+    build_agent_launch_args as _build_cursor_agent_launch_args,
+)
+from cutctx.providers.cursor import (
+    ensure_project_hooks as _ensure_cursor_project_hooks,
+)
+from cutctx.providers.cursor import (
+    find_agent_cli as _find_cursor_agent_cli,
+)
+from cutctx.providers.cursor import (
+    find_ide_cli as _find_cursor_ide_cli,
+)
+from cutctx.providers.cursor import (
+    render_setup_lines as _render_cursor_setup_lines,
+)
 from cutctx.providers.gemini import build_launch_env as _build_gemini_launch_env
 from cutctx.providers.openclaw import (
     build_plugin_entry as _build_openclaw_plugin_entry_impl,
@@ -432,6 +454,10 @@ def _start_proxy(
     # GITHUB_COPILOT_API_TOKEN directly, making upstream auth deterministic.
     if copilot_api_token:
         proxy_env["GITHUB_COPILOT_API_TOKEN"] = copilot_api_token
+    if agent_type == "cursor":
+        from cutctx.providers.cursor.upstream import resolve_cursor_target_api_url
+
+        proxy_env.setdefault("CURSOR_TARGET_API_URL", resolve_cursor_target_api_url())
 
     proc = subprocess.Popen(
         cmd,
@@ -3707,7 +3733,24 @@ def aider(
 )
 @click.option("--memory", is_flag=True, help="Enable persistent cross-session memory")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option(
+    "--global-settings",
+    is_flag=True,
+    help="Also write Cursor user settings.json base URL overrides",
+)
+@click.option("--no-mcp", is_flag=True, help="Skip registering Cutctx MCP in ~/.cursor/mcp.json")
+@click.option(
+    "--launch-cli",
+    is_flag=True,
+    help="Launch Cursor Agent CLI after configuring (requires Cursor's agent binary)",
+)
+@click.option(
+    "--launch-ide",
+    is_flag=True,
+    help="Open the Cursor IDE for this workspace after configuring",
+)
 @click.option("--prepare-only", is_flag=True, hidden=True)
+@click.argument("agent_args", nargs=-1, type=click.UNPROCESSED)
 def cursor(
     port: int,
     no_rtk: bool,
@@ -3715,25 +3758,46 @@ def cursor(
     learn: bool,
     memory: bool,
     verbose: bool,
+    global_settings: bool,
+    no_mcp: bool,
+    launch_cli: bool,
+    launch_ide: bool,
     prepare_only: bool,
+    agent_args: tuple[str, ...],
 ) -> None:
-    """Start Cutctx proxy for use with Cursor.
+    """Start Cutctx proxy for Cursor IDE and/or Cursor Agent CLI.
 
     \b
-    Cursor reads its API configuration from its settings UI, not from
-    environment variables. This command starts the proxy, sets up the selected
-    CLI context tool, and prints the Cursor settings.
+    This command writes project-scoped ``.cursor/config.json``,
+    ``.cursor/hooks.json``, and ``.cursor/mcp.json``, optionally registers
+    Cutctx MCP globally, and injects the selected CLI context tool into
+    ``.cursorrules``.
 
     \b
-    After running this command, open Cursor and configure:
-        Settings > Models > OpenAI API Key > Advanced > Override Base URL
+    Modes:
+      - Default: start proxy and keep it running for the Cursor IDE app
+      - ``--launch-cli``: also launch Cursor's terminal ``agent`` CLI
+      - ``--launch-ide``: open the Cursor desktop app for this workspace
+      - Pass agent args after ``--`` to run a one-shot CLI prompt
+
+    \b
+    Routing:
+      - IDE BYOK: OpenAI/Anthropic base URLs in ``.cursor/config.json``
+      - CLI subscription: ``CURSOR_API_ENDPOINT`` points at the local proxy;
+        catch-all traffic forwards to ``api2.cursor.sh`` (or
+        ``CURSOR_TARGET_API_URL``)
+      - IDE Agent escape hatch: add a custom model named ``cutctx-<model>``
+        (e.g. ``cutctx-gpt-4o``) so Cursor uses the BYOK base URL instead of
+        hijacking known model names to ``api2.cursor.sh``
 
     \b
     Example:
-        cutctx wrap cursor                # Start proxy + context-tool instructions
-        cutctx wrap cursor --no-context-tool  # Proxy only, no CLI context tool
-        cutctx wrap cursor --port 9999    # Custom proxy port
+        cutctx wrap cursor
+        cutctx wrap cursor --launch-cli
+        cutctx wrap cursor --launch-ide
+        cutctx wrap cursor -- "fix the failing tests"
     """
+    project = _project_name_from_cwd()
     cursorrules: Path | None = Path.cwd() / ".cursorrules" if not no_rtk else None
     if not no_rtk:
         _setup_context_tool_for_agent(
@@ -3746,11 +3810,78 @@ def cursor(
             verbose=verbose,
         )
 
+    config_result = _apply_cursor_proxy_config(
+        port=port,
+        project=project,
+        include_user_settings=global_settings,
+    )
+    hooks_path = _ensure_cursor_project_hooks()
+    mcp_detail: str | None = None
+    project_mcp_detail: str | None = None
+    if not no_mcp:
+        spec = build_cutctx_spec(proxy_url=f"http://127.0.0.1:{port}")
+        registrar = CursorRegistrar()
+        project_result = registrar.register_server_project(spec)
+        project_mcp_detail = project_result.detail
+        mcp_results = install_everywhere(
+            proxy_url=f"http://127.0.0.1:{port}",
+            agents=["cursor"],
+            registrars=[registrar],
+        )
+        cursor_result = mcp_results.get("cursor")
+        mcp_detail = cursor_result.detail if cursor_result else None
+
     if prepare_only:
         return
 
+    launch_cli = launch_cli or bool(agent_args)
+    agent_bin = _find_cursor_agent_cli() if launch_cli else None
+    ide_bin = _find_cursor_ide_cli() if launch_ide else None
+
+    if launch_cli and agent_bin is None:
+        click.echo("  Cursor Agent CLI not found; staying in proxy-only mode.")
+        click.echo("  Install from https://cursor.com/install or set CUTCTX_CURSOR_AGENT_BIN.")
+        launch_cli = False
+
+    if launch_ide and ide_bin is None:
+        click.echo("  Cursor IDE launcher not found; skipping --launch-ide.")
+        launch_ide = False
+
+    if launch_cli and agent_bin is not None:
+        launch_args = _build_cursor_agent_launch_args(
+            port=port,
+            project=project,
+            extra_args=agent_args,
+        )
+        env = os.environ.copy()
+        endpoint = _build_cursor_agent_endpoint_url(port=port, project=project)
+        env["CURSOR_API_ENDPOINT"] = endpoint
+        header_vars = [f"Endpoint: {endpoint}", "X-Client: cursor"]
+        if project:
+            header_vars.append(f"X-Cutctx-Project: {project}")
+        _launch_tool(
+            str(agent_bin),
+            launch_args,
+            env,
+            port,
+            no_proxy,
+            "Cursor Agent CLI",
+            header_vars,
+            learn=learn,
+            memory=memory,
+            agent_type="cursor",
+        )
+        return
+
     def _print_cursor_setup() -> None:
-        for line in _render_cursor_setup_lines(port, project=_project_name_from_cwd()):
+        click.echo(f"  Wrote {config_result.project_config}")
+        click.echo(f"  Wrote {hooks_path}")
+        if project_mcp_detail:
+            click.echo(f"  Project MCP: {project_mcp_detail}")
+        if mcp_detail:
+            click.echo(f"  Global MCP: {mcp_detail}")
+        click.echo()
+        for line in _render_cursor_setup_lines(port, project=project):
             click.echo(line)
         if not no_rtk:
             click.echo()
@@ -3759,6 +3890,10 @@ def cursor(
             else:
                 click.echo("  rtk instructions injected into .cursorrules")
             click.echo("  Cursor will use token-optimized commands automatically.")
+        if launch_ide and ide_bin is not None:
+            click.echo()
+            click.echo(f"  Opening Cursor IDE: {ide_bin} {Path.cwd()}")
+            subprocess.Popen([str(ide_bin), str(Path.cwd())])
 
     _run_proxy_only_watcher(
         agent_label="cursor",

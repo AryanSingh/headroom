@@ -118,3 +118,11 @@ def openclaw_config_path() -> Path:
     """Return the OpenClaw config path."""
 
     return Path.home() / ".openclaw" / "openclaw.json"
+
+
+def cursor_user_settings_path() -> Path:
+    """Return the Cursor user settings path."""
+
+    from cutctx.providers.cursor.config import cursor_user_settings_path as _cursor_path
+
+    return _cursor_path()

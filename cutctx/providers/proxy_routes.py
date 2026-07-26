@@ -235,6 +235,13 @@ def _api_target(proxy: Any, provider_name: str) -> str:
 
 
 def _select_passthrough_base_url(proxy: Any, headers: dict[str, str]) -> str:
+    # Cursor CLI subscription traffic uses proprietary paths such as
+    # `/auth/exchange_user_api_key` that do not match the OpenAI/Anthropic
+    # route table. Route catch-all Cursor client traffic to the hosted API.
+    from cutctx.providers.cursor.upstream import is_cursor_client, resolve_cursor_target_api_url
+
+    if is_cursor_client(headers):
+        return resolve_cursor_target_api_url()
     # Codex CLI subscription mode hits a wide surface under
     # `/backend-api/*` (rate-limit polling, agent identity, JWT
     # refresh, cloud tasks). Without this branch the catchall
