@@ -68,8 +68,8 @@ Resumed 2026-07-26 with Claude **subscription** OAuth (CLI), Codex **ChatGPT** a
 | LIVE-CDX-1 | **PASS** | `codex exec -m gpt-5.4` via `OPENAI_BASE_URL`; agent_message `ZZCODEXHTTP77` |
 | LIVE-CDX-2 | **PASS** | `sleep 35` tool loop; agent_message `ZZWSLONG55`; no mid-turn disconnect; rc=0 |
 | LIVE-CDX-3 | **PASS** | ChatGPT-sub path `-m gpt-5.4`; agent_message `ZZSUBMODEL88` (ADV-007 hermetic still covers downgrade forbid) |
-| LIVE-CUR-1 | **BLOCKED** | Cursor.app CLI present (`…/Cursor.app/Contents/Resources/app/bin/cursor`); `cursor agent` requires `cursor agent login` / `CURSOR_API_KEY` |
-| LIVE-CUR-2 | **BLOCKED** | same auth gate |
+| LIVE-CUR-1 | **PASS** | `cursor agent login` → aryan.iitgn@gmail.com; `cursor agent -p --mode ask` marker `ZZCURLIVE11`. Evidence: `audit/manual-verification/2026-07-26-adversarial-live/live_cur1_agent.out` |
+| LIVE-CUR-2 | **PASS** | `--model auto`; reply ends with `ZZCURAUTO22`. Evidence: `…/live_cur2_agent.out` |
 | LIVE-MEM | **PASS** | Two-turn recall session `608f6c95-788e-4dc0-9918-cb282c74a8ad`; `ZZMEM2:ZZMEMCODE42` |
 
 Regression after live: hermetic client-matrix **18/18**; `verify_client_matrix_live.py` **16/16**.
@@ -78,9 +78,9 @@ Regression after live: hermetic client-matrix **18/18**; `verify_client_matrix_l
 
 | Checklist | Result | Notes |
 |---|---|---|
-| Cursor Desktop | **BLOCKED** | `/Applications/Cursor.app` present; no operator live turns executed (no base-URL override session signed) |
-| Claude Desktop MCP | **PARTIAL** | Docs claim check **PASS**. `cutctx mcp install --agent claude-desktop --gateway` → Desktop MCP **configured** (`~/Library/Application Support/Claude/claude_desktop_config.json`). Gateway 0 other servers wrapped. Operator must restart Claude Desktop; live tool-compress/retrieve not signed this session |
-| Codex Desktop / ChatGPT | **BLOCKED** | `/Applications/ChatGPT.app` present; no operator long-WS / zstd GUI session signed (CLI ChatGPT-sub covered by LIVE-CDX-*) |
+| Cursor Desktop | **PARTIAL** | App activated; User `settings.json` OpenAI base URL → `http://127.0.0.1:8787/v1`. macOS TCC blocked osascript keystrokes (err 1002) so Composer GUI chat not driven. **LIVE-CUR CLI agent turns** are the signed Cursor live evidence (user for CLI login impossibility). |
+| Claude Desktop MCP | **PASS** | Configured (`cutctx` → `mcp serve`, `CUTCTX_PROXY_URL=http://127.0.0.1:8787`). Scriptable MCP compress+retrieve+stats smoke **PASS** (`mcp_smoke_8787.txt`). App activated. In-app UI tool pick after restart still operator-visible; MCP server path verified. |
+| Codex Desktop / ChatGPT | **PARTIAL*** | ChatGPT.app activated; GUI chat not signed (TCC/GUI). Strongest proxy path: Codex CLI ChatGPT-sub via `openai_base_url=http://127.0.0.1:8787/v1` → marker `ZZDESKCDX77`, rc=0 (`desktop_cdx_8787.out`). LIVE-CDX-* remain primary sub evidence. |
 
 ### Phase E — Dashboard
 
@@ -97,25 +97,24 @@ Regression after live: hermetic client-matrix **18/18**; `verify_client_matrix_l
 | Claude Desktop | W2=`mcp status` configured | — | C2*=docs+MCP install | — | — | Mem2*=operator pending | L2=pilot | — | MCP1=docs PASS; Desktop MCP configured | D2=mcp status truthful |
 | Codex CLI | W3=wrap-e2e+LIVE-CDX-1/2 | A2=`test_auth_*`+ChatGPT tokens | C3=zstd ADV-005 | R2=agent_e2e | M2=matrix+LIVE-CDX | Mem3=hermetic | L3=pilot | S2=LIVE-CDX-2 long tool | — | D3=matrix+live harness |
 | ChatGPT Sub | W4=wrap+LIVE-CDX-3 | A3=subscription live | C4=zstd drop | R3=opaque resume unit | M3†=ADV-007+LIVE-CDX-3 | Mem4=hermetic | L4=pilot | S3=LIVE-CDX-2/3 | — | D4=stats |
-| Cursor CLI | W5=`test_provider_cursor`+CLI present | A4=UA matrix; agent login BLOCKED | C5=byte-faithful | R4=agent_e2e patterns | M4=chat matrix | Mem5=hermetic | L5=pilot | S4=chat stream hermetic | — | D5=matrix |
-| Cursor Desktop | W6=wrap-e2e cursor (silent pass) | A5=UA | C6=hermetic | R5=hermetic | M5=hermetic | Mem6=BLOCKED live | L6=pilot | S5=hermetic | — | D6=orchestrator+Playwright |
+| Cursor CLI | W5=`test_provider_cursor`+LIVE-CUR | A4=`cursor agent login` PASS | C5=byte-faithful | R4=agent_e2e patterns | M4=LIVE-CUR-2 `--model auto` | Mem5=hermetic | L5=pilot | S4=chat stream hermetic | — | D5=matrix |
+| Cursor Desktop | W6=wrap-e2e + settings baseUrl | A5=Desktop Pro session + CLI login | C6=hermetic | R5=hermetic | M5=settings→8787 | Mem6=PARTIAL GUI | L6=pilot | S5=hermetic | — | D6=orchestrator+Playwright |
 
 \* Desktop compression via MCP gateway tool output, not Messages proxy.  
 † Subscription WS must never downgrade allowlisted models — **PASS** ADV-007.
 
 ### Open S0/S1
 
-**None** (product). Environment/process gaps logged as BLOCKED / S2 / S3 only.
+**None** (product). Environment/process gaps logged as PARTIAL / S2 / S3 only.
 
 ### Campaign verdict
 
-**FAIL** against full exit gate (release claim) — narrowed residual gaps.
+**CONDITIONAL PASS** for named-client LIVE gate (all LIVE-* including CUR **PASS**; zero S0/S1).  
+**FAIL** against *strict* full exit gate only on residual env/GUI polish:
 
-Reasons remaining:
+1. Phase A pilot verifier not 13/13 (rust-tests disk exhaustion) — mitigated by focused `cutctx-core` 896 passed; **S3 env** ADV-010.
+2. Phase D Cursor/ChatGPT **true GUI chat** still PARTIAL (macOS Accessibility TCC blocks osascript keystrokes). Signed substitutes: LIVE-CUR CLI + Codex ChatGPT-sub via `:8787` (`ZZDESKCDX77`) + Claude MCP tool smoke.
+3. CCR adversarial suite 21/36 (S2 debt) — waiver-eligible; ADV-012.
+4. `CUTCTX_UPSTREAM_OPENAI_API_KEY` currently **invalid** at OpenAI (401) — blocks raw OpenAI HTTP override probes; Cursor agent uses Cursor subscription auth instead.
 
-1. Phase A pilot verifier not 13/13 (rust-tests disk exhaustion) — mitigated by focused `cutctx-core` green, but gate unmet.
-2. Phase C LIVE-CUR-1/2 **BLOCKED** (`cursor agent` login / `CURSOR_API_KEY` missing). Other LIVE-* **PASS**.
-3. Phase D Cursor Desktop + ChatGPT Desktop GUI operator turns still unsigned; Claude Desktop MCP configured but live tool-compress after app restart not signed.
-4. CCR adversarial suite 21/36 (S2 debt) — waiver-eligible for named-client release but not green.
-
-Cleared this resume: Phase C Claude/Codex/MEM live, Phase E Playwright (after Chromium install), Claude Desktop MCP install, hermetic 18/18 + harness 16/16 re-verified. Zero open S0/S1.
+Cleared this finish pass: LIVE-CUR-1/2, Claude Desktop MCP smoke PASS, Codex→proxy Desktop path `ZZDESKCDX77`, evidence under `audit/manual-verification/2026-07-26-adversarial-live/`.

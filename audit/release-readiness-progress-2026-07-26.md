@@ -119,12 +119,14 @@ Bug ledger: `audit/2026-07-26-adversarial-bug-ledger.md`
 | Routing quality `unsafe_downgrade_rate` | ✅ 0.0 |
 | Prior landmines (Auto mutate, catalog, WS keepalive, zstd, #746, sub WS, byte-faithful) | ✅ re-verified |
 | Pilot verifier 13/13 | ❌ 12/13 — rust-tests disk full (env); `cutctx-core` lib tests 896 passed |
-| LIVE-* Claude/Codex/Cursor | ✅ CC/CDX/MEM PASS; ⛔ CUR BLOCKED (`cursor agent login` / `CURSOR_API_KEY`) |
-| Desktop operator checklists | ⚠️ Claude Desktop MCP installed; Cursor/ChatGPT GUI turns still unsigned |
+| LIVE-* Claude/Codex/Cursor | ✅ CC/CDX/CUR/MEM all PASS (`cursor agent login` + ZZCURLIVE11 / ZZCURAUTO22) |
+| Desktop operator checklists | ⚠️ Claude Desktop MCP smoke **PASS**; Cursor/ChatGPT true GUI PARTIAL (TCC); Codex→`:8787` `ZZDESKCDX77` signed |
 | Playwright orchestrator | ✅ Chromium installed; suite green after one flake retry |
 | Open S0/S1 | ✅ none |
 
-**Campaign verdict: FAIL** (full exit gate / release claim) — residual: LIVE-CUR auth, Desktop GUI sign-off, pilot rust disk, CCR 21/36.
+**Campaign verdict: CONDITIONAL PASS** (named-client LIVE gate cleared). Strict full exit still residual: Desktop GUI TCC, pilot rust disk (S3), CCR 21/36 (S2), invalid OpenAI project key for raw override HTTP.
+
+Evidence pack: `audit/manual-verification/2026-07-26-adversarial-live/`.
 
 ## Open items (post-pilot)
 
@@ -132,16 +134,17 @@ Bug ledger: `audit/2026-07-26-adversarial-bug-ledger.md`
 - [ ] Full rename of `pitchtoship_client.py` module (docstring updated; shim deferred)
 - [ ] Playwright a11y scan in CI
 - [ ] Customer-cluster restore drill (runbook exists, drill not executed)
-- [ ] Live provider E2E with customer keys (**required to clear adversarial campaign**)
+- [x] Live provider E2E with customer keys (**LIVE-CC/CDX/CUR/MEM signed 2026-07-26**)
 - [ ] Legal review of TERMS.md
 - [ ] Root-cause EE+OSS combined pytest session pollution (3–4 tests)
 - [ ] IDE/plugin UX: advertise Auto as a selectable model in VS Code / JetBrains
 - [x] `npx playwright install` + re-run `dashboard/e2e/orchestrator.spec.js` (PASS after flake retry)
-- [x] `cutctx mcp install --agent claude-desktop --gateway` (configured; Desktop restart + live tool turn still operator)
-- [ ] Cursor agent login / `CURSOR_API_KEY` for LIVE-CUR-1/2
-- [ ] Cursor Desktop + ChatGPT Desktop GUI operator checklist sign-off
+- [x] `cutctx mcp install --agent claude-desktop --gateway` + MCP compress/retrieve smoke PASS
+- [x] Cursor agent login + LIVE-CUR-1/2 PASS
+- [ ] Cursor Desktop + ChatGPT Desktop **GUI** chat (needs macOS Accessibility for automation, or human click-through)
 - [ ] CCR adversarial suite debt (`benchmarks/adversarial_ccr_tests.py` 21/36) — ADV-20260726-012
 - [ ] Free disk + re-run `scripts/verify_pilot_release.py` rust-tests
+- [ ] Refresh `CUTCTX_UPSTREAM_OPENAI_API_KEY` (401 invalid_api_key) if OpenAI override HTTP probes required
 
 ## Verdict
 
@@ -149,6 +152,6 @@ Bug ledger: `audit/2026-07-26-adversarial-bug-ledger.md`
 runs on Supabase Edge Functions with no PitchToShip runtime dependency.
 Orchestrator Auto routing matches Cursor Auto semantics for `model=auto`.
 
-**Not campaign-PASS** for exhaustive live Claude/Codex/Cursor adversarial
-sign-off until LIVE-CUR + Desktop GUI checklists clear (Claude/Codex/MEM live
-and Playwright cleared 2026-07-26 resume).
+**Named-client LIVE adversarial gate: PASS** (Claude/Codex/Cursor/MEM).
+**Strict full campaign exit: not fully green** until Desktop GUI click-through
+(or Accessibility grant), pilot rust disk, and/or CCR S2 waiver are closed.

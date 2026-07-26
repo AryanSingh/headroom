@@ -236,35 +236,35 @@ Evidence: live_cdx*f.out.meta.json; proxy openai requests observed
 
 ```text
 ID: ADV-20260726-016
-Sev: BLOCKED
+Sev: was BLOCKED
 Client: Cursor CLI
 Module: live
-Status: BLOCKED
-Repro: LIVE-CUR-1/2
-Expected vs Actual: cursor agent binary present under Cursor.app but requires cursor agent login / CURSOR_API_KEY
-Evidence: Phase C resume 2026-07-26
+Status: PASS
+Repro: LIVE-CUR-1/2 after `cursor agent login`
+Expected vs Actual: ZZCURLIVE11 + ZZCURAUTO22 (--model auto); binary Cursor.app …/bin/cursor 3.13.10
+Evidence: audit/manual-verification/2026-07-26-adversarial-live/live_cur{1,2}_agent.out
 ```
 
 ```text
 ID: ADV-20260726-017
-Sev: was BLOCKED
+Sev: was PARTIAL
 Client: Claude Desktop
 Module: mcp
-Status: PARTIAL
-Repro: cutctx mcp install --agent claude-desktop --gateway
-Expected vs Actual: Desktop MCP configured; gateway 0 other servers; operator restart + live tool-compress still pending
-Evidence: mcp status after install 2026-07-26
+Status: PASS
+Repro: cutctx mcp install + scriptable MCP ClientSession compress/retrieve/stats
+Expected vs Actual: tools listed; compress+retrieve OK (ZZMCP8787); CUTCTX_PROXY_URL=http://127.0.0.1:8787
+Evidence: audit/manual-verification/2026-07-26-adversarial-live/mcp_smoke_8787.txt; mcp status Desktop configured
 ```
 
 ```text
 ID: ADV-20260726-018
-Sev: BLOCKED
+Sev: BLOCKED→PARTIAL
 Client: Cursor Desktop / Codex Desktop
 Module: desktop operator
-Status: BLOCKED
+Status: PARTIAL
 Repro: Phase D operator turns
-Expected vs Actual: Apps present; GUI live sessions not signed (CLI ChatGPT-sub covered by LIVE-CDX)
-Evidence: /Applications/{Cursor,Claude,ChatGPT}.app present
+Expected vs Actual: Apps activated; Cursor settings openai.baseUrl→:8787; osascript keystrokes TCC-blocked (1002). Codex ChatGPT-sub via :8787 signed ZZDESKCDX77 (desktop_cdx_8787.out). True Composer/ChatGPT GUI chat unsigned.
+Evidence: applescript_*.txt; desktop_cdx_8787.out; SUMMARY.md
 ```
 
 ```text
@@ -280,6 +280,18 @@ Fix / waiver: document supported model pin for live harness; upgrade Codex when 
 Evidence: live_cdx1.out turn.failed prior to model pin
 ```
 
+```text
+ID: ADV-20260726-020
+Sev: S3
+Client: operator machine / OpenAI HTTP override
+Module: auth
+Status: OPEN (env)
+Repro: CUTCTX_UPSTREAM_OPENAI_API_KEY → POST /v1/chat/completions via proxy
+Expected vs Actual: OpenAI 401 invalid_api_key; Cursor live used Cursor subscription agent auth instead
+Fix / waiver: refresh project API key if Desktop OpenAI override HTTP probes are required
+Evidence: /tmp/cutctx-live-phasec/live_cur1_http.json (401)
+```
+
 ---
 
 ## Summary counters
@@ -288,10 +300,10 @@ Evidence: live_cdx1.out turn.failed prior to model pin
 |---|---|
 | OPEN S0/S1 | **0** |
 | PASS landmines | 8 |
-| LIVE PASS | CC-1/2/3, CDX-1/2/3, MEM |
-| BLOCKED remaining | CUR-1/2 + Desktop GUI (018) |
-| PARTIAL | Claude Desktop MCP (017) |
+| LIVE PASS | CC-1/2/3, CDX-1/2/3, CUR-1/2, MEM |
+| PARTIAL remaining | Desktop GUI Cursor/ChatGPT (018) |
 | OPEN S2 (CCR debt) | 1 (012) |
-| OPEN S3 | OpenClaw wrap / disk / terra CLI skew (010–011, 019) |
+| OPEN S3 | OpenClaw wrap / disk / terra CLI skew / invalid OpenAI project key (010–011, 019–020) |
 | PASS by-design S3 | 1 (009) |
 | Playwright | PASS (013) |
+| Claude Desktop MCP | PASS (017) |

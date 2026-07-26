@@ -1,0 +1,1 @@
+243:289: execution error: System Events got an error: osascript is not allowed to send keystrokes. (1002)
