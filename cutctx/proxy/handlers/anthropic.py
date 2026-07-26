@@ -1083,10 +1083,14 @@ class AnthropicHandlerMixin:
                         ),
                         num_messages=len(messages),
                         messages=self._anthropic_messages_to_routing_messages(messages),
+                        # ``body`` is a plain dict here, so these must be
+                        # ``.get`` lookups. They were ``getattr`` calls, which
+                        # silently returned the defaults and left capability
+                        # inference blind to tools and streaming.
                         required_capabilities=infer_request_capabilities(
                             {
-                                "tools": getattr(body, "tools", None),
-                                "stream": getattr(body, "stream", False),
+                                "tools": body.get("tools"),
+                                "stream": body.get("stream", False),
                                 "messages": messages,
                             }
                         ),
@@ -1097,6 +1101,13 @@ class AnthropicHandlerMixin:
                         # upstream call goes to the cheaper model. The
                         # decision will be finalized (savings computed)
                         # by emit_request_outcome based on actual tokens.
+                        #
+                        # Assign into the dict — this was
+                        # ``dataclasses.replace(body, ...)``, which raises
+                        # TypeError on a dict. The except-clause below then
+                        # swallowed it, so no Anthropic-path request was ever
+                        # actually re-routed. See the openai/chat.py handler,
+                        # which has always used plain assignment.
                         model = routed_model
                         # Body is a plain dict from request JSON (not a
                         # dataclass). Mutating it in place + marking the
@@ -1107,9 +1118,10 @@ class AnthropicHandlerMixin:
                 except RoutingUnavailableError:
                     raise
                 except Exception:
-                    # Routing is best-effort; never let a router error
-                    # poison the request path.
-                    pass
+                    # Routing is best-effort; never let a router error poison
+                    # the request path. Log it, though: silence here is what
+                    # let the override bug above survive undetected.
+                    logger.warning("model_routing_failed", exc_info=True)
             pipeline_provider = provider_name
             pipeline_path = request.url.path if upstream_base_url else "/v1/messages"
             pipeline_stream = bool(body.get("stream", False) or force_stream)
