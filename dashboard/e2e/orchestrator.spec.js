@@ -449,7 +449,7 @@ test.describe("Orchestrator Modes", () => {
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
-            applied_live: { orchestrator_mode: { mode: "balanced" } },
+            applied_live: { orchestrator_mode: { mode: "auto" } },
           }),
         });
         return;
@@ -469,10 +469,10 @@ test.describe("Orchestrator Modes", () => {
     await expect(
       page.getByText("after role bindings are locked", { exact: false }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Off" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Balanced" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Off" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Auto" })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Aggressive" }),
+      page.getByRole("tab", { name: "Aggressive" }),
     ).toBeVisible();
     await expect(
       page.getByText("Routing evidence", { exact: true }),
@@ -492,12 +492,12 @@ test.describe("Orchestrator Modes", () => {
       }),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Balanced" }).click();
+    await page.getByRole("tab", { name: "Auto" }).click();
 
     await expect.poll(() => postUrls.length).toBe(1);
     await expect(postUrls).toEqual(["/config/flags"]);
     await expect(postedBodies[0]).toMatchObject({
-      orchestrator_mode: "balanced",
+      orchestrator_mode: "auto",
     });
   });
 
@@ -521,7 +521,7 @@ test.describe("Orchestrator Modes", () => {
     });
 
     await page.goto("/orchestrator");
-    await expect(page.getByRole("button", { name: "Off" })).toBeVisible({ timeout: 7_000 });
+    await expect(page.getByRole("tab", { name: "Off" })).toBeVisible({ timeout: 7_000 });
     initialResolvers.forEach((resolve) => resolve());
   });
 
@@ -545,7 +545,7 @@ test.describe("Orchestrator Modes", () => {
         contentType: "application/json",
         body: JSON.stringify({
           config: { orchestrator: true },
-          model_routing: { mode: delayRefresh ? "balanced" : "off", requested: delayRefresh },
+          model_routing: { mode: delayRefresh ? "auto" : "off", requested: delayRefresh },
         }),
       });
     });
@@ -559,7 +559,7 @@ test.describe("Orchestrator Modes", () => {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ applied_live: { orchestrator_mode: { mode: "balanced" } } }),
+          body: JSON.stringify({ applied_live: { orchestrator_mode: { mode: "auto" } } }),
         });
         return;
       }
@@ -567,14 +567,14 @@ test.describe("Orchestrator Modes", () => {
     });
 
     await page.goto("/orchestrator");
-    await expect(page.getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("tab", { name: "Off" })).toHaveAttribute("aria-selected", "true");
     delayRefresh = true;
-    await page.getByRole("button", { name: "Balanced" }).click();
+    await page.getByRole("tab", { name: "Auto" }).click();
     await expect(page.locator(".page-stack")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Balanced" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("tab", { name: "Auto" })).toHaveAttribute("aria-selected", "true");
 
     await releaseRefresh();
-    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible();
+    await expect(page.getByText("Routing auto", { exact: true })).toBeVisible();
     await expect(page.getByText("pending confirmation", { exact: false })).toHaveCount(0);
     await historyRequested;
   });
@@ -603,17 +603,17 @@ test.describe("Orchestrator Modes", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(postCount === 1 ? { applied_live: {} } : { applied_live: { orchestrator_mode: { mode: "balanced" } } }),
+        body: JSON.stringify(postCount === 1 ? { applied_live: {} } : { applied_live: { orchestrator_mode: { mode: "auto" } } }),
       });
     });
 
     await page.goto("/orchestrator");
-    await page.getByRole("button", { name: "Balanced" }).click();
+    await page.getByRole("tab", { name: "Auto" }).click();
     await expect(page.getByText("acknowledge", { exact: false })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("tab", { name: "Off" })).toHaveAttribute("aria-selected", "true");
 
-    await page.getByRole("button", { name: "Balanced" }).click();
-    await expect(page.getByRole("button", { name: "Balanced" })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("tab", { name: "Auto" }).click();
+    await expect(page.getByRole("tab", { name: "Auto" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByText("pending confirmation", { exact: false })).toBeVisible();
     await expect(page.locator(".page-stack")).toBeVisible();
   });
@@ -632,9 +632,9 @@ test.describe("Orchestrator Modes", () => {
     });
 
     await page.goto("/orchestrator");
-    await page.getByRole("button", { name: "Balanced" }).click();
-    await expect(page.getByText("did not acknowledge routing mode balanced", { exact: false })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Off" })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("tab", { name: "Auto" }).click();
+    await expect(page.getByText("did not acknowledge routing mode auto", { exact: false })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Off" })).toHaveAttribute("aria-selected", "true");
   });
 
   test("newest committed stats replace stale optimism after acknowledgement", async ({ page }) => {
@@ -664,7 +664,7 @@ test.describe("Orchestrator Modes", () => {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ applied_live: { orchestrator_mode: { mode: "balanced" } } }),
+          body: JSON.stringify({ applied_live: { orchestrator_mode: { mode: "auto" } } }),
         });
         return;
       }
@@ -674,16 +674,16 @@ test.describe("Orchestrator Modes", () => {
     await page.goto("/orchestrator");
     await expect(page.getByText("Routing off", { exact: true })).toBeVisible();
     gated = true;
-    await page.getByRole("button", { name: "Balanced" }).click();
+    await page.getByRole("tab", { name: "Auto" }).click();
     await expect.poll(() => releases.has(1)).toBe(true);
     releases.get(1)("off");
     await expect(page.getByText("pending confirmation", { exact: false })).toBeVisible();
-    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible();
+    await expect(page.getByText("Routing auto", { exact: true })).toBeVisible();
 
     await expect.poll(() => releases.has(2), { timeout: 7_000 }).toBe(true);
-    releases.get(2)("balanced");
+    releases.get(2)("auto");
     await expect(page.getByText("pending confirmation", { exact: false })).toHaveCount(0);
-    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible();
+    await expect(page.getByText("Routing auto", { exact: true })).toBeVisible();
 
     await expect.poll(() => releases.has(3), { timeout: 7_000 }).toBe(true);
     releases.get(3)("aggressive");
@@ -725,7 +725,7 @@ test.describe("Orchestrator Modes", () => {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ applied_live: { orchestrator_mode: { mode: "balanced" } } }),
+          body: JSON.stringify({ applied_live: { orchestrator_mode: { mode: "auto" } } }),
         });
         return;
       }
@@ -734,7 +734,7 @@ test.describe("Orchestrator Modes", () => {
 
     await page.goto("/orchestrator");
     await expect(page.getByText("Routing off", { exact: true })).toBeVisible({ timeout: 7_000 });
-    await page.getByRole("button", { name: "Balanced" }).click();
+    await page.getByRole("tab", { name: "Auto" }).click();
     const shell = page.locator(".page-stack");
     await expect(shell).toHaveAttribute("data-refreshing", "true");
     [1, 2].forEach((generation) => {
@@ -744,7 +744,7 @@ test.describe("Orchestrator Modes", () => {
     await expect(shell).toHaveAttribute("data-refreshing", "true");
     await expect(shell).toHaveAttribute("data-backend-mode", "aggressive", { timeout: 7_000 });
     await expect(shell).toHaveAttribute("data-health-status", "healthy");
-    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible();
+    await expect(page.getByText("Routing auto", { exact: true })).toBeVisible();
     await expect(shell).toHaveAttribute("data-refreshing", "false");
     const publishedAt = await shell.getAttribute("data-last-updated");
 
@@ -752,7 +752,7 @@ test.describe("Orchestrator Modes", () => {
       delayedStats.get(generation)?.();
       delayedHealth.get(generation)?.();
     });
-    await expect(page.getByText("Routing balanced", { exact: true })).toBeVisible();
+    await expect(page.getByText("Routing auto", { exact: true })).toBeVisible();
     await expect(shell).toHaveAttribute("data-backend-mode", "aggressive");
     await expect(shell).toHaveAttribute("data-last-updated", publishedAt || "");
     await expect(shell).toHaveAttribute("data-refreshing", "false");

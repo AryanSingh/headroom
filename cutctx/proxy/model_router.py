@@ -1486,7 +1486,13 @@ class ModelRouter:
         transport_provider: str | None,
         transport_account_id: str | None,
     ) -> bool:
-        """Whether catalog safety gates are authoritative for this source."""
+        """Whether catalog safety gates are authoritative for this source.
+
+        Only *certified* inventory is authoritative. Provider refreshes often
+        leave account-scoped rows without ``routing_certified``, and those must
+        not block the static downgrade table (otherwise Auto mode silently stops
+        saving on machines with a local ``models.json`` cache).
+        """
 
         if not self.config.catalog_routing or self.registry is None:
             return False
@@ -1497,7 +1503,8 @@ class ModelRouter:
                 continue
             if transport_account_id and record.account_id != transport_account_id:
                 continue
-            return True
+            if self._catalog_record_is_certified(record):
+                return True
         return False
 
     def _minimum_confidence_for(

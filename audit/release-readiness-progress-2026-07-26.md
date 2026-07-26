@@ -92,8 +92,11 @@ Evidence: 86 billing/license/website tests passed (1 skipped) after merge; deep-
 | Auto works even when routing toggle is Off | ✅ | Request still resolves a concrete model |
 | Catalog + static family fallbacks | ✅ | OpenAI / Anthropic / Google static tables |
 | Docs | ✅ | `docs/content/docs/model-routing-presets.mdx` |
+| Adversarial + HTTP e2e confirmation | ✅ | Plan + results: `audit/2026-07-26-model-routing-adversarial-test-plan.md` (18/18 e2e, live harness 9/9, quality unsafe Mini 0) |
+| Uncertified inventory no longer blocks downgrades | ✅ | `_catalog_manages_source` requires certification |
+| Anthropic Auto actually mutates upstream body | ✅ | `body["model"]` + `mark_mutated("model_routing")` |
 
-Tests: `tests/test_model_router_auto.py` (9) + dashboard orchestrator suite green.
+Tests: `tests/test_model_router_auto.py` (9) + `tests/test_model_routing_adversarial_e2e.py` (18) + dashboard orchestrator suite green.
 
 ## Other gaps closed this pass
 

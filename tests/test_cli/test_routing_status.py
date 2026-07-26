@@ -71,7 +71,7 @@ def test_routing_status_displays_live_safe_savings_decision(
 
     assert result.exit_code == 0, result.output
     assert "Guided Safe Savings: ON" in result.output
-    assert "Mode: balanced" in result.output
+    assert "Mode: auto" in result.output
     assert "gpt-5.6-sol -> gpt-5.4-mini (low, transport-safe)" in result.output
     assert "gpt-5.6-sol -> gpt-5.6-luna (medium, restricted)" in result.output
     assert "Recent decision: applied gpt-5.6-sol -> gpt-5.4-mini" in result.output

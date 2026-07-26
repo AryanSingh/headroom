@@ -265,6 +265,40 @@ def test_catalog_capability_rejection_cannot_fall_through_to_legacy_route() -> N
     assert decision.reason == "no_certified_capability_match"
 
 
+def test_uncertified_account_catalog_falls_through_to_legacy_downgrade() -> None:
+    """Provider inventory without routing_certified must not block Auto savings."""
+    registry = DynamicModelRegistry()
+    # Mimic a refreshed OpenAI account row that replaced the certified builtin.
+    registry.register(
+        ModelRecord(
+            provider="openai",
+            id="gpt-5.5",
+            account_id="openai-test-acct",
+            capabilities={
+                Capability.REASONING.value,
+                Capability.STREAMING.value,
+                Capability.TOOL_CALLING.value,
+            },
+            input_cost_per_million=5.0,
+            available=True,
+            metadata={"catalog_source": "provider_refresh"},
+        )
+    )
+    router = ModelRouter(
+        ModelRouterConfig.codex_gpt54mini_high_preset(),
+        registry=registry,
+    )
+    decision = router.maybe_route(
+        "gpt-5.5",
+        task_complexity=TaskComplexity.LOW,
+        transport_provider="openai",
+    )
+
+    assert decision.routing_applied is True
+    assert decision.target_model == "gpt-5.4-mini"
+    assert decision.reason == "downgrade_applied"
+
+
 @pytest.mark.parametrize(
     ("provider", "source_model", "expected_target"),
     [
