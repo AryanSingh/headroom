@@ -848,6 +848,11 @@ class ContentRouterConfig:
     selective_filter_protect_recent: int = 6
     selective_filter_scorer: str = "bm25"  # "bm25" or "hybrid"
 
+    # Skill/instruction preservation: detect SKILL.md / AGENTS-style blocks and
+    # skip aggressive crushers on those messages. Default on; wrap can reinforce
+    # via CUTCTX_SKILL_PRESERVE=1.
+    skill_preserve: bool = True
+
     # Pre-compress hook: called before each `compress()` invocation with
     # ``(router, content, context)``.  The proxy uses this to resolve the
     # user query through the stack graph and set protected symbols on the
@@ -2807,6 +2812,15 @@ class ContentRouter(Transform):
                 diagnostics={"content_router": {"compression_mode": CompressionMode.OFF.value}},
             )
 
+        # Skill/instruction preserve: annotate before selective filter + crushers.
+        if self.config.skill_preserve and messages:
+            try:
+                from .skill_preserve import annotate_messages_for_skill_preserve
+
+                messages = annotate_messages_for_skill_preserve(messages)
+            except Exception as _sp_exc:
+                logger.debug("skill_preserve annotate failed (non-fatal): %s", _sp_exc)
+
         # Selective filtering: drop low-relevance turns before compression.
         # Runs FIRST (before read_lifecycle and all compression logic).
         if self.config.selective_filter and messages:
@@ -3044,6 +3058,12 @@ class ContentRouter(Transform):
             role = message.get("role", "")
             content = message.get("content", "")
             bias = 1.0  # Default bias, may be overridden for tool messages
+
+            metadata = message.get("metadata") if isinstance(message.get("metadata"), dict) else {}
+            if self.config.skill_preserve and metadata.get("cutctx_skill_preserve") is True:
+                result_slots[i] = message
+                transforms_applied.append("skill_preserve:passthrough")
+                continue
 
             messages_from_end = num_messages - i
 
