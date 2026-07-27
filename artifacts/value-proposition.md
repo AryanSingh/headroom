@@ -3,6 +3,8 @@
 > Strategy update (2026-07-02): lead with "context control plane" and use token savings as proof, not the category headline.
 
 **Date:** June 13, 2026  
+**One-liner (AIE-aligned):** Cutctx is the local-first context control plane under your agent harnesses.
+
 **Positioning:** The local-first context control plane for AI agents
 
 ---
@@ -35,20 +37,20 @@
 
 ## Five Messaging Pillars
 
-### 1. Reduce Cost Without Changing Workflows
-Cutctx compresses tool outputs, logs, RAG results, code search, and conversation history by 60–95% before they reach the LLM. Your agents produce the same answers at a fraction of the token cost. Zero code changes required — just point your proxy at Cutctx.
+### 1. Systems of context
+Session compression + reversible CCR + cross-agent memory + decision receipts — a local control plane for what reaches the model, without claiming a full context graph.
 
-### 2. Fit More Usable Context
-Context windows are finite. Cutctx makes more of your context *usable* by compressing verbose payloads while preserving the information your agent needs. This means fewer context-limit errors, fewer retries, and more reliable agent runs.
+### 2. Harness substrate
+`cutctx wrap` and global routing sit under Claude Code, Codex, Cursor, and OpenCode. Harnesses change; Cutctx stays the shared context plane those claws run through.
 
-### 3. Preserve Privacy With Local-First Deployment
-Your prompts never leave your infrastructure by default. Cutctx runs locally, in Docker, or in your Kubernetes cluster. No SaaS hop, no external API calls for compression, no data retention on our servers.
+### 3. Skills + MCP
+Skill-aware preservation protects instruction bodies while tool outputs stay compressible. MCP tools (`cutctx_compress` / `cutctx_retrieve` / `cutctx_stats`) and the progressive Cutctx skill ship with the product.
 
-### 4. Reversible Retrieval, Not Blind Lossy Compression
-Unlike native provider caching or lossy compressors, Cutctx stores originals locally and provides retrieval markers. When the LLM needs the full payload, it calls `cutctx_retrieve` — and gets the original back. Best of both worlds: cheap context on the wire, full fidelity on demand.
+### 4. Attributed ROI
+Buyer reports separate eligible vs all-traffic rates and Cutctx-created savings from observed provider cache discounts. Public claims must match `cutctx report buyer`.
 
-### 5. Team Visibility and Policy Control
-See exactly how your team uses AI agents, where tokens go, and what's being compressed. Set policies per team, per project, or per agent class. Export reports for ROI reviews. Enterprise buyers get SSO, RBAC, and audit logs.
+### 5. Local-first governance
+Firewall scan and Builder compression stay useful without a license. Audit export and paid memory features fail closed until entitled. Agents need receipts — decision receipts + buyer report, not a new permission OS.
 
 ---
 

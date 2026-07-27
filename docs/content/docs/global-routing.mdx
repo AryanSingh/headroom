@@ -7,6 +7,12 @@ Global harness routing is for machines where Cutctx should process compatible AI
 
 It is a managed macOS user-session configuration. It records the previous `launchctl` values before changing them, creates a login-time LaunchAgent, checks the proxy before installation, and restores the saved values when removed.
 
+## Why this matters
+
+Agent harnesses change every six months. Cutctx stays underneath them as the shared context plane — compression, memory, routing, and receipts — so switching Claude Code, Codex, Cursor, or OpenCode does not mean re-buying context infrastructure.
+
+Cutctx is the local-first context control plane under your agent harnesses.
+
 ## Install
 
 Start the proxy as a persistent service first:
