@@ -34,6 +34,7 @@ Pipeline Usage:
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import logging
@@ -55,6 +56,86 @@ from .error_detection import content_has_strong_error_indicators
 from .normalize import NormalizeConfig, normalize_content
 
 logger = logging.getLogger(__name__)
+
+
+#: Bounded memo for token_len; keys are (length, hash) so no text is retained.
+_TOKEN_LEN_MEMO: dict[tuple[int, int], int] = {}
+_TOKEN_LEN_MEMO_MAX = 4096
+
+
+@functools.lru_cache(maxsize=1)
+def _bpe_encoder() -> Any:  # pragma: no cover - trivial cache around tiktoken
+    """cl100k_base encoder, or None when tiktoken is unavailable."""
+    try:
+        import tiktoken
+
+        return tiktoken.get_encoding("cl100k_base")
+    except Exception:  # tiktoken missing or model data unreachable
+        return None
+
+
+def token_len(text: str | None) -> int:
+    """Length of ``text`` in the units providers actually bill for.
+
+    This used to be ``len(text.split())`` throughout the router — whitespace
+    word count standing in for tokens. That is not a rounding error, it is a
+    different quantity, and it silently broke the accept/reject gate on any
+    content that compresses to something with few spaces.
+
+    Worked example that motivated this. SmartCrusher rewrites a 400-row JSON
+    tool_result as comma-separated CSV. The CSV contains no spaces at all, so
+    ``.split()`` returns **1** against the original's 3600 — a 99.97%
+    "saving". Measured in real tokens on the serialized wire payload it is
+    12,801 -> 12,818: 0.1% *worse*. The gate accepted the swap, the proxy
+    inflated the request, and the dashboard reported it as compression.
+
+    Falls back to the old word count only when tiktoken is unavailable, so an
+    install without it degrades to previous behaviour rather than crashing.
+    """
+    # Accept None: several compressors return None to mean "declined", and
+    # the previous `len(text.split())` would have raised AttributeError there.
+    if not text:
+        return 0
+    enc = _bpe_encoder()
+    if enc is None:
+        return len(text.split())
+    # A single request counts the same block several times (original, then
+    # each candidate, then diagnostics), and encoding 40KB costs ~3.5ms. Memo
+    # on (len, hash): CPython caches a str's hash after first use, so the key
+    # is effectively free, and pairing it with the length makes a collision
+    # returning a wrong count implausible. Bounded so a long-running proxy
+    # cannot grow this without limit.
+    key = (len(text), hash(text))
+    cached = _TOKEN_LEN_MEMO.get(key)
+    if cached is not None:
+        return cached
+    try:
+        count = len(enc.encode(text))
+    except Exception:
+        return len(text.split())
+    if len(_TOKEN_LEN_MEMO) >= _TOKEN_LEN_MEMO_MAX:
+        _TOKEN_LEN_MEMO.clear()
+    _TOKEN_LEN_MEMO[key] = count
+    return count
+
+
+def _wire_ratio(original: str, compressed: str) -> float:
+    """Compression ratio measured on the serialized request body.
+
+    A compressor optimises a string in isolation, but the string is embedded
+    in a JSON request before it is billed, and JSON escaping is not
+    ratio-neutral. SmartCrusher's JSON->CSV rewrite is the case that matters:
+    it drops 12,001 real tokens to 7,616 standing alone, yet the CSV is
+    quote-dense, so once every quote gains a backslash the wire payload goes
+    12,801 -> 12,818 — a loss. Judge the swap on the bytes that actually
+    travel, not on the intermediate.
+    """
+    if not original:
+        return 1.0
+    before = token_len(json.dumps(original))
+    if before <= 0:
+        return 1.0
+    return token_len(json.dumps(compressed)) / before
 
 
 def _router_debug_dumps(value: Any) -> str:
@@ -104,7 +185,7 @@ def _section_debug(section: ContentSection, index: int) -> dict[str, Any]:
         "is_code_fence": getattr(section, "is_code_fence", False),
         "chars": len(section.content),
         "bytes": len(section.content.encode("utf-8", errors="replace")),
-        "tokens_estimate": len(section.content.split()),
+        "tokens_estimate": token_len(section.content),
         "json_shape": _json_shape(section.content),
         "content": section.content,
     }
@@ -1191,7 +1272,7 @@ class ContentRouter(Transform):
             # This is intentionally before normalization and detection: callers
             # choosing off expect byte-for-byte forwarding, not a no-op-ish
             # transform that can still change unicode or whitespace.
-            token_count = len(content.split())
+            token_count = token_len(content)
             return RouterCompressionResult(
                 compressed=content,
                 original=content,
@@ -1213,7 +1294,7 @@ class ContentRouter(Transform):
             {
                 "chars": len(content),
                 "bytes": len(content.encode("utf-8", errors="replace")),
-                "tokens_estimate": len(content.split()),
+                "tokens_estimate": token_len(content),
                 "json_shape": _json_shape(content),
                 "mixed_indicators": _mixed_indicators(content),
                 "context_chars": len(context),
@@ -1364,7 +1445,7 @@ class ContentRouter(Transform):
         compressed_bytes = len(str(result.compressed).encode("utf-8", errors="replace"))
         if compressed_bytes > original_bytes:
             attempted_strategy = result.strategy_used.value
-            token_count = len(original_content.split())
+            token_count = token_len(original_content)
             logger.info(
                 "content_router: inflation guard reverted %d-byte output to %d-byte input "
                 "(strategy=%s)",
@@ -1540,8 +1621,8 @@ class ContentRouter(Transform):
                     "selected_strategy": CompressionStrategy.PASSTHROUGH.value,
                     "strategy_chain": [CompressionStrategy.PASSTHROUGH.value],
                     "fallback_used": False,
-                    "before_tokens": len(content.split()),
-                    "after_tokens": len(content.split()),
+                    "before_tokens": token_len(content),
+                    "after_tokens": token_len(content),
                     "compression_ratio": 1.0,
                     "tokens_saved": 0,
                 },
@@ -1560,7 +1641,7 @@ class ContentRouter(Transform):
                 strategy = CompressionStrategy.KOMPRESS
 
             # Compress section
-            original_tokens = len(section.content.split())
+            original_tokens = token_len(section.content)
             compressed_content, compressed_tokens, _section_chain = self._apply_strategy_to_content(
                 section.content,
                 strategy,
@@ -1631,11 +1712,25 @@ class ContentRouter(Transform):
         Returns:
             RouterCompressionResult.
         """
-        original_tokens = len(content.split())
+        original_tokens = token_len(content)
 
         compressed, compressed_tokens, strategy_chain = self._apply_strategy_to_content(
             content, strategy, context, question=question, bias=bias
         )
+
+        # Global floor: never hand back something that costs more to send than
+        # what came in. A strategy can look like a win on the bare string and
+        # still lose once the result is JSON-escaped into the request body —
+        # SmartCrusher's JSON->CSV rewrite does exactly that, turning a 400-row
+        # tool_result into quote-dense CSV that serializes to *more* tokens.
+        # Enforced here rather than at the call sites so every consumer of
+        # `compress()` inherits it, not just the content-block path.
+        if compressed != content and _wire_ratio(content, compressed) >= 1.0:
+            logger.debug(
+                "Discarding %s output: would inflate the serialized payload", strategy.value
+            )
+            compressed, compressed_tokens = content, original_tokens
+            strategy_chain = [*strategy_chain, "discarded:inflates_wire"]
 
         return RouterCompressionResult(
             compressed=compressed,
@@ -1692,7 +1787,7 @@ class ContentRouter(Transform):
             final compressor without parsing decision_reason strings.
         """
         # Track original tokens for TOIN recording
-        original_tokens = len(content.split())
+        original_tokens = token_len(content)
 
         # Apply per-content-type overrides from profile recommendations
         if self.config.per_type_overrides:
@@ -1742,11 +1837,11 @@ class ContentRouter(Transform):
                         compressed = result.compressed
                         # CodeAwareCompressor reports `compressed_tokens` using its own
                         # chars/4 estimate. The router compares token counts across all
-                        # strategies using whitespace-tokenized counts (`len(text.split())`),
+                        # strategies using whitespace-tokenized counts (`token_len(text)`),
                         # so mixing the two units here made valid code compression look
                         # like an expansion and triggered passthrough fallback. Recompute
                         # in the router's native unit for fair acceptance gating.
-                        compressed_tokens = len(result.compressed.split())
+                        compressed_tokens = token_len(result.compressed)
                         decision_reason = "code_aware"
                 if compressed is None:
                     # No fallback for code (Kompress is too slow and yields 0% savings without AST).
@@ -1760,7 +1855,7 @@ class ContentRouter(Transform):
                         compressor_name = type(crusher).__name__
                         result = crusher.crush(content, query=context, bias=bias)
                         compressed = result.compressed
-                        compressed_tokens = len(compressed.split())
+                        compressed_tokens = token_len(compressed)
                         decision_reason = "smart_crusher"
 
                         if result.strategy in ("lossless", "passthrough"):
@@ -1797,7 +1892,7 @@ class ContentRouter(Transform):
                                             if store:
                                                 store.store(compute_short_hash(content), content)
 
-                                        ct_tokens = len(ct_compressed.split())
+                                        ct_tokens = token_len(ct_compressed)
                                         # Use CompactTable if it provides better savings
                                         if ct_tokens < compressed_tokens:
                                             compressed = ct_compressed
@@ -1834,7 +1929,7 @@ class ContentRouter(Transform):
                         result = compressor.compress(content, context=context, bias=bias)
                         compressed, compressed_tokens = (
                             result.compressed,
-                            len(result.compressed.split()),
+                            token_len(result.compressed),
                         )
                         decision_reason = "search_compressor"
 
@@ -1846,7 +1941,7 @@ class ContentRouter(Transform):
                         compressor_name = type(drain3_compressor).__name__
                         result = drain3_compressor.compress(content, bias=bias)
                         compressed = result.compressed
-                        compressed_tokens = len(result.compressed.split())
+                        compressed_tokens = token_len(result.compressed)
                         decision_reason = (
                             "drain3_log_compressor"
                             if result.drain3_used
@@ -1882,7 +1977,7 @@ class ContentRouter(Transform):
                         # ratios meaningless against `original_tokens`.
                         compressed, compressed_tokens = (
                             compressed_payload,
-                            len(compressed_payload.split()),
+                            token_len(compressed_payload),
                         )
                         decision_reason = "log_compressor"
 
@@ -1893,7 +1988,7 @@ class ContentRouter(Transform):
                     result = compressor.compress(content, context=context)
                     compressed, compressed_tokens = (
                         result.compressed,
-                        len(result.compressed.split()),
+                        token_len(result.compressed),
                     )
                     decision_reason = "diff_compressor"
 
@@ -1905,7 +2000,7 @@ class ContentRouter(Transform):
                         result = extractor.extract(content)
                         compressed = result.extracted
                         # Estimate tokens from extracted text (simple word count)
-                        compressed_tokens = len(compressed.split()) if compressed else 0
+                        compressed_tokens = token_len(compressed) if compressed else 0
                         decision_reason = "html_extractor"
 
             elif strategy == CompressionStrategy.KOMPRESS:
@@ -1923,7 +2018,7 @@ class ContentRouter(Transform):
                     fallback = self._get_prose_compressor().compress(
                         content, context=context, aggressive=True
                     )
-                    fallback_tokens = len(fallback.compressed.split())
+                    fallback_tokens = token_len(fallback.compressed)
                     if fallback_tokens < compressed_tokens:
                         compressed = fallback.compressed
                         compressed_tokens = fallback_tokens
@@ -1941,7 +2036,8 @@ class ContentRouter(Transform):
                     compressor = self._get_prose_compressor()
                     result = compressor.compress(content, context=context)
                     compressed = result.compressed
-                    compressed_tokens = len(compressed.split())
+                    # compressors may return None to signal "declined"
+                    compressed_tokens = token_len(compressed or content)
                     compressor_name = type(compressor).__name__
                     decision_reason = "query_aware_prose"
 
@@ -2021,7 +2117,7 @@ class ContentRouter(Transform):
                             except Exception as exc:  # noqa: BLE001
                                 logger.debug("Log fallback failed for SMART_CRUSHER: %s", exc)
                             else:
-                                log_compressed_tokens = len(log_result.compressed.split())
+                                log_compressed_tokens = token_len(log_result.compressed)
                                 if log_compressed_tokens < compressed_tokens:
                                     compressed = log_result.compressed
                                     compressed_tokens = log_compressed_tokens
@@ -2121,7 +2217,7 @@ class ContentRouter(Transform):
 
         # If the entire content is custom tags with nothing to compress
         if protected and not cleaned.strip():
-            return content, len(content.split())
+            return content, token_len(content)
 
         # Use the cleaned (tag-free) text for compression
         text_to_compress = cleaned if protected else content
@@ -2157,19 +2253,26 @@ class ContentRouter(Transform):
                         ),
                     )
                     compressed = result.compressed
-                    compressed_tokens = result.compressed_tokens
+                    # Recount rather than trust `result.compressed_tokens`.
+                    # Compressors report that field in their own unit — several
+                    # use `len(text.split())` — and comparing a word count
+                    # against this router's BPE original silently overstates
+                    # the gain. A no-op compressor that returns its input
+                    # unchanged reports 24 "tokens" against a 31-token
+                    # original and looks like a 23% win.
+                    compressed_tokens = token_len(compressed)
                 except Exception as e:
                     logger.warning("Kompress failed: %s", e)
 
         if compressed is None:
-            return content, len(content.split())
+            return content, token_len(content)
 
         # Restore protected tag blocks into the compressed text
         if protected:
             compressed = restore_tags(compressed, protected)
-            compressed_tokens = len(compressed.split())
+            compressed_tokens = token_len(compressed)
 
-        return compressed, compressed_tokens or len(compressed.split())
+        return compressed, compressed_tokens or token_len(compressed)
 
     def _strategy_from_detection_type(self, content_type: ContentType) -> CompressionStrategy:
         """Get strategy from ContentType enum."""
@@ -3446,7 +3549,13 @@ class ContentRouter(Transform):
                     if compressor_timing is not None:
                         key = f"compressor:{result.strategy_used.value}"
                         compressor_timing[key] = compressor_timing.get(key, 0.0) + compress_ms
-                    if result.compression_ratio < min_ratio:
+                    # Cheap self-reported ratio first, then confirm on the
+                    # serialized payload — see _wire_ratio for why a win in
+                    # isolation can still be a loss on the wire.
+                    if (
+                        result.compression_ratio < min_ratio
+                        and _wire_ratio(tool_content, result.compressed) < 1.0
+                    ):
                         # Compressed — store in result cache
                         self._cache.put(
                             content_key,
@@ -3535,7 +3644,13 @@ class ContentRouter(Transform):
                     if compressor_timing is not None:
                         key = f"compressor:{result.strategy_used.value}"
                         compressor_timing[key] = compressor_timing.get(key, 0.0) + compress_ms
-                    if result.compression_ratio < min_ratio:
+                    # Cheap self-reported ratio first, then confirm on the
+                    # serialized payload — see _wire_ratio for why a win in
+                    # isolation can still be a loss on the wire.
+                    if (
+                        result.compression_ratio < min_ratio
+                        and _wire_ratio(text_content, result.compressed) < 1.0
+                    ):
                         self._cache.put(
                             content_key,
                             result.compressed,

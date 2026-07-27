@@ -18,6 +18,7 @@ scripts/*
 !scripts/sync-plugin-versions.py
 !scripts/changelog-gen.py
 !scripts/verify-versions.py
+!scripts/savings_harness.py
 !scripts/verify_pilot_release.py
 !scripts/verify_client_matrix_live.py
 !scripts/migrate.py
@@ -314,3 +315,6 @@ patch_*.py
 .superpowers/sdd/
 *.db-shm
 *.db-wal
+
+# Scratch HOME used by scripts/savings_harness.py (may hold fetched binaries)
+.harness-home/

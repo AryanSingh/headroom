@@ -18,6 +18,7 @@ from cutctx.transforms.content_router import (
     _extract_json_block,
     is_mixed_content,
     split_into_sections,
+    token_len,
 )
 
 
@@ -373,7 +374,10 @@ def test_content_router_diagnostics_record_strategy_chain_and_tokens(
         assert result.diagnostics["selected_strategy"] == expected_strategy.value
         assert result.diagnostics["strategy_chain"] == [expected_strategy.value]
         assert result.diagnostics["fallback_used"] is False
-        assert result.diagnostics["before_tokens"] == len(content.split())
+        # token_len(), not .split(): the router now counts BPE tokens, the
+        # unit providers bill in. The old word count reported a 400-row CSV
+        # as 1 token and let an inflating swap through the accept gate.
+        assert result.diagnostics["before_tokens"] == token_len(content)
         assert result.diagnostics["after_tokens"] == result.routing_log[0].compressed_tokens
         assert result.diagnostics["compression_ratio"] == pytest.approx(result.compression_ratio)
 
@@ -690,7 +694,7 @@ def test_diff_strategy_does_not_fallback_to_kompress_when_diff_is_noop(
     )
 
     assert compressed == diff
-    assert compressed_tokens == len(diff.split())
+    assert compressed_tokens == token_len(diff)
     assert strategy_chain == ["diff"]
 
 
@@ -718,7 +722,7 @@ def test_log_strategy_does_not_fallback_to_kompress_when_log_is_noop(
     )
 
     assert compressed == log
-    assert compressed_tokens == len(log.split())
+    assert compressed_tokens == token_len(log)
     assert strategy_chain == ["log"]
 
 
@@ -972,5 +976,5 @@ def test_expanding_compressor_output_is_never_returned_as_compressed() -> None:
     )
 
     assert compressed == content
-    assert compressed_tokens == len(content.split())
+    assert compressed_tokens == token_len(content)
     assert chain[-1] == CompressionStrategy.PASSTHROUGH.value

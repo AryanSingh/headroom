@@ -1,0 +1,516 @@
+[
+  {
+    "scenario": "compression:logs",
+    "why": "aggregate compressor on logs content",
+    "default_on": true,
+    "client_tokens": 89471,
+    "upstream_tokens": 30411,
+    "saved_tokens": 59060,
+    "saved_pct": 66.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:code",
+    "why": "aggregate compressor on code content",
+    "default_on": true,
+    "client_tokens": 32591,
+    "upstream_tokens": 32595,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:prose",
+    "why": "aggregate compressor on prose content",
+    "default_on": true,
+    "client_tokens": 23477,
+    "upstream_tokens": 23481,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:table",
+    "why": "aggregate compressor on table content",
+    "default_on": true,
+    "client_tokens": 37181,
+    "upstream_tokens": 37185,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:json",
+    "why": "aggregate compressor on json content",
+    "default_on": true,
+    "client_tokens": 77471,
+    "upstream_tokens": 77475,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:html",
+    "why": "aggregate compressor on html content",
+    "default_on": true,
+    "client_tokens": 51203,
+    "upstream_tokens": 30315,
+    "saved_tokens": 20888,
+    "saved_pct": 40.8,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:code:payg",
+    "why": "same code payload as a PAYG client (lossy compressors permitted)",
+    "default_on": true,
+    "client_tokens": 32591,
+    "upstream_tokens": 32595,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "python-httpx/0.27",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:prose:payg",
+    "why": "same prose payload as a PAYG client (lossy compressors permitted)",
+    "default_on": true,
+    "client_tokens": 23477,
+    "upstream_tokens": 23481,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "python-httpx/0.27",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:table:payg",
+    "why": "same table payload as a PAYG client (lossy compressors permitted)",
+    "default_on": true,
+    "client_tokens": 37181,
+    "upstream_tokens": 37185,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "python-httpx/0.27",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:json:payg",
+    "why": "same json payload as a PAYG client (lossy compressors permitted)",
+    "default_on": true,
+    "client_tokens": 77471,
+    "upstream_tokens": 77475,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "python-httpx/0.27",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:html:payg",
+    "why": "same html payload as a PAYG client (lossy compressors permitted)",
+    "default_on": true,
+    "client_tokens": 51203,
+    "upstream_tokens": 30315,
+    "saved_tokens": 20888,
+    "saved_pct": 40.8,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "python-httpx/0.27",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:code:aggressive",
+    "why": "code with --compression-mode aggressive",
+    "default_on": false,
+    "client_tokens": 32591,
+    "upstream_tokens": 32595,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:json:aggressive",
+    "why": "json with --compression-mode aggressive",
+    "default_on": false,
+    "client_tokens": 77471,
+    "upstream_tokens": 77475,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "compression:html:aggressive",
+    "why": "html with --compression-mode aggressive",
+    "default_on": false,
+    "client_tokens": 51203,
+    "upstream_tokens": 30315,
+    "saved_tokens": 20888,
+    "saved_pct": 40.8,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "tool_schema_compaction",
+    "why": "wide tool surface should be slimmed before it is billed",
+    "default_on": true,
+    "client_tokens": 20497,
+    "upstream_tokens": 12925,
+    "saved_tokens": 7572,
+    "saved_pct": 36.9,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "semantic_cache",
+    "why": "identical repeat request should not reach upstream twice",
+    "default_on": true,
+    "client_tokens": 89512,
+    "upstream_tokens": 15228,
+    "saved_tokens": 74284,
+    "saved_pct": 83.0,
+    "upstream_calls": 1,
+    "requests_sent": 2,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "model_routing",
+    "why": "sonnet request should leave as haiku (codex-gpt54mini-high)",
+    "default_on": false,
+    "client_tokens": 37,
+    "upstream_tokens": 42,
+    "saved_tokens": -5,
+    "saved_pct": -13.5,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": false,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": "claude-haiku-4-5",
+    "model_ok": true
+  },
+  {
+    "scenario": "model_routing:uncalibrated_preset_is_noop",
+    "why": "claude-three-tier-eval needs a calibrated scorer; without one it must not route",
+    "default_on": false,
+    "client_tokens": 37,
+    "upstream_tokens": 42,
+    "saved_tokens": -5,
+    "saved_pct": -13.5,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-sonnet-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": false,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": "claude-sonnet-4-5",
+    "model_ok": true
+  },
+  {
+    "scenario": "drain3",
+    "why": "log-template mining on repetitive logs",
+    "default_on": false,
+    "client_tokens": 89471,
+    "upstream_tokens": 89475,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "knowledge_graph_graphify",
+    "why": "Graphify knowledge-graph compression on code",
+    "default_on": false,
+    "client_tokens": 32591,
+    "upstream_tokens": 32595,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "difftastic",
+    "why": "structural diff compression",
+    "default_on": false,
+    "client_tokens": 32591,
+    "upstream_tokens": 32595,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "dedup",
+    "why": "repeated identical blocks should collapse (no test file in repo)",
+    "default_on": false,
+    "client_tokens": 77471,
+    "upstream_tokens": 77475,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": 0.0,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": {},
+    "funnel": {
+      "eligible_input_tokens": 2780046,
+      "cache_protected_tokens": 0,
+      "compressed_tokens": 503332,
+      "declined_tokens": 2276714
+    },
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "context_budget",
+    "why": "hard token ceiling (no test file in repo)",
+    "default_on": false,
+    "client_tokens": 23477,
+    "upstream_tokens": 23481,
+    "saved_tokens": -4,
+    "saved_pct": -0.0,
+    "upstream_calls": 1,
+    "requests_sent": 1,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": 0.0,
+    "expect_savings": true,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": {},
+    "funnel": {
+      "eligible_input_tokens": 2818507,
+      "cache_protected_tokens": 0,
+      "compressed_tokens": 503332,
+      "declined_tokens": 2315175
+    },
+    "expect_upstream_model": null,
+    "model_ok": null
+  },
+  {
+    "scenario": "memoization",
+    "why": "NO ENABLE PATH: tracked savings source, but no CLI flag on either entry point and no env var",
+    "default_on": false,
+    "client_tokens": 77512,
+    "upstream_tokens": 38760,
+    "saved_tokens": 38752,
+    "saved_pct": 50.0,
+    "upstream_calls": 1,
+    "requests_sent": 2,
+    "models_upstream": [
+      "claude-haiku-4-5"
+    ],
+    "proxy_reported_pct": null,
+    "expect_savings": false,
+    "auth_mode_ua": "claude-cli/2.1.214 (external, cli)",
+    "decline_reasons": null,
+    "funnel": {},
+    "expect_upstream_model": null,
+    "model_ok": null
+  }
+]
