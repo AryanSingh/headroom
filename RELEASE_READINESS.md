@@ -4,6 +4,65 @@ _Generated 2026-07-21. Scope: the whole product, with emphasis on the new
 Claude Desktop + MCP gateway feature landed on branch
 `feat/claude-desktop-mcp-gateway`._
 
+> **Superseded in part — see "Status update — 2026-07-27" immediately below.**
+> The 2026-07-21 sections that follow it remain accurate for the Desktop/MCP
+> feature but predate the Cursor harness merge and the licensing fixes.
+
+## Status update — 2026-07-27 (gates re-measured on `main`)
+
+Every release gate below was executed on `main` at `d27aed1a`, not inferred.
+
+| Gate | Command | Result |
+| --- | --- | --- |
+| Python suite (CI-equivalent) | `pytest tests` | green |
+| Python suite (combined) | `pytest tests/ cutctx_ee/tests/` | 9398 passed, 4 failed — see note |
+| Version alignment | `scripts/verify-versions.py` | 15 packages aligned at 0.31.0 |
+| Type ratchet | `scripts/mypy_ratchet.py` | no new errors |
+| Secret patterns | `scripts/check_secret_patterns.py` | clean |
+| Python lint/format | `ruff check` / `ruff format --check` | clean |
+| Rust | `cargo fmt --check`, `clippy -D warnings`, `test --workspace` | clean |
+| TypeScript SDK | `npm test` | 307 passed, 33 skipped |
+| Dashboard | `npm run lint`, `npm test` | clean, 29 passed |
+| Embedded dashboard | `test_dashboard_embedded_build` | matches `dashboard/dist` byte-for-byte |
+
+**About the 4 combined-run failures.** They are the pre-existing, documented
+cross-suite licensing issue described in the `KNOWN LIMITATION` comment in
+`tests/conftest.py` — `pytest tests/ cutctx_ee/tests/` in one session leaves
+the licence routes with a real `LicenseDB` despite monkeypatching. CI never
+combines the two directories (`ci.yml` runs `pytest tests`), and all 97
+licensing tests pass in that invocation. Not root-caused; not a new
+regression.
+
+### Fixed this pass
+
+- **135 tests were machine-dependent.** `effective_license_key` and
+  `ProxyConfig` read `~/.cutctx`, so on a machine with an activated licence
+  `create_app()` resolved a real enterprise plan, the paid seat gate engaged,
+  and proxy tests 401'd — while a bare CI runner stayed green. That asymmetry
+  is worse than a plain failure: CI cannot see it. Guarded session-wide in
+  `conftest.py`, with `@pytest.mark.uses_local_license` for the tests that are
+  about those reads, and private `HOME`s for the two suites that spawn a real
+  proxy subprocess.
+- **Secret scanning now runs in CI.** `check_secret_patterns.py` was a
+  pre-commit hook only, so it protected contributors who had hooks installed
+  and nobody else.
+- Embedded dashboard bundle regenerated (the Cursor-harness rebase left it
+  inconsistent with `dashboard/dist` after a rename/rename conflict).
+- Stale assertions repaired rather than deleted: the orchestrator-mode copy
+  test, Cursor target detection, and the licence-validation URL contract.
+
+### Known gaps (not blockers, but not fixed)
+
+- `activate`, `start-trial`, and `check-trial` in `cutctx_ee/billing/client.py`
+  still address the legacy portal, which serves an SPA shell rather than JSON.
+  They fail closed. No Supabase equivalents are deployed, so closing this
+  needs backend work, not a client change.
+- The cross-suite licensing contamination above.
+- `RELEASE_REPORT.md` / `RELEASE_STATUS.md` and ~100 `audit/*.md` documents
+  contradict each other and each other's dates. Treat every one as a claim to
+  falsify against code — several findings re-checked this pass (the
+  version-sync blocker, the accuracy-guard no-op) were already fixed.
+
 ## Status update — 2026-07-21 (merged)
 
 **Merged to `main`** as commit `42d7fc9e` and pushed to `origin/main`. The
