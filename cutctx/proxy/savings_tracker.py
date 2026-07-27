@@ -2540,12 +2540,26 @@ class SavingsTracker:
             raw_history = raw.get("history")
             legacy_history: list[Any] = raw_history if isinstance(raw_history, list) else []
             legacy_rows = len(legacy_history)
-            timestamps = [
-                _coerce_float(row.get("timestamp"))
+            # Persisted rows carry an ISO-8601 UTC string ("2026-07-27T15:14:46Z").
+            # Coercing that to float yields 0.0, which is both wrong and falsy —
+            # it silently recorded "no boundary" while looking like a value.
+            # Compare the strings directly (this format sorts lexicographically)
+            # and keep numeric timestamps working for older shapes.
+            iso_stamps = [
+                row["timestamp"]
                 for row in legacy_history
-                if isinstance(row, dict) and row.get("timestamp") is not None
+                if isinstance(row, dict) and isinstance(row.get("timestamp"), str)
             ]
-            boundary_ts = max(timestamps) if timestamps else None
+            numeric_stamps = [
+                float(row["timestamp"])
+                for row in legacy_history
+                if isinstance(row, dict) and isinstance(row.get("timestamp"), (int, float))
+            ]
+            boundary_ts: str | float | None = None
+            if iso_stamps:
+                boundary_ts = max(iso_stamps)
+            elif numeric_stamps:
+                boundary_ts = max(numeric_stamps)
             raw["accounting_revision"] = {
                 "schema_version": 8,
                 "note": (

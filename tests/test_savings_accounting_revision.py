@@ -62,6 +62,33 @@ def test_pre_v8_state_is_marked(tmp_path: Path) -> None:
     assert revision["boundary_timestamp"] is not None
 
 
+def test_boundary_timestamp_is_the_real_newest_row(tmp_path: Path) -> None:
+    """Persisted rows carry ISO strings; coercing them to float gave 0.0.
+
+    That is falsy as well as wrong, so the disclosure recorded "no boundary"
+    while looking like it had one — the caveat could not say which span of
+    history it covered.
+    """
+    state = _legacy_state(rows=5)
+    newest = max(row["timestamp"] for row in state["history"])
+    tracker = SavingsTracker(path=_write(tmp_path, state))
+
+    boundary = tracker._state["accounting_revision"]["boundary_timestamp"]
+
+    assert boundary == newest
+    assert boundary != 0.0
+
+
+def test_boundary_timestamp_supports_numeric_rows(tmp_path: Path) -> None:
+    """Older state shapes stored epoch floats."""
+    state = _legacy_state(rows=3)
+    for index, row in enumerate(state["history"]):
+        row["timestamp"] = 1_700_000_000.0 + index
+    tracker = SavingsTracker(path=_write(tmp_path, state))
+
+    assert tracker._state["accounting_revision"]["boundary_timestamp"] == 1_700_000_002.0
+
+
 def test_marking_does_not_destroy_the_customers_history(tmp_path: Path) -> None:
     """Flag the numbers; never quietly delete or restate them."""
     tracker = SavingsTracker(path=_write(tmp_path, _legacy_state(rows=5)))
