@@ -184,7 +184,45 @@ def corpus(kind: str, n: int = 400) -> str:
             f"<div class='row'><span>item {i}</span><em>{i * 2}</em></div>" for i in range(n)
         )
         return f"<html><head><style>.row{{color:red}}</style></head><body>{body}</body></html>"
+    if kind == "mixed_logs":
+        # Several templates interleaved. Uniform logs already compress ~99%
+        # via the standard path, so they cannot show whether drain3 adds
+        # anything; template variety is what drain3 is for.
+        return "\n".join(
+            (
+                f"2026-07-27T10:{i % 60:02d}:00Z ERROR db timeout after {i}ms on shard-{i % 4}"
+                if i % 5 == 0
+                else (
+                    f"2026-07-27T10:{i % 60:02d}:00Z WARN  cache miss key=k_{i} tier={i % 3}"
+                    if i % 3 == 0
+                    else f"2026-07-27T10:{i % 60:02d}:00Z INFO  worker-{i % 8} "
+                    f"handled request id=req_{i} status=200"
+                )
+            )
+            for i in range(n)
+        )
+    if kind == "diff":
+        # A unified diff dominated by reformatting with one semantic change —
+        # difftastic's whole reason to exist. It only ever sees Bash output.
+        old = "\n".join(f"def fn_{i}(a,b):\n    return a+b+{i}" for i in range(n // 6))
+        new = "\n".join(
+            f"def fn_{i}(\n    a,\n    b,\n):\n    return a + b + {i if i != 3 else 999}"
+            for i in range(n // 6)
+        )
+        return _unified_diff(old, new)
     raise ValueError(kind)
+
+
+def _unified_diff(old: str, new: str) -> str:
+    """Render a real `git diff` so the difftastic matcher recognises it."""
+    tmp = Path(tempfile.mkdtemp(prefix="cutctx-harness-diff-"))
+    (tmp / "a.py").write_text(old)
+    (tmp / "b.py").write_text(new)
+    return subprocess.run(
+        ["git", "diff", "--no-index", "--", str(tmp / "a.py"), str(tmp / "b.py")],
+        capture_output=True,
+        text=True,
+    ).stdout
 
 
 def deep_history(kind: str, turns: int = 6) -> list[dict[str, Any]]:
@@ -346,9 +384,10 @@ def scenarios() -> list[Scenario]:
     out.append(
         Scenario(
             name="drain3",
-            why="log-template mining on repetitive logs",
+            why="log-template mining across MIXED templates (uniform logs "
+            "already compress ~99% without it, so they prove nothing)",
             args=["--drain3"],
-            body={**base, "messages": deep_history("logs")},
+            body={**base, "messages": deep_history("mixed_logs")},
         )
     )
     out.append(
@@ -362,15 +401,15 @@ def scenarios() -> list[Scenario]:
     out.append(
         Scenario(
             name="difftastic",
-            why="structural diff compression",
+            why="structural diff compression; only matches Bash output that is a real unified diff",
             args=["--difftastic"],
-            body={**base, "messages": deep_history("code")},
+            body={**base, "messages": deep_history("diff")},
         )
     )
     out.append(
         Scenario(
             name="dedup",
-            why="repeated identical blocks should collapse (no test file in repo)",
+            why="repeated identical tool_result blocks should collapse",
             args=["--enable-semantic-dedup"],
             body={**base, "messages": deep_history("json")},
         )
@@ -378,9 +417,9 @@ def scenarios() -> list[Scenario]:
     out.append(
         Scenario(
             name="context_budget",
-            why="hard token ceiling (no test file in repo)",
-            args=["--enable-context-budget"],
-            body={**base, "messages": deep_history("prose")},
+            why="hard token ceiling — needs a payload that exceeds it",
+            args=["--enable-context-budget", "--context-budget-max-tokens", "4000"],
+            body={**base, "messages": deep_history("json")},
         )
     )
     out.append(

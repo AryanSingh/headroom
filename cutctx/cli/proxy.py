@@ -878,6 +878,23 @@ def _selected_context_tool() -> str:
     help="Progressive compression as token budget fills. Env: CUTCTX_CONTEXT_BUDGET_ENABLED=1",
 )
 @click.option(
+    "--context-budget-max-tokens",
+    type=int,
+    default=None,
+    envvar="CUTCTX_CONTEXT_BUDGET_MAX_TOKENS",
+    help=(
+        "Token ceiling for --enable-context-budget (default 100000). "
+        "Env: CUTCTX_CONTEXT_BUDGET_MAX_TOKENS"
+    ),
+)
+@click.option(
+    "--context-budget-policy",
+    type=click.Choice(["conservative", "balanced", "aggressive"]),
+    default=None,
+    envvar="CUTCTX_CONTEXT_BUDGET_POLICY",
+    help="How hard to compress as the budget fills (default balanced).",
+)
+@click.option(
     "--enable-cross-session",
     is_flag=True,
     envvar="CUTCTX_PROFILES_ENABLED",
@@ -1024,6 +1041,8 @@ def proxy(
     enable_task_aware: bool,
     enable_semantic_dedup: bool,
     enable_context_budget: bool,
+    context_budget_max_tokens: int | None,
+    context_budget_policy: str | None,
     enable_cross_session: bool,
     enable_multi_agent: bool,
     enable_cost_forecasting: bool,
@@ -1345,6 +1364,12 @@ def proxy(
         dedup_enabled=enable_semantic_dedup or _get_env_bool("CUTCTX_DEDUP_ENABLED", False),
         context_budget_enabled=enable_context_budget
         or _get_env_bool("CUTCTX_CONTEXT_BUDGET_ENABLED", False),
+        # Only the argparse entry point ever read these, so the Click CLI
+        # turned the budget on at a ceiling nobody could change.
+        context_budget_max_tokens=(
+            context_budget_max_tokens if context_budget_max_tokens is not None else 100_000
+        ),
+        context_budget_policy=context_budget_policy or "balanced",
         profiles_enabled=enable_cross_session or _get_env_bool("CUTCTX_PROFILES_ENABLED", False),
         shared_context_enabled=enable_multi_agent
         or _get_env_bool("CUTCTX_SHARED_CONTEXT_ENABLED", False),

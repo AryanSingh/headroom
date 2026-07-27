@@ -1993,15 +1993,22 @@ class ContentRouter(Transform):
                 if self.config.use_drain3:
                     drain3_compressor = self._get_drain3_log_compressor()
                     if drain3_compressor is not None:
-                        compressor_name = type(drain3_compressor).__name__
                         result = drain3_compressor.compress(content, bias=bias)
-                        compressed = result.compressed
-                        compressed_tokens = token_len(result.compressed)
-                        decision_reason = (
-                            "drain3_log_compressor"
-                            if result.drain3_used
-                            else "drain3_fallback_log_compressor"
-                        )
+                        # Only take drain3's output if it actually shrank the
+                        # payload. Assigning it unconditionally made the
+                        # standard path below unreachable, so enabling
+                        # --drain3 replaced a 99.8% log compression with 0%.
+                        if _wire_ratio(content, result.compressed) < 1.0:
+                            compressor_name = type(drain3_compressor).__name__
+                            compressed = result.compressed
+                            compressed_tokens = token_len(result.compressed)
+                            decision_reason = (
+                                "drain3_log_compressor"
+                                if result.drain3_used
+                                else "drain3_fallback_log_compressor"
+                            )
+                        else:
+                            strategy_chain.append("drain3_no_gain")
 
                 # Standard path (when drain3 not used or unavailable)
                 if compressed is None and self.config.enable_log_compressor:

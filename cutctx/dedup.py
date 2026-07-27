@@ -171,7 +171,17 @@ class SessionDeduplicator:
                 processed_messages.append(msg)
                 continue
 
-            # For non-text content, pass through
+            # Anthropic messages carry a LIST of content blocks, and a
+            # repeated tool_result — the exact thing this class exists to
+            # collapse — is always a block, never a bare string. Passing
+            # every non-str through meant dedup only ever fired on the
+            # legacy string shape and was a no-op on real traffic.
+            if isinstance(content, list):
+                new_msg = self._process_block_content(msg, content, result)
+                processed_messages.append(new_msg)
+                continue
+
+            # For non-text, non-block content, pass through
             if not isinstance(content, str):
                 processed_messages.append(msg)
                 continue
@@ -237,6 +247,71 @@ class SessionDeduplicator:
         )
 
         return msg
+
+    def _process_block_content(
+        self,
+        msg: dict[str, Any],
+        blocks: list[Any],
+        result: DeduplicationResult,
+    ) -> dict[str, Any]:
+        """Deduplicate the text-bearing blocks inside a block-list message.
+
+        Only the ``content`` of a block is replaced, never its structural
+        fields — ``tool_use_id`` has to survive or the provider rejects the
+        turn as an unmatched tool result.
+
+        Args:
+            msg: The original message dict.
+            blocks: Its content, already known to be a list.
+            result: Result object to accumulate stats.
+
+        Returns:
+            The message, with a rewritten block list if anything deduped.
+        """
+        new_blocks: list[Any] = []
+        changed = False
+
+        for block in blocks:
+            if not isinstance(block, dict):
+                new_blocks.append(block)
+                continue
+
+            # tool_result carries "content"; text blocks carry "text".
+            field = "content" if block.get("type") == "tool_result" else "text"
+            text = block.get(field)
+            if not isinstance(text, str) or not self._should_dedup(text):
+                new_blocks.append(block)
+                continue
+
+            result.chunk_count += 1
+            hash_key = self._hash_content(text)
+            token_estimate = self._estimate_tokens(text)
+
+            if hash_key in self._hash_index:
+                block_copy = dict(block)
+                block_copy[field] = format_dedup_ref(hash_key)
+                new_blocks.append(block_copy)
+                result.dedup_count += 1
+                result.tokens_saved += token_estimate
+                changed = True
+                logger.debug(
+                    "Dedup found in %s block (hash=%s, tokens=%d)",
+                    block.get("type"),
+                    hash_key[:8],
+                    token_estimate,
+                )
+                continue
+
+            self._store_hash(hash_key, text, token_estimate)
+            result.refs_created += 1
+            new_blocks.append(block)
+
+        if not changed:
+            return msg
+
+        msg_copy = dict(msg)
+        msg_copy["content"] = new_blocks
+        return msg_copy
 
     def _hash_content(self, text: str) -> str:
         """Compute SHA-256 hash of content, truncated to 16 chars.

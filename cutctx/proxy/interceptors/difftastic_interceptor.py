@@ -264,10 +264,26 @@ def _run_difft(
         env = os.environ.copy()
         env["NO_COLOR"] = "1"
         env["TERM"] = "dumb"
-        env["DFT_CONTEXT_LINES"] = str(context_lines)
+        # difft reads DFT_CONTEXT, not DFT_CONTEXT_LINES — the old name is
+        # not a difft variable at all, so the context setting never applied.
+        # Passing --context explicitly removes the dependency on env naming.
+        env["DFT_CONTEXT"] = str(context_lines)
 
         completed = subprocess.run(
-            [exe, str(old_path), str(new_path)],
+            # --display=inline is what makes this worth running. difft
+            # defaults to side-by-side, which renders two columns and is
+            # reliably ~2x LARGER than the unified diff it replaces, so the
+            # never-enlarge guard in transform() rejected every result and
+            # the interceptor could not save a single token. Measured on a
+            # reformatting-heavy diff: unified 5836 chars, side-by-side
+            # 13264, inline 1014.
+            [
+                exe,
+                "--display=inline",
+                f"--context={context_lines}",
+                str(old_path),
+                str(new_path),
+            ],
             capture_output=True,
             text=True,
             timeout=SUBPROCESS_TIMEOUT_SECONDS,

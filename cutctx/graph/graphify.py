@@ -748,8 +748,28 @@ def _graphify_module_name() -> str | None:
 
 
 def graphify_available() -> bool:
-    """Return True if a supported Graphify Python package is installed."""
-    return _graphify_module_name() is not None
+    """Return True if an installed Graphify exposes the CLI we drive.
+
+    Merely importing ``graphify`` is not enough. The indexer shells out to
+    ``python -m <module>.cli build --project-dir ... --output-dir ...``, and
+    there is at least one package on PyPI that owns the ``graphify`` name,
+    imports cleanly, and has no ``cli`` submodule at all — different
+    subcommands, no ``build``, no ``--output-dir``. Against that package the
+    name check returned True, startup reported the knowledge graph as active,
+    and every index build then died with ``No module named graphify.cli`` in a
+    log nobody reads.
+
+    Checking for the CLI submodule keeps the failure honest: the proxy reports
+    ``unavailable`` at startup instead of advertising an engine that cannot
+    run.
+    """
+    module_name = _graphify_module_name()
+    if module_name is None:
+        return False
+    try:
+        return importlib.util.find_spec(f"{module_name}.cli") is not None
+    except (ImportError, AttributeError, ValueError):
+        return False
 
 
 def _graphify_cli_module_name() -> str:

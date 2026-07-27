@@ -232,9 +232,14 @@ class IntelligencePipeline:
     def _get_deduplicator(self) -> Any:
         """Get or create the session-scoped deduplicator."""
         if self._deduplicator is None:
+            from cutctx.cache.compression_store import get_compression_store
             from cutctx.dedup import SessionDeduplicator
 
-            self._deduplicator = SessionDeduplicator()
+            # Without a store, dedup swaps repeated content for a
+            # <cutctx:dedup_ref> pointer that nothing can resolve — the
+            # content is simply gone. _store_hash already registers
+            # originals under explicit_hash; it just needs the store.
+            self._deduplicator = SessionDeduplicator(ccr_store=get_compression_store())
         return self._deduplicator
 
     def _get_budget_controller(self) -> Any:

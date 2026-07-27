@@ -20,6 +20,26 @@ from typing import Any
 logger = logging.getLogger("cutctx.context_budget")
 
 
+def _block_text(block: dict[str, Any]) -> str:
+    """Return the billable text carried by one content block.
+
+    A ``tool_result`` keeps its payload under ``content``, not ``text``.
+    Counting only ``text`` scored every tool result as zero, so a 77k-token
+    conversation measured as 12 tokens, the controller never left the GREEN
+    zone, and the budget ceiling was never enforced against the very content
+    that fills a context window.
+    """
+    if block.get("type") == "tool_result":
+        payload = block.get("content", "")
+        if isinstance(payload, list):
+            # tool_result content may itself be a list of blocks.
+            return "".join(
+                _block_text(part) if isinstance(part, dict) else str(part) for part in payload
+            )
+        return str(payload)
+    return str(block.get("text", ""))
+
+
 class BudgetZone(str, Enum):
     """Budget zone indicating compression urgency."""
 
@@ -396,7 +416,7 @@ class ContextBudgetController:
                     # Convert content to string if needed (could be list of dicts)
                     if isinstance(content, list):
                         content_str = "".join(
-                            str(item.get("text", "")) if isinstance(item, dict) else str(item)
+                            _block_text(item) if isinstance(item, dict) else str(item)
                             for item in content
                         )
                     else:
@@ -418,7 +438,7 @@ class ContextBudgetController:
                     content = msg.get("content", "")
                     if isinstance(content, list):
                         content_str = "".join(
-                            str(item.get("text", "")) if isinstance(item, dict) else str(item)
+                            _block_text(item) if isinstance(item, dict) else str(item)
                             for item in content
                         )
                     else:

@@ -384,10 +384,40 @@ def test_graphify_available_accepts_graphify_alias(
     def fake_find_spec(name: str):  # type: ignore[no-untyped-def]
         if name == "graphifyy":
             return None
-        if name == "graphify":
+        # Availability requires the CLI submodule the indexer actually
+        # shells out to, not just an importable top-level name.
+        if name in ("graphify", "graphify.cli"):
             return object()
         return original_find_spec(name)
 
     monkeypatch.setattr(graphify_mod.importlib.util, "find_spec", fake_find_spec)
 
     assert graphify_available() is True
+
+
+def test_graphify_unavailable_when_package_has_no_cli(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unrelated package owning the `graphify` name must not read as ready.
+
+    One such package imports cleanly, ships no ``cli`` submodule, and has
+    neither a ``build`` subcommand nor ``--output-dir``. Reporting it as
+    available made startup advertise the knowledge graph while every index
+    build died with "No module named graphify.cli".
+    """
+    import cutctx.graph.graphify as graphify_mod
+
+    original_find_spec = graphify_mod.importlib.util.find_spec
+
+    def fake_find_spec(name: str):  # type: ignore[no-untyped-def]
+        if name == "graphifyy":
+            return None
+        if name == "graphify":
+            return object()
+        if name == "graphify.cli":
+            return None
+        return original_find_spec(name)
+
+    monkeypatch.setattr(graphify_mod.importlib.util, "find_spec", fake_find_spec)
+
+    assert graphify_available() is False

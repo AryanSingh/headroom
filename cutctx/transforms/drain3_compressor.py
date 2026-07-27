@@ -221,20 +221,46 @@ class Drain3LogCompressor:
             clusters: dict[int, list[str]] = {}
             cluster_map: dict[int, str] = {}  # cluster_id -> template string
 
+            extraction_failures = 0
             for line in non_empty:
                 try:
                     result = miner.add_log_message(line)
-                    cluster_id = result.cluster_id
+                    # drain3's TemplateMiner returns a plain dict
+                    # {change_type, cluster_id, cluster_size, template_mined,
+                    # cluster_count}. Reading it as `result.cluster_id` raised
+                    # AttributeError on every single line, and the handler
+                    # below turned each failure into its own hash(line)
+                    # cluster — so 600 identical-shaped lines became 600
+                    # clusters and drain3 compressed nothing while still
+                    # reporting drain3_used=True. Accept either shape.
+                    if isinstance(result, dict):
+                        cluster_id = result["cluster_id"]
+                        template = result.get("template_mined")
+                    else:
+                        cluster_id = result.cluster_id
+                        template = getattr(result, "template", None)
                     clusters.setdefault(cluster_id, []).append(line)
                     if cluster_id not in cluster_map:
-                        cluster_map[cluster_id] = result.template or line
+                        cluster_map[cluster_id] = template or line
                 except Exception as exc:
+                    extraction_failures += 1
                     logger.debug("Drain3 failed on line: %s", exc)
                     # Treat as unique cluster per failing line
                     fallback_id = hash(line)
                     clusters.setdefault(fallback_id, []).append(line)
                     if fallback_id not in cluster_map:
                         cluster_map[fallback_id] = line
+
+        if extraction_failures:
+            # Every failure degrades a line into its own cluster, so a high
+            # rate silently reduces drain3 to a no-op. Say so once, loudly,
+            # rather than per-line at debug.
+            logger.warning(
+                "Drain3 could not read %d/%d mined results; "
+                "those lines were treated as unique clusters and will not compress",
+                extraction_failures,
+                len(non_empty),
+            )
 
         # Build compressed output: one representative line per cluster
         compressed_lines: list[str] = []

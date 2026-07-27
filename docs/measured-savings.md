@@ -26,25 +26,68 @@ Where an engine saves nothing, it says so.
 
 | Engine | Flag | Measured |
 | --- | --- | --- |
+| Semantic dedup | `--enable-semantic-dedup` | **79.4%** (repeated tool results) |
 | Memoization | `--memoize` | **76.7%** (repeat tool results) |
+| Drain3 | `--drain3` | **64.8%** (mixed log templates) |
+| Context budget | `--enable-context-budget` | **56.7%** (payload over ceiling) |
+| Difftastic | `--difftastic` | **51.7%** (reformatting-heavy diffs) |
 | Model routing | `--model-routing-preset codex-gpt54mini-high` | routes `sonnet → haiku` |
-| Semantic dedup | `--enable-semantic-dedup` | 0% incremental — see note |
-| Context budget | `--enable-context-budget` | 0% on the corpus tested |
-| Drain3 | `--drain3` | 0% on the corpus tested |
-| Knowledge graph (Graphify) | `--knowledge-graph` | 0% on the corpus tested |
-| Difftastic | `--difftastic` | 0% on the corpus tested |
+| Knowledge graph (Graphify) | `--knowledge-graph` | unavailable — see below |
 
-**Read the dedup row carefully.** The `dedup` scenario reports 53.4%, but it
-runs the same JSON corpus as `compression:json` and returns byte-identical
-counts (77471 → 36095). That figure is the JSON compression baseline; semantic
-dedup contributes **nothing measurable on top of it**. The same caveat partly
-applies to memoization, whose 76.7% combines repeat-result serving with the
-JSON compression underneath it.
+Every one of these except graphify previously read 0%, and **not one of them
+was "not applicable to the corpus"** — each shipped enabled-but-inert. The
+causes are in "Why the engines read zero" below.
 
-"0% on the corpus tested" means the engine did not fire on the payloads in the
-harness. It is a gap in evidence as much as a statement about the engine — if
-you have a workload one of these should help with, add a scenario rather than
-assuming.
+Memoization's 76.7% combines repeat-result serving with the JSON compression
+underneath it. Dedup's 79.4% is incremental over that same JSON corpus, which
+compresses 53.4% on its own.
+
+## Why the engines read zero
+
+Five opt-in engines reported 0%. That was read as "did not fire on this
+corpus". It was wrong for four of them, and the fifth was worse.
+
+- **drain3** — `miner.add_log_message()` returns a dict, but the code read
+  `result.cluster_id`. Every line raised `AttributeError` into a per-line
+  handler that assigned `hash(line)` as a fallback cluster, so 600
+  identical-shaped lines produced 600 clusters. The router then assigned
+  drain3's output unconditionally, making the standard log path unreachable:
+  **enabling `--drain3` took log compression from 99.8% to 0%.** The flag was
+  worse than useless.
+- **difftastic** — invoked with difft's default side-by-side display, which is
+  reliably ~2x *larger* than the unified diff it replaces, so the
+  never-enlarge guard rejected 100% of results. Measured on a
+  reformatting-heavy diff: unified 5836 chars, side-by-side 13264, inline
+  1014. Also set `DFT_CONTEXT_LINES`, which is not a difft variable
+  (`DFT_CONTEXT` is), so the context setting never applied.
+- **dedup** — skipped any message whose `content` was not a `str`. Anthropic
+  messages carry a *list of blocks*, and a repeated `tool_result` is always a
+  block, so dedup never saw the content it exists to collapse. Separately, the
+  pipeline built `SessionDeduplicator()` with no CCR store, so every pointer
+  it emitted was unresolvable — that path was silently lossy, and is now
+  wired and covered by a round-trip test.
+- **context_budget** — counted only `block["text"]`, but a `tool_result`
+  stores its payload under `content`. Tool output therefore counted as zero
+  tokens: a 77k-token conversation measured as **12**, the controller never
+  left the GREEN zone, and the ceiling was never enforced. The Click CLI also
+  never passed `context_budget_max_tokens`, so the ceiling was fixed at
+  100000 regardless of configuration; `--context-budget-max-tokens` and
+  `--context-budget-policy` now exist.
+- **graphify** — still unavailable, and the honest reason is a dependency
+  mismatch. The indexer shells out to `python -m graphify.cli build
+  --project-dir ... --output-dir ...`. The package currently installed under
+  the name `graphify` has no `cli` submodule, no `build` subcommand and no
+  `--output-dir`; it writes to `<project>/graphify-out` via `update <path>`.
+  `graphify_available()` only checked that the *name* imported, so startup
+  advertised the knowledge graph as active while every build died with "No
+  module named graphify.cli" in a debug log. The check now verifies the CLI
+  entry point, so this reports `unavailable` instead of pretending. Resolving
+  which graphify package the product targets is a packaging decision, not a
+  code fix, so it is left open rather than guessed at.
+
+The general lesson: an engine that is enabled, throws nothing, and saves
+nothing looks exactly like an engine that legitimately did not apply. Four of
+five here were the former.
 
 ## Honest limits
 
