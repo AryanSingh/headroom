@@ -183,7 +183,9 @@ def _install_dashboard_routes(page: Page) -> None:
     page.route("**/*", handler)
 
 
-def test_dashboard_renders_observed_ttl_metrics_and_can_capture_screenshot() -> None:
+def test_dashboard_renders_observed_ttl_metrics_and_can_capture_screenshot(
+    tmp_path: Path,
+) -> None:
     artifact_dir = os.environ.get("CUTCTX_PLAYWRIGHT_ARTIFACT_DIR")
 
     with sync_playwright() as pw:
@@ -201,10 +203,22 @@ def test_dashboard_renders_observed_ttl_metrics_and_can_capture_screenshot() -> 
         expect(page.get_by_test_id("ttl-bucket-5m-value")).to_have_text("185.0k")
         expect(page.get_by_text("TTL 1h 56.0% / 5m 44.0%")).to_be_visible()
 
+        # Falling back to Path.cwd() wrote the screenshot over the TRACKED
+        # dashboard-cache-ttl-main.png at the repo root, so simply running the
+        # suite left the working tree dirty. That is not cosmetic: the release
+        # manifest generator aborts with "requires a clean checkout", and past
+        # plans in docs/superpowers worked around it by telling authors to
+        # "preserve the pre-existing dashboard-cache-ttl-main.png
+        # modification" rather than fixing the cause.
+        #
+        # CI still sets CUTCTX_PLAYWRIGHT_ARTIFACT_DIR and collects the image
+        # from there; locally it goes to the test's tmp dir. Regenerating the
+        # committed evidence is now a deliberate act (set the env var), not a
+        # side effect of running tests.
         screenshot_path = (
             Path(artifact_dir) / "dashboard-cache-ttl-main.png"
             if artifact_dir
-            else Path.cwd() / "dashboard-cache-ttl-main.png"
+            else tmp_path / "dashboard-cache-ttl-main.png"
         )
         screenshot_path.parent.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(screenshot_path), full_page=True)
