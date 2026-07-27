@@ -2815,9 +2815,28 @@ class ContentRouter(Transform):
         # Skill/instruction preserve: annotate before selective filter + crushers.
         if self.config.skill_preserve and messages:
             try:
-                from .skill_preserve import annotate_messages_for_skill_preserve
+                import os
 
-                messages = annotate_messages_for_skill_preserve(messages)
+                from .skill_preserve import (
+                    SkillPreserveConfig,
+                    annotate_messages_for_skill_preserve,
+                )
+
+                env_flag = os.environ.get("CUTCTX_SKILL_PRESERVE", "1").strip().lower()
+                enabled = env_flag not in {"0", "false", "off", "no"}
+                extra_markers = tuple(
+                    m.strip()
+                    for m in os.environ.get("CUTCTX_SKILL_MARKERS", "").split(",")
+                    if m.strip()
+                )
+                cfg = SkillPreserveConfig(enabled=enabled)
+                if extra_markers:
+                    cfg = SkillPreserveConfig(
+                        enabled=enabled,
+                        markers=tuple(dict.fromkeys((*cfg.markers, *extra_markers))),
+                    )
+                if enabled:
+                    messages = annotate_messages_for_skill_preserve(messages, config=cfg)
             except Exception as _sp_exc:
                 logger.debug("skill_preserve annotate failed (non-fatal): %s", _sp_exc)
 
