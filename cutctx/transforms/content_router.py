@@ -1870,7 +1870,14 @@ class ContentRouter(Transform):
                         compressed_tokens = token_len(compressed)
                         decision_reason = "smart_crusher"
 
-                        if result.strategy in ("lossless", "passthrough"):
+                        # SmartCrusher decorates the label with detail —
+                        # "lossless:table(400->len=13829)" — so an equality
+                        # test against "lossless" never matched and
+                        # CompactTable was only ever offered the passthrough
+                        # shapes it declines. Match the family, not the
+                        # whole string.
+                        crusher_family = str(result.strategy).split(":", 1)[0]
+                        if crusher_family in ("lossless", "passthrough"):
                             # Try CompactTableCompressor because it might provide better savings
                             # than simple lossless minification.
                             compact_table = self._get_compact_table()
@@ -1881,32 +1888,61 @@ class ContentRouter(Transform):
                                     if ct_result is not None:
                                         ct_compressed = ct_result.compressed
 
-                                        # Inject CCR marker if needed (SmartCrusher does this automatically,
-                                        # but CompactTable is a standalone Python compressor).
+                                        # Inject CCR marker if needed (SmartCrusher does this
+                                        # automatically, but CompactTable is a standalone Python
+                                        # compressor). The marker costs tokens, so build it before
+                                        # the comparison below rather than after.
+                                        ccr_hash: str | None = None
                                         if (
                                             self.config.ccr_enabled
                                             and self.config.ccr_inject_marker
                                         ):
-                                            from .smart_crusher import (
+                                            from cutctx.utils import (
                                                 compute_short_hash,
                                                 create_tool_digest_marker,
                                             )
 
-                                            marker = create_tool_digest_marker(
-                                                compute_short_hash(content)
+                                            ccr_hash = compute_short_hash(content)
+                                            ct_compressed = (
+                                                ct_compressed
+                                                + "\n"
+                                                + create_tool_digest_marker(ccr_hash)
                                             )
-                                            ct_compressed = ct_compressed + "\n" + marker
-                                            from cutctx.proxy.compression_store import (
-                                                get_compression_store,
-                                            )
-
-                                            store = get_compression_store()
-                                            if store:
-                                                store.store(compute_short_hash(content), content)
 
                                         ct_tokens = token_len(ct_compressed)
-                                        # Use CompactTable if it provides better savings
-                                        if ct_tokens < compressed_tokens:
+                                        # Choose on serialized cost. The two
+                                        # candidates escape very differently
+                                        # — SmartCrusher's CSV is quote-dense,
+                                        # a pipe table is not — so comparing
+                                        # bare token counts can pick the one
+                                        # that is larger on the wire.
+                                        # A None from SmartCrusher means it
+                                        # produced nothing, so the baseline to
+                                        # beat is the original content itself.
+                                        rival = compressed if compressed is not None else content
+                                        if _wire_ratio(content, ct_compressed) < _wire_ratio(
+                                            content, rival
+                                        ):
+                                            # Only populate the retrieval store for output we
+                                            # actually ship. The store key MUST equal the hash in
+                                            # the marker or /v1/retrieve/{hash} 404s on content
+                                            # that is present.
+                                            if ccr_hash is not None:
+                                                from cutctx.cache.compression_store import (
+                                                    get_compression_store,
+                                                )
+
+                                                store = get_compression_store()
+                                                if store:
+                                                    store.store(
+                                                        content,
+                                                        ct_compressed,
+                                                        original_tokens=original_tokens,
+                                                        compressed_tokens=ct_tokens,
+                                                        compression_strategy="compact_table",
+                                                        explicit_hash=ccr_hash,
+                                                    )
+
                                             compressed = ct_compressed
                                             compressed_tokens = ct_tokens
                                             compressor_name = "CompactTableCompressor"
@@ -1914,11 +1950,18 @@ class ContentRouter(Transform):
                                             strategy_chain.insert(0, "compact_table")
                                             ct_succeeded = True
                                 except Exception as _ct_exc:
-                                    logger.debug(
-                                        "CompactTableCompressor failed (non-fatal): %s", _ct_exc
+                                    # Was debug, which is how a broken import
+                                    # ("cutctx.proxy.compression_store" never
+                                    # existed) hid here silently. A decline is
+                                    # ct_result is None; reaching this handler
+                                    # is a defect.
+                                    logger.warning(
+                                        "CompactTableCompressor failed (non-fatal): %s",
+                                        _ct_exc,
+                                        exc_info=True,
                                     )
 
-                            if not ct_succeeded and result.strategy == "passthrough":
+                            if not ct_succeeded and crusher_family == "passthrough":
                                 # Both failed or passed through, fallback to Kompress
                                 strategy_chain.append(CompressionStrategy.KOMPRESS.value)
                                 fallback_compressed, fallback_tokens = self._try_ml_compressor(

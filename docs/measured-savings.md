@@ -16,22 +16,30 @@ Where an engine saves nothing, it says so.
 | Engine | Measured | Notes |
 | --- | --- | --- |
 | Compression — log-shaped content | **66%** | The strongest single case. |
+| Compression — JSON tool output | **53.4%** | Arrays of records — file listings, search results, DB rows. |
 | Compression — HTML | **40.8%** | |
 | Tool-schema compaction | **36.9%** | 40-tool surface. |
 | Semantic cache | **83%** | Second identical request never leaves the proxy. |
-| Compression — JSON / prose / tables / code | **0%** | See "Honest limits". |
+| Compression — prose / tables / code | **0%** | See "Honest limits". |
 
 ## What is opt-in
 
 | Engine | Flag | Measured |
 | --- | --- | --- |
-| Memoization | `--memoize` | **50%** (repeat tool results) |
+| Memoization | `--memoize` | **76.7%** (repeat tool results) |
 | Model routing | `--model-routing-preset codex-gpt54mini-high` | routes `sonnet → haiku` |
-| Semantic dedup | `--enable-semantic-dedup` | 0% on the corpus tested |
+| Semantic dedup | `--enable-semantic-dedup` | 0% incremental — see note |
 | Context budget | `--enable-context-budget` | 0% on the corpus tested |
 | Drain3 | `--drain3` | 0% on the corpus tested |
 | Knowledge graph (Graphify) | `--knowledge-graph` | 0% on the corpus tested |
 | Difftastic | `--difftastic` | 0% on the corpus tested |
+
+**Read the dedup row carefully.** The `dedup` scenario reports 53.4%, but it
+runs the same JSON corpus as `compression:json` and returns byte-identical
+counts (77471 → 36095). That figure is the JSON compression baseline; semantic
+dedup contributes **nothing measurable on top of it**. The same caveat partly
+applies to memoization, whose 76.7% combines repeat-result serving with the
+JSON compression underneath it.
 
 "0% on the corpus tested" means the engine did not fire on the payloads in the
 harness. It is a gap in evidence as much as a statement about the engine — if
@@ -41,23 +49,21 @@ assuming.
 ## Honest limits
 
 **Savings are content-shaped.** The headline figure depends heavily on what
-your agents actually send. Log-heavy tool output compresses ~66%; prose,
-markdown tables and JSON currently do not compress at all. An agent that
-mostly reads source files and prose will see far less than one that reads
-build logs.
+your agents actually send. Log-heavy tool output compresses ~66% and JSON
+record arrays ~53%; prose, markdown tables and source code do not compress at
+all. An agent that mostly reads source files and prose will see far less than
+one that reads build logs and tool output.
 
 **Why the zeros:**
 
 - **Code** — `code_aware_enabled` is off by default, a deliberate product
   choice ("use code graph tools instead"). The CODE_AWARE strategy is still
   selected and then no-ops, so it reports 0% rather than routing elsewhere.
-- **JSON** — SmartCrusher rewrites it to CSV, which is smaller as a string but
-  larger once re-escaped into the JSON request body. The router now detects
-  that and declines the swap, so JSON is a truthful 0% instead of a
-  slightly-negative "saving". See `discarded:inflates_wire` in
-  `strategy_chain`.
+  `strategy_chain` says `code_aware_disabled`, so this reads as a switch
+  rather than a limit.
 - **Markdown tables** — `CompactTableCompressor` declines this shape; it
-  targets structured arrays, not pipe tables.
+  targets JSON arrays of records, not text that is already a pipe table.
+  Markdown routes to TEXT passthrough.
 - **Prose** — routes to TEXT passthrough. Lossy prose compression is gated
   behind Kompress (`CUTCTX_ENABLE_KOMPRESS=1`), which is the only path that is
   not 100% on-machine.
@@ -74,3 +80,33 @@ Counting is now BPE (`token_len`), and a swap is judged on the JSON-serialized
 payload, because escaping is not ratio-neutral. Figures produced before that
 change overstate savings on any content that compresses to something without
 spaces. Treat older dashboard history accordingly.
+
+## Why JSON went from 0% to 53.4%
+
+Fixing the accounting above made JSON a truthful 0%: SmartCrusher's CSV
+rewrite inflated the wire, and the router correctly began discarding it
+(`discarded:inflates_wire`). That exposed the real problem — the compressor
+built for this shape was never running.
+
+`CompactTableCompressor` turns JSON arrays of records into pipe tables. It sat
+behind this gate:
+
+```python
+if result.strategy in ("lossless", "passthrough"):
+```
+
+The Rust SmartCrusher decorates its label with detail, so the value is
+`"lossless:table(400->len=13829)"` — never the bare `"lossless"`. The equality
+test could only match `"passthrough"`, which is what SmartCrusher returns for
+logs, prose and CSV: precisely the shapes CompactTable declines. The
+compressor was unreachable for its entire life.
+
+Behind it sat a second defect. The CCR marker path imported
+`cutctx.proxy.compression_store`, a module that has never existed, and the
+handler logged the `ImportError` at debug level — so even with the gate fixed,
+CompactTable threw and was swallowed silently. It now logs at warning with a
+traceback, because a decline is `None`; reaching that handler is a defect.
+
+Both are fixed, and the retrieval round-trip is pinned by a test: the hash in
+the emitted marker must resolve in the compression store and return the
+original bytes, or compression would be silently lossy.
