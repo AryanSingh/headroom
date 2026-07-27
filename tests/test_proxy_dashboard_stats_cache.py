@@ -585,9 +585,10 @@ def test_stats_surface_optional_feature_availability(monkeypatch: pytest.MonkeyP
 
 
 def test_stats_publishes_live_rate_limiter_and_cache_when_enabled(tmp_path) -> None:
+    from fastapi.testclient import TestClient
+
     from cutctx.proxy.models import ProxyConfig
     from cutctx.proxy.server import create_app
-    from fastapi.testclient import TestClient
 
     app = create_app(
         ProxyConfig(
@@ -621,9 +622,10 @@ def test_stats_publishes_live_rate_limiter_and_cache_when_enabled(tmp_path) -> N
 
 
 def test_stats_nulls_rate_limiter_and_cache_when_disabled(tmp_path) -> None:
+    from fastapi.testclient import TestClient
+
     from cutctx.proxy.models import ProxyConfig
     from cutctx.proxy.server import create_app
-    from fastapi.testclient import TestClient
 
     app = create_app(
         ProxyConfig(

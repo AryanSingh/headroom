@@ -554,7 +554,9 @@ class TestCursorGuidance:
         assert "Cursor model requests do not use the proxy" in result.output
         assert "ANTHROPIC_BASE_URL=" not in result.output
 
-    def test_status_surfaces_cursor_cli_approval_state(self, mock_claude_config_path, tmp_path, monkeypatch):
+    def test_status_surfaces_cursor_cli_approval_state(
+        self, mock_claude_config_path, tmp_path, monkeypatch
+    ):
         """A configured-but-unapproved server loads no tools; say so."""
         cursor_dir = tmp_path / ".cursor"
         cursor_dir.mkdir()

@@ -252,9 +252,7 @@ def test_paid_websocket_guard_returns_policy_close(monkeypatch, seat_available: 
     assert exc_info.value.code == 1008
 
 
-def test_apply_validated_enterprise_license_unlocks_entitlements(
-    tmp_path, monkeypatch
-) -> None:
+def test_apply_validated_enterprise_license_unlocks_entitlements(tmp_path, monkeypatch) -> None:
     # Isolate from the operator's activated ~/.cutctx license so CutctxProxy
     # does not auto-start UsageReporter and overwrite the checker under test.
     monkeypatch.delenv("CUTCTX_LICENSE_KEY", raising=False)
@@ -278,9 +276,7 @@ def test_apply_validated_enterprise_license_unlocks_entitlements(
     )
 
     with TestClient(app) as client:
-        _apply_validated_license(
-            app.state.proxy, LicenseInfo(status="active", plan="enterprise")
-        )
+        _apply_validated_license(app.state.proxy, LicenseInfo(status="active", plan="enterprise"))
         response = client.get("/entitlements")
 
     assert response.status_code == 200

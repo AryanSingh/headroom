@@ -61,9 +61,7 @@ def detect_targets() -> list[str]:
             detected.append(target.value)
             continue
         if target == ToolTarget.CURSOR and (
-            any(shutil.which(b) for b in _CURSOR_BINARIES)
-            or find_agent_cli()
-            or find_ide_cli()
+            any(shutil.which(b) for b in _CURSOR_BINARIES) or find_agent_cli() or find_ide_cli()
         ):
             detected.append(target.value)
     return detected

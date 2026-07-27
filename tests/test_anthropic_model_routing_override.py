@@ -25,6 +25,24 @@ from fastapi.testclient import TestClient
 from cutctx.proxy.model_router import ModelRoute, ModelRouter, ModelRouterConfig
 from cutctx.proxy.server import ProxyConfig, create_app
 
+
+@pytest.fixture(autouse=True)
+def _no_ambient_license(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep these tests on builder tier regardless of the host machine.
+
+    ``create_app`` resolves an activated license from ``~/.cutctx`` when one
+    exists (see ``deployment_security.effective_license_key``). On a developer
+    box with a live enterprise key that upgrades entitlements and routes these
+    requests into the paid seat gate, which returns 401 long before the
+    handler under test runs. Force the builder default so the suite behaves
+    identically on a laptop and in CI.
+    """
+    monkeypatch.setattr(
+        "cutctx.proxy.deployment_security._license_key_from_local_store", lambda: None
+    )
+    monkeypatch.delenv("CUTCTX_LICENSE_KEY", raising=False)
+
+
 _UPSTREAM_RESPONSE = {
     "id": "msg_1",
     "type": "message",

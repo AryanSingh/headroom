@@ -31,10 +31,37 @@ def test_capabilities_state_claude_desktop_and_streaming_scope_truthfully() -> N
 
 
 def test_orchestrator_modes_explain_behavior_before_internal_preset_names() -> None:
+    """Each routing mode must describe what it does, not name a preset.
+
+    Asserted against the behaviour rather than one exact sentence: the Auto
+    copy was rewritten in cca958a6 and this test kept failing on the old
+    literal even though the guarantee it exists to protect still held.
+    """
     source = (ROOT / "dashboard/src/pages/Orchestrator.jsx").read_text()
 
-    assert "Route clear low-complexity work to a lower-cost compatible model" in source
-    assert "Choose the cheapest certified compatible model" in source
+    # Every selectable mode carries a behavioural description.
+    for behaviour in (
+        "every request uses the model you asked for",  # off
+        "pick a fast, mid, or strong certified model from task complexity",  # auto
+        "Choose the cheapest certified compatible model",  # aggressive
+    ):
+        assert behaviour in source, f"missing behavioural copy: {behaviour!r}"
+
+    # Internal preset identifiers must not appear in the mode picker itself.
+    # They are allowed further down, where the detail text names the preset
+    # backing the active mode — that is reference information, not the label
+    # an operator chooses from.
+    picker_start = source.index("const ROUTING_MODES")
+    picker = source[picker_start : source.index("];", picker_start)]
+    for preset_id in (
+        "codex-gpt54mini-high",
+        "codex-opencode-slim",
+        "oh-my-opencode-slim",
+        "economy",
+    ):
+        assert preset_id not in picker, (
+            f"internal preset name leaked into the mode picker: {preset_id!r}"
+        )
 
 
 def test_orchestrator_puts_operating_controls_before_advanced_studios() -> None:

@@ -83,8 +83,20 @@ def test_detect_targets_finds_cli_only_cursor_install() -> None:
         assert "cursor" in planner.detect_targets()
 
 
-def test_detect_targets_omits_cursor_when_neither_binary_present() -> None:
+def test_detect_targets_omits_cursor_when_no_install_is_found() -> None:
+    """Cursor is absent only when *every* detection route comes up empty.
+
+    Detection is deliberately broader than ``PATH``: ``find_agent_cli`` and
+    ``find_ide_cli`` also probe Cursor's known install locations, so a GUI-only
+    install with nothing on ``PATH`` is still found. Stubbing ``shutil.which``
+    alone would leave those two live and pick up a real Cursor on the machine
+    running the suite.
+    """
     from cutctx.install import planner
 
-    with patch.object(planner.shutil, "which", return_value=None):
+    with (
+        patch.object(planner.shutil, "which", return_value=None),
+        patch("cutctx.providers.cursor.cli.find_agent_cli", return_value=None),
+        patch("cutctx.providers.cursor.cli.find_ide_cli", return_value=None),
+    ):
         assert "cursor" not in planner.detect_targets()
