@@ -118,6 +118,7 @@ def test_load_secret_does_not_provision() -> None:
     assert not uts.secret_path().exists()
 
 
+@pytest.mark.uses_local_license
 def test_issuer_and_proxy_resolve_the_same_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """The whole point: both halves must agree, or every request 503s."""
     from cutctx.proxy.models import _load_user_token_secret

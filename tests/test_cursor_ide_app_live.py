@@ -96,6 +96,13 @@ def test_cursor_ide_app_session_routes_openai_and_anthropic_byok(
     env["CUTCTX_SAVINGS_PATH"] = str(tmp_path / "savings.json")
     env["OPENAI_TARGET_API_URL"] = f"{upstream_server}/v1"
     env["ANTHROPIC_TARGET_API_URL"] = upstream_server
+    # See test_cursor_cli_proxy_live: the child proxy is out of reach of the
+    # conftest fixture, so give it a private HOME or it resolves the
+    # operator's activated licence and paid-gates these requests.
+    env["HOME"] = str(tmp_path / "home")
+    env.pop("CUTCTX_LICENSE_KEY", None)
+    env.pop("CUTCTX_USER_TOKEN_HMAC_SECRET", None)
+    (tmp_path / "home").mkdir(exist_ok=True)
 
     proxy = subprocess.Popen(
         [

@@ -76,6 +76,15 @@ def test_cursor_agent_routes_auth_through_cutctx_proxy(
     env["PYTHONPATH"] = str(repo_root)
     env["CUTCTX_SAVINGS_PATH"] = str(tmp_path / "savings.json")
     env["CURSOR_TARGET_API_URL"] = upstream_server
+    # The proxy runs as a child process, so the conftest fixture that keeps
+    # the suite off the operator's activated licence cannot reach it. Without
+    # a private HOME the child resolves ~/.cutctx, entitlements rise above
+    # builder, the paid seat gate engages, and these unauthenticated requests
+    # come back 401 on a developer machine while passing in CI.
+    env["HOME"] = str(tmp_path / "home")
+    env.pop("CUTCTX_LICENSE_KEY", None)
+    env.pop("CUTCTX_USER_TOKEN_HMAC_SECRET", None)
+    (tmp_path / "home").mkdir(exist_ok=True)
 
     proxy = subprocess.Popen(
         [

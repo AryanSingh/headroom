@@ -115,6 +115,7 @@ def test_network_deployment_allows_explicit_private_upstream(monkeypatch) -> Non
     )
 
 
+@pytest.mark.uses_local_license
 def test_effective_license_key_reads_activated_local_store(tmp_path, monkeypatch) -> None:
     from cutctx.proxy.deployment_security import effective_license_key
 
@@ -133,6 +134,7 @@ def test_effective_license_key_reads_activated_local_store(tmp_path, monkeypatch
     assert effective_license_key(ProxyConfig(license_key=None)) == "cutctx_local_enterprise_key"
 
 
+@pytest.mark.uses_local_license
 def test_cutctx_proxy_applies_local_license_without_env(tmp_path, monkeypatch) -> None:
     from cutctx.proxy.server import CutctxProxy
 

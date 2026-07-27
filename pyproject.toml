@@ -619,6 +619,7 @@ markers = [
     "real_llm: tests that hit real LLM APIs; skipped unless explicitly enabled",
     "live: opt-in multi-turn tests that hit real upstream APIs; require provider keys",
     "no_auto_admin: skip auto-inject of admin auth header (tests that verify 401 behavior)",
+    "uses_local_license: test exercises the ~/.cutctx licence lookup itself; opts out of the conftest stub that keeps the rest of the suite off the operator's licence",
 ]
 
 [tool.coverage.run]

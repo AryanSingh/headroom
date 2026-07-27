@@ -59,9 +59,16 @@ from unittest.mock import Mock
 
 import pytest
 
+# Captured before the session fixture below swaps it out, so the
+# `uses_local_license` opt-out can hand back the genuine implementation.
+from cutctx.proxy.deployment_security import (
+    _license_key_from_local_store as _REAL_LICENSE_KEY_FROM_LOCAL_STORE,
+)
+from cutctx.proxy.models import _load_user_token_secret as _REAL_LOAD_USER_TOKEN_SECRET
 
-@pytest.fixture(autouse=True)
-def _no_ambient_operator_license(monkeypatch):
+
+@pytest.fixture(scope="session", autouse=True)
+def _no_ambient_operator_license_session():
     """Stop the suite from picking up the operator's activated licence.
 
     ``deployment_security.effective_license_key`` falls back to
@@ -72,14 +79,52 @@ def _no_ambient_operator_license(monkeypatch):
     the paid seat gate engages, and ~135 proxy tests 401 on a developer
     machine while passing on a bare CI runner.
 
-    Only the *local store* lookup is stubbed. ``CUTCTX_LICENSE_KEY`` and an
-    explicit ``config.license_key`` still win, so the tests that deliberately
+    ``ProxyConfig`` reads the machine-local user-token secret for the same
+    good reason (issuer and verifier must agree without hand-wiring), with the
+    same bad effect here: a licensed test proxy then holds a *valid* secret,
+    reaches ``verify_user_token``, and 401s "malformed token".
+
+    Session-scoped on purpose. Several suites build their app in a
+    module-scoped fixture, which pytest instantiates before any
+    function-scoped patch could apply — a function-scoped version of this
+    fixture silently misses them.
+
+    Only the ambient *machine* reads are stubbed. ``CUTCTX_LICENSE_KEY`` and
+    an explicit ``config.license_key`` still win, so tests that deliberately
     exercise licensed behaviour keep working by setting those.
     """
-    monkeypatch.setattr(
-        "cutctx.proxy.deployment_security._license_key_from_local_store",
-        lambda: None,
-    )
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            "cutctx.proxy.deployment_security._license_key_from_local_store",
+            lambda: None,
+        )
+        mp.setattr("cutctx.proxy.models._load_user_token_secret", lambda: None)
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _restore_local_license_lookup(request):
+    """Give back the real lookup to tests that are *about* it.
+
+    ``@pytest.mark.uses_local_license`` marks tests covering the
+    ``~/.cutctx`` licence path itself. They need the genuine function — just
+    not the genuine operator's licence, so they point HOME at their own
+    tmp_path.
+    """
+    if not request.node.get_closest_marker("uses_local_license"):
+        yield
+        return
+    from cutctx.proxy import deployment_security
+    from cutctx.proxy import models as proxy_models
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            deployment_security,
+            "_license_key_from_local_store",
+            _REAL_LICENSE_KEY_FROM_LOCAL_STORE,
+        )
+        mp.setattr(proxy_models, "_load_user_token_secret", _REAL_LOAD_USER_TOKEN_SECRET)
+        yield
 
 
 @pytest.fixture(autouse=True)
