@@ -108,6 +108,11 @@ jobs:
         run: python -m compileall -q cutctx cutctx_ee
       - name: repo hygiene
         run: python scripts/check_repo_hygiene.py
+      # Also a pre-commit hook, but hooks only protect contributors who
+      # installed them. Without this step a hardcoded credential reaches
+      # main whenever someone commits with --no-verify or a fresh clone.
+      - name: secret patterns
+        run: python scripts/check_secret_patterns.py
 
   build-wheel:
     needs: changes

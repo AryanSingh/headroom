@@ -61,6 +61,28 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def _no_ambient_operator_license(monkeypatch):
+    """Stop the suite from picking up the operator's activated licence.
+
+    ``deployment_security.effective_license_key`` falls back to
+    ``~/.cutctx/license_key.txt`` / ``license_cache.json`` so an operator does
+    not have to duplicate ``CUTCTX_LICENSE_KEY`` into LaunchAgent plists. That
+    is right for the product and wrong for tests: ``create_app()`` then
+    resolves a real enterprise licence, entitlements upgrade past ``builder``,
+    the paid seat gate engages, and ~135 proxy tests 401 on a developer
+    machine while passing on a bare CI runner.
+
+    Only the *local store* lookup is stubbed. ``CUTCTX_LICENSE_KEY`` and an
+    explicit ``config.license_key`` still win, so the tests that deliberately
+    exercise licensed behaviour keep working by setting those.
+    """
+    monkeypatch.setattr(
+        "cutctx.proxy.deployment_security._license_key_from_local_store",
+        lambda: None,
+    )
+
+
+@pytest.fixture(autouse=True)
 def _restore_runtime_state():
     """Keep per-test process state from leaking into later tests.
 
