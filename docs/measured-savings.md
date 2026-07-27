@@ -142,11 +142,30 @@ one that reads build logs and tool output.
 
 **Why the zeros:**
 
-- **Code** — `code_aware_enabled` is off by default, a deliberate product
-  choice ("use code graph tools instead"). The CODE_AWARE strategy is still
-  selected and then no-ops, so it reports 0% rather than routing elsewhere.
-  `strategy_chain` says `code_aware_disabled`, so this reads as a switch
-  rather than a limit.
+- **Code** — `code_aware_enabled` is off by default. The CODE_AWARE strategy
+  is still selected and then no-ops, so it reports 0% rather than routing
+  elsewhere; `strategy_chain` says `code_aware_disabled`, so this reads as a
+  switch rather than a limit.
+
+  This default was inherited as "use code graph tools instead". Measured, it
+  is the right call for a stronger reason. Turning it on and comparing ASTs
+  before and after on `cutctx/utils.py`: every function, class and module
+  constant survives, but **6 of 20 function bodies lose statements — 44 body
+  statements become 34**. Signatures and names stay intact while roughly a
+  quarter of the implementation is silently elided. That shape is precisely
+  wrong for a coding agent: it reads a file in order to *edit* it, and would
+  write changes against logic it cannot see, with nothing in the output
+  marking what was dropped.
+
+  It is also unreliable. On four real source files it produced **invalid
+  Python on two of them** ("Code compression produced invalid syntax"), where
+  the syntax guard correctly discarded the result and returned the original —
+  another engine whose safety net converts a defect into a silent 0%. Where
+  it does work it saves 15.7%–35.7%.
+
+  So: off by default on evidence, not preference. Anyone wanting to revisit it
+  should fix the invalid-syntax cases first, and treat body elision as a
+  correctness question rather than a compression ratio.
 - **Markdown tables** — `CompactTableCompressor` declines this shape; it
   targets JSON arrays of records, not text that is already a pipe table.
   Markdown routes to TEXT passthrough.

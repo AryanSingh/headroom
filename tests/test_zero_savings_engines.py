@@ -332,3 +332,61 @@ def test_dedup_floor_still_ignores_small_content() -> None:
     ]
 
     assert SessionDeduplicator().process(messages).dedup_count == 0
+
+
+# ---------------------------------------------------------------------------
+# code_aware: off by default, and these pin the two reasons why.
+# ---------------------------------------------------------------------------
+
+
+def test_code_aware_elides_implementation_not_just_formatting() -> None:
+    """It drops statements from function bodies while keeping signatures.
+
+    That shape is the hazard: an agent reading a file in order to edit it sees
+    intact names and signatures with roughly a quarter of the logic missing,
+    and nothing marks the gap. This test documents the behaviour so anyone
+    flipping the default has to confront it deliberately.
+    """
+    import ast
+
+    source = Path("cutctx/utils.py").read_text()
+    out = ContentRouter(ContentRouterConfig(enable_code_aware=True)).compress(source)
+    if out.compressed == source:
+        pytest.skip("code-aware declined this file (invalid-syntax guard)")
+
+    def body_statements(code: str) -> int:
+        tree = ast.parse(code)
+        return sum(
+            len(
+                [
+                    s
+                    for s in node.body
+                    if not (
+                        isinstance(s, ast.Expr)
+                        and isinstance(s.value, ast.Constant)
+                        and isinstance(s.value.value, str)
+                    )
+                ]
+            )
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        )
+
+    assert body_statements(out.compressed) < body_statements(source), (
+        "expected code-aware to elide implementation; if this now round-trips "
+        "losslessly the default is worth revisiting"
+    )
+
+
+def test_code_aware_output_is_always_syntactically_valid() -> None:
+    """The guard must never let broken source reach the model.
+
+    Code-aware emits invalid Python on some real files. That is a defect, but
+    the guard turning it into a passthrough is the behaviour we depend on.
+    """
+    import ast
+
+    router = ContentRouter(ContentRouterConfig(enable_code_aware=True))
+    for path in ("cutctx/utils.py", "cutctx/dedup.py", "cutctx/context_budget.py"):
+        compressed = router.compress(Path(path).read_text()).compressed
+        ast.parse(compressed)  # raises SyntaxError if the guard ever leaks
