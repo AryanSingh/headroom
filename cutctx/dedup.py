@@ -33,8 +33,21 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Minimum content length (in tokens) to consider for deduplication
-MIN_DEDUP_TOKENS = 200
+# Minimum content length (in tokens) to consider for deduplication.
+#
+# 100, not 200, because dedup runs POST-compression. By the time it sees a
+# block, the compressors have already shrunk it, so a floor tuned for raw tool
+# output silently excludes duplicates that were large before compression and
+# are merely medium after it. Measured on four identical 120-row tool results:
+#
+#     floor 200 -> 1414 tokens (85.7%), 0 duplicates found
+#     floor 100 ->  589 tokens (94.0%), 3 duplicates found
+#
+# The win plateaus at 100 (50 and 20 give the identical 589), so there is no
+# reason to go lower and start collapsing trivia. Replacing a 100-token block
+# with a ~10-token pointer is still clearly worth it, and the first copy of
+# the content is always retained, so nothing becomes unreachable.
+MIN_DEDUP_TOKENS = 100
 
 # Pointer marker format for deduplicated content
 DEDUP_MARKER = DEDUP_REF_MARKER

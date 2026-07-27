@@ -282,3 +282,53 @@ def test_context_budget_leaves_small_conversations_untouched() -> None:
     messages = [{"role": "user", "content": [{"type": "text", "text": "hi"}]}]
 
     assert ContextBudgetController(max_tokens=100_000).apply(messages) == messages
+
+
+# ---------------------------------------------------------------------------
+# dedup threshold: it runs post-compression, so the floor has to account for
+# blocks the compressors have already shrunk.
+# ---------------------------------------------------------------------------
+
+
+def test_dedup_still_collapses_blocks_the_compressors_shrank() -> None:
+    """The floor is applied after compression, not to raw tool output.
+
+    At the old 200-token floor, four identical 120-row tool results compressed
+    to just under the threshold and then deduped to nothing — 85.7% where
+    94.0% was available. This is the realistic shape: medium tool output that
+    repeats across turns.
+    """
+    from cutctx.dedup import SessionDeduplicator
+    from cutctx.transforms.content_router import ContentRouter
+
+    block = json.dumps([{"id": i, "status": "active", "note": "N"} for i in range(120)])
+    compressed = ContentRouter().compress(block).compressed
+    messages = [
+        {
+            "role": "user",
+            "content": [{"type": "tool_result", "tool_use_id": f"t{i}", "content": compressed}],
+        }
+        for i in range(4)
+    ]
+
+    result = SessionDeduplicator().process(messages)
+
+    assert result.dedup_count == 3, (
+        "compressed duplicates fell under the dedup floor and were not collapsed"
+    )
+
+
+def test_dedup_floor_still_ignores_small_content() -> None:
+    """Lowering the floor must not start collapsing trivia."""
+    from cutctx.dedup import SessionDeduplicator
+
+    tiny = "ok"
+    messages = [
+        {
+            "role": "user",
+            "content": [{"type": "tool_result", "tool_use_id": f"t{i}", "content": tiny}],
+        }
+        for i in range(4)
+    ]
+
+    assert SessionDeduplicator().process(messages).dedup_count == 0
