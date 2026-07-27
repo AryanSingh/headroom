@@ -13,6 +13,55 @@ import click
 
 from .main import main
 
+_BUYER_CAVEAT = (
+    "Rates below are for eligible compressible payloads unless labeled all-traffic."
+)
+
+
+def build_buyer_report_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build honesty fields for the buyer ROI report.
+
+    Separates Cutctx-created compression savings from observed provider
+    cache discounts, and reports eligible vs all-traffic compression rates.
+    """
+    requests_total = len(rows)
+    requests_compressed = 0
+    requests_bypassed_small = 0
+    created_savings_tokens = 0
+    observed_provider_cache_tokens = 0
+
+    for row in rows:
+        sources = row.get("savings_by_source_tokens") or {}
+        if not isinstance(sources, dict):
+            sources = {}
+        created_savings_tokens += int(sources.get("cutctx_compression", 0) or 0)
+        observed_provider_cache_tokens += int(sources.get("provider_prompt_cache", 0) or 0)
+
+        bypassed = bool(row.get("bypassed_small"))
+        if bypassed:
+            requests_bypassed_small += 1
+
+        compressed = row.get("compressed")
+        if compressed is None:
+            compressed = int(sources.get("cutctx_compression", 0) or 0) > 0
+        if compressed and not bypassed:
+            requests_compressed += 1
+
+    eligible = max(0, requests_total - requests_bypassed_small)
+    eligible_rate = (requests_compressed / eligible) if eligible else 0.0
+    all_traffic_rate = (requests_compressed / requests_total) if requests_total else 0.0
+
+    return {
+        "requests_total": requests_total,
+        "requests_compressed": requests_compressed,
+        "requests_bypassed_small": requests_bypassed_small,
+        "eligible_compression_rate": eligible_rate,
+        "all_traffic_compression_rate": all_traffic_rate,
+        "created_savings_tokens": created_savings_tokens,
+        "observed_provider_cache_tokens": observed_provider_cache_tokens,
+        "caveat": _BUYER_CAVEAT,
+    }
+
 
 def _get_schedule_path() -> Path:
     """Get the schedule config file path."""
@@ -545,6 +594,8 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             compression_usd += row_compression_usd
             cache_usd += row_cache_usd
 
+    honesty = build_buyer_report_payload(data)
+
     if fmt == "json":
         payload = {
             "period_days": days,
@@ -574,16 +625,36 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
                 "upstream side; Cutctx compression, self-hosted prefix "
                 "cache, and model routing are observed on the proxy side."
             ),
+            **honesty,
         }
         content = json.dumps(payload, indent=2)
     elif fmt == "markdown":
         lines: list[str] = []
         lines.append(f"# Cutctx ROI Report — last {days} days")
         lines.append("")
+        lines.append(f"> {honesty['caveat']}")
+        lines.append("")
         lines.append("## Combined savings")
         lines.append("")
         lines.append(f"- **Total tokens saved:** {total_tokens:,}")
         lines.append(f"- **Total USD saved:** ${total_usd:,.2f}")
+        lines.append(
+            f"- **Requests:** {honesty['requests_total']} total, "
+            f"{honesty['requests_compressed']} compressed, "
+            f"{honesty['requests_bypassed_small']} bypassed (too small)"
+        )
+        lines.append(
+            f"- **Eligible compression rate:** {honesty['eligible_compression_rate']:.1%}"
+        )
+        lines.append(
+            f"- **All-traffic compression rate:** {honesty['all_traffic_compression_rate']:.1%}"
+        )
+        lines.append(
+            f"- **Created (Cutctx) tokens:** {honesty['created_savings_tokens']:,}"
+        )
+        lines.append(
+            f"- **Observed provider cache tokens:** {honesty['observed_provider_cache_tokens']:,}"
+        )
         lines.append("")
         lines.append("## By source")
         lines.append("")
@@ -624,8 +695,28 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         lines.append(f"Cutctx ROI Report — last {days} days")
         lines.append("=" * 50)
         lines.append("")
+        lines.append(honesty["caveat"])
+        lines.append("")
         lines.append(f"Total tokens saved:        {total_tokens:>12,}")
         lines.append(f"Total USD saved:            ${total_usd:>11,.2f}")
+        lines.append(
+            f"Requests (compressed/bypassed/total): "
+            f"{honesty['requests_compressed']}/"
+            f"{honesty['requests_bypassed_small']}/"
+            f"{honesty['requests_total']}"
+        )
+        lines.append(
+            f"Eligible compression rate:  {honesty['eligible_compression_rate']:>11.1%}"
+        )
+        lines.append(
+            f"All-traffic compression:    {honesty['all_traffic_compression_rate']:>11.1%}"
+        )
+        lines.append(
+            f"Created (Cutctx) tokens:    {honesty['created_savings_tokens']:>12,}"
+        )
+        lines.append(
+            f"Observed provider cache:    {honesty['observed_provider_cache_tokens']:>12,}"
+        )
         lines.append("")
         lines.append("By source:")
         for src in SavingsSource:
