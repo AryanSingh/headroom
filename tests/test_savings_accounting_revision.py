@@ -89,6 +89,41 @@ def test_boundary_timestamp_supports_numeric_rows(tmp_path: Path) -> None:
     assert tracker._state["accounting_revision"]["boundary_timestamp"] == 1_700_000_002.0
 
 
+def test_a_zero_boundary_written_by_an_earlier_build_is_repaired(tmp_path: Path) -> None:
+    """Once schema_version is 8 the migration never runs again.
+
+    An interim build recorded boundary_timestamp as 0.0, and without a repair
+    that bad value is frozen in forever. It is derived from history we still
+    have, so recomputing it is safe — unlike the savings figures themselves.
+    """
+    state = _legacy_state(schema_version=SCHEMA_VERSION, rows=5)
+    newest = max(row["timestamp"] for row in state["history"])
+    state["accounting_revision"] = {
+        "schema_version": 8,
+        "note": "…",
+        "legacy_history_rows": 5,
+        "boundary_timestamp": 0.0,
+    }
+
+    tracker = SavingsTracker(path=_write(tmp_path, state))
+
+    assert tracker._state["accounting_revision"]["boundary_timestamp"] == newest
+
+
+def test_repair_does_not_disturb_a_good_boundary(tmp_path: Path) -> None:
+    state = _legacy_state(schema_version=SCHEMA_VERSION, rows=5)
+    state["accounting_revision"] = {
+        "schema_version": 8,
+        "note": "…",
+        "legacy_history_rows": 5,
+        "boundary_timestamp": "2020-01-01T00:00:00Z",
+    }
+
+    tracker = SavingsTracker(path=_write(tmp_path, state))
+
+    assert tracker._state["accounting_revision"]["boundary_timestamp"] == "2020-01-01T00:00:00Z"
+
+
 def test_marking_does_not_destroy_the_customers_history(tmp_path: Path) -> None:
     """Flag the numbers; never quietly delete or restate them."""
     tracker = SavingsTracker(path=_write(tmp_path, _legacy_state(rows=5)))

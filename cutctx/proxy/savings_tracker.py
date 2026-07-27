@@ -520,6 +520,32 @@ def estimate_request_cost_usd(
     )
 
 
+def _newest_history_timestamp(history: Any) -> str | float | None:
+    """Return the latest timestamp across persisted history rows.
+
+    Rows carry an ISO-8601 UTC string ("2026-07-27T15:14:46Z"), which sorts
+    lexicographically, so they are compared as strings. Passing one through a
+    float coercion yields ``0.0`` — wrong, and falsy, so it reads as "no
+    boundary" while looking like a recorded value. Numeric epoch stamps from
+    older state shapes are still handled.
+    """
+    if not isinstance(history, list):
+        return None
+    iso_stamps: list[str] = [
+        str(row["timestamp"])
+        for row in history
+        if isinstance(row, dict) and isinstance(row.get("timestamp"), str)
+    ]
+    if iso_stamps:
+        return max(iso_stamps)
+    numeric_stamps: list[float] = [
+        float(row["timestamp"])
+        for row in history
+        if isinstance(row, dict) and isinstance(row.get("timestamp"), (int, float))
+    ]
+    return max(numeric_stamps) if numeric_stamps else None
+
+
 def _normalize_history_entry(entry: Any) -> dict[str, Any] | None:
     """Normalize persisted history entries across schema shapes.
 
@@ -2540,26 +2566,7 @@ class SavingsTracker:
             raw_history = raw.get("history")
             legacy_history: list[Any] = raw_history if isinstance(raw_history, list) else []
             legacy_rows = len(legacy_history)
-            # Persisted rows carry an ISO-8601 UTC string ("2026-07-27T15:14:46Z").
-            # Coercing that to float yields 0.0, which is both wrong and falsy —
-            # it silently recorded "no boundary" while looking like a value.
-            # Compare the strings directly (this format sorts lexicographically)
-            # and keep numeric timestamps working for older shapes.
-            iso_stamps = [
-                row["timestamp"]
-                for row in legacy_history
-                if isinstance(row, dict) and isinstance(row.get("timestamp"), str)
-            ]
-            numeric_stamps = [
-                float(row["timestamp"])
-                for row in legacy_history
-                if isinstance(row, dict) and isinstance(row.get("timestamp"), (int, float))
-            ]
-            boundary_ts: str | float | None = None
-            if iso_stamps:
-                boundary_ts = max(iso_stamps)
-            elif numeric_stamps:
-                boundary_ts = max(numeric_stamps)
+            boundary_ts = _newest_history_timestamp(legacy_history)
             raw["accounting_revision"] = {
                 "schema_version": 8,
                 "note": (
@@ -2575,6 +2582,19 @@ class SavingsTracker:
                 "boundary_timestamp": boundary_ts,
             }
             raw["schema_version"] = SCHEMA_VERSION
+        else:
+            # Self-heal a boundary an earlier build of this migration recorded
+            # as 0.0 (it coerced the ISO timestamp to float). Once
+            # schema_version is 8 the block above never runs again, so without
+            # this the bad value is frozen in and the caveat can say how many
+            # rows it covers but not which span. The value is derived from
+            # history we still have, so recomputing is safe — unlike the
+            # savings figures themselves, which are gone.
+            existing = raw.get("accounting_revision")
+            if isinstance(existing, dict) and not existing.get("boundary_timestamp"):
+                repaired = _newest_history_timestamp(raw.get("history"))
+                if repaired is not None:
+                    existing["boundary_timestamp"] = repaired
 
         history_raw = raw.get("history", [])
         normalized_history = []
