@@ -194,7 +194,17 @@ def test_dashboard_renders_observed_ttl_metrics_and_can_capture_screenshot(
         _install_dashboard_routes(page)
         page.goto("http://cutctx.local/dashboard", wait_until="commit")
 
-        expect(page.get_by_text("Observed TTL Buckets")).to_be_visible()
+        # `wait_until="commit"` returns as soon as navigation commits, before
+        # any content exists, so this first assertion is what waits for the
+        # SPA to download, parse and hydrate. Playwright's default expect
+        # timeout is 5s, which is comfortable locally and marginal in CI: the
+        # route mocks are served from Python, and coverage instrumentation
+        # slows every one of them. That raced and failed the whole job.
+        #
+        # Only the hydration gate needs the longer budget; once the first
+        # element is visible the rest are already rendered. This does not
+        # weaken the test — an element that never appears still fails it.
+        expect(page.get_by_text("Observed TTL Buckets")).to_be_visible(timeout=30_000)
         expect(page.get_by_text("Provider-reported cache write mix")).to_be_visible()
         expect(page.get_by_test_id("ttl-bucket-headline")).to_have_text("1h leaning")
         expect(page.get_by_test_id("ttl-bucket-mix-1h-pct")).to_have_text("1h 56.0%")
