@@ -541,7 +541,7 @@ def _newest_history_timestamp(history: Any) -> str | float | None:
     numeric_stamps: list[float] = [
         float(row["timestamp"])
         for row in history
-        if isinstance(row, dict) and isinstance(row.get("timestamp"), (int, float))
+        if isinstance(row, dict) and isinstance(row.get("timestamp"), int | float)
     ]
     return max(numeric_stamps) if numeric_stamps else None
 

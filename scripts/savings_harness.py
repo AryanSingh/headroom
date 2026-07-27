@@ -225,9 +225,7 @@ def _unified_diff(old: str, new: str) -> str:
     ).stdout
 
 
-def deep_history(
-    kind: str, turns: int = 6, tool_name: str = "Bash"
-) -> list[dict[str, Any]]:
+def deep_history(kind: str, turns: int = 6, tool_name: str = "Bash") -> list[dict[str, Any]]:
     """Multi-turn history so content sits outside the protected live zone.
 
     Compression deliberately leaves the most recent turn alone; a single-turn

@@ -288,7 +288,11 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-asyncio>=0.21.0",
-    "ruff>=0.1.0",
+    # Pinned to the version CI enforces. Unbounded, a fresh install picks up
+    # ruff 0.14.x, which no longer emits rules 0.9.4 still does (UP038 among
+    # them) — so `ruff check` passed locally and failed in CI. Pinned exactly,
+    # not a range: 0.9.10 already differs from what CI enforces.
+    "ruff==0.9.4",
     "mypy>=1.15.0,<1.16.0",
     "sqlalchemy>=2.0,<3.0",
     "tree-sitter-language-pack>=0.10.0",
