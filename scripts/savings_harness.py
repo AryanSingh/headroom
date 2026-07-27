@@ -225,17 +225,24 @@ def _unified_diff(old: str, new: str) -> str:
     ).stdout
 
 
-def deep_history(kind: str, turns: int = 6) -> list[dict[str, Any]]:
+def deep_history(
+    kind: str, turns: int = 6, tool_name: str = "Bash"
+) -> list[dict[str, Any]]:
     """Multi-turn history so content sits outside the protected live zone.
 
     Compression deliberately leaves the most recent turn alone; a single-turn
     payload therefore measures nothing. This was the first thing that misled
     me when checking the compressor by hand.
+
+    ``tool_name`` matters for any engine that gates on it. The memoizer only
+    caches read-only tools, so a corpus built from "Bash" calls could never
+    exercise it — the scenario measured the semantic cache and credited the
+    memoizer.
     """
     msgs: list[dict[str, Any]] = []
     for t in range(turns):
         msgs.append({"role": "user", "content": f"step {t}: inspect the system"})
-        msgs.append(_tool_use(f"t{t}"))
+        msgs.append(_tool_use(f"t{t}", name=tool_name))
         msgs.append(_tool_result(corpus(kind), f"t{t}"))
         msgs.append({"role": "assistant", "content": f"Observed step {t}."})
     msgs.append({"role": "user", "content": "Summarise briefly."})
@@ -425,9 +432,10 @@ def scenarios() -> list[Scenario]:
     out.append(
         Scenario(
             name="memoization",
-            why="identical tool results served from the memoizer (--memoize)",
+            why="identical tool results served from the memoizer (--memoize); "
+            "must use a read-only tool name or the memoizer never engages",
             args=["--memoize"],
-            body={**base, "messages": deep_history("json", turns=3)},
+            body={**base, "messages": deep_history("json", turns=3, tool_name="Read")},
             repeat=2,
         )
     )

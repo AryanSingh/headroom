@@ -13,34 +13,69 @@ Where an engine saves nothing, it says so.
 
 ## What is on by default
 
-| Engine | Measured | Notes |
+Two numbers per content type, because they answer different questions.
+**Compression alone** is what the compressors do to a single block. **Default
+stack** adds semantic dedup and drain3, which are now on by default.
+
+| Content type | Compression alone | Default stack |
 | --- | --- | --- |
-| Compression — log-shaped content | **66%** | The strongest single case. |
-| Compression — JSON tool output | **53.4%** | Arrays of records — file listings, search results, DB rows. |
-| Compression — HTML | **40.8%** | |
-| Tool-schema compaction | **36.9%** | 40-tool surface. |
-| Semantic cache | **83%** | Second identical request never leaves the proxy. |
-| Compression — prose / tables / code | **0%** | See "Honest limits". |
+| Log-shaped output | 66.0% | **82.3%** |
+| JSON tool output | 53.4% | **79.4%** |
+| HTML | 40.8% | **75.9%** |
+| Source code | 0% | **81.4%** |
+| Prose | 0% | **80.6%** |
+| Markdown tables | 0% | **81.6%** |
+
+Plus, independent of content type:
+
+| Engine | Measured |
+| --- | --- |
+| Semantic cache | **82.9%** (second identical request never leaves the proxy) |
+| Tool-schema compaction | **55.4%** (40-tool surface) |
+
+**The gap between those two columns is almost entirely semantic dedup, and you
+should understand what it is before you quote it.** Dedup collapses content
+repeated across turns into a retrieval pointer. The harness corpus is six
+turns carrying the *identical* tool result, so it repeats perfectly and these
+figures are an upper bound for repetition-heavy traffic. It is why code, prose
+and tables move from 0% to ~81%: nothing is compressing that content, the
+repeated copies are being collapsed. An agent that reads a different file
+every turn will see far less. An agent that re-reads the same files while it
+reasons — which is the common loop — will see something in this range.
 
 ## What is opt-in
 
-| Engine | Flag | Measured |
-| --- | --- | --- |
-| Semantic dedup | `--enable-semantic-dedup` | **79.4%** (repeated tool results) |
-| Memoization | `--memoize` | **76.7%** (repeat tool results) |
-| Drain3 | `--drain3` | **64.8%** (mixed log templates) |
-| Context budget | `--enable-context-budget` | **56.7%** (payload over ceiling) |
-| Difftastic | `--difftastic` | **51.7%** (reformatting-heavy diffs) |
-| Model routing | `--model-routing-preset codex-gpt54mini-high` | routes `sonnet → haiku` |
-| Knowledge graph (Graphify) | `--knowledge-graph` | unavailable — see below |
+## What changed to on by default, and why
 
-Every one of these except graphify previously read 0%, and **not one of them
-was "not applicable to the corpus"** — each shipped enabled-but-inert. The
-causes are in "Why the engines read zero" below.
+Semantic dedup and drain3 now default on. Both were opt-in, both were inert
+until the fixes below, and neither can lose:
 
-Memoization's 76.7% combines repeat-result serving with the JSON compression
-underneath it. Dedup's 79.4% is incremental over that same JSON corpus, which
-compresses 53.4% on its own.
+- **Semantic dedup** — the largest single lever in the table above, and the
+  only thing that helps code, prose or tables at all. It swaps repeated
+  content for a `cutctx_retrieve` pointer, which the proxy resolves
+  transparently using the tool it *already* injects for compression — so this
+  reuses a default-on mechanism rather than adding a new way to lose context.
+  Opt out with `--no-semantic-dedup`.
+- **Drain3** — ships as the optional `[log-ml]` extra. Installing that extra
+  is signal enough; previously you had to install it *and* pass a flag, and
+  got silence otherwise. Absent the extra it is inert, and the router discards
+  drain3 output that fails to shrink the payload, so it can never do worse
+  than the standard log path. Opt out with `--no-drain3`.
+
+## What is still opt-in, and why
+
+| Engine | Flag | Measured | Why not default |
+| --- | --- | --- | --- |
+| Context budget | `--enable-context-budget` | 82.7% (+3.3pp over default stack) | Trims conversation once past 60% of the ceiling. Silent context loss the user cannot easily detect. |
+| Difftastic | `--difftastic` | 51.7% on diffs | Spawns a `difft` subprocess per file with a 10s timeout, needs an external binary, and only fires on Bash git diffs. |
+| Memoization | `--memoize` | 79.8% (**+0.4pp** over default stack) | Dedup already collapses the repeated tool results it targets, so it adds almost nothing now. |
+| Model routing | `--model-routing-preset …` | routes `sonnet → haiku` | Changes which model answers — a cost/quality decision that belongs to the operator. |
+| Knowledge graph | `--knowledge-graph` | unavailable | Dependency mismatch, see below. |
+
+The memoization row is the interesting one: on its own corpus it looks like a
+79.8% engine, but measured against the new default stack it contributes
+**0.4 percentage points**, because dedup gets there first. Two engines, one
+win.
 
 ## Why the engines read zero
 
@@ -66,6 +101,14 @@ corpus". It was wrong for four of them, and the fifth was worse.
   pipeline built `SessionDeduplicator()` with no CCR store, so every pointer
   it emitted was unresolvable — that path was silently lossy, and is now
   wired and covered by a round-trip test.
+- **memoization** — its allowlist was `{file_read, code_search}` and its
+  write-list `{file_write, file_edit, file_delete}`: a vocabulary no client
+  speaks. Claude Code sends `Read` and `Edit`, so nothing was memoized — and
+  the write side was the dangerous half, because an unrecognised write name
+  meant a file could be edited and the next read still answered from cache.
+  Both lists now match on the shared cross-agent name map, and `Bash` counts
+  as a write (it can `sed -i` or `git checkout`; the module's own rule is
+  "when in doubt, flush the whole session").
 - **context_budget** — counted only `block["text"]`, but a `tool_result`
   stores its payload under `content`. Tool output therefore counted as zero
   tokens: a 77k-token conversation measured as **12**, the controller never

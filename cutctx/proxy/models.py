@@ -291,7 +291,10 @@ class ProxyConfig:
     code_graph_watcher: bool = False
 
     # Drain3 ML log template mining
-    drain3_enabled: bool = False
+    # Default ON. Inert unless the [log-ml] extra is installed, and the
+    # router discards drain3 output that fails to shrink the payload, so it
+    # can never do worse than the standard log path it sits in front of.
+    drain3_enabled: bool = True
     drain3_max_clusters: int = 1000
     drain3_sim_threshold: float = 0.4
 
@@ -575,7 +578,11 @@ class ProxyConfig:
 
     # Semantic Deduplication — replace repeated content with CCR pointers.
     # Env: CUTCTX_DEDUP_ENABLED=1
-    dedup_enabled: bool = False
+    # Default ON. Repeated content collapses to a CCR pointer that the proxy
+    # resolves transparently through the cutctx_retrieve tool it already
+    # injects for compression, so this reuses a mechanism that is default-on
+    # rather than introducing a new way to lose context.
+    dedup_enabled: bool = True
 
     # Context Budget — progressive compression as token budget fills.
     # Env: CUTCTX_CONTEXT_BUDGET_ENABLED=1

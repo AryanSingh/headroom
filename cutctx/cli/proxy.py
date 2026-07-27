@@ -755,17 +755,24 @@ def _selected_context_tool() -> str:
 )
 # Drain3 ML log template mining — groups repetitive log lines by template.
 # Requires: pip install cutctx-ai[log-ml].
-# CLI: --drain3; env: CUTCTX_DRAIN3=1.
+# CLI: --drain3/--no-drain3; env: CUTCTX_DRAIN3=0 to disable.
+# Default ON: drain3 ships as the optional [log-ml] extra, so installing that
+# extra is signal enough that the operator wants it — previously they had to
+# install it AND pass a flag, and got silence otherwise. Where the extra is
+# absent the router falls straight through to the standard log compressor, so
+# this cannot break a default install. The router also refuses drain3 output
+# that fails to shrink the payload, so it can never do worse than the path it
+# replaces.
 @click.option(
-    "--drain3",
+    "--drain3/--no-drain3",
     "drain3_enabled",
-    is_flag=True,
+    default=True,
     envvar="CUTCTX_DRAIN3",
     help=(
-        "Enable Drain3 ML log template mining. Groups repetitive log lines by "
-        "template; emits one representative per cluster. "
-        "Requires: pip install cutctx-ai[log-ml]. "
-        "Env: CUTCTX_DRAIN3."
+        "Drain3 ML log template mining (default: on). Groups repetitive log "
+        "lines by template; emits one representative per cluster. "
+        "Requires: pip install cutctx-ai[log-ml] — inert without it. "
+        "Disable with --no-drain3. Env: CUTCTX_DRAIN3=0."
     ),
 )
 @click.option(
@@ -866,10 +873,17 @@ def _selected_context_tool() -> str:
     help="Modulate compression based on extracted task. Env: CUTCTX_TASK_AWARE_ENABLED=1",
 )
 @click.option(
-    "--enable-semantic-dedup",
-    is_flag=True,
+    "--enable-semantic-dedup/--no-semantic-dedup",
+    "enable_semantic_dedup",
+    default=True,
     envvar="CUTCTX_DEDUP_ENABLED",
-    help="Replace repeated content with CCR pointers. Env: CUTCTX_DEDUP_ENABLED=1",
+    help=(
+        "Collapse content repeated across turns into CCR pointers "
+        "(default: on). The proxy resolves those pointers transparently via "
+        "the cutctx_retrieve tool it already injects for compression, so "
+        "nothing is lost. Disable with --no-semantic-dedup. "
+        "Env: CUTCTX_DEDUP_ENABLED=0."
+    ),
 )
 @click.option(
     "--enable-context-budget",
@@ -1361,7 +1375,11 @@ def proxy(
         firewall_redact_streaming=not _get_env_bool("CUTCTX_FIREWALL_NO_REDACT_STREAMING", False),
         # Intelligence Layer
         task_aware_enabled=enable_task_aware or _get_env_bool("CUTCTX_TASK_AWARE_ENABLED", False),
-        dedup_enabled=enable_semantic_dedup or _get_env_bool("CUTCTX_DEDUP_ENABLED", False),
+        # No `or _get_env_bool(...)` here: the option now defaults to True, so
+        # an `or` would short-circuit to True and make --no-semantic-dedup
+        # impossible to honour. Click reads CUTCTX_DEDUP_ENABLED via envvar=,
+        # which handles the disable case correctly.
+        dedup_enabled=enable_semantic_dedup,
         context_budget_enabled=enable_context_budget
         or _get_env_bool("CUTCTX_CONTEXT_BUDGET_ENABLED", False),
         # Only the argparse entry point ever read these, so the Click CLI

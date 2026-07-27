@@ -27,6 +27,7 @@ import json
 
 from cutctx.proxy.memoizer import (
     DEFAULT_MEMOIZE_LRU_SIZE,
+    MemoizeAction,
     MemoizeConfig,
     MemoizeDecision,
     ToolMemoizer,
@@ -47,8 +48,14 @@ def test_default_memoize_config_is_all_off() -> None:
     cfg = MemoizeConfig()
     assert cfg.enabled is False
     assert cfg.max_entries_per_session == DEFAULT_MEMOIZE_LRU_SIZE
-    assert cfg.allowlist == frozenset({"file_read", "code_search", "cutctx_retrieve"})
-    assert cfg.write_tools == frozenset({"file_write", "file_edit", "file_delete"})
+    # The generic spec names stay supported so existing configs keep working.
+    assert {"file_read", "code_search", "cutctx_retrieve"} <= cfg.allowlist
+    assert {"file_write", "file_edit", "file_delete"} <= cfg.write_tools
+    # ...and the canonical names real clients actually send are covered too.
+    # Without these the allowlist matched nothing Claude Code sends, and —
+    # far worse — no real edit invalidated the cache.
+    assert {"Read", "Grep", "Glob"} <= cfg.allowlist
+    assert {"Write", "Edit", "Bash"} <= cfg.write_tools
 
 
 def test_default_memoize_decision_is_passthrough() -> None:
@@ -486,3 +493,77 @@ def test_flag_off_memoizer_does_not_grow_state() -> None:
         assert s.entries == 0
         assert s.hits == 0
         assert s.misses == 0
+
+
+# ---------------------------------------------------------------------------
+# Tool-name vocabulary: the allowlist and write-list have to speak the same
+# language as the client, or memoization is inert at best and unsafe at worst.
+# ---------------------------------------------------------------------------
+
+
+def test_real_client_read_is_memoized() -> None:
+    """Claude Code sends "Read", not "file_read".
+
+    The original allowlist held only the generic spec names, so nothing a
+    real client sent was ever memoized — the engine was inert.
+    """
+    memoizer = ToolMemoizer(MemoizeConfig(enabled=True))
+    memoizer.record("s1", "Read", {"file_path": "/a.py"}, "V1")
+
+    assert memoizer.maybe_memoize("s1", "Read", {"file_path": "/a.py"}).action == MemoizeAction.HIT
+
+
+def test_real_client_edit_invalidates() -> None:
+    """The dangerous half: an unrecognised write name serves stale content.
+
+    With "Edit" missing from write_tools, a file could be edited and the next
+    Read still answered from cache.
+    """
+    memoizer = ToolMemoizer(MemoizeConfig(enabled=True))
+    memoizer.record("s1", "Read", {"file_path": "/a.py"}, "V1")
+
+    memoizer.invalidate_for_write("s1", "Edit", {"file_path": "/a.py"})
+
+    assert memoizer.maybe_memoize("s1", "Read", {"file_path": "/a.py"}).action == MemoizeAction.MISS
+
+
+def test_shell_command_invalidates() -> None:
+    """Bash can mutate anything (`sed -i`, `git checkout`, a codegen build).
+
+    The module's own rule is "when in doubt, flush the whole session —
+    correctness beats savings", and a shell is the definition of in doubt.
+    """
+    memoizer = ToolMemoizer(MemoizeConfig(enabled=True))
+    memoizer.record("s1", "Read", {"file_path": "/a.py"}, "V1")
+
+    memoizer.invalidate_for_write("s1", "Bash", {"command": "sed -i s/x/y/ /a.py"})
+
+    assert memoizer.maybe_memoize("s1", "Read", {"file_path": "/a.py"}).action == MemoizeAction.MISS
+
+
+def test_client_specific_aliases_resolve_both_ways() -> None:
+    """A client using read_file/edit_file must memoize AND invalidate."""
+    memoizer = ToolMemoizer(MemoizeConfig(enabled=True))
+    memoizer.record("s1", "read_file", {"file_path": "/a.py"}, "V1")
+    assert (
+        memoizer.maybe_memoize("s1", "read_file", {"file_path": "/a.py"}).action
+        == MemoizeAction.HIT
+    )
+
+    memoizer.invalidate_for_write("s1", "edit_file", {"file_path": "/a.py"})
+
+    assert (
+        memoizer.maybe_memoize("s1", "read_file", {"file_path": "/a.py"}).action
+        == MemoizeAction.MISS
+    )
+
+
+def test_unrelated_tools_are_still_never_memoized() -> None:
+    """Widening the vocabulary must not widen what gets cached."""
+    memoizer = ToolMemoizer(MemoizeConfig(enabled=True))
+    memoizer.record("s1", "SendEmail", {"to": "x@example.com"}, "V1")
+
+    assert (
+        memoizer.maybe_memoize("s1", "SendEmail", {"to": "x@example.com"}).action
+        == MemoizeAction.PASSTHROUGH
+    )

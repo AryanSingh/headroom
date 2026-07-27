@@ -34,6 +34,21 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _normalized(tool_name: str) -> str:
+    """Map a client's tool name onto the shared cross-agent vocabulary.
+
+    Imported lazily: cutctx.learn pulls in a wider dependency surface than
+    the proxy hot path should require at import time, and a missing optional
+    dependency must not disable invalidation.
+    """
+    try:
+        from cutctx.learn._shared import normalize_tool_name
+
+        return normalize_tool_name(tool_name)
+    except Exception:  # pragma: no cover - defensive
+        return tool_name
+
+
 # ---------------------------------------------------------------------------
 # Defaults
 # ---------------------------------------------------------------------------
@@ -42,15 +57,49 @@ logger = logging.getLogger(__name__)
 # Default LRU cap (per spec): 256 entries per session.
 DEFAULT_MEMOIZE_LRU_SIZE = 256
 
-# Default allowlist (per spec): read-only, deterministic-within-a-session
-# tools. Conservative — anything not on this list is never memoized.
+# Default allowlist: read-only, deterministic-within-a-session tools.
+# Conservative — anything not on this list is never memoized.
+#
+# Names are matched AFTER normalization through the shared cross-agent map
+# (cutctx.learn._shared), which is why the canonical names appear here
+# alongside the generic spec names. The original list held only
+# file_read/code_search, which is a vocabulary no real client speaks: Claude
+# Code sends "Read" and "Grep", so nothing was ever memoized. The write list
+# below had the more serious version of the same bug.
 DEFAULT_MEMOIZE_ALLOWLIST: frozenset[str] = frozenset(
-    {"file_read", "code_search", "cutctx_retrieve"}
+    {
+        # canonical (post-normalization) names
+        "Read",
+        "Grep",
+        "Glob",
+        # generic spec names, kept so existing configs keep working
+        "file_read",
+        "code_search",
+        "cutctx_retrieve",
+    }
 )
 
-# Default write-tool list (per spec). Any successful call to one of
-# these tools triggers session-wide cache invalidation.
-DEFAULT_WRITE_TOOLS: frozenset[str] = frozenset({"file_write", "file_edit", "file_delete"})
+# Default write-tool list. Any successful call to one of these triggers
+# session-wide cache invalidation.
+#
+# "Bash" is deliberately here. It is not a write tool by name, but it can do
+# anything — `sed -i`, `git checkout`, a build that regenerates sources — and
+# the module's own rule is "when in doubt, flush the whole session;
+# correctness beats savings". Leaving it out meant a shell command could
+# mutate a file and the next Read would be served from cache.
+DEFAULT_WRITE_TOOLS: frozenset[str] = frozenset(
+    {
+        # canonical (post-normalization) names
+        "Write",
+        "Edit",
+        "NotebookEdit",
+        "Bash",
+        # generic spec names, kept so existing configs keep working
+        "file_write",
+        "file_edit",
+        "file_delete",
+    }
+)
 
 # Pagination-irrelevant fields: these don't change the tool's output
 # content, so two calls with different pagination are equivalent for
@@ -135,8 +184,13 @@ def derive_key(session_id: str, tool_name: str, args: Any) -> str:
 
 def is_write_tool(tool_name: str, config: MemoizeConfig) -> bool:
     """True if this tool's successful invocation must flush the
-    session cache (write/edit/delete)."""
-    return tool_name in config.write_tools
+    session cache (write/edit/delete).
+
+    Normalized, so a client sending ``edit_file`` or ``Edit`` both
+    invalidate. Missing an alias here serves stale content after the file
+    changed, which is the failure this module exists to avoid.
+    """
+    return config.is_write_tool(tool_name)
 
 
 # ---------------------------------------------------------------------------
@@ -159,8 +213,21 @@ class MemoizeConfig:
 
     def is_tool_allowlisted(self, tool_name: str) -> bool:
         """True if tool_name is on the allowlist. Per spec, anything
-        not on the allowlist is never memoized."""
-        return tool_name in self.allowlist
+        not on the allowlist is never memoized.
+
+        Matched on the normalized name so a client sending ``read_file``
+        or ``Read`` both resolve to the same entry.
+        """
+        return tool_name in self.allowlist or _normalized(tool_name) in self.allowlist
+
+    def is_write_tool(self, tool_name: str) -> bool:
+        """True if a successful call must flush the session cache.
+
+        Normalized for the same reason, and this direction is the one that
+        matters for correctness: an unrecognised write name means stale
+        content keeps being served after the file changed.
+        """
+        return tool_name in self.write_tools or _normalized(tool_name) in self.write_tools
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +376,7 @@ class ToolMemoizer:
         """
         if not self.config.enabled:
             return
-        if tool_name not in self.config.write_tools:
+        if not self.config.is_write_tool(tool_name):
             return
         # Flush the whole session.
         cache = self._caches.get(session_id)
