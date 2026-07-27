@@ -46,6 +46,9 @@ class SelectiveFilterConfig:
     # When True, system messages are always preserved (never dropped).
     protect_system: bool = True
 
+    # When True, messages marked metadata.cutctx_skill_preserve are never dropped.
+    preserve_skills: bool = True
+
 
 @dataclass
 class FilterResult:
@@ -169,6 +172,11 @@ class SelectiveContextFilter:
 
             # Always keep system messages if configured
             if self.config.protect_system and msg.get("role") == "system":
+                keep.append(True)
+                continue
+
+            metadata = msg.get("metadata") if isinstance(msg.get("metadata"), dict) else {}
+            if self.config.preserve_skills and metadata.get("cutctx_skill_preserve") is True:
                 keep.append(True)
                 continue
 
