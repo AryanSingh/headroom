@@ -18,6 +18,7 @@ from cutctx.proxy.project_context import (  # noqa: E402
 )
 from cutctx.proxy.savings_tracker import (  # noqa: E402
     DEFAULT_MAX_PROJECTS,
+    SCHEMA_VERSION,
     SavingsTracker,
     sanitize_project_name,
 )
@@ -240,7 +241,7 @@ def test_funnel_attributes_savings_from_context_and_stats_exposes_them(tmp_path,
         assert stats["persistent_savings"]["projects_limit"] == DEFAULT_MAX_PROJECTS
 
         history = client.get("/stats-history").json()
-        assert history["schema_version"] == 7
+        assert history["schema_version"] == SCHEMA_VERSION
         assert history["projects"]["ctx-project"]["requests"] == 1
 
 

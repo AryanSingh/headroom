@@ -228,7 +228,7 @@ function SavingsPanel({
   );
 }
 
-function SavingsMixPanel({ metric, created, observed, note, coverage, reconciliation }) {
+function SavingsMixPanel({ metric, created, observed, note, coverage, reconciliation, accountingRevision }) {
   const byUsd = metric === 'usd';
   const createdValue = byUsd ? created.usd : created.tokens;
   const observedValue = byUsd ? observed.usd : observed.tokens;
@@ -267,6 +267,15 @@ function SavingsMixPanel({ metric, created, observed, note, coverage, reconcilia
               Ledger reconciled (schema v{reconciliation.schema_version || 7}):{' '}
               {Object.keys(reconciliation.fields || {}).join(', ')} adopted the canonical
               by-source ledger
+            </p>
+          ) : null}
+          {accountingRevision ? (
+            <p className="metric-footnote metric-footnote-warning" title={accountingRevision.note || ''}>
+              <AlertTriangle size={12} aria-hidden="true" />{' '}
+              {formatInteger(accountingRevision.legacy_history_rows || 0)} earlier data{' '}
+              {accountingRevision.legacy_history_rows === 1 ? 'point was' : 'points were'} recorded
+              with pre-v{accountingRevision.schema_version || 8} token accounting and overstate
+              compression. Shown unchanged — not comparable with later figures.
             </p>
           ) : null}
         </div>
@@ -535,6 +544,7 @@ export default function Savings() {
                 note="Created savings come from Cutctx features. Observed savings come from upstream provider prompt-cache hits."
                 coverage={attributionCoverage}
                 reconciliation={historyData?.attribution_reconciliation || null}
+                accountingRevision={historyData?.accounting_revision || null}
               />
 
               <CompressionDeclineStrip stats={stats} />

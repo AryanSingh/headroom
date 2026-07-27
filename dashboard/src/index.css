@@ -1050,6 +1050,31 @@ pre {
   line-height: 1.5;
 }
 
+/* Data that is shown but should not be trusted at face value — e.g. savings
+   recorded before the schema v8 token-accounting fix. Warmer than the plain
+   footnote so it reads as a caveat rather than a detail, and both theme
+   variants inherit --state-warning. */
+/* Double class (0,2,0) so this outranks `.section-heading p` (0,1,1), which
+   otherwise repaints the caveat in the same grey as an ordinary footnote. */
+.metric-footnote.metric-footnote-warning {
+  color: var(--state-warning);
+  background: var(--state-warning-surface);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.metric-footnote-warning svg {
+  vertical-align: -2px;
+}
+
+/* --amber over the tinted surface lands at ~4.5:1 in light mode — exactly on
+   the AA threshold for text this size, with no margin for the surface tint.
+   Darken just this caveat rather than moving the shared token. */
+.light .metric-footnote.metric-footnote-warning {
+  color: #8A3F07;
+}
+
 .metric-trend {
   display: inline-flex;
   align-items: center;

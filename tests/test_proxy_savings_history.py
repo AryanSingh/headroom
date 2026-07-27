@@ -15,7 +15,11 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 import cutctx.proxy.savings_tracker as savings_tracker_module
-from cutctx.proxy.savings_tracker import CUTCTX_SAVINGS_PATH_ENV_VAR, SavingsTracker
+from cutctx.proxy.savings_tracker import (
+    CUTCTX_SAVINGS_PATH_ENV_VAR,
+    SCHEMA_VERSION,
+    SavingsTracker,
+)
 from cutctx.proxy.server import ProxyConfig, create_app
 
 
@@ -146,7 +150,7 @@ def test_savings_tracker_sanitizes_legacy_state_and_applies_retention(tmp_path):
     )
     snapshot = tracker.snapshot()
 
-    assert snapshot["schema_version"] == 7
+    assert snapshot["schema_version"] == SCHEMA_VERSION
     assert "attribution_note" in snapshot
     assert snapshot["lifetime"] == {
         "requests": 0,

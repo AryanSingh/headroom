@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 CUTCTX_SAVINGS_PATH_ENV_VAR = _paths.CUTCTX_SAVINGS_PATH_ENV
 DEFAULT_SAVINGS_DIR = ".cutctx"
 DEFAULT_SAVINGS_FILE = "proxy_savings.json"
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 DEFAULT_MAX_HISTORY_POINTS = 5000
 DEFAULT_MAX_PROJECTS = 50
 DEFAULT_MAX_MODELS = 50
@@ -2213,7 +2213,11 @@ class SavingsTracker:
         # Attribution provenance markers travel with the ledger so the
         # dashboard can badge migrated/reconciled data instead of silently
         # presenting rewritten numbers.
-        for provenance_key in ("attribution_note", "attribution_reconciliation"):
+        for provenance_key in (
+            "attribution_note",
+            "attribution_reconciliation",
+            "accounting_revision",
+        ):
             if provenance_key in snapshot:
                 response[provenance_key] = snapshot[provenance_key]
         return response
@@ -2289,6 +2293,8 @@ class SavingsTracker:
                 ret["attribution_note"] = self._state["attribution_note"]
             if "attribution_reconciliation" in self._state:
                 ret["attribution_reconciliation"] = self._state["attribution_reconciliation"]
+            if "accounting_revision" in self._state:
+                ret["accounting_revision"] = self._state["accounting_revision"]
             return ret
 
     def get_summary_stats(
@@ -2516,6 +2522,45 @@ class SavingsTracker:
                         },
                     }
             raw["schema_version"] = SCHEMA_VERSION
+        if source_schema_version < 8:
+            # Schema v8: everything recorded before this point counted
+            # "tokens" as len(text.split()) — whitespace words, not BPE. On
+            # whitespace-poor output the two diverge wildly (a comma-separated
+            # CSV block scored 1 against an original of 3600), so pre-v8
+            # compression figures OVERSTATE savings, and in the worst case
+            # recorded a saving on a swap that actually grew the payload.
+            #
+            # Unlike the v7 reconciliation there is nothing to recompute: the
+            # original content is long gone and only the (wrong) aggregate
+            # survives. The honest move is therefore to mark the affected
+            # span rather than keep presenting it as measured fact. The
+            # figures are retained — deleting a customer's history to make our
+            # numbers look consistent would be worse — but the dashboard
+            # renders the caveat alongside them.
+            raw_history = raw.get("history")
+            legacy_history: list[Any] = raw_history if isinstance(raw_history, list) else []
+            legacy_rows = len(legacy_history)
+            timestamps = [
+                _coerce_float(row.get("timestamp"))
+                for row in legacy_history
+                if isinstance(row, dict) and row.get("timestamp") is not None
+            ]
+            boundary_ts = max(timestamps) if timestamps else None
+            raw["accounting_revision"] = {
+                "schema_version": 8,
+                "note": (
+                    "Savings recorded before schema v8 counted whitespace words rather "
+                    "than BPE tokens. Those figures overstate compression on content "
+                    "that compresses to something without spaces (JSON rewritten to "
+                    "CSV being the worst case) and are not comparable with figures "
+                    "recorded after the upgrade. They are shown unchanged rather than "
+                    "silently restated, because the original payloads are no longer "
+                    "available to recount."
+                ),
+                "legacy_history_rows": legacy_rows,
+                "boundary_timestamp": boundary_ts,
+            }
+            raw["schema_version"] = SCHEMA_VERSION
 
         history_raw = raw.get("history", [])
         normalized_history = []
@@ -2736,6 +2781,8 @@ class SavingsTracker:
             state["attribution_note"] = raw["attribution_note"]
         if "attribution_reconciliation" in raw:
             state["attribution_reconciliation"] = raw["attribution_reconciliation"]
+        if "accounting_revision" in raw:
+            state["accounting_revision"] = raw["accounting_revision"]
         for field, value in lifetime_extra_usd.items():
             if value > 0 or (isinstance(lifetime_raw, dict) and field in lifetime_raw):
                 state["lifetime"][field] = round(value, 6)
@@ -2843,7 +2890,7 @@ class SavingsTracker:
         # updates only add a new entry or replace the containing bounded list.
         # A shallow copy of those containers is therefore an isolated snapshot
         # without deep-copying thousands of immutable historical dictionaries.
-        return {
+        snapshot = {
             "schema_version": SCHEMA_VERSION,
             "lifetime": copy_small(self._state["lifetime"]),
             "display_session": copy_small(self._state["display_session"]),
@@ -2854,6 +2901,20 @@ class SavingsTracker:
             "shadow_checks": copy.copy(self._state.get("shadow_checks", [])),
             "journal_generation": self._journal_generation,
         }
+        # Provenance markers have to survive the round-trip. This dict is what
+        # gets written to disk, and it stamps the CURRENT schema_version — so
+        # dropping these wrote "already migrated" without the note explaining
+        # what the migration did. The next load then saw an up-to-date
+        # schema_version, skipped the migration, and the caveat was gone for
+        # good after a single restart.
+        for provenance_key in (
+            "attribution_note",
+            "attribution_reconciliation",
+            "accounting_revision",
+        ):
+            if provenance_key in self._state:
+                snapshot[provenance_key] = copy_small(self._state[provenance_key])
+        return snapshot
 
     def _ensure_writer_locked(self) -> None:
         if self._writer is None:
