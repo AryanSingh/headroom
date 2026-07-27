@@ -10,9 +10,12 @@ _DEFAULT_MARKERS = (
     "SKILL.md",
     "# AGENTS",
     "# CLAUDE.md",
-    "Always prefix with `rtk`",
-    "cutctx_compress",
-    "cutctx_retrieve",
+)
+
+_EXPLICIT_SKILL_MARKERS = (
+    "SKILL.md",
+    "# AGENTS",
+    "# CLAUDE.md",
 )
 
 
@@ -22,17 +25,33 @@ class SkillPreserveConfig:
     markers: tuple[str, ...] = field(default_factory=lambda: _DEFAULT_MARKERS)
 
 
+def _has_skill_frontmatter(text: str) -> bool:
+    sample = text[:4000]
+    return sample.lstrip().startswith("---") and "\nname:" in sample[:200].lower()
+
+
+def _contains_marker(text: str, markers: tuple[str, ...]) -> bool:
+    lowered = text[:4000].lower()
+    return any(marker.lower() in lowered for marker in markers)
+
+
 def is_skill_or_instruction_content(
     text: str, *, config: SkillPreserveConfig | None = None
 ) -> bool:
     cfg = config or SkillPreserveConfig()
     if not text or not cfg.enabled:
         return False
-    sample = text[:4000]
-    lowered = sample.lower()
-    if sample.lstrip().startswith("---") and "\nname:" in sample[:200].lower():
+    if _has_skill_frontmatter(text):
         return True
-    return any(marker.lower() in lowered for marker in cfg.markers)
+    return _contains_marker(text, cfg.markers)
+
+
+def _is_explicit_skill_block(text: str) -> bool:
+    if not text:
+        return False
+    if _has_skill_frontmatter(text):
+        return True
+    return _contains_marker(text, _EXPLICIT_SKILL_MARKERS)
 
 
 def annotate_messages_for_skill_preserve(
@@ -47,7 +66,12 @@ def annotate_messages_for_skill_preserve(
         content = item.get("content")
         text = content if isinstance(content, str) else ""
         role = item.get("role")
-        protect = role == "system" or is_skill_or_instruction_content(text, config=cfg)
+        if role == "system":
+            protect = True
+        elif role == "tool":
+            protect = False
+        else:
+            protect = _is_explicit_skill_block(text)
         if protect:
             metadata = dict(item.get("metadata") or {})
             metadata["cutctx_skill_preserve"] = True

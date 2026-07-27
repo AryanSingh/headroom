@@ -47,3 +47,36 @@ def test_disabled_config_is_noop() -> None:
         messages, config=SkillPreserveConfig(enabled=False)
     )
     assert out == messages
+
+
+def test_tool_role_not_protected_by_mcp_tool_name_markers() -> None:
+    """Tool logs mentioning cutctx_compress must not skip compression."""
+    messages = [
+        {
+            "role": "tool",
+            "content": "cutctx_compress returned 42% savings on server.log",
+        },
+        {
+            "role": "tool",
+            "content": "cutctx_retrieve id=abc123 restored 500 tokens",
+        },
+    ]
+    out = annotate_messages_for_skill_preserve(
+        messages, config=SkillPreserveConfig(enabled=True)
+    )
+    assert out[0].get("metadata", {}).get("cutctx_skill_preserve") is not True
+    assert out[1].get("metadata", {}).get("cutctx_skill_preserve") is not True
+
+
+def test_user_message_needs_explicit_skill_block_not_rtk_marker() -> None:
+    """Substring markers like rtk instructions must not protect ordinary user text."""
+    messages = [
+        {
+            "role": "user",
+            "content": "Please run cutctx_compress and always prefix with `rtk`.",
+        },
+    ]
+    out = annotate_messages_for_skill_preserve(
+        messages, config=SkillPreserveConfig(enabled=True)
+    )
+    assert out[0].get("metadata", {}).get("cutctx_skill_preserve") is not True
