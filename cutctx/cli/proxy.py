@@ -407,11 +407,23 @@ def _selected_context_tool() -> str:
     ),
 )
 @click.option(
+    "--enable-kompress",
+    is_flag=True,
+    envvar="CUTCTX_ENABLE_KOMPRESS",
+    help=(
+        "Enable Kompress ML compression on the prose path. Highest fidelity "
+        "available — matched-ratio benchmarks put it level with LLMLingua-2 "
+        "(0.962 vs 0.960 info recall on LongBench) — but it costs 1.5-5.6s "
+        "per payload on CPU, so it is off by default. "
+        "Env: CUTCTX_ENABLE_KOMPRESS=1."
+    ),
+)
+@click.option(
     "--disable-kompress",
     is_flag=True,
     envvar="CUTCTX_DISABLE_KOMPRESS",
     help=(
-        "Disable Kompress ML compression while keeping structural compression enabled. "
+        "Force rule-based-only compression. Wins over --enable-kompress. "
         "Env: CUTCTX_DISABLE_KOMPRESS=1."
     ),
 )
@@ -1000,6 +1012,7 @@ def proxy(
     codex_wire_debug_dir: str | None,
     budget: float | None,
     code_aware_flag: bool | None,
+    enable_kompress: bool,
     disable_kompress: bool,
     compression_mode: str | None,
     deterministic: bool,
@@ -1282,6 +1295,7 @@ def proxy(
             in ("true", "1", "yes", "on")
         ),
         deterministic_mode=deterministic_mode,
+        enable_kompress=enable_kompress,
         disable_kompress=disable_kompress or deterministic_mode,
         compression_mode=(compression_mode or "safe").lower(),
         query_aware_compression=query_aware_compression,

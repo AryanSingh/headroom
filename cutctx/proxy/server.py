@@ -623,6 +623,13 @@ class CutctxProxy(
             ),
             query_aware_compression=config.query_aware_compression,
         )
+        # Opt in to the ML prose path. Highest fidelity we have (0.962 info
+        # recall on LongBench vs LLMLingua-2's 0.960 at matched ratio) at
+        # 1.5-5.6s per payload, so it stays off unless asked for.
+        if getattr(config, "enable_kompress", False):
+            router_config.enable_kompress = True
+            router_config.fallback_strategy = CompressionStrategy.KOMPRESS
+        # disable_kompress wins: it is the explicit "rule-based only" switch.
         if config.disable_kompress:
             router_config.enable_kompress = False
             router_config.fallback_strategy = CompressionStrategy.PASSTHROUGH

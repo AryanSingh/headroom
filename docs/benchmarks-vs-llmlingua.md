@@ -69,8 +69,18 @@ deterministic, and it occupies a different point on the curve entirely:
 
 The default compresses **2–5x harder** and runs **150–500x faster**, at lower
 fidelity. Kompress is correctly opt-in: 1.5–5.6 seconds per payload is
-unacceptable in a proxy sitting in the request path, which is exactly why
-`enable_kompress` defaults to False.
+unacceptable in a proxy sitting in the request path.
+
+**Turning it on:** `--enable-kompress`, or `CUTCTX_ENABLE_KOMPRESS=1`.
+`--disable-kompress` overrides it.
+
+Running these benchmarks is what surfaced the fact that, until this was
+written, *you could not*. The proxy builds its own `ContentRouter`, so the
+`CUTCTX_ENABLE_KOMPRESS` env var read in `transforms/pipeline.py` never
+reached it; the only assignment to `router_config.enable_kompress` set it to
+`False`; and the shipped `--disable-kompress` flag disabled something already
+off. The quality tier measured above was unreachable from the product's main
+surface.
 
 **This is the honest shape of the product.** Not "we beat LLMLingua", but:
 *we match it when you want maximum fidelity, and we offer a sub-30ms

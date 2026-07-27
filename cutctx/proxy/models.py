@@ -229,6 +229,24 @@ class ProxyConfig:
     # CLI: --disable-kompress; env: CUTCTX_DISABLE_KOMPRESS=1.
     disable_kompress: bool = False
 
+    # Enable Kompress ML compression on the prose path.
+    #
+    # Default off because it costs 1.5-5.6s per payload on CPU, which is not
+    # viable for every request through a proxy in the request path. But it is
+    # the highest-fidelity path we have: benchmarked at matched compression
+    # ratio it reaches 0.962 information recall on LongBench against
+    # LLMLingua-2's 0.960 (docs/benchmarks-vs-llmlingua.md).
+    #
+    # Until now there was no way to turn it on here at all. The proxy builds
+    # its own ContentRouter, so the CUTCTX_ENABLE_KOMPRESS env var read in
+    # transforms/pipeline.py never reached it, and the only assignment to
+    # router_config.enable_kompress set it to False — meaning
+    # --disable-kompress disabled something that was already off.
+    #
+    # CLI: --enable-kompress; env: CUTCTX_ENABLE_KOMPRESS=1.
+    # disable_kompress wins if both are set.
+    enable_kompress: bool = False
+
     # WS13: Batch API arbitrage. On by default — routing only ever fires
     # for requests carrying the explicit `x-cutctx-batch: allow` header or
     # originating from internal jobs (learn/evals); interactive traffic
