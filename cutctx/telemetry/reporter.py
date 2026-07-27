@@ -107,7 +107,11 @@ class LicenseInfo:
         """
         if not isinstance(data, dict):
             return cls(status="invalid")
-        payload = data.get("payload") if isinstance(data.get("payload"), dict) else data
+        # Bind once: calling data.get("payload") twice leaves the isinstance
+        # check unable to narrow the second call, so every payload.get() below
+        # reads as possibly-None to mypy.
+        nested = data.get("payload")
+        payload: dict[str, Any] = nested if isinstance(nested, dict) else data
         validated_at = cls._parse_timestamp(payload.get("validated_at")) or datetime.now(
             timezone.utc
         )
