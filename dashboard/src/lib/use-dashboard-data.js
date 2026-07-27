@@ -70,7 +70,9 @@ export async function fetchDashboardJson(path) {
   });
 
   if (!response.ok) {
-    let detail = null;
+    // No initialiser: both branches below assign before `detail` is read,
+    // so seeding it trips eslint's no-useless-assignment.
+    let detail;
     try {
       const payload = await response.json();
       detail = payload?.detail ?? payload ?? null;
