@@ -1846,7 +1846,19 @@ class ContentRouter(Transform):
                 if compressed is None:
                     # No fallback for code (Kompress is too slow and yields 0% savings without AST).
                     # Let it fall through to PASSTHROUGH.
-                    pass
+                    #
+                    # Say *why*, though. `enable_code_aware` is off by default
+                    # (the product steers people at code-graph tools instead),
+                    # so the router picks CODE_AWARE and then does nothing —
+                    # indistinguishable in the logs from "this code did not
+                    # compress". Measured, that silence is worth ~17% on code
+                    # payloads that `--code-aware` would have captured.
+                    decision_reason = (
+                        "code_aware_disabled"
+                        if not self.config.enable_code_aware
+                        else "code_aware_unavailable"
+                    )
+                    strategy_chain.append(decision_reason)
 
             elif strategy == CompressionStrategy.SMART_CRUSHER:
                 if self.config.enable_smart_crusher:
