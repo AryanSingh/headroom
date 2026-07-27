@@ -107,6 +107,9 @@ Firewall scan and Builder compression stay useful without a license. Audit expor
 ### "We only use one provider"
 > "Cutctx still adds value on a single provider: tool output compression, reversible retrieval, team analytics, and governance. And when you inevitably add a second provider, you're already set up."
 
+### "Agents need receipts / provenance"
+> "Decision receipts explain routing, compression, cache observation, and CCR hashes per request. Pair them with `cutctx report buyer` for CFO-defensible created vs observed savings. Local firewall scan stays available on Builder; audit export is entitled."
+
 ---
 
 ## Proof Points
