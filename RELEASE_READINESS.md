@@ -24,6 +24,34 @@ Every release gate below was executed on `main` at `d27aed1a`, not inferred.
 | TypeScript SDK | `npm test` | 307 passed, 33 skipped |
 | Dashboard | `npm run lint`, `npm test` | clean, 29 passed |
 | Embedded dashboard | `test_dashboard_embedded_build` | matches `dashboard/dist` byte-for-byte |
+| Release wheel | `maturin build --release` | built, 18.6 MB |
+| OSS leak guard | `scripts/assert_oss_wheel_clean.py` | clean — no `cutctx_ee/` in the wheel |
+| Install from wheel | fresh venv + `cutctx proxy` | boots, serves, routes `sonnet → haiku` |
+| Playwright E2E | `npx playwright test --project=chromium` | 54 passed |
+| Playwright audit matrix | 375 / 768 / 1280 / 1720 viewports | 44 passed |
+| Release-evidence pytest | the `product-release-evidence.yml` set | 67 passed |
+
+The whole of `product-release-evidence.yml` has now been reproduced locally
+and is green. What remains unverified is only what needs the real CI: Linux,
+the 4-way `pytest-split` sharding, and offline mode.
+
+### Deployment mechanism was broken (fixed 2026-07-27)
+
+`cutctx-promote` ended with `mv -f "$stable_link.next" "$stable_link"`. On
+macOS `mv` will not replace a symlink that points at a directory — it
+resolves it, the rename fails, and the swap silently no-ops while the
+function reports success.
+
+Consequence: `~/.cutctx-proxy-venv` was created 2026-07-03 and never moved.
+Every promote since then built a venv, verified it, announced success, and
+left the proxy running July-era code — including an orphaned
+`20260716-1859-screenshot-fix` generation that was never adopted. This is why
+the managed proxy reported 0.31.0 against a 0.32.0 checkout.
+
+Fixed by swapping with `ln -sfn` (which replaces the link itself) plus a
+`readlink` assertion so a failed swap can never again be reported as success.
+The managed venv is now a clean wheel + `packaging/cutctx-ee` install
+carrying every fix in this release, with no hand-patched `.so` files.
 
 **About the 4 combined-run failures.** They are the pre-existing, documented
 cross-suite licensing issue described in the `KNOWN LIMITATION` comment in
