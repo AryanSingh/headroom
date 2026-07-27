@@ -1,0 +1,36 @@
+---
+title: Skills
+description: Skill-aware compression and the Cutctx progressive skill
+---
+
+# Skills
+
+Cutctx treats installed agent skills as **instruction context to protect**, not as bulky tool output to crush.
+
+## Skill-aware compression
+
+When `skill_preserve` is enabled (default on; wrap sets `CUTCTX_SKILL_PRESERVE=1`):
+
+- Messages that look like `SKILL.md` front matter, `# AGENTS` / `# CLAUDE.md` instruction blocks, or known Cutctx skill markers are annotated with `metadata.cutctx_skill_preserve`.
+- The selective filter never drops those messages for low relevance.
+- The content router skips aggressive log/search crushers on protected messages.
+
+Tool outputs (logs, search dumps, JSON arrays) remain aggressively compressible. Skill preserve is a narrow protection for instruction text, not a global soft mode.
+
+### Environment
+
+| Variable | Meaning |
+|---|---|
+| `CUTCTX_SKILL_PRESERVE` | `1` (default via wrap) enables annotation; `0` disables |
+| `CUTCTX_SKILL_MARKERS` | Optional comma-separated extra markers (skill names from discovery) |
+
+Wrap discovers `~/.claude/skills/*/SKILL.md`, `~/.codex/skills/*/SKILL.md`, and project `.claude` / `.agents` skill dirs, then exports those env vars for the proxy subprocess.
+
+## Progressive Cutctx skill
+
+The installable skill at `plugins/cutctx-plugin/skills/cutctx/SKILL.md` uses progressive disclosure:
+
+1. Short front-matter `description` (one line) for catalogs.
+2. Body sections: Automatic Mode → Compress → Retrieve → Verify → Do Not.
+
+Agents should load the one-liner first and only pull the full body when the task needs compression/retrieve discipline.

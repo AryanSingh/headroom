@@ -1,15 +1,15 @@
 ---
 name: cutctx
-description: Use when bulky prompts, logs, search results, traces, or notes should be compressed automatically to save tokens and later retrieved by hash when exact details are needed.
+description: Compress bulky tool outputs and retrieve originals by hash when exact detail is needed.
 ---
 
 # Cutctx
 
-Use Cutctx automatically to keep long sessions compact without losing important details.
+Use Cutctx to keep long sessions compact without losing important details.
 
 ## Automatic Mode
 
-- Default to using Cutctx once the user asks for token savings, automatic compression, context hygiene, or Cutctx itself.
+- Default to Cutctx when the user asks for token savings, automatic compression, context hygiene, or Cutctx itself.
 - Compress proactively when a tool result, browser dump, log, audit note, or search result is large enough to crowd the context window.
 - Do not compress short outputs where exact wording is the task.
 
@@ -29,9 +29,10 @@ Use Cutctx automatically to keep long sessions compact without losing important 
 
 - Use `mcp__cutctx.cutctx_stats` when the user asks whether Cutctx is working.
 - Report real savings honestly. If stats show no compressions yet, say Cutctx is available but has not saved tokens in this session.
+- Prefer `cutctx report buyer` for created vs observed attribution; never invent savings percentages.
 
-## Good Use
+## Do Not
 
-- Compress repetitive logs before long debugging sessions.
-- Compress large audit or planning notes once they stop changing.
-- Keep the most recent working context in full, and compress older background material.
+- Do not invent or round up savings numbers.
+- Do not compress skill bodies, AGENTS.md / CLAUDE.md instruction blocks, or system prompts Cutctx has marked for skill preserve.
+- Do not treat provider prompt-cache discounts as Cutctx-created savings.
