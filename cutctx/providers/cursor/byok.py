@@ -149,7 +149,7 @@ def _load_blob(db: Path) -> dict[str, Any] | None:
     if row is None:
         return None
     raw = row[0]
-    if isinstance(raw, (bytes, bytearray)):
+    if isinstance(raw, bytes | bytearray):
         raw = raw.decode("utf-8", "replace")
     try:
         blob = json.loads(raw)

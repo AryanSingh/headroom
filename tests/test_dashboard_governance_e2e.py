@@ -233,9 +233,14 @@ def test_governance_ui_e2e() -> None:
         audit_row = page.locator(".feature-config-row").filter(has_text="Audit trail")
         expect(audit_row).to_contain_text("Unavailable")
 
-        expect(page.locator(".graphify-kv").filter(has_text="Status").first).to_contain_text(
-            "Unavailable on builder tier"
-        )
+        # ba1920b4 reworded this to name both tiers — "Requires Enterprise
+        # (current: Builder)". The old copy kept passing only because the
+        # embedded bundle had drifted from dashboard/src; rebuilding it
+        # surfaced the change. Assert the two tiers rather than the exact
+        # sentence so a future rewording fails on meaning, not punctuation.
+        status_cell = page.locator(".graphify-kv").filter(has_text="Status").first
+        expect(status_cell).to_contain_text("Enterprise")
+        expect(status_cell).to_contain_text("Builder")
 
         browser.close()
 

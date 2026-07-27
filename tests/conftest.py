@@ -3,6 +3,7 @@
 # CRITICAL: Must be set before ANY imports that could trigger sentence_transformers
 # The Rust tokenizers use parallelism that deadlocks with pytest-asyncio
 import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -23,6 +24,22 @@ os.environ.setdefault(
 # hardening measure. Tests authenticate via this key instead.
 os.environ.setdefault("CUTCTX_ADMIN_API_KEY", "test-admin-key-for-ci")
 _SUITE_DEFAULT_ADMIN_KEY = os.environ["CUTCTX_ADMIN_API_KEY"]
+
+# Pin Playwright's browser cache to the real one, resolved from the HOME the
+# suite started with. `_isolate_license_state` redirects HOME to a tmp_path for
+# any test whose node id mentions licence/seat/trial/entitlement, and Playwright
+# resolves its download cache under HOME — so a licensing test that also drives
+# a browser looked for chromium inside its own tmp_path and failed with
+# "Executable doesn't exist at /tmp/pytest-of-.../.cache/ms-playwright/...".
+# Setting this explicitly makes browser discovery independent of HOME.
+if not os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
+    _pw_cache = (
+        Path.home() / "Library" / "Caches" / "ms-playwright"
+        if sys.platform == "darwin"
+        else Path.home() / ".cache" / "ms-playwright"
+    )
+    if _pw_cache.is_dir():
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(_pw_cache)
 
 # Admin-gated proxy routes (added as part of the QA/product-audit security
 # hardening pass) reject requests that don't carry the admin key above.
