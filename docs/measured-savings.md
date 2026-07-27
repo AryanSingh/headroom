@@ -13,18 +13,12 @@ Where an engine saves nothing, it says so.
 
 ## What is on by default
 
-Two numbers per content type, because they answer different questions.
-**Compression alone** is what the compressors do to a single block. **Default
-stack** adds semantic dedup and drain3, which are now on by default.
-
-| Content type | Compression alone | Default stack |
-| --- | --- | --- |
-| Log-shaped output | 66.0% | **82.3%** |
-| JSON tool output | 53.4% | **79.4%** |
-| HTML | 40.8% | **75.9%** |
-| Source code | 0% | **81.4%** |
-| Prose | 0% | **80.6%** |
-| Markdown tables | 0% | **81.6%** |
+| Content type | Default stack |
+| --- | --- |
+| Log-shaped output | **66.0%** (82.3% with the `[log-ml]` extra installed) |
+| JSON tool output | **53.4%** |
+| HTML | **40.8%** |
+| Source code / prose / markdown tables | **0%** |
 
 Plus, independent of content type:
 
@@ -33,34 +27,42 @@ Plus, independent of content type:
 | Semantic cache | **82.9%** (second identical request never leaves the proxy) |
 | Tool-schema compaction | **55.4%** (40-tool surface) |
 
-**The gap between those two columns is almost entirely semantic dedup, and you
-should understand what it is before you quote it.** Dedup collapses content
-repeated across turns into a retrieval pointer. The harness corpus is six
-turns carrying the *identical* tool result, so it repeats perfectly and these
-figures are an upper bound for repetition-heavy traffic. It is why code, prose
-and tables move from 0% to ~81%: nothing is compressing that content, the
-repeated copies are being collapsed. An agent that reads a different file
-every turn will see far less. An agent that re-reads the same files while it
-reasons — which is the common loop — will see something in this range.
-
-## What is opt-in
+You may see a second set of figures in this file's history where every content
+type reads ~81%. That was measured with semantic dedup defaulted on, and it is
+not what the compressors do — the harness corpus repeats the *identical* block
+six times, so dedup was collapsing copies, not compressing content. Dedup has
+since been reverted to opt-in (below), and the table above is compression on
+its own.
 
 ## What changed to on by default, and why
 
-Semantic dedup and drain3 now default on. Both were opt-in, both were inert
-until the fixes below, and neither can lose:
+**Drain3** now defaults on. It ships as the optional `[log-ml]` extra;
+installing that extra is signal enough, where before you had to install it
+*and* pass a flag and got silence otherwise. Absent the extra it is inert, and
+the router discards drain3 output that fails to shrink the payload, so it can
+never do worse than the standard log path. Opt out with `--no-drain3`.
 
-- **Semantic dedup** — the largest single lever in the table above, and the
-  only thing that helps code, prose or tables at all. It swaps repeated
-  content for a `cutctx_retrieve` pointer, which the proxy resolves
-  transparently using the tool it *already* injects for compression — so this
-  reuses a default-on mechanism rather than adding a new way to lose context.
-  Opt out with `--no-semantic-dedup`.
-- **Drain3** — ships as the optional `[log-ml]` extra. Installing that extra
-  is signal enough; previously you had to install it *and* pass a flag, and
-  got silence otherwise. Absent the extra it is inert, and the router discards
-  drain3 output that fails to shrink the payload, so it can never do worse
-  than the standard log path. Opt out with `--no-drain3`.
+**Semantic dedup was briefly defaulted on and has been reverted.** It is the
+largest lever by raw tokens and the only thing that touches code, prose or
+tables — but raw tokens are the wrong scoreboard here:
+
+- Dedup rewrites duplicates in *earlier* turns, so it mutates the cacheable
+  prefix and invalidates the provider prompt cache from the first changed
+  message onward.
+- On this project's own traffic, **870M of 927M tokens are cache reads**
+  (see README "Proof"), billed at roughly a tenth of input.
+- Trading a cache hit for a 20% smaller prefix costs about **8x more**. Dedup
+  has to remove >90% of the prefix just to break even.
+
+`ReadLifecycleConfig.compress_superseded` is disabled in this codebase for
+precisely this reason — its comment reads "busts Anthropic prompt cache
+prefix" — and dedup is the same move applied more broadly. It also has no
+`DEFAULT_EXCLUDE_TOOLS` awareness, so it can rewrite the `Read`/`Grep`/`Glob`
+payloads that denylist deliberately protects.
+
+It remains genuinely valuable where cache reuse is low — one-shot batch jobs,
+non-caching providers, long single-turn payloads. That is an operator's call
+about their own traffic, not a safe global default: `--enable-semantic-dedup`.
 
 ## What is still opt-in, and why
 
@@ -68,14 +70,13 @@ until the fixes below, and neither can lose:
 | --- | --- | --- | --- |
 | Context budget | `--enable-context-budget` | 82.7% (+3.3pp over default stack) | Trims conversation once past 60% of the ceiling. Silent context loss the user cannot easily detect. |
 | Difftastic | `--difftastic` | 51.7% on diffs | Spawns a `difft` subprocess per file with a 10s timeout, needs an external binary, and only fires on Bash git diffs. |
-| Memoization | `--memoize` | 79.8% (**+0.4pp** over default stack) | Dedup already collapses the repeated tool results it targets, so it adds almost nothing now. |
+| Memoization | `--memoize` | 79.8% on repeated tool results | Overlaps semantic dedup almost entirely (+0.4pp when dedup is on), and caches tool output across turns — the same prompt-cache concern applies. |
 | Model routing | `--model-routing-preset …` | routes `sonnet → haiku` | Changes which model answers — a cost/quality decision that belongs to the operator. |
 | Knowledge graph | `--knowledge-graph` | unavailable | Dependency mismatch, see below. |
 
-The memoization row is the interesting one: on its own corpus it looks like a
-79.8% engine, but measured against the new default stack it contributes
-**0.4 percentage points**, because dedup gets there first. Two engines, one
-win.
+Read the memoization row with the dedup caveat in mind: on its own corpus it
+looks like a 79.8% engine, but with dedup enabled it adds **0.4 percentage
+points**, because the two target the same repeated tool results.
 
 ## Why the engines read zero
 

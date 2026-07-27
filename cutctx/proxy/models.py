@@ -578,11 +578,24 @@ class ProxyConfig:
 
     # Semantic Deduplication — replace repeated content with CCR pointers.
     # Env: CUTCTX_DEDUP_ENABLED=1
-    # Default ON. Repeated content collapses to a CCR pointer that the proxy
-    # resolves transparently through the cutctx_retrieve tool it already
-    # injects for compression, so this reuses a mechanism that is default-on
-    # rather than introducing a new way to lose context.
-    dedup_enabled: bool = True
+    # Default OFF, and the reason is economic rather than correctness.
+    #
+    # Dedup rewrites duplicates in EARLIER turns, which mutates the cacheable
+    # prefix and invalidates the provider prompt cache from the first changed
+    # message onward. On our own traffic 870M of 927M tokens are cache reads
+    # (README "Proof"), billed at roughly a tenth of input. Trading a cache
+    # hit for a 20% smaller prefix is about 8x more expensive, so dedup has to
+    # remove >90% of the prefix merely to break even.
+    #
+    # ReadLifecycleConfig.compress_superseded is disabled for exactly this
+    # reason ("busts Anthropic prompt cache prefix"), and dedup is the same
+    # move applied more broadly — it also has no DEFAULT_EXCLUDE_TOOLS
+    # awareness, so it can rewrite the Read/Grep/Glob payloads the denylist
+    # deliberately protects.
+    #
+    # Still worth enabling for workloads with little or no cache reuse
+    # (one-shot batch jobs, non-caching providers): --enable-semantic-dedup.
+    dedup_enabled: bool = False
 
     # Context Budget — progressive compression as token budget fills.
     # Env: CUTCTX_CONTEXT_BUDGET_ENABLED=1

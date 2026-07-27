@@ -875,14 +875,14 @@ def _selected_context_tool() -> str:
 @click.option(
     "--enable-semantic-dedup/--no-semantic-dedup",
     "enable_semantic_dedup",
-    default=True,
+    default=False,
     envvar="CUTCTX_DEDUP_ENABLED",
     help=(
         "Collapse content repeated across turns into CCR pointers "
-        "(default: on). The proxy resolves those pointers transparently via "
-        "the cutctx_retrieve tool it already injects for compression, so "
-        "nothing is lost. Disable with --no-semantic-dedup. "
-        "Env: CUTCTX_DEDUP_ENABLED=0."
+        "(default: off). Saves raw tokens but rewrites earlier turns, which "
+        "busts the provider prompt-cache prefix — usually a net loss when "
+        "cache reads dominate your bill. Worth enabling for workloads with "
+        "little cache reuse. Env: CUTCTX_DEDUP_ENABLED=1."
     ),
 )
 @click.option(
