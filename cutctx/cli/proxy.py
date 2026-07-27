@@ -735,6 +735,24 @@ def _selected_context_tool() -> str:
     "Default: /tmp/cutctx-embed-{port}.sock. "
     "(env: CUTCTX_EMBEDDING_SERVER_SOCKET)",
 )
+# Tool-result memoization.
+#
+# Had no enable path at all: no flag on `cutctx proxy` or the raw server, and
+# no env var — reachable only by constructing ProxyConfig in Python. It
+# measures ~50% on repeat tool traffic (scripts/savings_harness.py), so an
+# operator could not switch on one of the larger wins in the product.
+# (dedup and context-budget already ship as --enable-semantic-dedup and
+# --enable-context-budget.)
+@click.option(
+    "--memoize",
+    "memoization",
+    is_flag=True,
+    envvar="CUTCTX_MEMOIZATION_ENABLED",
+    help=(
+        "Serve identical repeated tool results from the memoizer instead of "
+        "resending them. Env: CUTCTX_MEMOIZATION_ENABLED=1."
+    ),
+)
 # Drain3 ML log template mining — groups repetitive log lines by template.
 # Requires: pip install cutctx-ai[log-ml].
 # CLI: --drain3; env: CUTCTX_DRAIN3=1.
@@ -991,6 +1009,7 @@ def proxy(
     stateless: bool,
     embedding_server: bool,
     embedding_server_socket: str | None,
+    memoization: bool,
     drain3_enabled: bool,
     drain3_max_clusters: int | None,
     drain3_sim_threshold: float | None,
@@ -1241,6 +1260,7 @@ def proxy(
             selective_filter_threshold if selective_filter_threshold is not None else 0.15
         ),
         # Drain3 ML log template mining
+        memoization=memoization,
         drain3_enabled=drain3_enabled,
         drain3_max_clusters=drain3_max_clusters if drain3_max_clusters is not None else 1000,
         drain3_sim_threshold=drain3_sim_threshold if drain3_sim_threshold is not None else 0.4,

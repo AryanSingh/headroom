@@ -371,8 +371,7 @@ def scenarios() -> list[Scenario]:
         Scenario(
             name="dedup",
             why="repeated identical blocks should collapse (no test file in repo)",
-            args=["--dedup"],
-            raw_server=True,
+            args=["--enable-semantic-dedup"],
             body={**base, "messages": deep_history("json")},
         )
     )
@@ -380,17 +379,15 @@ def scenarios() -> list[Scenario]:
         Scenario(
             name="context_budget",
             why="hard token ceiling (no test file in repo)",
-            args=["--context-budget", "--context-budget-max-tokens", "2000"],
-            raw_server=True,
+            args=["--enable-context-budget"],
             body={**base, "messages": deep_history("prose")},
         )
     )
     out.append(
         Scenario(
             name="memoization",
-            why="NO ENABLE PATH: tracked savings source, but no CLI flag on either entry point and no env var",
-            args=[],
-            expect_savings=False,
+            why="identical tool results served from the memoizer (--memoize)",
+            args=["--memoize"],
             body={**base, "messages": deep_history("json", turns=3)},
             repeat=2,
         )
