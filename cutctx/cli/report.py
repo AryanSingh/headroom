@@ -17,6 +17,43 @@ _BUYER_CAVEAT = (
     "Rates below are for eligible compressible payloads unless labeled all-traffic."
 )
 
+_SMALL_DECLINE_REASONS = frozenset(
+    {
+        "below_threshold",
+        "too_small",
+        "below_min_tokens",
+    }
+)
+
+
+def _derive_buyer_honesty_fields(row: dict[str, Any]) -> dict[str, bool]:
+    """Derive compressed/bypassed_small from persisted tracker telemetry."""
+    if "bypassed_small" in row:
+        bypassed_small = bool(row["bypassed_small"])
+    else:
+        reason = row.get("decline_reason")
+        normalized = None
+        if isinstance(reason, str) and reason.strip():
+            from cutctx.proxy.outcome import normalize_decline_reason
+
+            normalized = normalize_decline_reason(reason)
+        bypassed_small = normalized in _SMALL_DECLINE_REASONS
+
+    if "compressed" in row:
+        compressed = bool(row["compressed"])
+    else:
+        funnel = row.get("opportunity_funnel") or {}
+        compressed_tokens = 0
+        if isinstance(funnel, dict):
+            compressed_tokens = int(funnel.get("compressed_tokens", 0) or 0)
+        sources = row.get("savings_by_source_tokens") or {}
+        cutctx_compression = 0
+        if isinstance(sources, dict):
+            cutctx_compression = int(sources.get("cutctx_compression", 0) or 0)
+        compressed = compressed_tokens > 0 or cutctx_compression > 0
+
+    return {"compressed": compressed, "bypassed_small": bypassed_small}
+
 
 def build_buyer_report_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Build honesty fields for the buyer ROI report.
@@ -135,6 +172,7 @@ def _collect_savings_history(days: int) -> list[dict[str, Any]]:
 
     from cutctx.proxy.savings_tracker import (
         SCHEMA_VERSION,
+        _normalize_history_entry,
         get_default_savings_storage_path,
     )
 
@@ -155,41 +193,37 @@ def _collect_savings_history(days: int) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     history = payload.get("history") or []
     for raw in history:
-        ts_str = raw.get("timestamp")
+        normalized = _normalize_history_entry(raw)
+        if normalized is None:
+            continue
+        ts_str = normalized.get("timestamp")
         ts = _parse_iso(ts_str) if isinstance(ts_str, str) else None
         if start is not None and ts is not None and ts < start:
             continue
-        rows.append(
-            {
-                "timestamp": ts_str,
-                "provider": raw.get("provider"),
-                "model": raw.get("model"),
-                # Use per-request deltas when present (Phase 1.3+);
-                # fall back to lifetime counters for older rows.
-                "tokens_saved": int(
-                    raw.get("delta_tokens_saved") or raw.get("total_tokens_saved", 0) or 0
-                ),
-                "compression_savings_usd": float(
-                    raw.get("delta_savings_usd") or raw.get("compression_savings_usd", 0.0) or 0.0
-                ),
-                "cache_savings_usd": float(
-                    raw.get("delta_cache_savings_usd") or raw.get("cache_savings_usd", 0.0) or 0.0
-                ),
-                "cost_savings_usd": float(
-                    (raw.get("delta_savings_usd") or raw.get("compression_savings_usd", 0.0) or 0.0)
-                    + (
-                        raw.get("delta_cache_savings_usd")
-                        or raw.get("cache_savings_usd", 0.0)
-                        or 0.0
+        row = {
+            "timestamp": ts_str,
+            "provider": normalized.get("provider"),
+            "model": normalized.get("model"),
+            "tokens_saved": int(normalized.get("delta_tokens_saved", 0) or 0),
+            "compression_savings_usd": float(normalized.get("delta_savings_usd", 0.0) or 0.0),
+            "cache_savings_usd": float(normalized.get("delta_cache_savings_usd", 0.0) or 0.0),
+            "cost_savings_usd": float(
+                (normalized.get("delta_savings_usd", 0.0) or 0.0)
+                + (normalized.get("delta_cache_savings_usd", 0.0) or 0.0)
+                + float(
+                    sum(
+                        float(v)
+                        for v in (normalized.get("savings_by_source_usd") or {}).values()
                     )
-                    + float(
-                        sum(float(v) for v in (raw.get("savings_by_source_usd") or {}).values())
-                    )
-                ),
-                "savings_by_source_tokens": dict(raw.get("savings_by_source_tokens") or {}),
-                "savings_by_source_usd": dict(raw.get("savings_by_source_usd") or {}),
-            }
-        )
+                )
+            ),
+            "savings_by_source_tokens": dict(normalized.get("savings_by_source_tokens") or {}),
+            "savings_by_source_usd": dict(normalized.get("savings_by_source_usd") or {}),
+            "opportunity_funnel": dict(normalized.get("opportunity_funnel") or {}),
+            "decline_reason": normalized.get("decline_reason"),
+        }
+        row.update(_derive_buyer_honesty_fields(row))
+        rows.append(row)
     return rows
 
 
