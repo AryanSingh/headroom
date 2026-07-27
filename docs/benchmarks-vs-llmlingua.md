@@ -91,15 +91,33 @@ apples to oranges, since one is a trained model, but it bounds the gap:
 We hold up better under aggressive compression on multi-hop QA and lose
 clearly at moderate compression on long-context prose.
 
-**Root cause of the LongBench gap, located:** `ProseCompressor.compress`
-retains headings, anchor sentences, and then *exactly one* query-matching
-sentence — `sorted(scored, reverse=True)[:1]` — with no token budget at all.
-It cannot use the room available to it. A budget-aware prototype that fills
-the budget with the highest-scoring sentences moved recall 0.626 → 0.659 but
-also moved the ratio 0.412 → 0.457, i.e. it travelled along the curve rather
-than beating it. Term-overlap scoring, not the budget, is the binding
-constraint. Closing that gap properly means better sentence scoring, which is
-what Kompress already provides at the cost of latency.
+**Three attempts to close this gap with cheap heuristics, all measured at a
+per-case matched budget so ratio is held constant:**
+
+| Selection strategy | LongBench recall | HotpotQA recall |
+| --- | ---: | ---: |
+| Current (headings + anchors + top-1 query match) | **0.626** | **0.514** |
+| Fill the budget by term overlap | 0.659 *(but ratio 0.412 → 0.457)* | — |
+| BM25 ranking (IDF + length normalisation) | 0.614 | 0.498 |
+| Stratified coverage (uniform stride, query as tiebreak) | 0.632 | 0.514 |
+
+None of them wins. Budget-filling only travels along the ratio/recall curve.
+BM25 is measurably *worse*. Stratified coverage is +0.006 on one dataset and
+identical on the other — noise at n=20.
+
+An earlier version of this document asserted that term-overlap scoring was the
+binding constraint and better scoring would close the gap. **BM25 disproves
+that.** The existing heuristic — retain headings, exact identifiers,
+constraints, and the single strongest query match — is at or near the
+practical frontier for lexical methods at these ratios, and the intuition that
+`[:1]` was "obviously too few" is wrong once the budget is held fixed.
+
+The remaining gap is structural: we select whole sentences, so retained
+content clusters around the query, while a learned token-level model prunes
+across the entire document and preserves a little of everything. Closing it
+properly needs a model, and the product already has one — Kompress, at parity
+with LLMLingua-2 above. No code was changed on the strength of these
+experiments, because none of them earned it.
 
 ## Limits
 
