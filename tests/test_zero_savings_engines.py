@@ -390,3 +390,62 @@ def test_code_aware_output_is_always_syntactically_valid() -> None:
     for path in ("cutctx/utils.py", "cutctx/dedup.py", "cutctx/context_budget.py"):
         compressed = router.compress(Path(path).read_text()).compressed
         ast.parse(compressed)  # raises SyntaxError if the guard ever leaks
+
+
+# ---------------------------------------------------------------------------
+# dedup across requests: the session hash index used to swallow the last copy
+# ---------------------------------------------------------------------------
+
+
+def _growing_convo(block: str, turns: int) -> list[dict]:
+    return [
+        {
+            "role": "user",
+            "content": [{"type": "tool_result", "tool_use_id": f"t{i}", "content": block}],
+        }
+        for i in range(turns)
+    ]
+
+
+def test_a_full_copy_survives_across_requests() -> None:
+    """`_hash_index` persists for the session, so on the second request the
+    first occurrence was already "seen" and became a pointer too. From that
+    point the conversation carried no copy of the content at all and the model
+    could only reach it through retrieval.
+    """
+    from cutctx.dedup import SessionDeduplicator
+
+    block = json.dumps([{"id": i, "note": "SENTINEL"} for i in range(300)])
+    dedup = SessionDeduplicator()
+
+    for turns in range(1, 5):
+        rendered = [
+            m["content"][0]["content"] for m in dedup.process(_growing_convo(block, turns)).messages
+        ]
+        assert sum(1 for r in rendered if "SENTINEL" in r) == 1, (
+            f"request {turns}: expected exactly one verbatim copy, got {rendered}"
+        )
+
+
+def test_dedup_keeps_the_cacheable_prefix_stable() -> None:
+    """Each turn must render identically on every request.
+
+    A turn that renders one way and then another moves the cacheable prefix,
+    and the provider prompt cache is discarded from that point. Cache reads
+    are billed at roughly a tenth of input, so churning the prefix to save raw
+    tokens is a net loss.
+    """
+    from cutctx.dedup import SessionDeduplicator
+
+    block = json.dumps([{"id": i, "note": "N"} for i in range(300)])
+    dedup = SessionDeduplicator()
+    previous: list[str] = []
+
+    for turns in range(1, 6):
+        rendered = [
+            m["content"][0]["content"] for m in dedup.process(_growing_convo(block, turns)).messages
+        ]
+        assert rendered[: len(previous)] == previous, (
+            f"request {turns} rewrote an earlier turn; prompt-cache prefix lost"
+        )
+        previous = rendered

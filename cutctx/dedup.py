@@ -170,6 +170,23 @@ class SessionDeduplicator:
         result = DeduplicationResult(messages=[])
         processed_messages = []
 
+        # Hashes already emitted verbatim in THIS message list.
+        #
+        # `_hash_index` persists for the whole session, so on the second
+        # request it already contained the first occurrence registered during
+        # the first request — and that occurrence was then itself replaced
+        # with a pointer. From request two onward the conversation carried no
+        # copy of the content at all, and the model could only reach it by
+        # calling cutctx_retrieve. It also changed how an earlier turn
+        # rendered between one request and the next, which moves the
+        # cacheable prefix and throws away the provider prompt cache.
+        #
+        # Deciding against the current message list instead keeps exactly one
+        # full copy in every request and renders each turn the same way every
+        # time, so the prefix stays put. `_hash_index` still does its real
+        # job: registering content for retrieval.
+        seen_in_request: set[str] = set()
+
         for msg in messages:
             if not isinstance(msg, dict):
                 # Malformed message, pass through
@@ -190,7 +207,7 @@ class SessionDeduplicator:
             # every non-str through meant dedup only ever fired on the
             # legacy string shape and was a no-op on real traffic.
             if isinstance(content, list):
-                new_msg = self._process_block_content(msg, content, result)
+                new_msg = self._process_block_content(msg, content, result, seen_in_request)
                 processed_messages.append(new_msg)
                 continue
 
@@ -266,6 +283,7 @@ class SessionDeduplicator:
         msg: dict[str, Any],
         blocks: list[Any],
         result: DeduplicationResult,
+        seen_in_request: set[str],
     ) -> dict[str, Any]:
         """Deduplicate the text-bearing blocks inside a block-list message.
 
@@ -300,7 +318,7 @@ class SessionDeduplicator:
             hash_key = self._hash_content(text)
             token_estimate = self._estimate_tokens(text)
 
-            if hash_key in self._hash_index:
+            if hash_key in seen_in_request:
                 block_copy = dict(block)
                 block_copy[field] = format_dedup_ref(hash_key)
                 new_blocks.append(block_copy)
@@ -316,6 +334,7 @@ class SessionDeduplicator:
                 continue
 
             self._store_hash(hash_key, text, token_estimate)
+            seen_in_request.add(hash_key)
             result.refs_created += 1
             new_blocks.append(block)
 

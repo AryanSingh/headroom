@@ -60,9 +60,24 @@ prefix" — and dedup is the same move applied more broadly. It also has no
 `DEFAULT_EXCLUDE_TOOLS` awareness, so it can rewrite the `Read`/`Grep`/`Glob`
 payloads that denylist deliberately protects.
 
-It remains genuinely valuable where cache reuse is low — one-shot batch jobs,
-non-caching providers, long single-turn payloads. That is an operator's call
-about their own traffic, not a safe global default: `--enable-semantic-dedup`.
+**Both of those defects are now fixed**, and the cache objection above no
+longer applies. `_hash_index` persists for the session, so on the second
+request the first occurrence was already "seen" and was replaced with a
+pointer too — from then on the conversation carried *no* copy of the content
+and the model could only reach it via retrieval, and the earlier turn's
+rendering changed between requests, which is what moved the prefix. The
+duplicate decision is now made against the current message list, so every
+request keeps exactly one verbatim copy and every turn renders identically.
+Both properties are pinned by tests.
+
+Dedup nonetheless stays **opt-in** for one unresolved reason: it has no
+`DEFAULT_EXCLUDE_TOOLS` awareness, so it still rewrites the `Read`/`Grep`/
+`Glob` payloads that denylist deliberately protects. Teaching it the denylist
+is the prerequisite for revisiting the default — at which point the case for
+turning it on is strong, because it is the only engine that touches code,
+prose or tables at all.
+
+Enable with `--enable-semantic-dedup`.
 
 ## What is still opt-in, and why
 
