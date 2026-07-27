@@ -104,6 +104,23 @@ the previous values to `~/.cutctx/cursor-byok-backups/`. It **never** reads or
 writes `encryptedKey` — the API key is yours to enter in Cursor's UI. Cursor
 must be closed, since it rewrites the database wholesale on exit.
 
+### Setting the base URL is not enough — prefix the model name
+
+Cursor's IDE hijacks *known* model names (`gpt-*`, `claude-*`) to
+`api2.cursor.sh` even when a BYOK base URL is configured. Select `gpt-4o` and
+the request leaves for Cursor's backend regardless of what you set above, so
+savings stay at zero with nothing obviously misconfigured.
+
+Prefix the model with `cutctx-` to force the IDE onto the BYOK base URL. The
+proxy strips the prefix before forwarding, so upstream sees the real slug:
+
+```
+cutctx-gpt-4o        →  proxy  →  gpt-4o
+cutctx-claude-opus-4-5  →  proxy  →  claude-opus-4-5
+```
+
+See `strip_cursor_ide_model_prefix` in `cutctx/providers/cursor/upstream.py`.
+
 ## Verifying
 
 ```bash
