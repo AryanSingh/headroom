@@ -1031,7 +1031,13 @@ class CutctxProxy(
                     "hint=bridge_syncs_only_the_legacy_DB_today_per-project_bridge_follow-up_planned"
                 )
 
-        # Usage Reporter (license validation + phone-home for managed/enterprise)
+        # Usage Reporter (license validation + phone-home for managed/enterprise).
+        # Resolve activated local keys even when LaunchAgent omitted CUTCTX_LICENSE_KEY.
+        from cutctx.proxy.deployment_security import effective_license_key
+
+        resolved_license_key = effective_license_key(config)
+        if resolved_license_key and not getattr(config, "license_key", None):
+            config.license_key = resolved_license_key
         self.usage_reporter: UsageReporter | None = None
         if config.license_key:
             from cutctx.telemetry.reporter import UsageReporter
@@ -3295,6 +3301,10 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "orchestrator": bool(getattr(config, "orchestrator_enabled", False)),
                 "orchestrator_mode": model_routing_status["mode"],
             },
+            "rate_limiter": (
+                await proxy.rate_limiter.stats() if proxy.rate_limiter is not None else None
+            ),
+            "cache": (await proxy.cache.stats() if proxy.cache is not None else None),
             "telemetry": telemetry_stats,
             "feedback": feedback_stats,
             "recent_requests": proxy.logger.get_recent(10) if proxy.logger else [],
@@ -3561,7 +3571,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             return payload
 
     async def _require_local_admin_auth(request: Request) -> None:
-        from cutctx.proxy.deployment_security import effective_admin_key, has_configured_sso
+        from cutctx.proxy.deployment_security import (
+            effective_admin_key,
+            effective_license_key,
+            has_configured_sso,
+        )
         from cutctx.proxy.forwarded_headers import resolve_client_ip
 
         async def _reject_failed_auth(detail: dict[str, str]) -> None:
@@ -3576,25 +3590,44 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                         status_code=429,
                         detail={
                             "message": "Too many failed admin authentication attempts.",
-                            "remediation": "Wait before retrying, then verify your admin key or SSO token.",
+                            "remediation": (
+                                "Wait before retrying, then verify your admin key, "
+                                "activated license key (cutctx_…), or SSO token."
+                            ),
                         },
                         headers={"Retry-After": str(retry_after)},
                     )
             raise HTTPException(status_code=401, detail=detail)
 
         expected_admin_key = effective_admin_key(config)
+        expected_license_key = effective_license_key(config)
         auth_header = request.headers.get("authorization", "")
         bearer_token = auth_header[7:].strip() if auth_header.startswith("Bearer ") else ""
         admin_header = request.headers.get("x-cutctx-admin-key", "")
         legacy_header = request.headers.get("x-headroom-admin-key", "")
         import hmac as _hmac
 
-        if expected_admin_key and (
-            _hmac.compare_digest(bearer_token, expected_admin_key)
-            or _hmac.compare_digest(admin_header, expected_admin_key)
-            or _hmac.compare_digest(legacy_header, expected_admin_key)
-        ):
+        presented = (bearer_token, admin_header, legacy_header)
+
+        def _matches_secret(expected: str | None) -> bool:
+            if not expected:
+                return False
+            for candidate in presented:
+                if not candidate:
+                    continue
+                try:
+                    if _hmac.compare_digest(candidate, expected):
+                        return True
+                except ValueError:
+                    # compare_digest requires equal-length inputs.
+                    continue
+            return False
+
+        if _matches_secret(expected_admin_key) or _matches_secret(expected_license_key):
             # The configured admin key is the root administrative credential.
+            # The activated commercial license key is also accepted so account
+            # keys from the magic-link licenses portal unlock the local
+            # dashboard without a separate CUTCTX_ADMIN_API_KEY paste.
             # Mark it explicitly so the RBAC checker's safe Viewer fallback
             # doesn't reduce authenticated operators to read-only access.
             request.state.cutctx_role = "admin"
@@ -3695,7 +3728,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         await _reject_failed_auth(
             {
                 "message": "Invalid or missing admin credentials.",
-                "remediation": "Set the CUTCTX_ADMIN_API_KEY environment variable or pass Authorization: Bearer <token> / X-Cutctx-Admin-Key: <key> header. Verify the key value is correct.",
+                "remediation": (
+                    "Pass your CUTCTX_ADMIN_API_KEY, or the activated account "
+                    "license key (cutctx_…) from the CutCtx licenses portal, via "
+                    "Authorization: Bearer <token> or X-Cutctx-Admin-Key."
+                ),
             }
         )
 

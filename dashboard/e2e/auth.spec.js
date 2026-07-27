@@ -51,11 +51,34 @@ test.describe('Authentication Flow', () => {
     await expect(page.getByRole('heading', { name: 'Connect to Cutctx' })).toBeVisible();
 
     // Check that the input and button are visible
-    const input = page.getByPlaceholder('Enter CUTCTX_ADMIN_API_KEY');
+    const input = page.getByPlaceholder('Enter cutctx_… license key or CUTCTX_ADMIN_API_KEY');
     await expect(input).toBeVisible();
 
     const saveButton = page.getByRole('button', { name: 'Save & Reload' });
     await expect(saveButton).toBeVisible();
+  });
+
+  test('displays Auth Overlay on admin-auth lockout 429', async ({ page }) => {
+    await mockAuxiliaryDashboardRequests(page, { healthStatus: 502 });
+
+    await page.route(statsEndpoint, async route => {
+      await route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          detail: {
+            message: 'Too many failed admin authentication attempts.',
+          },
+        }),
+      });
+    });
+
+    await page.goto('/dashboard');
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+
+    await expect(page.getByTestId('authentication-surface')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Connect to Cutctx' })).toBeVisible();
   });
 
   test('saves key to localStorage and reloads page on submit', async ({ page }) => {
@@ -85,7 +108,7 @@ test.describe('Authentication Flow', () => {
     await page.reload();
 
     // Fill in the key
-    const input = page.getByPlaceholder('Enter CUTCTX_ADMIN_API_KEY');
+    const input = page.getByPlaceholder('Enter cutctx_… license key or CUTCTX_ADMIN_API_KEY');
     await input.fill('testkey');
 
     // Click Save & Reload

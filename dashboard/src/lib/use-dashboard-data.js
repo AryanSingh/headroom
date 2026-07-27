@@ -70,7 +70,19 @@ export async function fetchDashboardJson(path) {
   });
 
   if (!response.ok) {
-    throw createDashboardError(path, `${path} returned ${response.status}`, response.status);
+    let detail = null;
+    try {
+      const payload = await response.json();
+      detail = payload?.detail ?? payload ?? null;
+    } catch {
+      detail = null;
+    }
+    throw createDashboardError(
+      path,
+      `${path} returned ${response.status}`,
+      response.status,
+      detail,
+    );
   }
 
   const contentType = response.headers.get('content-type') || '';

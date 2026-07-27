@@ -16,6 +16,22 @@ test('prioritizes an authentication failure over another request failure', () =>
   );
 });
 
+test('prioritizes admin-auth lockout 429 as an authentication failure', () => {
+  const lockout = Object.assign(
+    new Error('/stats returned 429'),
+    {
+      status: 429,
+      detail: { message: 'Too many failed admin authentication attempts.' },
+    },
+  );
+  const unavailable = Object.assign(new Error('/health returned 502'), { status: 502 });
+
+  assert.throws(
+    () => resolveDashboardLoadResults(rejected(lockout), rejected(unavailable)),
+    error => error === lockout,
+  );
+});
+
 test('prioritizes a health authentication failure over a statistics failure', () => {
   const statsFailure = Object.assign(new Error('/stats returned 500'), { status: 500 });
   const unauthorized = Object.assign(new Error('/health returned 401'), { status: 401 });

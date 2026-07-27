@@ -75,6 +75,13 @@ def default_policy_db_path() -> Path:
     return Path(os.environ.get(_DB_ENV, str(DEFAULT_DB_PATH))).expanduser()
 
 
+def _is_readonly_db_error(exc: BaseException) -> bool:
+    message = str(exc).lower()
+    return isinstance(exc, sqlite3.OperationalError) and (
+        "readonly" in message or "read-only" in message
+    )
+
+
 def init_db(path: Path | None = None) -> Path:
     db_path = path or default_policy_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -99,6 +106,33 @@ def init_db(path: Path | None = None) -> Path:
         )
         stamp_schema_version(conn, expected=_SCHEMA_VERSION, store_name="learned policy store")
         conn.commit()
+    return db_path
+
+
+def open_policies_db(path: Path | None = None, *, writable: bool = True) -> Path:
+    """Return a policies DB path, creating/stamping schema only when writable.
+
+    Inspect commands (`show` / `load_policies`) must succeed against an existing
+    DB even when the file is read-only. Mutating commands keep the writable path.
+    """
+    db_path = path or default_policy_db_path()
+    if writable:
+        return init_db(db_path)
+
+    if not db_path.exists():
+        try:
+            return init_db(db_path)
+        except sqlite3.OperationalError as exc:
+            if not _is_readonly_db_error(exc):
+                raise
+            raise
+
+    try:
+        init_db(db_path)
+    except sqlite3.OperationalError as exc:
+        if not _is_readonly_db_error(exc):
+            raise
+        # Existing DB is readable; skip schema stamp/write.
     return db_path
 
 
@@ -204,8 +238,15 @@ def train_from_events(
 
 
 def load_policies(path: Path | None = None) -> list[LearnedPolicy]:
-    db_path = init_db(path)
-    with sqlite3.connect(db_path) as conn:
+    db_path = open_policies_db(path, writable=False)
+    uri = f"file:{db_path}?mode=ro"
+    try:
+        conn = sqlite3.connect(uri, uri=True)
+    except sqlite3.OperationalError:
+        # Fall back to normal open when URI mode is unavailable (e.g. brand-new
+        # empty path that was just created writable above).
+        conn = sqlite3.connect(db_path)
+    try:
         rows = conn.execute(
             """
             SELECT tool_name, content_type, repo, aggressiveness, algorithm_hint,
@@ -215,6 +256,8 @@ def load_policies(path: Path | None = None) -> list[LearnedPolicy]:
             ORDER BY repo, tool_name, content_type
             """
         ).fetchall()
+    finally:
+        conn.close()
     return [
         LearnedPolicy(
             selector=PolicySelector(tool_name=row[0], content_type=row[1], repo=row[2]),

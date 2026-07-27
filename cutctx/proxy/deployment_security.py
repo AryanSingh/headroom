@@ -50,6 +50,75 @@ def effective_admin_key(config: Any) -> str | None:
     return getattr(config, "admin_api_key", None) or os.environ.get("CUTCTX_ADMIN_API_KEY")
 
 
+def _normalize_secret(value: str | None) -> str | None:
+    """Return a non-empty stripped secret, or ``None``."""
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+def _license_key_from_local_store() -> str | None:
+    """Read an activated license key from the local Cutctx workspace.
+
+    Commerce issues ``cutctx_…`` keys via the hosted licenses portal / magic
+    link. Operators commonly paste that account key into the local dashboard,
+    so the proxy must be able to resolve the same secret that
+    ``cutctx license activate`` / ``CUTCTX_LICENSE_KEY`` already persisted.
+    """
+    import json
+
+    try:
+        from cutctx import paths
+    except Exception:
+        return None
+
+    key_file = paths.workspace_dir() / "license_key.txt"
+    try:
+        if key_file.is_file():
+            file_key = _normalize_secret(key_file.read_text(encoding="utf-8"))
+            if file_key:
+                return file_key
+    except OSError:
+        pass
+
+    cache_path = paths.license_cache_path()
+    try:
+        from cutctx.security.state_crypto import read_hmac_json
+
+        cached = read_hmac_json(cache_path)
+        if isinstance(cached, dict):
+            cached_key = _normalize_secret(cached.get("license_key"))
+            if cached_key:
+                return cached_key
+    except Exception:
+        pass
+
+    try:
+        if cache_path.is_file():
+            raw = json.loads(cache_path.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                payload = raw.get("payload") if isinstance(raw.get("payload"), dict) else raw
+                if isinstance(payload, dict):
+                    return _normalize_secret(payload.get("license_key"))
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+    return None
+
+
+def effective_license_key(config: Any) -> str | None:
+    """Resolve the active commercial license key for local operator auth.
+
+    Order: proxy config → ``CUTCTX_LICENSE_KEY`` → ``~/.cutctx/license_key.txt``
+    → activated ``license_cache.json``.
+    """
+    return (
+        _normalize_secret(getattr(config, "license_key", None))
+        or _normalize_secret(os.environ.get("CUTCTX_LICENSE_KEY"))
+        or _license_key_from_local_store()
+    )
+
+
 def effective_proxy_key(config: Any) -> str | None:
     """Resolve the dedicated provider-route client key."""
 

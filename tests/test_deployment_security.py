@@ -113,3 +113,50 @@ def test_network_deployment_allows_explicit_private_upstream(monkeypatch) -> Non
             openai_api_url="http://10.0.0.5:9000/v1",
         )
     )
+
+
+def test_effective_license_key_reads_activated_local_store(tmp_path, monkeypatch) -> None:
+    from cutctx.proxy.deployment_security import effective_license_key
+
+    key_file = tmp_path / "license_key.txt"
+    key_file.write_text("cutctx_local_enterprise_key\n", encoding="utf-8")
+    monkeypatch.delenv("CUTCTX_LICENSE_KEY", raising=False)
+    monkeypatch.setattr(
+        "cutctx.paths.workspace_dir",
+        lambda: tmp_path,
+    )
+    monkeypatch.setattr(
+        "cutctx.paths.license_cache_path",
+        lambda: tmp_path / "license_cache.json",
+    )
+
+    assert effective_license_key(ProxyConfig(license_key=None)) == "cutctx_local_enterprise_key"
+
+
+def test_cutctx_proxy_applies_local_license_without_env(tmp_path, monkeypatch) -> None:
+    from cutctx.proxy.server import CutctxProxy
+
+    key_file = tmp_path / "license_key.txt"
+    key_file.write_text("cutctx_local_enterprise_key\n", encoding="utf-8")
+    monkeypatch.delenv("CUTCTX_LICENSE_KEY", raising=False)
+    monkeypatch.setattr("cutctx.paths.workspace_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "cutctx.paths.license_cache_path",
+        lambda: tmp_path / "license_cache.json",
+    )
+
+    proxy = CutctxProxy(
+        ProxyConfig(
+            backend="mock",
+            optimize=False,
+            cache_enabled=False,
+            rate_limit_enabled=False,
+            cost_tracking_enabled=False,
+            license_key=None,
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
+        )
+    )
+
+    assert proxy.config.license_key == "cutctx_local_enterprise_key"
+    assert proxy.usage_reporter is not None
+    assert proxy.usage_reporter._license_key == "cutctx_local_enterprise_key"

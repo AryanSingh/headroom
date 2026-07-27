@@ -273,8 +273,9 @@ function AppFrame() {
     window.location.reload();
   };
 
-  const isUnauthorized = error && error.includes('401');
-
+  const isUnauthorized = Boolean(
+    error && (error.includes('401') || error.includes('429')),
+  );
 
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -345,10 +346,10 @@ function AppFrame() {
           <PageHeader
             eyebrow="Operator access"
             title="Connect to Cutctx"
-            description="Enter the admin key configured for this proxy to continue to the command center."
+            description="Enter your CutCtx license key (cutctx_…) from the licenses portal, or the local admin API key."
           />
           <StatePanel tone="error" icon={Shield} title="Authentication required">
-            The proxy requires an admin API key before it can return dashboard data.
+            The proxy requires your account license key or CUTCTX_ADMIN_API_KEY before it can return dashboard data.
           </StatePanel>
           <form
             className="authentication-form"
@@ -358,11 +359,11 @@ function AppFrame() {
             }}
           >
             <label className="authentication-field" htmlFor="admin-api-key">
-              <span>Admin API key</span>
+              <span>License or admin API key</span>
               <input
                 id="admin-api-key"
                 type="password"
-                placeholder="Enter CUTCTX_ADMIN_API_KEY"
+                placeholder="Enter cutctx_… license key or CUTCTX_ADMIN_API_KEY"
                 value={adminKey}
                 onChange={(event) => setAdminKey(event.target.value)}
               />

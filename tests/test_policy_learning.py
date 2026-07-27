@@ -265,3 +265,29 @@ def test_policies_cli_evict_unsafe(tmp_path):
     assert evict_result.exit_code == 0
     assert "Evicted 1 unsafe learned policy row" in evict_result.output
     assert load_policies(db_path) == []
+
+
+def test_load_policies_succeeds_against_readonly_database(tmp_path):
+    import os
+    import stat
+
+    db_path = tmp_path / "policies.db"
+    train_from_events(
+        [
+            {
+                "tool_name": "grep",
+                "content_type": "tool_output",
+                "repo": "repo-a",
+                "original_tokens": 100,
+                "compressed_tokens": 40,
+            }
+        ],
+        db_path,
+    )
+
+    os.chmod(db_path, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+
+    policies = load_policies(db_path)
+
+    assert len(policies) == 1
+    assert policies[0].selector.tool_name == "grep"

@@ -6,12 +6,30 @@
 set -e
 
 ADMIN_KEY=$(cat ~/.cutctx/admin_key.txt 2>/dev/null || echo "dev-admin-key-change-in-prod")
+# Prefer an explicit env/file license key; otherwise reuse the activated cache.
+LICENSE_KEY="${CUTCTX_LICENSE_KEY:-}"
+if [ -z "$LICENSE_KEY" ] && [ -f "$HOME/.cutctx/license_key.txt" ]; then
+  LICENSE_KEY=$(cat "$HOME/.cutctx/license_key.txt" 2>/dev/null || true)
+fi
+if [ -z "$LICENSE_KEY" ] && [ -f "$HOME/.cutctx/license_cache.json" ]; then
+  LICENSE_KEY=$(python3 -c '
+import json
+from pathlib import Path
+payload = json.loads(Path.home().joinpath(".cutctx/license_cache.json").read_text()).get("payload") or {}
+print(payload.get("license_key") or "")
+' 2>/dev/null || true)
+fi
 PORT=8787
 HOST=127.0.0.1
 
 echo "=== Cutctx Proxy Restart ==="
 echo "Port: $PORT"
 echo "Admin key: ${ADMIN_KEY:0:8}..."
+if [ -n "$LICENSE_KEY" ]; then
+  echo "License:   ${LICENSE_KEY:0:12}..."
+else
+  echo "License:   (none — proxy will start as OSS)"
+fi
 
 # Kill existing proxy on the port
 PIDS=$(lsof -ti tcp:$PORT 2>/dev/null || true)
@@ -54,8 +72,9 @@ fi
 
 echo "Starting new proxy..."
 
-# Start the proxy with admin key
+# Start the proxy with admin key (+ license when available)
 CUTCTX_ADMIN_API_KEY="$ADMIN_KEY" \
+CUTCTX_LICENSE_KEY="$LICENSE_KEY" \
 CUTCTX_PROXY_HOST="$HOST" \
 CUTCTX_PROXY_PORT="$PORT" \
 CUTCTX_LOG_LEVEL=INFO \

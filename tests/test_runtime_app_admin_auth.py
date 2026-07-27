@@ -47,6 +47,23 @@ def test_sensitive_surfaces_accept_admin_auth_when_key_configured(
     assert response.status_code == 200
 
 
+@pytest.mark.parametrize("path", ["/stats", "/stats-history"])
+def test_sensitive_surfaces_accept_activated_license_key(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    path: str,
+) -> None:
+    monkeypatch.setattr(
+        "cutctx.proxy.deployment_security.effective_license_key",
+        lambda _config: "cutctx_faa8a7aeef684507aea4e67b24883e9f",
+    )
+    response = client.get(
+        path,
+        headers={"X-Cutctx-Admin-Key": "cutctx_faa8a7aeef684507aea4e67b24883e9f"},
+    )
+    assert response.status_code == 200
+
+
 def test_sensitive_surfaces_do_not_accept_query_parameter_credentials(client: TestClient) -> None:
     response = client.get("/stats?key=test-admin-key")
 

@@ -582,3 +582,69 @@ def test_stats_surface_optional_feature_availability(monkeypatch: pytest.MonkeyP
     assert "available" in features["model_routing"]
     assert features["audio"]["compression"] == "pass-through"
     assert features["audio"]["reason"] == "audio_proxy_only_no_token_compression"
+
+
+def test_stats_publishes_live_rate_limiter_and_cache_when_enabled(tmp_path) -> None:
+    from cutctx.proxy.models import ProxyConfig
+    from cutctx.proxy.server import create_app
+    from fastapi.testclient import TestClient
+
+    app = create_app(
+        ProxyConfig(
+            optimize=False,
+            cache_enabled=True,
+            rate_limit_enabled=True,
+            cost_tracking_enabled=False,
+            log_requests=False,
+            ccr_inject_tool=False,
+            ccr_handle_responses=False,
+            ccr_context_tracking=False,
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
+        )
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/stats")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["config"]["rate_limiter"] is True
+    assert payload["config"]["cache"] is True
+    assert payload["rate_limiter"] is not None
+    assert payload["cache"] is not None
+    assert "active_keys" in payload["rate_limiter"]
+    assert "tokens_per_minute" in payload["rate_limiter"]
+    assert "total_hits" in payload["cache"]
+    assert "entries" in payload["cache"]
+    assert "total_misses" in payload["cache"]
+    assert "tokens_avoided" in payload["cache"]
+
+
+def test_stats_nulls_rate_limiter_and_cache_when_disabled(tmp_path) -> None:
+    from cutctx.proxy.models import ProxyConfig
+    from cutctx.proxy.server import create_app
+    from fastapi.testclient import TestClient
+
+    app = create_app(
+        ProxyConfig(
+            optimize=False,
+            cache_enabled=False,
+            rate_limit_enabled=False,
+            cost_tracking_enabled=False,
+            log_requests=False,
+            ccr_inject_tool=False,
+            ccr_handle_responses=False,
+            ccr_context_tracking=False,
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
+        )
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/stats")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["config"]["rate_limiter"] is False
+    assert payload["config"]["cache"] is False
+    assert payload["rate_limiter"] is None
+    assert payload["cache"] is None

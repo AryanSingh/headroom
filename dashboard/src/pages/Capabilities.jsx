@@ -117,10 +117,11 @@ export default function Capabilities({ searchQuery = '' }) {
   const [optimisticState, setOptimisticState] = useState({});
   const [toggleError, setToggleError] = useState(null);
 
-  const providerCacheTokens =
-    Number(stats?.cost?.savings_by_source?.tokens?.provider_prompt_cache || 0)
-    || Number(stats?.savings_by_source?.tokens?.provider_prompt_cache || 0)
-    || Number(stats?.prefix_cache?.totals?.cache_read_tokens || 0);
+  const providerCacheTokens = Math.max(
+    Number(stats?.cost?.savings_by_source?.tokens?.provider_prompt_cache || 0),
+    Number(stats?.savings_by_source?.tokens?.provider_prompt_cache || 0),
+    Number(stats?.prefix_cache?.totals?.cache_read_tokens || 0),
+  );
 
   const providerCacheSavingsUsd = Math.max(
     Number(stats?.cost?.cache_savings_usd || 0),
@@ -134,7 +135,20 @@ export default function Capabilities({ searchQuery = '' }) {
   const cacheProtectedPercent = eligibleCompressionTokens > 0
     ? (cacheProtectedTokens / eligibleCompressionTokens) * 100
     : 0;
-  const proxyCompressionSaved = Number(stats?.tokens?.proxy_compression_saved || 0);
+  const sessionProxyCompressionSaved = Number(stats?.tokens?.proxy_compression_saved || 0);
+  const lifetimeProxyCompressionSaved = Math.max(
+    Number(stats?.savings_by_source?.tokens?.cutctx_compression || 0),
+    Number(stats?.opportunity_funnel?.compressed_tokens || 0),
+  );
+  const proxyCompressionSaved = Math.max(
+    sessionProxyCompressionSaved,
+    lifetimeProxyCompressionSaved,
+  );
+  const proxyCompressionUsesLifetime =
+    sessionProxyCompressionSaved === 0 && lifetimeProxyCompressionSaved > 0;
+  const providerCacheUsesLifetime =
+    Number(stats?.prefix_cache?.totals?.cache_read_tokens || 0) === 0
+    && providerCacheTokens > 0;
 
   const surfaceFlags = {
     rate_limit_enabled: getFlagEnabled(stats, configFlags, 'rate_limit_enabled', 'rate_limiter'),
@@ -178,12 +192,16 @@ export default function Capabilities({ searchQuery = '' }) {
       value: formatInteger(proxyCompressionSaved),
       detail: proxyCompressionSaved === 0 && cacheProtectedTokens > 0
         ? `${formatPercent(cacheProtectedPercent)} cache-protected · left unchanged intentionally`
-        : `${formatPercent(stats?.tokens?.proxy_savings_percent)} active savings`,
+        : proxyCompressionUsesLifetime
+          ? `${formatInteger(lifetimeProxyCompressionSaved)} lifetime tokens · session window is empty`
+          : `${formatPercent(stats?.tokens?.proxy_savings_percent)} active savings`,
     },
     {
       label: 'Provider cache',
       value: formatInteger(providerCacheTokens),
-      detail: `${formatCurrency(providerCacheSavingsUsd)} saved`,
+      detail: providerCacheUsesLifetime
+        ? `${formatCurrency(providerCacheSavingsUsd)} lifetime saved`
+        : `${formatCurrency(providerCacheSavingsUsd)} saved`,
     },
     stats?.codex_ws != null ? {
       label: 'Codex websocket',

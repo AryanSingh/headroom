@@ -139,7 +139,21 @@ const FEATURE_CONFIG = [
       "Choose Off, Balanced, or Aggressive on the dedicated routing page.",
     tier: "free",
     liveToggle: false,
-    statPath: (stats) => stats?.model_routing?.mode || (stats?.config?.orchestrator ? "auto" : "off"),
+    statPath: (stats) => {
+      if (!stats) {
+        return null;
+      }
+      if (stats?.model_routing?.mode) {
+        return stats.model_routing.mode;
+      }
+      if (stats?.config?.orchestrator_mode) {
+        return stats.config.orchestrator_mode;
+      }
+      if (typeof stats?.config?.orchestrator === "boolean") {
+        return stats.config.orchestrator ? "balanced" : "off";
+      }
+      return null;
+    },
   },
   {
     key: "audit",
@@ -225,6 +239,20 @@ function describeSectionStatus(section, sections) {
     return "Reachable";
   }
   if (section.status === 403) {
+    const detail = section.data?.detail;
+    const requiredTier =
+      (typeof detail === "object" && detail?.required_tier) ||
+      sections?.entitlements?.data?.features?.audit_logs?.required_tier ||
+      sections?.entitlements?.data?.features?.rbac?.required_tier;
+    const currentTier =
+      (typeof detail === "object" && detail?.current_tier) ||
+      sections?.entitlements?.data?.current_tier;
+    if (requiredTier && currentTier) {
+      return `Requires ${titleCase(requiredTier)} (current: ${titleCase(currentTier)})`;
+    }
+    if (requiredTier) {
+      return `Requires ${titleCase(requiredTier)} tier`;
+    }
     const tier = sections?.entitlements?.data?.current_tier;
     return tier ? `Unavailable on ${tier} tier` : "Unavailable on current tier";
   }
@@ -456,11 +484,15 @@ export default function Governance({ searchQuery = "" }) {
             const data = await fetchDashboardJson(path);
             return [key, { ok: true, data, error: null, status: 200 }];
           } catch (error) {
+            let detailPayload = null;
+            if (error?.detail != null) {
+              detailPayload = { detail: error.detail };
+            }
             return [
               key,
               {
                 ok: false,
-                data: null,
+                data: detailPayload,
                 error: error?.message || String(error),
                 status: error?.status ?? null,
               },
@@ -532,17 +564,25 @@ export default function Governance({ searchQuery = "" }) {
   const rateLimitEnabled =
     stats?.config?.rate_limiter ??
     configFlags?.restart_required?.rate_limit_enabled?.enabled ??
-    false;
-  const rateLimitStatusLabel = rateLimitEnabled
-    ? rateLimiter
-      ? "Active"
-      : "Configured"
-    : "Inactive";
-  const rateLimitSummary = rateLimitEnabled
-    ? rateLimiter
-      ? "Token-bucket throttling is active and reporting live metrics."
-      : "Rate limiting is enabled, but this proxy is not exposing live limiter metrics on /stats."
-    : "Rate limiting is not enabled yet.";
+    configFlags?.live_toggleable?.rate_limit_enabled?.enabled ??
+    null;
+  const rateLimitKnown = rateLimitEnabled != null;
+  const rateLimitStatusLabel = !rateLimitKnown
+    ? statsLoading
+      ? "Loading"
+      : "Unknown"
+    : rateLimitEnabled
+      ? rateLimiter
+        ? "Active"
+        : "Configured"
+      : "Inactive";
+  const rateLimitSummary = !rateLimitKnown
+    ? "Waiting for proxy config before reporting rate-limit posture."
+    : rateLimitEnabled
+      ? rateLimiter
+        ? "Token-bucket throttling is active and reporting live metrics."
+        : "Rate limiting is enabled. Live limiter metrics appear once /stats publishes the rate_limiter payload."
+      : "Rate limiting is not enabled yet.";
   const budgetEnabled = Boolean(budget?.enabled);
   const budgetStatusLabel = budgetEnabled
     ? budget?.exceeded

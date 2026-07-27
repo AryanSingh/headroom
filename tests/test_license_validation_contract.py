@@ -250,3 +250,61 @@ def test_paid_websocket_guard_returns_policy_close(monkeypatch, seat_available: 
             pass
 
     assert exc_info.value.code == 1008
+
+
+def test_apply_validated_enterprise_license_unlocks_entitlements(
+    tmp_path, monkeypatch
+) -> None:
+    # Isolate from the operator's activated ~/.cutctx license so CutctxProxy
+    # does not auto-start UsageReporter and overwrite the checker under test.
+    monkeypatch.delenv("CUTCTX_LICENSE_KEY", raising=False)
+    monkeypatch.setattr("cutctx.paths.workspace_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "cutctx.paths.license_cache_path",
+        lambda: tmp_path / "missing-license-cache.json",
+    )
+
+    app = create_app(
+        ProxyConfig(
+            backend="mock",
+            optimize=False,
+            cache_enabled=False,
+            rate_limit_enabled=False,
+            cost_tracking_enabled=False,
+            proxy_api_key="proxy-key",
+            license_key=None,
+            prefix_freeze_db_path=str(tmp_path / "prefix-tracker.db"),
+        )
+    )
+
+    with TestClient(app) as client:
+        _apply_validated_license(
+            app.state.proxy, LicenseInfo(status="active", plan="enterprise")
+        )
+        response = client.get("/entitlements")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_tier"] == "enterprise"
+    assert payload["features"]["audit_logs"]["available"] is True
+    assert payload["features"]["rbac"]["available"] is True
+
+
+def test_license_info_reads_cli_activation_cache_shape() -> None:
+    cached = LicenseInfo.from_dict(
+        {
+            "payload": {
+                "license_key": "cutctx_test",
+                "status": "active",
+                "plan": "enterprise",
+                "org_id": "org-1",
+                "org_name": "Acme",
+                "validated_at": "Sat, 25 Jul 2026 19:04:17 GMT",
+            }
+        }
+    )
+
+    assert cached.status == "active"
+    assert cached.plan == "enterprise"
+    assert cached.org_id == "org-1"
+    assert cached.validated_at.year == 2026

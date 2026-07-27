@@ -74,25 +74,52 @@ class LicenseInfo:
             d["trial_expires_at"] = self.trial_expires_at.isoformat()
         return d
 
+    @staticmethod
+    def _parse_timestamp(value: Any) -> datetime | None:
+        """Parse ISO-8601 or HTTP-date timestamps from reporter/CLI caches."""
+        if value is None or value == "":
+            return None
+        if isinstance(value, datetime):
+            if value.tzinfo is None:
+                return value.replace(tzinfo=timezone.utc)
+            return value
+        if not isinstance(value, str):
+            return None
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            try:
+                from email.utils import parsedate_to_datetime
+
+                parsed = parsedate_to_datetime(value)
+            except (TypeError, ValueError, IndexError):
+                return None
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> LicenseInfo:
-        """Deserialize from JSON cache."""
-        validated_at = data.get("validated_at")
-        if isinstance(validated_at, str):
-            data["validated_at"] = datetime.fromisoformat(validated_at)
-        trial_expires_at = data.get("trial_expires_at")
-        if isinstance(trial_expires_at, str):
-            data["trial_expires_at"] = datetime.fromisoformat(trial_expires_at)
-        elif trial_expires_at is None:
-            data["trial_expires_at"] = None
+        """Deserialize from JSON cache.
+
+        Accepts both the UsageReporter flat shape and the CLI activation cache
+        written by ``write_hmac_json`` (``{"payload": {...}}``).
+        """
+        if not isinstance(data, dict):
+            return cls(status="invalid")
+        payload = data.get("payload") if isinstance(data.get("payload"), dict) else data
+        validated_at = cls._parse_timestamp(payload.get("validated_at")) or datetime.now(
+            timezone.utc
+        )
+        trial_expires_at = cls._parse_timestamp(payload.get("trial_expires_at"))
         return cls(
-            status=data.get("status", "invalid"),
-            org_id=data.get("org_id"),
-            org_name=data.get("org_name"),
-            plan=data.get("plan"),
-            quota_tokens=data.get("quota_tokens"),
-            trial_expires_at=data.get("trial_expires_at"),
-            validated_at=data.get("validated_at", datetime.now(timezone.utc)),
+            status=str(payload.get("status") or "invalid"),
+            org_id=payload.get("org_id"),
+            org_name=payload.get("org_name"),
+            plan=payload.get("plan") or payload.get("tier"),
+            quota_tokens=payload.get("quota_tokens"),
+            trial_expires_at=trial_expires_at,
+            validated_at=validated_at,
         )
 
 
@@ -431,24 +458,44 @@ class UsageReporter:
         """Load cached license info, or return a default if expired/missing."""
         try:
             if self._cache_path.exists():
-                data = json.loads(self._cache_path.read_text(encoding="utf-8"))
+                data: dict[str, Any] | None = None
+                try:
+                    from cutctx.security.state_crypto import read_hmac_json
+
+                    hmac_payload = read_hmac_json(self._cache_path)
+                    if isinstance(hmac_payload, dict):
+                        data = hmac_payload
+                except Exception:
+                    data = None
+                if data is None:
+                    raw = json.loads(self._cache_path.read_text(encoding="utf-8"))
+                    if isinstance(raw, dict):
+                        data = raw
+                if not isinstance(data, dict):
+                    raise ValueError("license cache is not an object")
                 cached = LicenseInfo.from_dict(data)
                 age = (datetime.now(timezone.utc) - cached.validated_at).total_seconds()
-                if age < GRACE_PERIOD_SECONDS:
+                if age < GRACE_PERIOD_SECONDS and cached.status in ("active", "trial"):
                     logger.info(
-                        "Using cached license (age=%.1fh, status=%s)",
+                        "Using cached license (age=%.1fh, status=%s, plan=%s)",
                         age / 3600,
                         cached.status,
+                        cached.plan,
                     )
                     self._license_info = cached
                     return cached
+                if age < GRACE_PERIOD_SECONDS:
+                    logger.warning(
+                        "Cached license status is '%s'; not applying entitlements",
+                        cached.status,
+                    )
                 else:
                     logger.warning(
                         "Cached license expired (age=%.1fd), marking as expired",
                         age / 86400,
                     )
-        except (OSError, json.JSONDecodeError, KeyError):
-            logger.warning("Could not read license cache")
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+            logger.warning("Could not read license cache", exc_info=True)
 
         # No valid cache — return expired but still allow proxy to work
         self._license_info = LicenseInfo(status="expired")

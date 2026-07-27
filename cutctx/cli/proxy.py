@@ -1132,8 +1132,14 @@ def proxy(
         os.environ["CUTCTX_STATELESS"] = "true"
         os.environ["CUTCTX_TOIN_BACKEND"] = "none"
 
-    # License key for managed/enterprise deployments (optional)
-    license_key = os.environ.get("CUTCTX_LICENSE_KEY")
+    # License key for managed/enterprise deployments (optional).
+    # Prefer the shared resolver so activated ~/.cutctx/license_key.txt works
+    # without duplicating CUTCTX_LICENSE_KEY into LaunchAgent plists.
+    from types import SimpleNamespace
+
+    from cutctx.proxy.deployment_security import effective_license_key
+
+    license_key = effective_license_key(SimpleNamespace(license_key=None))
 
     # Qdrant connection for the qdrant-neo4j backend. CLI flags default
     # to None; when omitted we let ProxyConfig's default_factory resolve
