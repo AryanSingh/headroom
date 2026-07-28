@@ -74,6 +74,47 @@ def test_extraction_reports_what_it_skipped() -> None:
     assert "eligible=" in line and "skipped=" in line
 
 
+def test_protected_roles_are_not_reported_as_unsupported_types() -> None:
+    """A `message` is a protected role, not an unsupported type.
+
+    Labelling it "unsupported:message" points the reader at extraction rules
+    when the real decision is unit policy — user and system are never
+    rewritten, assistant only with compress_assistant. Since this tally is the
+    primary diagnostic for the Responses path, a misleading reason in it sends
+    somebody off widening extraction for no reason.
+    """
+    proxy = create_app(
+        ProxyConfig(optimize=True, cache_enabled=False, rate_limit_enabled=False)
+    ).state.proxy
+    handler = _Capture()
+    logger = logging.getLogger("cutctx.proxy")
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    big = "The handler validates input before dispatch. " * 200
+    payload = {
+        "model": "gpt-5.6-terra",
+        "input": [
+            {
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": big}],
+            },
+            {"type": "message", "role": "user", "content": [{"type": "input_text", "text": big}]},
+        ],
+    }
+    try:
+        proxy._compress_openai_responses_live_text_units_with_router(
+            payload, model="gpt-5.6-terra", request_id="roles"
+        )
+    finally:
+        logger.removeHandler(handler)
+
+    line = next(m for m in handler.messages if "responses_extraction" in m)
+    assert "protected_role:assistant" in line
+    assert "protected_role:user" in line
+    assert "unsupported:message" not in line
+
+
 def test_skip_summary_carries_no_payload_content() -> None:
     """Counts only. This runs on every request and must never log user text."""
     proxy = create_app(

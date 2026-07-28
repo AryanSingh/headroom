@@ -1709,7 +1709,17 @@ class OpenAIResponsesMixin:
                             }
                         )
             else:
-                skip_tally[f"unsupported:{item_type}"] += 1
+                # A `message` is not an unsupported *type* — it is a protected
+                # *role*. Reporting it as unsupported points the reader at
+                # extraction rules when the actual decision is unit policy
+                # (user and system are never rewritten; assistant only with
+                # compress_assistant). Naming the role keeps whoever reads
+                # this tally from widening extraction for no reason.
+                if item_type == "message":
+                    _role = item.get("role")
+                    skip_tally[f"protected_role:{_role or 'unknown'}"] += 1
+                else:
+                    skip_tally[f"unsupported:{item_type}"] += 1
                 if debug_enabled:
                     extraction_debug.append(
                         {
