@@ -6,6 +6,7 @@ Contains all OpenAI Chat Completions, Responses API, and passthrough handlers.
 from __future__ import annotations
 
 import asyncio
+import collections
 import contextlib
 import copy
 import hashlib
@@ -1617,8 +1618,21 @@ class OpenAIResponsesMixin:
         extraction_started = time.perf_counter()
         candidates: list[tuple[int, tuple[str, int | None], str]] = []
         extraction_debug: list[dict[str, Any]] = []
+        # Always-on tally of what never reaches a compressor.
+        #
+        # The per-item reasons below were only recorded behind
+        # CUTCTX_CODEX_COMPRESSION_DEBUG, so production had no signal for
+        # which item types were being skipped. That is how a large blind spot
+        # stayed invisible: 98.2% of recorded compression episodes have
+        # original_size = 0 (nothing measured), while the 1.8% that do reach a
+        # compressor are accepted 99.4% of the time at a median ratio of
+        # 0.578. The problem is reach, and this names it.
+        #
+        # Counts only, never content.
+        skip_tally: collections.Counter[str] = collections.Counter()
         for idx, item in enumerate(items):
             if not isinstance(item, dict):
+                skip_tally["item_not_dict"] += 1
                 if debug_enabled:
                     extraction_debug.append(
                         {
@@ -1634,6 +1648,7 @@ class OpenAIResponsesMixin:
             if item_type in self.OPENAI_RESPONSES_OUTPUT_TYPES:
                 call_id = item.get("call_id")
                 if isinstance(call_id, str) and call_id in cutctx_retrieve_call_ids:
+                    skip_tally["cutctx_retrieve_output_protected"] += 1
                     if debug_enabled:
                         extraction_debug.append(
                             {
@@ -1650,6 +1665,7 @@ class OpenAIResponsesMixin:
                 if slot is not None:
                     text, slot_ref = slot
                     if _should_passthrough_large_ml_tool_output(router, text):
+                        skip_tally["interactive_ml_latency_guard"] += 1
                         if debug_enabled:
                             extraction_debug.append(
                                 {
@@ -1681,6 +1697,7 @@ class OpenAIResponsesMixin:
                             }
                         )
                 else:
+                    skip_tally[f"no_text_slot:{item_type}"] += 1
                     if debug_enabled:
                         extraction_debug.append(
                             {
@@ -1692,6 +1709,7 @@ class OpenAIResponsesMixin:
                             }
                         )
             else:
+                skip_tally[f"unsupported:{item_type}"] += 1
                 if debug_enabled:
                     extraction_debug.append(
                         {
@@ -1705,6 +1723,16 @@ class OpenAIResponsesMixin:
                     )
 
         _add_timing("compression_live_unit_extraction", extraction_started)
+        if skip_tally:
+            logger.info(
+                "[%s] responses_extraction model=%s eligible=%d skipped=%d by_reason=%s",
+                request_id,
+                model,
+                len(candidates),
+                sum(skip_tally.values()),
+                dict(skip_tally.most_common(8)),
+            )
+
         _log(
             "codex_compression_extraction",
             item_count=len(items),
