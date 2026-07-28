@@ -247,6 +247,30 @@ def deep_history(kind: str, turns: int = 6, tool_name: str = "Bash") -> list[dic
     return msgs
 
 
+def openai_history(kind: str, turns: int = 6) -> list[dict[str, Any]]:
+    """The same corpus in OpenAI chat shape, so the two surfaces compare."""
+    msgs: list[dict[str, Any]] = []
+    for t in range(turns):
+        msgs.append({"role": "user", "content": f"step {t}: inspect the system"})
+        msgs.append(
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": f"call_{t}",
+                        "type": "function",
+                        "function": {"name": "Bash", "arguments": '{"cmd":"x"}'},
+                    }
+                ],
+            }
+        )
+        msgs.append({"role": "tool", "tool_call_id": f"call_{t}", "content": corpus(kind)})
+        msgs.append({"role": "assistant", "content": f"Observed step {t}."})
+    msgs.append({"role": "user", "content": "Summarise briefly."})
+    return msgs
+
+
 def fat_tools(n: int = 40) -> list[dict[str, Any]]:
     """A tool surface wide enough for schema compaction to matter."""
     return [
@@ -296,6 +320,10 @@ class Scenario:
     #: whether lossy compressors are allowed at all — see SUBSCRIPTION vs
     #: PAYG in cutctx/proxy/auth_mode.py.
     ua: str = "claude-cli/2.1.214 (external, cli)"
+    #: Which surface to exercise. The OpenAI-compatible endpoints run a
+    #: different handler from /v1/messages, and were never measured here —
+    #: which is how "OpenAI models save nothing" went unnoticed.
+    endpoint: str = "/v1/messages"
 
 
 def scenarios() -> list[Scenario]:
@@ -331,6 +359,21 @@ def scenarios() -> list[Scenario]:
                 args=["--compression-mode", "aggressive"],
                 body={**base, "messages": deep_history(kind)},
                 default_on=False,
+            )
+        )
+    for kind in ("logs", "json"):
+        out.append(
+            Scenario(
+                name=f"openai_chat:{kind}",
+                why="same corpus through the OpenAI-compatible surface — the "
+                "handler differs from /v1/messages and was never measured",
+                body={
+                    "model": MODEL,
+                    "max_tokens": 64,
+                    "messages": openai_history(kind),
+                },
+                endpoint="/v1/chat/completions",
+                ua="codex-cli/1.0 (external, cli)",
             )
         )
     out.append(
@@ -512,15 +555,20 @@ def run_scenario(sc: Scenario, *, verbose: bool = False) -> dict[str, Any]:
 
         sent = count_tokens(sc.body)
         for _ in range(sc.repeat):
+            _is_openai = "/v1/messages" not in sc.endpoint
+            _headers = {
+                "content-type": "application/json",
+                "user-agent": sc.ua,
+            }
+            if _is_openai:
+                _headers["authorization"] = "Bearer sk-harness"
+            else:
+                _headers["x-api-key"] = "sk-harness"
+                _headers["anthropic-version"] = "2023-06-01"
             httpx.post(
-                f"{base}/v1/messages",
+                f"{base}{sc.endpoint}",
                 json=sc.body,
-                headers={
-                    "x-api-key": "sk-harness",
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                    "user-agent": sc.ua,
-                },
+                headers=_headers,
                 timeout=120,
             )
 
