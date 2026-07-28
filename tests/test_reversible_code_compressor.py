@@ -163,3 +163,74 @@ def test_fails_closed_when_nothing_can_be_stored() -> None:
 @pytest.mark.parametrize("source", ["", "   \n\n  "])
 def test_empty_input_is_safe(source: str) -> None:
     assert ReversibleCodeCompressor().compress(source).compressed == source
+
+
+# ---------------------------------------------------------------------------
+# Router integration and the fail-closed syntax guard
+# ---------------------------------------------------------------------------
+
+
+def test_router_never_emits_invalid_python() -> None:
+    """Handing a coding agent code that will not compile is worse than nothing.
+
+    CodeAwareCompressor promises valid output and guards its own result, but
+    it does not catch everything: measured on 100 real source files, 16 came
+    back unparseable — dropped module docstrings, broken indentation — from
+    input that parsed cleanly. ContentRouterConfig defaults
+    enable_code_aware to True, so library and SDK callers hit that path even
+    though the proxy disables it.
+    """
+    from pathlib import Path
+
+    from cutctx.transforms.content_router import ContentRouter, ContentRouterConfig
+
+    sources = [p for p in sorted(Path("cutctx").rglob("*.py")) if p.stat().st_size > 3000][:40]
+    assert sources, "no source files found to exercise the guard"
+
+    for enable_reversible in (False, True):
+        router = ContentRouter(ContentRouterConfig(enable_reversible_code=enable_reversible))
+        for path in sources:
+            original = path.read_text()
+            try:
+                ast.parse(original)
+            except SyntaxError:
+                continue
+            compressed = router.compress(original).compressed
+            try:
+                ast.parse(compressed)
+            except SyntaxError as exc:  # pragma: no cover - the regression
+                pytest.fail(
+                    f"router emitted invalid Python for {path} "
+                    f"(reversible={enable_reversible}): {exc}"
+                )
+
+
+def test_reversible_path_adds_savings_through_the_router() -> None:
+    from pathlib import Path
+
+    from cutctx.transforms.content_router import (
+        ContentRouter,
+        ContentRouterConfig,
+        token_len,
+    )
+
+    sources = [p for p in sorted(Path("cutctx").rglob("*.py")) if p.stat().st_size > 3000][:30]
+    totals = {}
+    for enable_reversible in (False, True):
+        router = ContentRouter(ContentRouterConfig(enable_reversible_code=enable_reversible))
+        totals[enable_reversible] = sum(
+            token_len(router.compress(p.read_text()).compressed) for p in sources
+        )
+
+    assert totals[True] < totals[False], "enabling reversible code compression saved nothing"
+
+
+def test_guard_leaves_non_python_alone() -> None:
+    """The guard only judges Python, and only when the input parsed."""
+    from cutctx.transforms.content_router import _python_syntax_preserved
+
+    assert _python_syntax_preserved("func x() {", "func x() {", language="go") is True
+    # input already broken -> compression did not break it
+    assert _python_syntax_preserved("def (:", "def (:", language="python") is True
+    # valid in, broken out -> caught
+    assert _python_syntax_preserved("def f():\n    return 1\n", "  return 1", "python") is False

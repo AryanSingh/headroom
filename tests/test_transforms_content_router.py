@@ -347,7 +347,10 @@ def test_content_router_diagnostics_record_strategy_chain_and_tokens(
             "def main():\n    return 1\nclass X:\n    pass",
             DetectionResult(ContentType.SOURCE_CODE, 1.0, {}),
             "_get_code_compressor",
-            _FakeCompressor("def main(): return 1 extra words extra"),
+            # Valid Python: the router now discards code output that
+            # does not parse, so an invalid fake would trip that guard
+            # instead of exercising the diagnostics this test is about.
+            _FakeCompressor("def main(): return 1  # extra words extra"),
             CompressionStrategy.CODE_AWARE,
         ),
         (
