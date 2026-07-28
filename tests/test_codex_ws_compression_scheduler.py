@@ -25,6 +25,7 @@ from __future__ import annotations
 import concurrent.futures
 import logging
 import sys
+import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -281,8 +282,31 @@ def test_concurrent_compression_has_no_semaphore_tail() -> None:
     ]
 
     results: list = []
-    started = time.perf_counter()
     with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool:
+        # Warm every worker thread, not just the caller.
+        #
+        # `warmup()` above issues a single compression on the main thread, but
+        # the router lazy-initialises per-thread state (thread-local
+        # tree-sitter parsers among others). Each of the 12 workers therefore
+        # paid its own first-call cost inside the measured window. With
+        # compression effectively free on this payload (p50 = 0 ms), one cold
+        # start became p99 and the p99/max(p50,1) ratio exploded — a run with
+        # p99 = 68 ms read as "68x contention" when the whole 60-frame replay
+        # took 0.07 s wall and no semaphore was involved.
+        #
+        # A barrier guarantees all 12 threads are live simultaneously, so the
+        # pool cannot satisfy the warmup with fewer threads than the measured
+        # phase will use.
+        gate = threading.Barrier(12)
+
+        def _warm_this_thread() -> None:
+            gate.wait(timeout=30)
+            replay_session(proxy, scenarios[0], "gpt-4o-mini")
+
+        for warm in [pool.submit(_warm_this_thread) for _ in range(12)]:
+            warm.result()
+
+        started = time.perf_counter()
         futures = [pool.submit(replay_session, proxy, s, "gpt-4o-mini") for s in scenarios]
         for fut in concurrent.futures.as_completed(futures):
             results.extend(fut.result())
