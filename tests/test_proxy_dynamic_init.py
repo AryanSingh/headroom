@@ -63,10 +63,23 @@ def test_reversible_code_live_toggle_updates_existing_routers_without_restart(
             is False
         )
 
-    assert config.enable_reversible_code is False
+        enabled = client.post(
+            "/config/flags",
+            json={"reversible_code": True},
+            headers={"x-cutctx-admin-key": "test_admin"},
+        )
+        assert enabled.status_code == 200
+        assert (
+            client.get("/config/flags", headers={"x-cutctx-admin-key": "test_admin"}).json()[
+                "live_toggleable"
+            ]["reversible_code"]["enabled"]
+            is True
+        )
+
+    assert config.enable_reversible_code is True
     assert [id(router) for router in routers] == router_ids
     assert (id(proxy.anthropic_pipeline), id(proxy.openai_pipeline)) == pipeline_ids
-    assert not any(router.config.enable_reversible_code for router in routers)
+    assert all(router.config.enable_reversible_code for router in routers)
     assert not (tmp_path / "config" / "feature_flags.json").exists()
 
 

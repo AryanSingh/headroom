@@ -1,5 +1,47 @@
 # Cutctx Launch-Readiness Report — 2026-07-18
 
+## 2026-07-28 final technical release addendum
+
+**Technical release decision: GO for the verified local/self-hosted candidate.**
+This supersedes the earlier 2026-07-28 technical NO-GO below. It does not
+supersede the separate commercial blockers for unattended public self-serve or
+enterprise procurement documented later in this report.
+
+The release candidate was frozen on `main` after merging the managed Control
+runtime, skill-preservation/buyer-evidence work, and the gated meta-harness
+orchestration foundation. The stale `release-readiness-2026-07-26` branch was
+not merged: its only unique product change was applied as the TypeScript SDK
+lockfile version correction, while its generated `0.31.0` tarball was excluded.
+
+| Gate | Final evidence |
+|---|---|
+| Python | **9,646 passed, 0 failed, 342 skipped** |
+| Static analysis | Ruff 0.9.4 check/format clean; mypy ratchet has no new errors |
+| Dashboard | 29 unit tests and 99 Playwright tests passed; production build and production audit clean |
+| Control | 13 UI tests and 45 Rust tests passed; lint, TypeScript build, Clippy `-D warnings`, and Cargo format clean |
+| TypeScript SDK | 307 passed, 33 optional skips; typecheck/build passed; production audit has 0 vulnerabilities |
+| Savings matrix | **26/26 supported live-capture scenarios passed** with authenticated stats and at least one measured upstream call |
+| Managed restart | Owned `init-user` runtime restarted from current `main`; immediate status is `running`, health is green, and v0.32.0 reports Rust/cache/rate/memory/datastore/upstream ready |
+| Governance | All live-toggleable features active, orchestrator `aggressive`; cache, firewall, rate limit, audit, and Drain3 active after restart |
+| Live compression | `/v1/compress` reduced 15,542 tokens to 79 (15,463 saved) using authenticated local client credentials |
+| Admin CLI | Audit stats/list and RBAC list auto-discovered local admin credentials successfully |
+
+Known, truthfully surfaced limitations:
+
+- Graphify is unavailable because the optional `graphify` package is not
+  installed; it was excluded from the supported matrix instead of being
+  reported as a false success.
+- Image/OCR (`PIL`) and semantic relevance (`fastembed`) are also optional and
+  unavailable in this environment. The capability command includes their
+  install hints.
+- The TypeScript SDK's development dependency tree reports one high and one
+  low advisory; the shipped production dependency audit is clean.
+- Safe prose and Markdown-table traffic are intentional byte-preserving
+  passthroughs. Aggressive prose is separately measured at 36.9% savings.
+
+Detailed machine-readable savings evidence is in
+`artifacts/savings-harness-release-2026-07-28.json`.
+
 ## 2026-07-28 release decision addendum
 
 **Current decision: NO-GO for release.** This supersedes the older candidate's

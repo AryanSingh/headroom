@@ -1,5 +1,33 @@
 # QA Audit Report — AIE Commercial Capability Integration
 
+## Final integrated release verification — 2026-07-28
+
+The AIE branch is now merged into `main` together with the managed Control
+runtime and the gated meta-harness foundation. The earlier branch-local
+conditional verdict is superseded for technical release purposes by a **GO**:
+
+- Full Python suite: **9,646 passed, 0 failed, 342 skipped**.
+- Combined AIE/meta-harness intersection: 72 focused tests passed.
+- Buyer ROI aggregation retains per-request delta accounting and excludes
+  cumulative-counter inflation and per-source double counting.
+- Skill/instruction payload preservation survives content routing and selective
+  filtering; the combined mypy ratchet, Ruff 0.9.4, and formatting gates pass.
+- OpenAPI contains the two authenticated agent-package paths and passes drift
+  verification (220 paths total).
+- The supported savings harness passed all 26 selected scenarios. Selected
+  measured reductions: logs 65.8%, code 51.9%, JSON 53.4%, HTML 40.8%,
+  semantic cache 82.9%, Drain3 64.8%, difftastic 51.7%, dedup 79.4%, context
+  budget 56.7%, and memoization 76.7%.
+- Managed restart testing found and fixed a PID ownership race and premature
+  restart-readiness report. A subsequent live restart completed with status
+  `running` and health green.
+- Governance testing found and fixed the `reversible_code` readback attribute;
+  live false→true round-trip tests now pass and localhost reports it active.
+
+Graphify remains an explicitly unavailable optional dependency in this
+environment and is not part of the supported-pass count. This is a truthful
+capability limitation, not a silent or zero-upstream success.
+
 **Date:** 2026-07-27  
 **Branch:** `feat/aie-commercial-capability-integration`  
 **Commit:** `25714eb5` — `test: add thin skill-survival and attribution integrity evals`  

@@ -23,6 +23,7 @@ from cutctx.install.runtime import (
     start_persistent_docker,
     stop_runtime,
     wait_ready,
+    wait_stopped,
 )
 
 
@@ -208,6 +209,16 @@ def test_write_read_and_clear_pid(monkeypatch, tmp_path: Path) -> None:
     assert _read_pid("default") == 456
     _clear_pid("default")
     assert _read_pid("default") is None
+
+
+def test_clear_pid_preserves_newer_runtime(monkeypatch, tmp_path: Path) -> None:
+    """A retiring runner must not delete its replacement's PID file."""
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    _write_pid("default", 456)
+
+    _clear_pid("default", expected_pid=123)
+
+    assert _read_pid("default") == 456
 
 
 def test_runtime_start_lock_is_nonblocking(monkeypatch, tmp_path: Path) -> None:
@@ -410,6 +421,12 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
     monkeypatch.setattr("cutctx.install.runtime.probe_ready", lambda url: False)
     sleeps.clear()
     assert wait_ready(python_manifest, timeout_seconds=2) is False
+    assert sleeps == [1, 1]
+
+    probe_results = iter([True, True, False])
+    sleeps.clear()
+    monkeypatch.setattr("cutctx.install.runtime.probe_ready", lambda url: next(probe_results))
+    assert wait_stopped(python_manifest, timeout_seconds=3) is True
     assert sleeps == [1, 1]
 
     class Result:

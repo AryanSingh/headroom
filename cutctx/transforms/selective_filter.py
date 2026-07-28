@@ -187,7 +187,8 @@ class SelectiveContextFilter:
                 keep.append(True)
                 continue
 
-            metadata = msg.get("metadata") if isinstance(msg.get("metadata"), dict) else {}
+            metadata_value = msg.get("metadata")
+            metadata = metadata_value if isinstance(metadata_value, dict) else {}
             if self.config.preserve_skills and metadata.get("cutctx_skill_preserve") is True:
                 keep.append(True)
                 continue

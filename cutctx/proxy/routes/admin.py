@@ -1798,6 +1798,7 @@ def create_admin_router(
     _CONFIG_ATTR_ALIASES = {
         "text_compression_engine_enabled": "use_llmlingua",
         "log_template_mining_enabled": "drain3_enabled",
+        "reversible_code": "enable_reversible_code",
     }
     _RESTART_ENV_VARS = {
         "cache_enabled": "CUTCTX_CACHE_ENABLED",

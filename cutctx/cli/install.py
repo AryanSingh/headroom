@@ -26,6 +26,7 @@ from cutctx.install.runtime import (
     start_persistent_docker,
     stop_runtime,
     wait_ready,
+    wait_stopped,
 )
 from cutctx.install.state import delete_manifest, load_manifest, save_manifest
 from cutctx.install.supervisors import (
@@ -68,6 +69,10 @@ def _stop_deployment(manifest: DeploymentManifest) -> None:
     if manifest.supervisor_kind == SupervisorKind.SERVICE.value:
         stop_supervisor(manifest)
     stop_runtime(manifest)
+    if not wait_stopped(manifest, timeout_seconds=15):
+        raise click.ClickException(
+            f"Deployment '{manifest.profile}' did not stop within 15 seconds."
+        )
 
 
 def _remove_deployment(manifest: DeploymentManifest) -> None:

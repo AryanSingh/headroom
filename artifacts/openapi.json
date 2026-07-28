@@ -19,6 +19,21 @@
         "title": "ActivateRequest",
         "type": "object"
       },
+      "AgentPackagePutPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "yaml": {
+            "minLength": 1,
+            "title": "Yaml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "yaml"
+        ],
+        "title": "AgentPackagePutPayload",
+        "type": "object"
+      },
       "AuditEventCreate": {
         "properties": {
           "action": {
@@ -5601,6 +5616,125 @@
           }
         },
         "summary": "Openai Moderations"
+      }
+    },
+    "/v1/orchestration/agent-packages": {
+      "get": {
+        "operationId": "list_agent_packages_v1_orchestration_agent_packages_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Agent Packages V1 Orchestration Agent Packages Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Agent Packages",
+        "tags": [
+          "orchestration"
+        ]
+      }
+    },
+    "/v1/orchestration/agent-packages/{package_id}": {
+      "get": {
+        "operationId": "get_agent_package_v1_orchestration_agent_packages__package_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "package_id",
+            "required": true,
+            "schema": {
+              "title": "Package Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Agent Package V1 Orchestration Agent Packages  Package Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Agent Package",
+        "tags": [
+          "orchestration"
+        ]
+      },
+      "put": {
+        "operationId": "put_agent_package_v1_orchestration_agent_packages__package_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "package_id",
+            "required": true,
+            "schema": {
+              "title": "Package Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPackagePutPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Agent Package V1 Orchestration Agent Packages  Package Id  Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Agent Package",
+        "tags": [
+          "orchestration"
+        ]
       }
     },
     "/v1/orchestration/capability-manifest": {

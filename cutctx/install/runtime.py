@@ -270,10 +270,14 @@ def _read_pid(profile: str) -> int | None:
         return None
 
 
-def _clear_pid(profile: str) -> None:
+def _clear_pid(profile: str, *, expected_pid: int | None = None) -> None:
+    """Remove a runtime PID file unless a replacement has claimed it."""
     path = pid_path(profile)
-    if path.exists():
-        path.unlink()
+    if not path.exists():
+        return
+    if expected_pid is not None and _read_pid(profile) != expected_pid:
+        return
+    path.unlink()
 
 
 @contextmanager
@@ -352,7 +356,7 @@ def run_foreground(manifest: DeploymentManifest) -> int:
         try:
             return proc.wait()
         finally:
-            _clear_pid(manifest.profile)
+            _clear_pid(manifest.profile, expected_pid=proc.pid)
 
 
 def start_detached_agent(profile: str) -> subprocess.Popen[str]:
@@ -408,7 +412,7 @@ def stop_runtime(manifest: DeploymentManifest) -> None:
         os.kill(pid, signal.SIGTERM)
     except OSError:
         pass
-    _clear_pid(manifest.profile)
+    _clear_pid(manifest.profile, expected_pid=pid)
 
 
 def wait_ready(manifest: DeploymentManifest, timeout_seconds: int = 30) -> bool:
@@ -416,6 +420,16 @@ def wait_ready(manifest: DeploymentManifest, timeout_seconds: int = 30) -> bool:
 
     for _ in range(timeout_seconds):
         if probe_ready(manifest.health_url):
+            return True
+        time.sleep(1)
+    return False
+
+
+def wait_stopped(manifest: DeploymentManifest, timeout_seconds: int = 30) -> bool:
+    """Wait until the deployment no longer answers its readiness probe."""
+
+    for _ in range(timeout_seconds):
+        if not probe_ready(manifest.health_url):
             return True
         time.sleep(1)
     return False

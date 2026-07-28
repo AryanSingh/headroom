@@ -310,6 +310,10 @@ def test_install_restart_uses_internal_helpers(monkeypatch) -> None:
         "cutctx.cli.install.stop_runtime", lambda manifest: calls.append("stop_runtime")
     )
     monkeypatch.setattr(
+        "cutctx.cli.install.wait_stopped",
+        lambda manifest, timeout_seconds=15: calls.append("wait_stopped") or True,
+    )
+    monkeypatch.setattr(
         "cutctx.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
     )
     monkeypatch.setattr("cutctx.cli.install.wait_ready", lambda manifest, timeout_seconds=45: True)
@@ -318,7 +322,7 @@ def test_install_restart_uses_internal_helpers(monkeypatch) -> None:
 
     assert result.exit_code == 0, result.output
     assert "Restarted deployment 'default'." in result.output
-    assert calls == ["stop_supervisor", "stop_runtime", "start_supervisor"]
+    assert calls == ["stop_supervisor", "stop_runtime", "wait_stopped", "start_supervisor"]
 
 
 def test_install_apply_rejects_invalid_profile() -> None:
