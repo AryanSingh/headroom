@@ -16,6 +16,10 @@ from typing import Any
 
 import httpx
 
+from cutctx.cache.compression_store import CompressionStore
+
+from .agent_packages import AgentPackageRegistry
+from .artifact_store import ArtifactBlobStore
 from .audit import ReceiptAuditStore
 from .compiler import CompiledRoutingPolicy, compile_contract
 from .config import LayeredConfigStore, default_config_paths
@@ -29,6 +33,9 @@ from .contracts import (
 )
 from .credentials import CredentialStore, EncryptedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
+from .handoff_ccr import compress_artifact_for_handoff, handoff_payload_from_artifacts
+from .harness_adapter import ArtifactRef
+from .harness_runtime import HarnessRuntime
 from .models import (
     ExecutionRecord,
     FallbackTrigger,
@@ -104,6 +111,7 @@ class OrchestrationService:
         )
         self._active_contract: CompiledRoutingPolicy | None = None
         self._contract_evidence: dict[tuple[str, str], dict[str, Any]] = {}
+        self._harness_runtime: HarnessRuntime | None = None
         self._state_lock = threading.RLock()
         self.config = self.config_store.load()
         if self.config.models:
@@ -659,6 +667,45 @@ class OrchestrationService:
         payload["providers"] = [self._public_account(account) for account in self.config.providers]
         return payload
 
+    @property
+    def data_dir(self) -> Path:
+        return self.workflow_store.path.parent
+
+    @property
+    def agent_package_registry(self) -> AgentPackageRegistry:
+        agents_dir = os.environ.get("CUTCTX_AGENT_PACKAGES_DIR")
+        if not agents_dir:
+            agents_dir = str(Path(self.data_dir).parent / ".cutctx" / "agents")
+        return AgentPackageRegistry(agents_dir)
+
+    @property
+    def artifact_blob_store(self) -> ArtifactBlobStore:
+        return ArtifactBlobStore(self.data_dir / "artifacts")
+
+    @property
+    def harness_runtime(self) -> HarnessRuntime:
+        if self._harness_runtime is None:
+            from .adapters.codex_cli import CodexCliAdapter
+
+            runtime = HarnessRuntime(
+                registry=self.agent_package_registry,
+                blob_store=self.artifact_blob_store,
+            )
+            runtime.register(CodexCliAdapter(blob_store=self.artifact_blob_store))
+            self._harness_runtime = runtime
+        return self._harness_runtime
+
+    @staticmethod
+    def _artifact_ref_from_dict(payload: dict[str, Any]) -> ArtifactRef:
+        provenance = payload.get("provenance", {})
+        return ArtifactRef(
+            blob_id=str(payload["blob_id"]),
+            media_type=str(payload.get("media_type", "application/octet-stream")),
+            byte_size=int(payload.get("byte_size", 0)),
+            ccr_hash=str(payload.get("ccr_hash", "")),
+            provenance=dict(provenance) if isinstance(provenance, dict) else {},
+        )
+
     @staticmethod
     def _public_account(account: ProviderAccount) -> dict[str, Any]:
         payload = to_dict(account)
@@ -932,6 +979,34 @@ class OrchestrationService:
         """Run durable role-bound tasks through the canonical executor."""
 
         async def execute_task(_task_id: str, task: TaskSpec) -> dict[str, Any]:
+            harness = task.payload.get("harness")
+            if harness:
+                package_id = str(task.payload.get("agent_package_id", ""))
+                if not package_id:
+                    raise ValueError("harness task requires agent_package_id")
+                result = await self.harness_runtime.run_task(
+                    workflow_id, task, package_id=package_id
+                )
+                artifact_dicts = result.get("artifacts", [])
+                if artifact_dicts:
+                    ccr = CompressionStore(default_ttl=3600)
+                    compressed_refs = [
+                        compress_artifact_for_handoff(
+                            self.artifact_blob_store,
+                            ccr,
+                            self._artifact_ref_from_dict(item),
+                        )
+                        for item in artifact_dicts
+                        if isinstance(item, dict)
+                    ]
+                    if compressed_refs:
+                        result["handoff"] = handoff_payload_from_artifacts(compressed_refs)
+                        patch_ref = compressed_refs[0]
+                        task.artifact.patch_ref = patch_ref.blob_id
+                        task.artifact.provenance = dict(patch_ref.provenance)
+                        if patch_ref.ccr_hash:
+                            task.artifact.provenance["ccr_hash"] = patch_ref.ccr_hash
+                return result
             messages = task.payload.get("messages", [])
             parameters = task.payload.get("parameters", {})
             if not isinstance(messages, list) or not isinstance(parameters, dict):

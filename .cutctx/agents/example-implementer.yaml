@@ -1,0 +1,10 @@
+apiVersion: cutctx.dev/agent/v1
+id: implementer-codex
+version: 1
+harness: codex_cli
+role: implementer
+tools:
+  - shell
+  - apply_patch
+policy_refs:
+  - contract:implementation

@@ -5,6 +5,8 @@ can therefore be embedded by the proxy, SDKs, tests, or future workers without
 pulling provider-specific transport details into routing policy.
 """
 
+from .agent_packages import AgentPackage, AgentPackageRegistry
+from .artifact_store import ArtifactBlobStore
 from .audit import ReceiptAuditStore
 from .compiler import CompiledRoutingPolicy, ContractCompilationError, compile_contract
 from .contract_store import (
@@ -28,6 +30,8 @@ from .contracts import (
 from .credentials import CredentialStore, ExternalSecretResolver, ResolverBackedCredentialStore
 from .engine import DeterministicRoutingEngine, RoutingUnavailableError
 from .evaluation import RoutingEvaluationCase, evaluate_routing_cases
+from .harness_adapter import ArtifactRef, HarnessAdapter, HarnessCapabilities
+from .harness_runtime import HarnessRuntime
 from .models import (
     Capability,
     FallbackTrigger,
@@ -59,6 +63,10 @@ from .workflow import (
 )
 
 __all__ = [
+    "AgentPackage",
+    "AgentPackageRegistry",
+    "ArtifactBlobStore",
+    "ArtifactRef",
     "Capability",
     "ContractEvaluationPolicy",
     "ContractLifecycle",
@@ -77,6 +85,9 @@ __all__ = [
     "compile_contract",
     "DeterministicRoutingEngine",
     "FallbackTrigger",
+    "HarnessAdapter",
+    "HarnessCapabilities",
+    "HarnessRuntime",
     "ExternalSecretResolver",
     "RoutingEvaluationCase",
     "evaluate_routing_cases",

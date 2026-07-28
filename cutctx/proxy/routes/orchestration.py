@@ -162,6 +162,12 @@ class ContractEvidencePayload(BaseModel):
     abstention_reasons: dict[str, int] = Field(default_factory=dict)
 
 
+class AgentPackagePutPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    yaml: str = Field(min_length=1)
+
+
 def _workflow_spec(payload: WorkflowPayload) -> WorkflowSpec:
     def artifact_for(task: WorkflowTaskPayload) -> TaskArtifact:
         try:
@@ -724,6 +730,29 @@ def create_orchestration_router(
             return {"outcome": service.record_outcome(payload)}
         except (TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.get("/agent-packages", dependencies=read_deps)
+    async def list_agent_packages() -> dict[str, Any]:
+        packages = service.agent_package_registry.list()
+        return {"packages": [asdict(pkg) for pkg in packages]}
+
+    @router.get("/agent-packages/{package_id}", dependencies=read_deps)
+    async def get_agent_package(package_id: str) -> dict[str, Any]:
+        try:
+            package = service.agent_package_registry.get(package_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return {"package": asdict(package)}
+
+    @router.put("/agent-packages/{package_id}", dependencies=write_deps)
+    async def put_agent_package(package_id: str, payload: AgentPackagePutPayload) -> dict[str, Any]:
+        try:
+            package = service.agent_package_registry.put(payload.yaml)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if package.id != package_id:
+            raise HTTPException(status_code=400, detail="package id mismatch")
+        return {"package": asdict(package)}
 
     return router
 
