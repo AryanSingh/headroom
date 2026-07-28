@@ -50,7 +50,9 @@
 
 *Source: `wiki/index.md:296-301`, `wiki/benchmarks.md:107-118`. Headline example run 4/4 on the FATAL needle case is the most defensible single claim.*
 
-**Caveat (one line below table, small font):** *On short conversational turns, compression is bypassed to preserve latency. Median production compression is 4.8% because most traffic is short. Eligible-workload compression is the relevant comparison.*
+**Caveat (one line below table, small font):** *These are per-payload ratios on eligible workloads. Fleet-wide, Cutctx-created reduction on our own production traffic is **2.8%** (84,144 requests, 6.01B input tokens, 165.9M created) — short turns and protected tools (`Read`, `Grep`, `Bash`) are deliberately bypassed. Reproduce with `cutctx report buyer`.*
+
+**Do not blend in provider cache.** The provider's own prompt cache is worth ~$11,995 on this traffic against $1,275 Cutctx created. Report them separately or the number does not survive a buyer's own telemetry check.
 
 **Speaker note (45s):** "These are not synthetic numbers. We ran them on real production-shaped data. The headline number is the 87.6% with zero answer loss on a 100-line log that includes a critical FATAL at the 67th line. The model still found it. Walk the buyer through the table row by row."
 
