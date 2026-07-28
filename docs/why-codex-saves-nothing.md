@@ -92,21 +92,46 @@ this content.
 - **`reasoning` items** — deliberately excluded from text-unit extraction, as
   are compaction and tool-call items.
 
+## Full eligibility map
+
+Measured by running every item shape a real Codex turn contains through the
+extractor, with the new `responses_extraction` tally:
+
+| Item type | Compressed | Assessment |
+| --- | --- | --- |
+| `function_call_output` | **yes** | working |
+| `local_shell_call_output` | **yes** | working |
+| `apply_patch_call_output` | eligible, no change | content is code/patch — see below |
+| `message` (user) | no | correctly protected |
+| `message` (assistant) | no | reported `unsupported:message`, though unit policy would protect it anyway |
+| `reasoning` | no | model-authored and cache-anchored |
+| `function_call` | no | mutating tool arguments would corrupt the call |
+
+**Every skipped shape is skipped correctly.** User messages are protected,
+assistant messages are protected by unit policy, tool arguments must not be
+rewritten or the call breaks, and reasoning items are model-authored context
+the provider expects back intact.
+
+So the extraction rules are not the bug, and widening them is not the fix.
+Codex's tool outputs — the one category that *is* eligible — carry source code
+and patches, and those are 0% by deliberate configuration.
+
 ## What to do about it
 
-Ranked by measured value, not ease:
-
-1. **Measure Kompress against *real* Codex reasoning text.** The 6.8% above
-   was produced on a synthetic corpus — one sentence repeated 200 times —
-   which is not representative and may understate or overstate badly. Real
-   reasoning traces are varied prose and are a large, growing share of the
-   4B tokens. This is cheap to run against captured traffic and decides
-   whether the ML path is worth recommending to Codex users at all.
-2. **Expose `reasoning` items as compressible units.** They are a large and
-   growing share of Codex context and are currently untouched by design.
-   Needs care: reasoning is model-authored and may be cache-anchored.
-3. **Do not reach for `code_aware`.** It is off for measured correctness
-   reasons, and a coding agent is exactly the consumer it harms.
+1. **The unlock for Codex is safe code compression, not more extraction.**
+   That is an R&D problem, not a config change. `code_aware` exists and is off
+   for measured reasons: it elides ~a quarter of function-body statements
+   while preserving signatures, and emits invalid Python on half the files
+   tested (`docs/measured-savings.md`). A coding agent is precisely the
+   consumer that harms. Anything shipped here needs a fidelity bar, not a
+   compression ratio.
+2. **Fix the `unsupported:message` label.** Assistant messages are reported as
+   an unsupported *type* when they are really a protected *role*. The tally is
+   now the primary diagnostic for this path, so a misleading reason in it will
+   cost somebody an afternoon.
+3. **Do not widen extraction to reasoning or tool arguments** without a
+   provider-contract review. Both are plausible-looking and both risk
+   corrupting the request.
 
 ## Reproduce
 
