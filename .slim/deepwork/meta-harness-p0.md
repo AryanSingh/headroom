@@ -8,7 +8,7 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 
 | Phase | Scope | Status |
 |---|---|---|
-| P0 | Adapter seam + artifact handoffs (weeks 1–4) | **Planning complete** — ready for implementation |
+| P0 | Adapter seam + artifact handoffs (weeks 1–4) | **In progress** — Batch A+B done (Tasks 1–4) |
 | P1 | Lifecycle, control plane, policy (weeks 5–10) | Not started |
 | P2 | Enterprise hardening + partner slots (weeks 11–18) | Not started |
 
@@ -21,12 +21,12 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 
 ## P0 deliverables checklist
 
-- [ ] `HarnessAdapter` protocol (`capabilities`, `run`, `cancel`, `health`)
-- [ ] Agent package schema v1 + `.cutctx/agents/*.yaml` registry
+- [x] `HarnessAdapter` protocol (`capabilities`, `run`, `cancel`, `health`)
+- [x] Agent package schema v1 + `.cutctx/agents/*.yaml` registry
 - [ ] `GET/PUT /v1/orchestration/agent-packages` API
 - [ ] Codex CLI adapter POC
 - [ ] Workflow dispatch by `task.payload.harness`
-- [ ] Content-addressed artifact blob store
+- [x] Content-addressed artifact blob store
 - [ ] CCR compression at workflow handoffs
 - [ ] E2E: planner → Codex implementer → LLM reviewer
 
@@ -35,3 +35,21 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 - Local subprocess only in P0 (no cloud sandbox)
 - Option B: thin layer on `cutctx/orchestration/`, not full Carbon parity
 - Use `rtk`-prefixed commands for all shell work
+
+## Batch A progress (Tasks 1–2)
+
+| Task | Commit | Status |
+|---|---|---|
+| 1 — HarnessAdapter protocol + ArtifactRef types | `79853b8` | Done |
+| 2 — Content-addressed artifact blob store | `0c90e23` | Done |
+
+**Tests:** `tests/test_harness_adapter_types.py` (4 passed), `tests/test_artifact_store.py` (3 passed)
+
+## Batch B progress (Tasks 3–4)
+
+| Task | Commit | Status |
+|---|---|---|
+| 3 — Agent package YAML schema + canonical hash | `e94c963` | Done |
+| 4 — File-backed AgentPackageRegistry | `b5cb574` | Done |
+
+**Tests:** `tests/test_agent_packages.py` (6 passed)
