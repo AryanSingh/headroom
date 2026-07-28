@@ -275,7 +275,12 @@ export default function App() {
           </button>
           <button
             className="btn"
-            disabled={busy}
+            disabled={busy || !stopEnabled}
+            title={
+              stopEnabled
+                ? 'Open http://127.0.0.1:<port>/dashboard'
+                : 'Start the proxy first'
+            }
             onClick={() =>
               void run(async () => {
                 const url = await call<string>('dashboard_url')

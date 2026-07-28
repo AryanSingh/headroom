@@ -2,6 +2,7 @@ mod argv;
 mod catalog;
 mod codex_config;
 mod credentials;
+mod dashboard_link;
 mod health;
 mod profiles;
 mod restart_apply;
@@ -318,7 +319,7 @@ fn restart_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
 #[tauri::command]
 fn dashboard_url(state: State<'_, AppState>) -> Result<String, String> {
     let profile = state.profile.lock().map_err(|e| e.to_string())?;
-    Ok(format!("http://127.0.0.1:{}/", profile.port))
+    Ok(dashboard_link::dashboard_url_for_port(profile.port))
 }
 
 #[tauri::command]
