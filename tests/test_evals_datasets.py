@@ -337,15 +337,41 @@ def test_tool_output_samples_custom_dataset_and_probe_generation(tmp_path) -> No
     custom_suite = datasets.load_custom_dataset(custom_path)
     assert custom_suite.cases[0].id == "case1"
 
+    # n_probes=8: the fixture contains six distinct candidates, and probe
+    # selection is now a budget spread across the document rather than
+    # "first two per pattern". Asking for fewer slots than candidates
+    # legitimately drops some; this assertion is about pattern *detection*.
     probes = datasets.generate_retrieval_probes(
         'Alice Smith deployed API on 2024-01-15 at 99.9% confidence for "Launch Ready" and build_id',
-        n_probes=5,
+        n_probes=8,
     )
     assert "Alice Smith" in probes
     assert "2024-01-15" in probes
     assert "API" in probes
     assert "99.9" in probes
     assert "Launch Ready" in probes
+
+
+def test_retrieval_probes_are_spread_across_the_document() -> None:
+    """Probes must not cluster at the start of the text.
+
+    Selection used to take the first two matches per pattern, and
+    ``re.findall`` returns matches in document order — so across 20 HotpotQA
+    contexts 82% of probes landed in the first quarter and 2.8% in the last.
+    That turned information_recall into a test of "did you keep the
+    beginning", which rewards head-truncation over any compressor that
+    selects from the whole document, and the metric feeds benchmark reports
+    and release evidence.
+    """
+    document = " ".join(f"Person Number{i} visited Site{i} in 20{i:02d}-01-01." for i in range(60))
+
+    probes = datasets.generate_retrieval_probes(document, n_probes=8)
+
+    positions = [document.find(p) / len(document) for p in probes if document.find(p) >= 0]
+    assert positions, "no probes were located in the document"
+    assert max(positions) > 0.5, (
+        f"every probe came from the first half of the document: {positions}"
+    )
 
 
 def test_dataset_registry_helpers(monkeypatch: pytest.MonkeyPatch) -> None:

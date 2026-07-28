@@ -1692,15 +1692,40 @@ def generate_retrieval_probes(
         r"\b[a-z_]+_[a-z_]+\b",  # Snake case identifiers
     ]
 
+    # Collect every candidate WITH its position, then spread the selection
+    # across the document.
+    #
+    # This previously took `matches[:2]` per pattern. re.findall returns
+    # matches in document order, so probes came almost entirely from the
+    # opening of the text — measured across 20 HotpotQA contexts, 82% of
+    # probes fell in the first quarter and 2.8% in the last, with a mean
+    # position of 0.147 where 0.5 is unbiased.
+    #
+    # That made information_recall a test of "did you keep the beginning",
+    # which silently rewards head-truncation over any compressor that
+    # selects from the whole document. Since the metric feeds benchmark
+    # reports and release evidence, the bias flattered whichever system
+    # happened to preserve leading text.
+    candidates: list[tuple[int, str]] = []
+    seen: set[str] = set()
     for pattern in patterns:
-        matches = re.findall(pattern, context)
-        for match in matches[:2]:  # Take up to 2 per pattern
-            if match not in probes:
-                probes.append(match.strip('"'))
-            if len(probes) >= n_probes:
-                return probes
+        for match in re.finditer(pattern, context):
+            text = match.group(0).strip('"')
+            if text and text not in seen:
+                seen.add(text)
+                candidates.append((match.start(), text))
 
-    return probes
+    if not candidates:
+        return probes
+
+    candidates.sort(key=lambda item: item[0])
+    if len(candidates) <= n_probes:
+        return [text for _, text in candidates]
+
+    # Even stride over document order: first, last, and evenly spaced between.
+    step = (len(candidates) - 1) / max(1, n_probes - 1)
+    picked = {int(round(i * step)) for i in range(n_probes)}
+    return [candidates[i][1] for i in sorted(picked)]
 
 
 # =============================================================================

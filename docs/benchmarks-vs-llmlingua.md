@@ -4,11 +4,16 @@ Microsoft's [LLMLingua-2](https://github.com/microsoft/LLMLingua) is the
 published baseline for prompt compression, so it is the honest thing to
 measure against. This page reports what happened.
 
-**Summary:** our ML path is at parity with LLMLingua-2 (0.962 vs 0.960 info
-recall on LongBench at matched ratio). Our *default* path is a different
-proposition entirely — 150–500x faster and compressing 2–5x harder, at lower
-fidelity — which is the right trade for a proxy in the request path and one
-LLMLingua has no equivalent for.
+**Summary:** at matched compression ratio our default structural path clearly
+beats trivial baselines but loses to LLMLingua-2, decisively on long context.
+Our ML path scores highest overall but is not ratio-matched in the current
+run, so it is not ranked here. The default's real advantage is speed:
+150–500x faster, which LLMLingua has no equivalent for.
+
+> **An earlier revision of this page reported the opposite on HotpotQA
+> (0.532 vs 0.457 in our favour). That number was wrong** — it was produced
+> before a bias in the quality metric was found and fixed. See
+> "The metric was broken" below.
 
 ## Method
 
@@ -37,97 +42,73 @@ python -m cutctx.evals benchmark --dataset hotpotqa -n 30
 
 ## Results
 
-### ML vs ML — the like-for-like comparison
+n=50 per dataset, per-case matched token budgets, unbiased probe sampling.
+Trivial baselines are included as a floor: a compressor that cannot beat
+"keep the first N tokens" is not earning its complexity.
 
-LLMLingua-2 is a trained model. Our comparable path is Kompress
-(`enable_kompress=True`). At matched ratio:
+### HotpotQA
 
-| Dataset | System | Ratio | Info recall | ms/case |
-| --- | --- | ---: | ---: | ---: |
-| LongBench (n=20) | Router + Kompress | 0.766 | **0.962** | 5,594 |
-| LongBench (n=20) | LLMLingua-2 @ matched | 0.770 | 0.960 | 5,324 |
-| HotpotQA (n=20) | Router + Kompress | 0.799 | 0.938 | 1,529 |
-| HotpotQA (n=20) | LLMLingua-2 @ matched | 0.798 | **0.954** | 1,361 |
+| System | Ratio | Info recall | Stdev | ms/case |
+| --- | ---: | ---: | ---: | ---: |
+| router + kompress *(not ratio-matched)* | 0.797 | 0.875 | 0.101 | 1,159 |
+| LLMLingua-2 | 0.169 | **0.348** | 0.265 | 1,324 |
+| **Router (default)** | 0.167 | **0.332** | 0.160 | **8** |
+| tail truncation | 0.165 | 0.273 | 0.182 | 0 |
+| head truncation | 0.165 | 0.241 | 0.146 | 0 |
+| random sentences | 0.165 | 0.218 | 0.202 | 0 |
 
-**Parity on LongBench (0.962 vs 0.960), a little behind on HotpotQA (0.938 vs
-0.954), at comparable latency.** That is the credible quality claim: matched
-against the published state of the art, our ML path is level with it on one
-dataset and slightly behind on the other. Neither margin is large relative to
-n=20.
+### LongBench
 
-### Structural vs ML — the tradeoff we actually ship
+| System | Ratio | Info recall | Stdev | ms/case |
+| --- | ---: | ---: | ---: | ---: |
+| router + kompress *(not ratio-matched)* | 0.765 | 0.938 | 0.088 | 3,726 |
+| LLMLingua-2 | 0.398 | **0.757** | 0.150 | 4,168 |
+| tail truncation | 0.402 | 0.632 | 0.209 | 2 |
+| **Router (default)** | 0.403 | 0.627 | 0.168 | **14** |
+| random sentences | 0.403 | 0.593 | 0.208 | 2 |
+| head truncation | 0.402 | 0.510 | 0.175 | 2 |
 
-The default proxy path does **not** use Kompress. It is structural and
-deterministic, and it occupies a different point on the curve entirely:
+**Reading it straight:**
 
-| Dataset | System | Ratio | Info recall | ms/case |
-| --- | --- | ---: | ---: | ---: |
-| LongBench | Router, no ML (**default**) | 0.412 | 0.626 | **26** |
-| LongBench | Router + Kompress | 0.766 | 0.962 | 5,594 |
-| HotpotQA | Router, no ML (**default**) | 0.167 | 0.479 | **10** |
-| HotpotQA | Router + Kompress | 0.799 | 0.938 | 1,529 |
+- The default path **beats every trivial baseline on HotpotQA** (0.332 vs
+  0.273 / 0.241 / 0.218), so the routing and query-aware selection are doing
+  real work.
+- On LongBench it is **statistically indistinguishable from tail truncation**
+  (0.627 vs 0.632, stdev ~0.2 at n=50). On long-context prose the default is
+  not adding much over a naive heuristic.
+- **LLMLingua-2 wins at matched ratio on both**, narrowly on HotpotQA
+  (0.348 vs 0.332) and clearly on LongBench (0.757 vs 0.627).
+- The `router + kompress` row sits at a much gentler ratio (0.77–0.80) because
+  Kompress picks its own aggressiveness and the harness cannot force a budget
+  on it. Its high recall is therefore **not comparable** to the rows above.
+  An earlier matched-ratio run put Kompress at 0.962 against LLMLingua's 0.960
+  on LongBench; that comparison was run on the biased metric and has not been
+  repeated.
+- Speed remains ours: **8–14 ms versus 1.3–4.2 s**, two to three orders of
+  magnitude.
 
-The default compresses **2–5x harder** and runs **150–500x faster**, at lower
-fidelity. Kompress is correctly opt-in: 1.5–5.6 seconds per payload is
-unacceptable in a proxy sitting in the request path.
+## The metric was broken
 
-**Turning it on:** `--enable-kompress`, or `CUTCTX_ENABLE_KOMPRESS=1`.
-`--disable-kompress` overrides it.
+`generate_retrieval_probes` selected probes with `matches[:2]` per pattern.
+`re.findall` returns matches in document order, so probes came almost entirely
+from the opening of the text. Measured across 20 HotpotQA contexts:
 
-Running these benchmarks is what surfaced the fact that, until this was
-written, *you could not*. The proxy builds its own `ContentRouter`, so the
-`CUTCTX_ENABLE_KOMPRESS` env var read in `transforms/pipeline.py` never
-reached it; the only assignment to `router_config.enable_kompress` set it to
-`False`; and the shipped `--disable-kompress` flag disabled something already
-off. The quality tier measured above was unreachable from the product's main
-surface.
-
-**This is the honest shape of the product.** Not "we beat LLMLingua", but:
-*we match it when you want maximum fidelity, and we offer a sub-30ms
-structural mode it has no equivalent for.* An interactive agent proxy cannot
-spend 5 seconds per tool result, so for the shipped use case the fast path is
-the product and the ML path is the escape hatch.
-
-### Non-ML at matched ratio, for completeness
-
-Comparing the default structural path against LLMLingua at the same ratio —
-apples to oranges, since one is a trained model, but it bounds the gap:
-
-| Dataset | Matched ratio | Router (no ML) | LLMLingua-2 |
-| --- | ---: | ---: | ---: |
-| HotpotQA (n=30) | 0.186 | **0.532** | 0.457 |
-| LongBench (n=20) | 0.412 | 0.626 | **0.857** |
-
-We hold up better under aggressive compression on multi-hop QA and lose
-clearly at moderate compression on long-context prose.
-
-**Three attempts to close this gap with cheap heuristics, all measured at a
-per-case matched budget so ratio is held constant:**
-
-| Selection strategy | LongBench recall | HotpotQA recall |
+| | before | after |
 | --- | ---: | ---: |
-| Current (headings + anchors + top-1 query match) | **0.626** | **0.514** |
-| Fill the budget by term overlap | 0.659 *(but ratio 0.412 → 0.457)* | — |
-| BM25 ranking (IDF + length normalisation) | 0.614 | 0.498 |
-| Stratified coverage (uniform stride, query as tiebreak) | 0.632 | 0.514 |
+| Mean probe position (0.5 = unbiased) | 0.147 | 0.455 |
+| Share in first 25% of document | 82.1% | 34.4% |
+| Share in last 25% of document | 2.8% | 24.4% |
 
-None of them wins. Budget-filling only travels along the ratio/recall curve.
-BM25 is measurably *worse*. Stratified coverage is +0.006 on one dataset and
-identical on the other — noise at n=20.
+`information_recall` was therefore largely a test of *"did you keep the
+beginning"*. Under the biased version, head truncation scored **0.659** on
+HotpotQA and appeared to beat our router (0.487) — an artifact. With probes
+spread across the document head drops to **0.241**, last of all systems, and
+the ordering above is the real one.
 
-An earlier version of this document asserted that term-overlap scoring was the
-binding constraint and better scoring would close the gap. **BM25 disproves
-that.** The existing heuristic — retain headings, exact identifiers,
-constraints, and the single strongest query match — is at or near the
-practical frontier for lexical methods at these ratios, and the intuition that
-`[:1]` was "obviously too few" is wrong once the budget is held fixed.
-
-The remaining gap is structural: we select whole sentences, so retained
-content clusters around the query, while a learned token-level model prunes
-across the entire document and preserves a little of everything. Closing it
-properly needs a model, and the product already has one — Kompress, at parity
-with LLMLingua-2 above. No code was changed on the strength of these
-experiments, because none of them earned it.
+This metric feeds `benchmark_report.py` and the release evidence, so the bias
+flattered whichever system happened to preserve leading text. Probe selection
+now strides evenly across document order; a regression test asserts probes are
+not confined to the first half.
 
 ## Limits
 
@@ -140,9 +121,19 @@ experiments, because none of them earned it.
   strings. It does not measure whether a model still answers correctly.
   Downstream accuracy needs generation, which needs API spend
   (`python -m cutctx.evals suite --tier 1`, annotated ~$3).
-- **Small n.** 30 and 20 cases. Directionally useful, not publication-grade.
-  Neither result carries a confidence interval and neither should be quoted as
-  a precise figure.
-- **One baseline.** LLMLingua-2 is the credible open one. Commercial proxy
+- **Small n.** 50 cases per dataset, with per-system stdev reported. Several
+  gaps here are smaller than one standard deviation — the LongBench
+  router-vs-tail difference (0.627 vs 0.632, stdev ~0.2) is noise, and the
+  HotpotQA router-vs-LLMLingua gap (0.332 vs 0.348) is not far off it. Treat
+  ranking within a few points as unresolved.
+- **Kompress is not ratio-matched.** It selects its own aggressiveness and the
+  harness cannot impose a budget on it, so its row is reported but not ranked.
+- **Baselines.** LLMLingua-2 plus head/tail/random controls. Commercial proxy
   competitors cannot be benchmarked without accounts and spend, so "best in
   class" remains unproven against them.
+
+Reproduce:
+
+```bash
+python scripts/compression_benchmark.py --all -n 50
+```
