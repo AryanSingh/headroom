@@ -40,13 +40,14 @@ pub struct FeatureDef {
 
 /// Curated v1 catalog — not every CLI flag, only product-facing controls.
 pub fn catalog() -> &'static [FeatureDef] {
-    &FEATURES
+    FEATURES
 }
 
 pub fn get(key: &str) -> Option<&'static FeatureDef> {
     FEATURES.iter().find(|f| f.key == key)
 }
 
+#[cfg(test)]
 pub fn group_keys() -> Vec<&'static str> {
     let mut groups = Vec::new();
     for f in FEATURES {
@@ -224,6 +225,18 @@ static FEATURES: &[FeatureDef] = &[
         cli_flag_off: Some("--no-code-aware"),
         choices: &[],
         default_bool: false,
+        default_text: "",
+    },
+    FeatureDef {
+        key: "reversible_code",
+        group: "Engines",
+        label: "Reversible code compression",
+        kind: FeatureKind::Bool,
+        apply: ApplyMode::Restart,
+        cli_flag: "--enable-reversible-code",
+        cli_flag_off: Some("--no-reversible-code"),
+        choices: &[],
+        default_bool: true,
         default_text: "",
     },
     FeatureDef {

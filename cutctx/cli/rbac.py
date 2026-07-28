@@ -7,17 +7,15 @@ import os
 import click
 import httpx
 
+from cutctx.cli.admin_auth import admin_headers
+
 
 def _api_base() -> str:
     return os.getenv("CUTCTX_PROXY_URL", "http://127.0.0.1:8787")
 
 
 def _admin_headers(admin_key: str | None) -> dict[str, str]:
-    headers = {"Content-Type": "application/json"}
-    key = admin_key or os.getenv("CUTCTX_ADMIN_API_KEY", "")
-    if key:
-        headers["Authorization"] = f"Bearer {key}"
-    return headers
+    return admin_headers(admin_key, _api_base())
 
 
 @click.group()

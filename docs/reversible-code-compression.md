@@ -87,7 +87,23 @@ bill. Code elision does not have that failure mode.
 
 ## Why it is off by default
 
-`--enable-reversible-code` / `CUTCTX_REVERSIBLE_CODE=1`.
+Reversible code compression is enabled by default for new proxy processes.
+Use `--no-reversible-code` or `CUTCTX_REVERSIBLE_CODE=0` to preserve the
+previous pass-through behavior.
+
+To change an already-running proxy without restarting it (and without closing
+active Codex WebSockets), use the local admin configuration API:
+
+```bash
+curl -fsS -X POST http://127.0.0.1:8787/admin/config/flags \
+  -H "X-Cutctx-Admin-Key: $CUTCTX_ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  --data '{"reversible_code":true}'
+```
+
+Set `false` in the same request for the immediate kill switch. The setting
+affects only future compression decisions; it does not recreate pipelines,
+restart the proxy, or interrupt a request already in flight.
 
 Not because the economics are unclear — they are bounded and favourable — but
 because code reaches the proxy through `Read`, `Grep` and `Bash`, which are on
@@ -131,3 +147,13 @@ If that comes back clean on your traffic, flipping the default is an
 evidence-backed decision rather than a hopeful one. It is deliberately not
 flipped here, because code arrives through tools this product explicitly
 protects and one week of your data settles it better than any argument.
+## Product-managed startup
+
+CutCtx Control now installs a user-scoped, persistent product runtime the
+first time it starts an idle proxy. The runtime carries
+`--enable-reversible-code` and `CUTCTX_REVERSIBLE_CODE=1` explicitly, so a
+package upgrade cannot silently fall back to an older default. The control
+application first probes the configured local port: if it is healthy, it
+attaches without restarting or interrupting active Codex WebSockets. The
+managed service starts automatically at future login and restarts after an
+unexpected exit.

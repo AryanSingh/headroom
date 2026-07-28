@@ -21,6 +21,29 @@ from pydantic import BaseModel, Field, field_validator
 logger = logging.getLogger("cutctx.proxy.routes.admin")
 
 
+def set_live_reversible_code(proxy: Any, enabled: bool) -> int:
+    """Apply reversible-code policy to existing routers without replacing them.
+
+    The proxy owns two pipelines which normally share one ContentRouter.  Update
+    each unique router in place so in-flight HTTP and WebSocket transports keep
+    their existing pipeline and connection objects; only subsequent unit
+    compression decisions observe the new value.
+    """
+    from cutctx.transforms.content_router import ContentRouter
+
+    updated = 0
+    seen: set[int] = set()
+    for pipeline_name in ("anthropic_pipeline", "openai_pipeline"):
+        pipeline = getattr(proxy, pipeline_name, None)
+        for transform in getattr(pipeline, "transforms", ()):
+            if not isinstance(transform, ContentRouter) or id(transform) in seen:
+                continue
+            transform.config.enable_reversible_code = enabled
+            seen.add(id(transform))
+            updated += 1
+    return updated
+
+
 class WebhookSubscriptionInput(BaseModel):
     """Schema for an admin-managed webhook subscription.
 
@@ -1755,6 +1778,7 @@ def create_admin_router(
         "orchestrator",
         "orchestrator_mode",
         "ccr_context_tracking",
+        "reversible_code",
     }
     _RESTART_REQUIRED_KEYS = {
         "cache_enabled",
@@ -1927,16 +1951,24 @@ def create_admin_router(
     )
     async def get_config_flags():
         """Return current feature flag states defaults + runtime overrides."""
+        from cutctx.proxy.feature_flags import load_desired_feature_flags
         from cutctx.proxy.intelligence_pipeline import get_all_runtime_flags
 
         runtime = get_all_runtime_flags()
+        desired = load_desired_feature_flags()
+
+        def state_with_desired(key: str) -> dict[str, Any]:
+            state = _flag_state(key, runtime)
+            if key in desired:
+                state["desired"] = desired[key]
+            return state
+
         return {
-            "live_toggleable": {k: _flag_state(k, runtime) for k in sorted(_LIVE_TOGGLE_KEYS)},
-            "restart_required": {
-                k: _flag_state(k, runtime) for k in sorted(_RESTART_REQUIRED_KEYS)
-            },
+            "live_toggleable": {k: state_with_desired(k) for k in sorted(_LIVE_TOGGLE_KEYS)},
+            "restart_required": {k: state_with_desired(k) for k in sorted(_RESTART_REQUIRED_KEYS)},
             "legacy_aliases": _LEGACY_FLAG_ALIASES,
             "runtime_overrides": runtime,
+            "desired_overrides": desired,
         }
 
     @router.post(
@@ -1950,11 +1982,13 @@ def create_admin_router(
         Live-toggleable features apply to the next request immediately.
         Restart-required features update desired config and surface the restart hint.
         """
+        from cutctx.proxy.feature_flags import persist_desired_feature_flags
         from cutctx.proxy.intelligence_pipeline import set_runtime_flag
 
         applied_live: dict[str, Any] = {}
         needs_restart: dict[str, Any] = {}
         unknown: dict[str, str] = {}
+        normalized_updates: list[tuple[str, str, Any]] = []
         runtime_keys = {
             "task_aware_enabled",
             "dedup_enabled",
@@ -1965,13 +1999,48 @@ def create_admin_router(
             "autopilot_enabled",
         }
 
+        desired_updates: dict[str, bool | str] = {}
         for raw_key, value in body.items():
             key = _normalize_flag_key(raw_key)
-            enabled = bool(value)
+            if key not in _LIVE_TOGGLE_KEYS and key not in _RESTART_REQUIRED_KEYS:
+                unknown[raw_key] = "unknown flag"
+                continue
 
             entitlement_feature = _FLAG_ENTITLEMENTS.get(key)
             if entitlement_feature is not None:
                 await require_entitlement(entitlement_feature)(request)
+
+            desired_value: bool | str
+            if key == "orchestrator_mode":
+                from cutctx.proxy.model_router import normalize_model_routing_mode
+
+                if not isinstance(value, str):
+                    raise HTTPException(
+                        status_code=422, detail="orchestrator_mode must be a string"
+                    )
+                desired_value = normalize_model_routing_mode(str(value))
+                if desired_value == "custom":
+                    raise HTTPException(status_code=422, detail="unsupported orchestrator mode")
+            else:
+                if not isinstance(value, bool):
+                    raise HTTPException(status_code=422, detail=f"{raw_key} must be boolean")
+                desired_value = value
+            normalized_updates.append((raw_key, key, desired_value))
+            if key in _RESTART_REQUIRED_KEYS:
+                desired_updates[key] = desired_value
+
+        if desired_updates:
+            try:
+                persist_desired_feature_flags(desired_updates)
+            except (OSError, ValueError) as exc:
+                logger.error("Failed to persist Governance desired state", exc_info=True)
+                raise HTTPException(
+                    status_code=500,
+                    detail="feature flag desired state could not be persisted",
+                ) from exc
+
+        for raw_key, key, desired_value in normalized_updates:
+            enabled = bool(desired_value)
 
             if key in _LIVE_TOGGLE_KEYS:
                 if key in runtime_keys:
@@ -1982,31 +2051,37 @@ def create_admin_router(
                 elif key == "orchestrator":
                     _apply_orchestrator_toggle(enabled)
                 elif key == "orchestrator_mode":
-                    _apply_orchestrator_mode(str(value))
+                    _apply_orchestrator_mode(str(desired_value))
                 elif key == "ccr_context_tracking":
                     _set_flag_on_config(key, enabled)
+                elif key == "reversible_code":
+                    _config.enable_reversible_code = enabled
+                    applied_live[key] = {
+                        "enabled": enabled,
+                        "routers_updated": set_live_reversible_code(_proxy, enabled),
+                    }
 
-                applied_live[key] = {"enabled": enabled}
+                if key not in applied_live:
+                    applied_live[key] = {"enabled": enabled}
                 if key == "orchestrator_mode":
                     from cutctx.proxy.model_router import normalize_model_routing_mode
 
-                    applied_live[key] = {"mode": normalize_model_routing_mode(str(value))}
+                    applied_live[key] = {"mode": normalize_model_routing_mode(str(desired_value))}
                 if raw_key != key:
                     applied_live[raw_key] = {"enabled": enabled, "normalized_to": key}
                 continue
 
             if key in _RESTART_REQUIRED_KEYS:
-                _set_flag_on_config(key, enabled)
+                current = bool(_flag_state(key, {}).get("enabled"))
                 needs_restart[key] = {
                     "requested": enabled,
-                    "current": bool(_flag_state(key, {}).get("enabled")),
+                    "current": current,
+                    "desired": enabled,
                     "env_var": _RESTART_ENV_VARS.get(key, key.upper()),
                 }
                 if raw_key != key:
                     needs_restart[raw_key] = {"requested": enabled, "normalized_to": key}
                 continue
-
-            unknown[raw_key] = "unknown flag"
 
         return {
             "applied_live": applied_live,

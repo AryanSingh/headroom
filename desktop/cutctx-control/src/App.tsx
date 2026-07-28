@@ -32,6 +32,7 @@ type CatalogEntry = {
   enabled: boolean
   text: string
   choices: string[]
+  needs_restart?: boolean
 }
 
 const browserMockStatus: ProxyStatus = {
@@ -49,6 +50,13 @@ const emptyCredential: CredentialStatus = {
   unlocked_for_entry: true,
 }
 
+const emptyLicense: CredentialStatus = {
+  id: 'cutctx_license_key',
+  configured: false,
+  masked: null,
+  unlocked_for_entry: true,
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   try {
     return await invoke<T>(cmd, args)
@@ -58,18 +66,102 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
   }
 }
 
+type CredPanelProps = {
+  title: string
+  placeholder: string
+  status: CredentialStatus
+  draft: string
+  setDraft: (value: string) => void
+  busy: boolean
+  onSave: () => void
+  onRotate: () => void
+  onCancel: () => void
+}
+
+function CredentialPanel({
+  title,
+  placeholder,
+  status,
+  draft,
+  setDraft,
+  busy,
+  onSave,
+  onRotate,
+  onCancel,
+}: CredPanelProps) {
+  const showInput = shouldShowCredentialInput(status)
+  return (
+    <div className="cred-block">
+      {status.configured && !showInput ? (
+        <div className="client-row">
+          <div>
+            <div className="name">{title}</div>
+            <div className="sub locked-hint">
+              Saved · <span className="mono">{status.masked}</span>
+            </div>
+          </div>
+          <button className="btn" disabled={busy} onClick={onRotate}>
+            Rotate
+          </button>
+        </div>
+      ) : null}
+
+      {showInput ? (
+        <div className="cred-form">
+          <div className="name" style={{ marginBottom: 8 }}>
+            {status.configured ? `Rotate ${title}` : title}
+          </div>
+          <input
+            className="cred-input"
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={placeholder}
+            value={draft}
+            disabled={busy}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <div className="profile-row" style={{ marginTop: 8, marginBottom: 0 }}>
+            <button
+              className="btn primary"
+              disabled={busy || !draft.trim()}
+              onClick={onSave}
+            >
+              Save
+            </button>
+            {status.configured ? (
+              <button className="btn" disabled={busy} onClick={onCancel}>
+                Cancel
+              </button>
+            ) : null}
+          </div>
+          <div className="sub" style={{ marginTop: 8 }}>
+            After save, the value is locked. Use Rotate to replace it.
+          </div>
+        </div>
+      ) : null}
+
+      {!status.configured && !showInput ? (
+        <div className="sub">No {title.toLowerCase()} configured.</div>
+      ) : null}
+    </div>
+  )
+}
+
 export default function App() {
   const [status, setStatus] = useState<ProxyStatus>(browserMockStatus)
   const [catalog, setCatalog] = useState<CatalogEntry[]>([])
   const [profiles, setProfiles] = useState<string[]>([])
   const [profileName, setProfileName] = useState('default')
+  const [selectedProfile, setSelectedProfile] = useState('default')
   const [credential, setCredential] = useState<CredentialStatus>(emptyCredential)
+  const [license, setLicense] = useState<CredentialStatus>(emptyLicense)
   const [apiTokenDraft, setApiTokenDraft] = useState('')
+  const [licenseDraft, setLicenseDraft] = useState('')
   const [toast, setToast] = useState('')
   const [busy, setBusy] = useState(false)
 
   const color = trayColorForPhase(status.phase)
-  const showCredentialInput = shouldShowCredentialInput(credential)
   const startEnabled = canStartProxy(status.phase)
   const stopEnabled = canStopProxy(status.phase)
   const restartEnabled = canRestartProxy(status.phase)
@@ -86,18 +178,31 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     try {
-      const [nextStatus, nextCatalog, nextProfiles, nextCred] = await Promise.all([
-        call<ProxyStatus>('refresh_health'),
-        call<CatalogEntry[]>('get_catalog'),
-        call<string[]>('list_named_profiles'),
-        call<CredentialStatus>('get_api_credential_status'),
-      ])
+      const [nextStatus, nextCatalog, nextProfiles, nextCred, nextLicense] =
+        await Promise.all([
+          call<ProxyStatus>('refresh_health'),
+          call<CatalogEntry[]>('get_catalog'),
+          call<string[]>('list_named_profiles'),
+          call<CredentialStatus>('get_api_credential_status'),
+          call<CredentialStatus>('get_license_credential_status'),
+        ])
       setStatus(nextStatus)
       setCatalog(nextCatalog)
       setProfiles(nextProfiles)
+      setSelectedProfile((current) =>
+        nextProfiles.includes(current)
+          ? current
+          : nextProfiles.includes('default')
+            ? 'default'
+            : nextProfiles[0] ?? 'default',
+      )
       setCredential(nextCred)
+      setLicense(nextLicense)
       if (!nextCred.unlocked_for_entry) {
         setApiTokenDraft('')
+      }
+      if (!nextLicense.unlocked_for_entry) {
+        setLicenseDraft('')
       }
     } catch {
       // Keep UI usable in pure browser preview.
@@ -161,99 +266,86 @@ export default function App() {
       </section>
 
       <section className="panel">
-        <h2>API credentials</h2>
-        {credential.configured && !showCredentialInput ? (
-          <div className="client-row">
-            <div>
-              <div className="name">OpenAI API key</div>
-              <div className="sub locked-hint">
-                Saved · <span className="mono">{credential.masked}</span>
-              </div>
-            </div>
-            <button
-              className="btn"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const next = await call<CredentialStatus>('begin_api_credential_rotation')
-                  setCredential(next)
-                  setApiTokenDraft('')
-                  return 'Enter the new token, then Save'
-                })
-              }
-            >
-              Rotate
-            </button>
-          </div>
-        ) : null}
-
-        {showCredentialInput ? (
-          <div className="cred-form">
-            <div className="name" style={{ marginBottom: 8 }}>
-              {credential.configured ? 'Rotate OpenAI API key' : 'OpenAI API key'}
-            </div>
-            <input
-              className="cred-input"
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="sk-…"
-              value={apiTokenDraft}
-              disabled={busy}
-              onChange={(e) => setApiTokenDraft(e.target.value)}
-            />
-            <div className="profile-row" style={{ marginTop: 8, marginBottom: 0 }}>
-              <button
-                className="btn primary"
-                disabled={busy || !apiTokenDraft.trim()}
-                onClick={() =>
-                  void run(async () => {
-                    const next = await call<CredentialStatus>('save_api_credential', {
-                      token: apiTokenDraft.trim(),
-                    })
-                    setCredential(next)
-                    setApiTokenDraft('')
-                    return 'API credential saved and locked'
-                  })
-                }
-              >
-                Save
-              </button>
-              {credential.configured ? (
-                <button
-                  className="btn"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      const next = await call<CredentialStatus>(
-                        'cancel_api_credential_rotation',
-                      )
-                      setCredential(next)
-                      setApiTokenDraft('')
-                      return 'Rotation cancelled'
-                    })
-                  }
-                >
-                  Cancel
-                </button>
-              ) : null}
-            </div>
-            <div className="sub" style={{ marginTop: 8 }}>
-              After save, the token is locked. Use Rotate to replace it.
-            </div>
-          </div>
-        ) : null}
-
-        {!credential.configured && !showCredentialInput ? (
-          <div className="sub">No API credential configured.</div>
-        ) : null}
+        <h2>Credentials</h2>
+        <CredentialPanel
+          title="CutCtx license key"
+          placeholder="cutctx_…"
+          status={license}
+          draft={licenseDraft}
+          setDraft={setLicenseDraft}
+          busy={busy}
+          onSave={() =>
+            void run(async () => {
+              const next = await call<CredentialStatus>('save_license_credential', {
+                token: licenseDraft.trim(),
+              })
+              setLicense(next)
+              setLicenseDraft('')
+              return 'License key saved and locked'
+            })
+          }
+          onRotate={() =>
+            void run(async () => {
+              const next = await call<CredentialStatus>('begin_license_credential_rotation')
+              setLicense(next)
+              setLicenseDraft('')
+              return 'Enter the new license key, then Save'
+            })
+          }
+          onCancel={() =>
+            void run(async () => {
+              const next = await call<CredentialStatus>(
+                'cancel_license_credential_rotation',
+              )
+              setLicense(next)
+              setLicenseDraft('')
+              return 'License rotation cancelled'
+            })
+          }
+        />
+        <CredentialPanel
+          title="OpenAI API key"
+          placeholder="sk-…"
+          status={credential}
+          draft={apiTokenDraft}
+          setDraft={setApiTokenDraft}
+          busy={busy}
+          onSave={() =>
+            void run(async () => {
+              const next = await call<CredentialStatus>('save_api_credential', {
+                token: apiTokenDraft.trim(),
+              })
+              setCredential(next)
+              setApiTokenDraft('')
+              return 'API credential saved and locked'
+            })
+          }
+          onRotate={() =>
+            void run(async () => {
+              const next = await call<CredentialStatus>('begin_api_credential_rotation')
+              setCredential(next)
+              setApiTokenDraft('')
+              return 'Enter the new token, then Save'
+            })
+          }
+          onCancel={() =>
+            void run(async () => {
+              const next = await call<CredentialStatus>(
+                'cancel_api_credential_rotation',
+              )
+              setCredential(next)
+              setApiTokenDraft('')
+              return 'Rotation cancelled'
+            })
+          }
+        />
       </section>
 
       <section className="panel">
         <h2>Power</h2>
         <div className="actions">
           <button
-            className="btn primary"
+            className={startEnabled ? 'btn primary' : 'btn'}
             disabled={busy || !startEnabled}
             onClick={() => void run(() => call('start_proxy'))}
           >
@@ -299,14 +391,14 @@ export default function App() {
         <div className="client-row">
           <div>
             <div className="name">Codex</div>
-            <div className="sub">Route + seat token header</div>
+            <div className="sub">Route via openai_base_url</div>
           </div>
           <button
-            className="btn primary"
+            className={busy ? 'btn' : 'btn primary'}
             disabled={busy}
             onClick={() => void run(() => call('fix_codex_seat'))}
           >
-            Fix seat token
+            Fix Codex routing
           </button>
         </div>
         <div className="client-row">
@@ -319,9 +411,8 @@ export default function App() {
             disabled={busy}
             onClick={() =>
               void run(async () => {
-                const snippet = await call<string>('copy_claude_snippet')
-                await navigator.clipboard.writeText(snippet)
-                return snippet
+                await call<string>('copy_claude_snippet')
+                return 'Copied Claude env snippet'
               })
             }
           >
@@ -338,8 +429,7 @@ export default function App() {
             disabled={busy}
             onClick={() =>
               void run(async () => {
-                const header = await call<string>('mint_seat_token')
-                await navigator.clipboard.writeText(header)
+                await call<string>('mint_seat_token')
                 return 'Copied X-Cutctx-User-Token header'
               })
             }
@@ -361,7 +451,14 @@ export default function App() {
             className="btn"
             disabled={busy || !profileName.trim()}
             onClick={() =>
-              void run(() => call('save_named_profile', { name: profileName.trim() }), 'Profile saved')
+              void run(async () => {
+                const names = await call<string[]>('save_named_profile', {
+                  name: profileName.trim(),
+                })
+                setProfiles(names)
+                setSelectedProfile(profileName.trim())
+                return `Saved profile “${profileName.trim()}”`
+              })
             }
           >
             Save
@@ -369,10 +466,12 @@ export default function App() {
         </div>
         <div className="profile-row">
           <select
-            value={profileName}
-            onChange={(e) => setProfileName(e.target.value)}
+            value={selectedProfile}
+            onChange={(e) => setSelectedProfile(e.target.value)}
           >
-            <option value="default">default</option>
+            {!profiles.includes('default') ? (
+              <option value="default">default</option>
+            ) : null}
             {profiles.map((name) => (
               <option key={name} value={name}>
                 {name}
@@ -383,7 +482,15 @@ export default function App() {
             className="btn"
             disabled={busy}
             onClick={() =>
-              void run(() => call('load_named_profile', { name: profileName }), 'Profile loaded')
+              void run(async () => {
+                const loaded = await call<{ name: string }>('load_named_profile', {
+                  name: selectedProfile,
+                })
+                const loadedName = loaded.name || selectedProfile
+                setSelectedProfile(loadedName)
+                setProfileName(loadedName)
+                return `Loaded profile “${loadedName}”`
+              })
             }
           >
             Load
@@ -393,7 +500,13 @@ export default function App() {
           className="btn"
           disabled={busy}
           onClick={() =>
-            void run(() => call('use_all_optional_profile'), 'Loaded release-verify-all-on')
+            void run(async () => {
+              const loaded = await call<{ name: string }>('use_all_optional_profile')
+              const loadedName = loaded.name || 'release-verify-all-on'
+              setSelectedProfile(loadedName)
+              setProfileName(loadedName)
+              return 'Loaded release-verify-all-on'
+            })
           }
         >
           Load “all optional on”
@@ -410,7 +523,9 @@ export default function App() {
                 <div className="feature-row" key={item.key}>
                   <div>
                     <div className="name">{item.label}</div>
-                    {item.apply === 'restart' ? <div className="badge">Restart required</div> : null}
+                    {item.needs_restart ? (
+                      <div className="badge">Restart required</div>
+                    ) : null}
                   </div>
                   {item.kind === 'text' || item.kind === 'choice' ? (
                     <input

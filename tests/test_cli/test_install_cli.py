@@ -6,6 +6,217 @@ from click.testing import CliRunner
 from cutctx.cli.main import main
 
 
+def test_install_ensure_product_runtime_attaches_to_healthy_listener(monkeypatch) -> None:
+    runner = CliRunner()
+    calls: list[str] = []
+
+    class Manifest:
+        health_url = "http://127.0.0.1:9123/readyz"
+
+    monkeypatch.setattr("cutctx.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr(
+        "cutctx.cli.install.build_product_manifest",
+        lambda **kwargs: calls.append("build") or Manifest(),
+    )
+    monkeypatch.setattr(
+        "cutctx.cli.install.install_supervisor",
+        lambda manifest: calls.append("install_supervisor"),
+    )
+
+    result = runner.invoke(main, ["install", "ensure-product-runtime", "--port", "9123", "--apply"])
+
+    assert result.exit_code == 0, result.output
+    assert "already healthy; attached without restart" in result.output
+    assert calls == ["build"]
+
+
+def test_install_ensure_product_runtime_installs_and_starts_when_port_is_idle(monkeypatch) -> None:
+    runner = CliRunner()
+    calls: list[str] = []
+
+    class Manifest:
+        profile = "product"
+        health_url = "http://127.0.0.1:9123/readyz"
+        mutations = []
+        artifacts = []
+
+    manifest = Manifest()
+    monkeypatch.setattr("cutctx.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("cutctx.cli.install.build_product_manifest", lambda **kwargs: manifest)
+    monkeypatch.setattr("cutctx.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr(
+        "cutctx.cli.install.apply_mutations", lambda deployment: calls.append("mutations") or []
+    )
+    monkeypatch.setattr(
+        "cutctx.cli.install.install_supervisor", lambda deployment: calls.append("supervisor") or []
+    )
+    monkeypatch.setattr("cutctx.cli.install.save_manifest", lambda deployment: calls.append("save"))
+    monkeypatch.setattr(
+        "cutctx.cli.install._start_deployment", lambda deployment: calls.append("start")
+    )
+
+    result = runner.invoke(main, ["install", "ensure-product-runtime", "--port", "9123", "--apply"])
+
+    assert result.exit_code == 0, result.output
+    assert "Installed and started product runtime on port 9123." in result.output
+    assert calls == ["mutations", "supervisor", "save", "start"]
+
+
+def test_install_ensure_product_runtime_forwards_profile_arguments(monkeypatch) -> None:
+    runner = CliRunner()
+    captured: dict[str, object] = {}
+
+    class Manifest:
+        health_url = "http://127.0.0.1:9123/readyz"
+
+    monkeypatch.setattr("cutctx.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr(
+        "cutctx.cli.install.build_product_manifest",
+        lambda **kwargs: captured.update(kwargs) or Manifest(),
+    )
+
+    result = runner.invoke(
+        main,
+        [
+            "install",
+            "ensure-product-runtime",
+            "--port",
+            "9123",
+            "--proxy-arg=--memory",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured["proxy_args"] == ("--memory",)
+
+
+def test_install_ensure_product_runtime_rejects_mismatched_existing_profile_without_mutation(
+    monkeypatch,
+) -> None:
+    runner = CliRunner()
+    calls: list[str] = []
+
+    class Manifest:
+        profile = "product"
+        health_url = "http://127.0.0.1:9123/readyz"
+        mutations = []
+        artifacts = []
+
+        def __init__(self, proxy_args: list[str]) -> None:
+            self.proxy_args = proxy_args
+
+    desired = Manifest(["--host", "127.0.0.1", "--memory"])
+    existing = Manifest(["--host", "127.0.0.1"])
+    monkeypatch.setattr("cutctx.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("cutctx.cli.install.build_product_manifest", lambda **kwargs: desired)
+    monkeypatch.setattr("cutctx.cli.install.load_manifest", lambda profile: existing)
+    monkeypatch.setattr(
+        "cutctx.cli.install._remove_deployment", lambda deployment: calls.append("remove")
+    )
+    monkeypatch.setattr(
+        "cutctx.cli.install.apply_mutations", lambda deployment: calls.append("mutations") or []
+    )
+    monkeypatch.setattr(
+        "cutctx.cli.install.install_supervisor",
+        lambda deployment: calls.append("supervisor") or [],
+    )
+    monkeypatch.setattr("cutctx.cli.install.save_manifest", lambda deployment: calls.append("save"))
+    monkeypatch.setattr(
+        "cutctx.cli.install._start_deployment", lambda deployment: calls.append("start")
+    )
+
+    result = runner.invoke(main, ["install", "ensure-product-runtime", "--port", "9123", "--apply"])
+
+    assert result.exit_code != 0
+    assert "restart required" in result.output.lower()
+    assert calls == []
+
+
+def test_install_ensure_product_runtime_replaces_mismatch_only_when_explicit(monkeypatch) -> None:
+    runner = CliRunner()
+    calls: list[str] = []
+
+    class Manifest:
+        profile = "product"
+        health_url = "http://127.0.0.1:9123/readyz"
+        mutations = []
+        artifacts = []
+
+        def __init__(self, proxy_args: list[str]) -> None:
+            self.proxy_args = proxy_args
+
+    desired = Manifest(["--host", "127.0.0.1", "--memory"])
+    existing = Manifest(["--host", "127.0.0.1"])
+    # Explicit Restart must replace even while the old managed runtime is healthy.
+    monkeypatch.setattr("cutctx.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr("cutctx.cli.install.build_product_manifest", lambda **kwargs: desired)
+    monkeypatch.setattr("cutctx.cli.install.load_manifest", lambda profile: existing)
+    monkeypatch.setattr(
+        "cutctx.cli.install._remove_deployment", lambda deployment: calls.append("remove")
+    )
+    monkeypatch.setattr(
+        "cutctx.cli.install.apply_mutations", lambda deployment: calls.append("mutations") or []
+    )
+    monkeypatch.setattr(
+        "cutctx.cli.install.install_supervisor",
+        lambda deployment: calls.append("supervisor") or [],
+    )
+    monkeypatch.setattr("cutctx.cli.install.save_manifest", lambda deployment: calls.append("save"))
+    monkeypatch.setattr(
+        "cutctx.cli.install._start_deployment", lambda deployment: calls.append("start")
+    )
+
+    result = runner.invoke(
+        main,
+        [
+            "install",
+            "ensure-product-runtime",
+            "--port",
+            "9123",
+            "--apply",
+            "--replace-existing",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == ["remove", "mutations", "supervisor", "save", "start"]
+
+
+def test_install_explicit_replace_refuses_a_healthy_unowned_listener(monkeypatch) -> None:
+    runner = CliRunner()
+    calls: list[str] = []
+
+    class Manifest:
+        profile = "product"
+        health_url = "http://127.0.0.1:9123/readyz"
+        mutations = []
+        artifacts = []
+
+    monkeypatch.setattr("cutctx.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr("cutctx.cli.install.build_product_manifest", lambda **kwargs: Manifest())
+    monkeypatch.setattr("cutctx.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr(
+        "cutctx.cli.install.install_supervisor",
+        lambda deployment: calls.append("supervisor") or [],
+    )
+
+    result = runner.invoke(
+        main,
+        [
+            "install",
+            "ensure-product-runtime",
+            "--port",
+            "9123",
+            "--apply",
+            "--replace-existing",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "not owned" in result.output.lower()
+    assert calls == []
+
+
 def test_install_apply_starts_service_supervisor(monkeypatch) -> None:
     runner = CliRunner()
     calls: list[str] = []

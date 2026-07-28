@@ -1,9 +1,11 @@
 mod argv;
 mod catalog;
+mod clipboard;
 mod codex_config;
 mod credentials;
 mod dashboard_link;
 mod health;
+mod private_file;
 mod profiles;
 mod restart_apply;
 mod seat;
@@ -22,6 +24,8 @@ struct AppState {
     supervisor: ProxySupervisor,
     health: Mutex<HealthMachine>,
     profile: Mutex<ProxyProfile>,
+    /// Last profile argv successfully started/restarted by this app.
+    applied_profile: Mutex<Option<ProxyProfile>>,
     credentials: Mutex<credentials::CredentialVault>,
     home: PathBuf,
 }
@@ -65,11 +69,55 @@ struct CatalogEntry {
     enabled: bool,
     text: String,
     choices: Vec<String>,
+    /// True when this restart-apply feature differs from the running argv.
+    needs_restart: bool,
+}
+
+fn feature_needs_restart(
+    applied: Option<&ProxyProfile>,
+    current: &ProxyProfile,
+    key: &str,
+    apply: catalog::ApplyMode,
+) -> bool {
+    if apply != catalog::ApplyMode::Restart {
+        return false;
+    }
+    let Some(applied) = applied else {
+        return false;
+    };
+    applied.features.get(key) != current.features.get(key)
+}
+
+fn reconcile_restart_pending(state: &AppState) -> Result<(), String> {
+    let current = state.profile.lock().map_err(|e| e.to_string())?.clone();
+    let applied = state
+        .applied_profile
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone();
+    let mut health = state.health.lock().map_err(|e| e.to_string())?;
+    match applied.as_ref() {
+        Some(applied) if restart_apply::restart_would_change_argv(applied, &current) => {
+            health.on_toggle_needs_restart();
+        }
+        Some(_) => {
+            health.on_restart_not_needed();
+        }
+        None => {
+            // Unknown running argv (external attach). Keep pending only if already set.
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
 fn get_catalog(state: State<'_, AppState>) -> Result<Vec<CatalogEntry>, String> {
     let profile = state.profile.lock().map_err(|e| e.to_string())?;
+    let applied = state
+        .applied_profile
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone();
     let mut out = Vec::new();
     for def in catalog::catalog() {
         let value = profile
@@ -87,6 +135,7 @@ fn get_catalog(state: State<'_, AppState>) -> Result<Vec<CatalogEntry>, String> 
             kind: format!("{:?}", def.kind).to_ascii_lowercase(),
             apply: format!("{:?}", def.apply).to_ascii_lowercase(),
             enabled: value.enabled,
+            needs_restart: feature_needs_restart(applied.as_ref(), &profile, def.key, def.apply),
             text: value.text,
             choices: def.choices.iter().map(|s| (*s).to_string()).collect(),
         });
@@ -130,36 +179,78 @@ fn set_feature(
             entry.text = t;
         }
     }
-    let mut health = state.health.lock().map_err(|e| e.to_string())?;
     if let Some(def) = catalog::get(&key) {
-        if def.apply == catalog::ApplyMode::Restart
-            && matches!(
-                health.status.phase,
-                health::ProxyPhase::Healthy
-                    | health::ProxyPhase::Degraded
-                    | health::ProxyPhase::RestartPending
-            )
-        {
-            health.on_toggle_needs_restart();
+        if def.apply == catalog::ApplyMode::Restart {
+            reconcile_restart_pending(&state)?;
+            // No applied snapshot yet (external attach) — keep legacy pending mark.
+            let applied = state
+                .applied_profile
+                .lock()
+                .map_err(|e| e.to_string())?
+                .is_some();
+            if !applied {
+                let mut health = state.health.lock().map_err(|e| e.to_string())?;
+                if matches!(
+                    health.status.phase,
+                    health::ProxyPhase::Healthy
+                        | health::ProxyPhase::Degraded
+                        | health::ProxyPhase::RestartPending
+                ) {
+                    health.on_toggle_needs_restart();
+                }
+            }
         }
     }
+    let health = state.health.lock().map_err(|e| e.to_string())?;
     Ok(health.status.clone())
 }
 
 #[tauri::command]
 fn load_named_profile(state: State<'_, AppState>, name: String) -> Result<ProxyProfile, String> {
-    let loaded = profiles::load_profile(&state.home, &name).map_err(|e| e.to_string())?;
-    let mut profile = state.profile.lock().map_err(|e| e.to_string())?;
-    *profile = loaded.clone();
+    let loaded = match profiles::load_profile(&state.home, &name) {
+        Ok(p) => p,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound && name == "default" => {
+            ProxyProfile::default_profile()
+        }
+        Err(err) => return Err(err.to_string()),
+    };
+    {
+        let mut profile = state.profile.lock().map_err(|e| e.to_string())?;
+        *profile = loaded.clone();
+    }
+    let applied = state
+        .applied_profile
+        .lock()
+        .map_err(|e| e.to_string())?
+        .is_some();
+    if applied {
+        reconcile_restart_pending(&state)?;
+    } else {
+        let mut health = state.health.lock().map_err(|e| e.to_string())?;
+        if matches!(
+            health.status.phase,
+            health::ProxyPhase::Healthy
+                | health::ProxyPhase::Degraded
+                | health::ProxyPhase::RestartPending
+        ) {
+            health.on_toggle_needs_restart();
+        }
+    }
     Ok(loaded)
 }
 
 #[tauri::command]
-fn save_named_profile(state: State<'_, AppState>, name: String) -> Result<(), String> {
-    let mut profile = state.profile.lock().map_err(|e| e.to_string())?;
-    profile.name = name;
-    profiles::save_profile(&state.home, &profile).map_err(|e| e.to_string())?;
-    Ok(())
+fn save_named_profile(state: State<'_, AppState>, name: String) -> Result<Vec<String>, String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("Profile name is required".into());
+    }
+    {
+        let mut profile = state.profile.lock().map_err(|e| e.to_string())?;
+        profile.name = name.to_string();
+        profiles::save_profile(&state.home, &profile).map_err(|e| e.to_string())?;
+    }
+    profiles::list_profiles(&state.home).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -170,21 +261,35 @@ fn list_named_profiles(state: State<'_, AppState>) -> Result<Vec<String>, String
 #[tauri::command]
 fn use_all_optional_profile(state: State<'_, AppState>) -> Result<ProxyProfile, String> {
     let p = ProxyProfile::all_optional_on();
-    let mut profile = state.profile.lock().map_err(|e| e.to_string())?;
-    *profile = p.clone();
-    let mut health = state.health.lock().map_err(|e| e.to_string())?;
-    if matches!(
-        health.status.phase,
-        health::ProxyPhase::Healthy | health::ProxyPhase::Degraded
-    ) {
-        health.on_toggle_needs_restart();
+    {
+        let mut profile = state.profile.lock().map_err(|e| e.to_string())?;
+        *profile = p.clone();
+    }
+    let applied = state
+        .applied_profile
+        .lock()
+        .map_err(|e| e.to_string())?
+        .is_some();
+    if applied {
+        reconcile_restart_pending(&state)?;
+    } else {
+        let mut health = state.health.lock().map_err(|e| e.to_string())?;
+        if matches!(
+            health.status.phase,
+            health::ProxyPhase::Healthy | health::ProxyPhase::Degraded
+        ) {
+            health.on_toggle_needs_restart();
+        }
     }
     Ok(p)
 }
 
 fn probe_health(port: u16) -> Result<(bool, u64), String> {
     let url = format!("http://127.0.0.1:{port}/health");
-    match ureq::get(&url).timeout(std::time::Duration::from_secs(2)).call() {
+    match ureq::get(&url)
+        .timeout(std::time::Duration::from_secs(2))
+        .call()
+    {
         Ok(resp) if resp.status() >= 200 && resp.status() < 300 => {
             let tokens = probe_tokens_saved(port).unwrap_or(0);
             Ok((true, tokens))
@@ -192,6 +297,20 @@ fn probe_health(port: u16) -> Result<(bool, u64), String> {
         Ok(_) => Ok((false, 0)),
         Err(e) => Err(e.to_string()),
     }
+}
+
+/// Proxy cold-start often needs a few seconds before `/health` answers.
+fn wait_until_healthy(port: u16, attempts: u32, delay_ms: u64) -> Result<u64, String> {
+    let mut last_err = "proxy did not become healthy".to_string();
+    for _ in 0..attempts {
+        match probe_health(port) {
+            Ok((true, tokens)) => return Ok(tokens),
+            Ok((false, _)) => last_err = "health returned non-OK".into(),
+            Err(e) => last_err = e,
+        }
+        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+    }
+    Err(last_err)
 }
 
 fn probe_tokens_saved(port: u16) -> Option<u64> {
@@ -258,17 +377,31 @@ fn start_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
         let mut health = state.health.lock().map_err(|e| e.to_string())?;
         health.on_external_detected();
         health.on_health_ok(tokens);
+        // Unknown argv for external process — don't pretend toggles are applied.
+        let mut applied = state.applied_profile.lock().map_err(|e| e.to_string())?;
+        *applied = None;
         return Ok(health.status.clone());
     }
-    let env_vars = {
-        let vault = state.credentials.lock().map_err(|e| e.to_string())?;
-        proxy_launch_env(&state.home, &vault)?
-    };
-    state.supervisor.start(&profile, &env_vars)?;
-    // Brief wait then probe
-    std::thread::sleep(std::time::Duration::from_millis(800));
-    drop(profile);
-    refresh_health(state)
+    state.supervisor.ensure_product_runtime(&profile, false)?;
+    // Cold start with optional engines can take several seconds.
+    match wait_until_healthy(profile.port, 40, 500) {
+        Ok(tokens) => {
+            {
+                let mut applied = state.applied_profile.lock().map_err(|e| e.to_string())?;
+                *applied = Some(profile.clone());
+            }
+            let mut health = state.health.lock().map_err(|e| e.to_string())?;
+            health.on_health_ok(tokens);
+            health.status.port = profile.port;
+            Ok(health.status.clone())
+        }
+        Err(err) => {
+            let _ = state.supervisor.stop();
+            let mut health = state.health.lock().map_err(|e| e.to_string())?;
+            health.on_health_fail(format!("Proxy started but never became healthy: {err}"));
+            Err(health.status.message.clone())
+        }
+    }
 }
 
 #[tauri::command]
@@ -278,8 +411,30 @@ fn stop_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
         let mut health = state.health.lock().map_err(|e| e.to_string())?;
         health.on_stop_requested();
     }
-    // Reclaim port so Stop works for attached/external proxies too.
-    state.supervisor.stop_and_reclaim_port(port)?;
+    // Stop only processes Control owns. Never terminate an arbitrary listener
+    // merely because it uses the selected port.
+    state.supervisor.stop()?;
+    let managed_stop = state.supervisor.stop_product_runtime();
+    for _ in 0..20 {
+        if probe_health(port).is_err() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    if probe_health(port).is_ok() {
+        let mut health = state.health.lock().map_err(|e| e.to_string())?;
+        health.on_external_detected();
+        return Err(
+            "Proxy is still running and is not owned by CutCtx Control; left it untouched.".into(),
+        );
+    }
+    // A missing managed profile is fine when a legacy directly-supervised
+    // child was the process we just stopped.
+    let _ = managed_stop;
+    {
+        let mut applied = state.applied_profile.lock().map_err(|e| e.to_string())?;
+        *applied = None;
+    }
     let mut health = state.health.lock().map_err(|e| e.to_string())?;
     health.on_stopped();
     Ok(health.status.clone())
@@ -289,37 +444,55 @@ fn stop_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
 fn restart_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
     let profile = state.profile.lock().map_err(|e| e.to_string())?.clone();
     let port = profile.port;
-    {
-        let mut health = state.health.lock().map_err(|e| e.to_string())?;
-        health.on_stop_requested();
-    }
-    state.supervisor.stop_and_reclaim_port(port)?;
-    {
-        let mut health = state.health.lock().map_err(|e| e.to_string())?;
-        health.on_stopped();
-        health.on_start_requested();
-    }
-    let env_vars = {
-        let vault = state.credentials.lock().map_err(|e| e.to_string())?;
-        proxy_launch_env(&state.home, &vault)?
-    };
-    // Always spawn with the current profile argv so restart-required toggles apply.
-    state.supervisor.start(&profile, &env_vars)?;
-    std::thread::sleep(std::time::Duration::from_millis(900));
-    let tokens = probe_health(port)
-        .ok()
-        .and_then(|(ok, n)| if ok { Some(n) } else { None })
-        .unwrap_or(0);
     let mut health = state.health.lock().map_err(|e| e.to_string())?;
-    health.on_restart_applied(tokens);
-    health.status.port = port;
-    Ok(health.status.clone())
+    health.on_start_requested();
+    drop(health);
+    // Reinstall with the current profile argv so restart-required toggles
+    // survive future login-started service launches too.
+    state.supervisor.ensure_product_runtime(&profile, true)?;
+    match wait_until_healthy(port, 40, 500) {
+        Ok(tokens) => {
+            {
+                let mut applied = state.applied_profile.lock().map_err(|e| e.to_string())?;
+                *applied = Some(profile.clone());
+            }
+            let mut health = state.health.lock().map_err(|e| e.to_string())?;
+            health.on_restart_applied(tokens);
+            health.status.port = port;
+            Ok(health.status.clone())
+        }
+        Err(err) => {
+            let _ = state.supervisor.stop();
+            let mut health = state.health.lock().map_err(|e| e.to_string())?;
+            health.on_health_fail(format!(
+                "Restart failed — proxy did not become healthy: {err}"
+            ));
+            Err(health.status.message.clone())
+        }
+    }
 }
 
 #[tauri::command]
 fn dashboard_url(state: State<'_, AppState>) -> Result<String, String> {
     let profile = state.profile.lock().map_err(|e| e.to_string())?;
     Ok(dashboard_link::dashboard_url_for_port(profile.port))
+}
+
+#[tauri::command]
+fn copy_claude_snippet(state: State<'_, AppState>) -> Result<String, String> {
+    let port = state.profile.lock().map_err(|e| e.to_string())?.port;
+    let seat = seat::load_seat(&state.home).map_err(|e| e.to_string())?;
+    let token = seat.map(|s| s.token).unwrap_or_default();
+    let mut out = format!("export ANTHROPIC_BASE_URL=http://127.0.0.1:{port}\n");
+    if !token.is_empty() {
+        out.push_str(&format!(
+            "export ANTHROPIC_CUSTOM_HEADERS=$'X-Cutctx-User-Token: {token}'\n"
+        ));
+    } else {
+        out.push_str("# Run Fix seat token first to include X-Cutctx-User-Token\n");
+    }
+    clipboard::copy_text(&out)?;
+    Ok("Copied Claude env snippet".into())
 }
 
 #[tauri::command]
@@ -336,8 +509,10 @@ fn mint_seat_token(state: State<'_, AppState>) -> Result<String, String> {
             .as_secs(),
     };
     seat::save_seat(&state.home, &record).map_err(|e| e.to_string())?;
-    // Return header line for copy; UI should not log it.
-    Ok(seat::header_line(&token))
+    let header = seat::header_line(&token);
+    clipboard::copy_text(&header)?;
+    // Return a non-secret confirmation; header is already on the clipboard.
+    Ok("Copied X-Cutctx-User-Token header".into())
 }
 
 fn whoami_subject() -> String {
@@ -348,11 +523,19 @@ fn whoami_subject() -> String {
 
 #[tauri::command]
 fn fix_codex_seat(state: State<'_, AppState>) -> Result<String, String> {
-    let header = mint_seat_token(state.clone())?;
-    let token = header
-        .strip_prefix("X-Cutctx-User-Token: ")
-        .unwrap_or(header.as_str())
-        .to_string();
+    let bin = state.supervisor.cutctx_bin.to_string_lossy().to_string();
+    let subject = whoami_subject();
+    let token = seat::mint_via_cli(&bin, Some(&subject))?;
+    let record = seat::SeatTokenRecord {
+        subject,
+        token: token.clone(),
+        issued_at_unix: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+    };
+    seat::save_seat(&state.home, &record).map_err(|e| e.to_string())?;
+
     let port = state.profile.lock().map_err(|e| e.to_string())?.port;
     let codex_home = state.home.join(".codex");
     let config_path = codex_home.join("config.toml");
@@ -361,14 +544,9 @@ fn fix_codex_seat(state: State<'_, AppState>) -> Result<String, String> {
     } else {
         String::new()
     };
-    let mut next = codex_config::inject_base_url(&original, port);
-    next = codex_config::inject_seat_token_header(&next, &token);
-    fs::create_dir_all(&codex_home).map_err(|e| e.to_string())?;
-    fs::write(&config_path, next).map_err(|e| e.to_string())?;
-    Ok(format!(
-        "Updated {} with proxy URL and seat token header",
-        config_path.display()
-    ))
+    let next = codex_config::apply_codex_cutctx_fix(&original, port, &token);
+    codex_config::write_config_with_backup(&config_path, &next).map_err(|e| e.to_string())?;
+    Ok("Routed Codex via openai_base_url; seat token saved, and preserved the original config in config.toml.cutctx-backup. Restart the proxy so CUTCTX_USER_TOKEN is loaded for loopback seat auth.".to_string())
 }
 
 #[tauri::command]
@@ -410,34 +588,43 @@ fn cancel_api_credential_rotation(
     vault.cancel_rotate(&state.home, credentials::OPENAI_API_KEY)
 }
 
-fn proxy_launch_env(
-    home: &std::path::Path,
-    vault: &credentials::CredentialVault,
-) -> Result<Vec<(String, String)>, String> {
-    let mut env = Vec::new();
-    if let Some(token) = vault
-        .get_secret(home, credentials::OPENAI_API_KEY)
-        .map_err(|e| e.to_string())?
-    {
-        env.push(("OPENAI_API_KEY".into(), token));
-    }
-    Ok(env)
+#[tauri::command]
+fn get_license_credential_status(
+    state: State<'_, AppState>,
+) -> Result<credentials::CredentialStatus, String> {
+    let vault = state.credentials.lock().map_err(|e| e.to_string())?;
+    vault
+        .status(&state.home, credentials::CUTCTX_LICENSE_KEY)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn copy_claude_snippet(state: State<'_, AppState>) -> Result<String, String> {
-    let port = state.profile.lock().map_err(|e| e.to_string())?.port;
-    let seat = seat::load_seat(&state.home).map_err(|e| e.to_string())?;
-    let token = seat.map(|s| s.token).unwrap_or_default();
-    let mut out = format!("export ANTHROPIC_BASE_URL=http://127.0.0.1:{port}\n");
-    if !token.is_empty() {
-        out.push_str(&format!(
-            "export ANTHROPIC_CUSTOM_HEADERS=$'X-Cutctx-User-Token: {token}'\n"
-        ));
-    } else {
-        out.push_str("# Run Fix seat token first to include X-Cutctx-User-Token\n");
-    }
-    Ok(out)
+fn save_license_credential(
+    state: State<'_, AppState>,
+    token: String,
+) -> Result<credentials::CredentialStatus, String> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let mut vault = state.credentials.lock().map_err(|e| e.to_string())?;
+    vault.save(&state.home, credentials::CUTCTX_LICENSE_KEY, &token, now)
+}
+
+#[tauri::command]
+fn begin_license_credential_rotation(
+    state: State<'_, AppState>,
+) -> Result<credentials::CredentialStatus, String> {
+    let mut vault = state.credentials.lock().map_err(|e| e.to_string())?;
+    vault.begin_rotate(&state.home, credentials::CUTCTX_LICENSE_KEY)
+}
+
+#[tauri::command]
+fn cancel_license_credential_rotation(
+    state: State<'_, AppState>,
+) -> Result<credentials::CredentialStatus, String> {
+    let mut vault = state.credentials.lock().map_err(|e| e.to_string())?;
+    vault.cancel_rotate(&state.home, credentials::CUTCTX_LICENSE_KEY)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -449,6 +636,7 @@ pub fn run() {
         supervisor: ProxySupervisor::new(resolve_cutctx_bin()),
         health: Mutex::new(HealthMachine::new(port)),
         profile: Mutex::new(profile),
+        applied_profile: Mutex::new(None),
         credentials: Mutex::new(credentials::CredentialVault::default()),
         home,
     };
@@ -500,6 +688,14 @@ pub fn run() {
                 tray = tray.icon(icon.clone());
             }
             let _ = tray.build(app)?;
+            // Product startup is intentionally asynchronous: a cold proxy can
+            // take seconds, while an existing healthy proxy is only attached
+            // to and therefore keeps live WebSocket sessions undisturbed.
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let state = app_handle.state::<AppState>();
+                let _ = start_proxy(state);
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -524,6 +720,10 @@ pub fn run() {
             save_api_credential,
             begin_api_credential_rotation,
             cancel_api_credential_rotation,
+            get_license_credential_status,
+            save_license_credential,
+            begin_license_credential_rotation,
+            cancel_license_credential_rotation,
         ])
         .run(tauri::generate_context!())
         .expect("error while running CutCtx Control");

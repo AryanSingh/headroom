@@ -20,7 +20,16 @@ cd src-tauri && cargo test
 npm run tauri:dev
 ```
 
-Requires `cutctx` on `PATH` (or set `CUTCTX_BIN`).
+Requires the released `cutctx-ai` package (the Control app resolves `cutctx`
+from `CUTCTX_BIN` or PATH). On startup, Control installs or attaches to a
+user-scoped managed proxy service. The service starts at login and restarts on
+failure; it preserves a healthy proxy already serving a Codex/WebSocket
+session rather than replacing it.
+
+The managed profile records the selected Control features and explicitly turns
+on reversible code compression. Saved Control credentials and the local seat
+token are made available to the login-started runtime without being printed or
+stored in the deployment manifest.
 
 ## Product surfaces
 

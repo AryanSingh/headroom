@@ -5,6 +5,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::private_file::write_private;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SeatTokenRecord {
     pub subject: String,
@@ -26,14 +28,7 @@ pub fn save_seat(home: &Path, record: &SeatTokenRecord) -> std::io::Result<PathB
     let path = seat_path(home);
     let data = serde_json::to_vec_pretty(record)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    fs::write(&path, data)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(&path)?.permissions();
-        perms.set_mode(0o600);
-        fs::set_permissions(&path, perms)?;
-    }
+    write_private(&path, &data)?;
     Ok(path)
 }
 
@@ -55,7 +50,9 @@ pub fn mint_via_cli(cutctx_bin: &str, subject: Option<&str>) -> Result<String, S
     if let Some(sub) = subject {
         cmd.args(["--subject", sub]);
     }
-    let output = cmd.output().map_err(|e| format!("failed to run {cutctx_bin}: {e}"))?;
+    let output = cmd
+        .output()
+        .map_err(|e| format!("failed to run {cutctx_bin}: {e}"))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(format!("cutctx license token failed: {stderr}"));
@@ -93,6 +90,14 @@ mod tests {
             issued_at_unix: 1,
         };
         save_seat(&home, &record).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(seat_path(&home)).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
         let loaded = load_seat(&home).unwrap().unwrap();
         assert_eq!(loaded.token, "ctu1.payload.sig");
         let _ = fs::remove_dir_all(&home);

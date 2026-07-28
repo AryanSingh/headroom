@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle2, Copy, MinusCircle, RefreshCw, Scale } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { PageHeader } from "../components/PageHeader";
 import { StatePanel } from "../components/StatePanel";
@@ -348,12 +348,17 @@ function FeatureRow({
   stats,
   configFlags,
   liveFlags,
+  desiredFlags,
   sections,
   onToggle,
   toggleBusy,
   toggleError,
 }) {
   const isActive = resolveFeatureState(feature, stats, configFlags, liveFlags, sections);
+  const desiredState = feature.liveToggle ? isActive : desiredFlags[feature.flagKey];
+  const toggleEnabled = desiredState ?? isActive;
+  const restartPending =
+    !feature.liveToggle && desiredState != null && Boolean(desiredState) !== Boolean(isActive);
   const availability = getFeatureAvailability(feature, sections);
   const requiredTier = getRequiredTierLabel(feature, sections);
   const toggleable = Boolean(feature.flagKey);
@@ -378,7 +383,7 @@ function FeatureRow({
           ) : null}
           {toggleable && !feature.liveToggle ? (
             <span className="tier-badge tier-restart">
-              <RefreshCw size={10} /> Restart required
+              <RefreshCw size={10} /> {restartPending ? "Restart pending" : "Restart required"}
             </span>
           ) : null}
           {statusText ? (
@@ -403,11 +408,11 @@ function FeatureRow({
         {toggleable ? (
           <>
             <FeatureToggle
-              enabled={!locked && Boolean(isActive)}
-              onToggle={() => onToggle(feature.flagKey, !isActive)}
+              enabled={!locked && Boolean(toggleEnabled)}
+              onToggle={() => onToggle(feature.flagKey, !toggleEnabled)}
               busy={toggleBusy === feature.flagKey}
               disabled={locked}
-              label={`${isActive ? "Disable" : "Enable"} ${feature.label}`}
+              label={`${toggleEnabled ? "Disable" : "Enable"} ${feature.label}`}
             />
             <div className="feature-config-env">
               <code>{feature.envVar}</code>
@@ -450,6 +455,7 @@ export default function Governance({ searchQuery = "" }) {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [liveFlags, setLiveFlags] = useState({});
+  const [desiredFlags, setDesiredFlags] = useState({});
   const [toggleBusy, setToggleBusy] = useState(null);
   const [toggleError, setToggleError] = useState(null);
 
@@ -473,6 +479,16 @@ export default function Governance({ searchQuery = "" }) {
   }, [configFlags]);
 
   const effectiveLiveFlags = { ...configLiveFlags, ...liveFlags };
+  const configDesiredFlags = useMemo(() => {
+    const next = {};
+    for (const [key, value] of Object.entries(configFlags?.restart_required || {})) {
+      if (value?.desired != null) {
+        next[key] = Boolean(value.desired);
+      }
+    }
+    return next;
+  }, [configFlags]);
+  const effectiveDesiredFlags = { ...configDesiredFlags, ...desiredFlags };
 
   useEffect(() => {
     let cancelled = false;
@@ -529,9 +545,15 @@ export default function Governance({ searchQuery = "" }) {
 
         setLiveFlags((prev) => ({
           ...prev,
-          [flagKey]: value,
           ...appliedLive,
         }));
+        const restartState = response?.restart_required?.[flagKey];
+        if (restartState?.desired != null || restartState?.requested != null) {
+          setDesiredFlags((prev) => ({
+            ...prev,
+            [flagKey]: Boolean(restartState.desired ?? restartState.requested),
+          }));
+        }
         await refresh?.();
       } catch (error) {
         const detail = error?.detail;
@@ -748,6 +770,7 @@ export default function Governance({ searchQuery = "" }) {
                 stats={stats}
                 configFlags={configFlags}
                 liveFlags={effectiveLiveFlags}
+                desiredFlags={effectiveDesiredFlags}
                 sections={sections}
                 onToggle={handleToggle}
                 toggleBusy={toggleBusy}

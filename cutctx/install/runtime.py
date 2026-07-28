@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import signal
@@ -88,6 +89,49 @@ def _resolve_admin_api_key() -> str | None:
     return key or None
 
 
+def _load_control_credentials(home: Path) -> dict[str, str]:
+    """Read the product-owned credential vault without exposing its contents.
+
+    CutCtx Control stores its local plaintext credential record with owner-only
+    file permissions under this path. A login-started supervisor does not
+    inherit the desktop application's environment, so it needs this narrow
+    bridge to start with the same credentials.  Malformed or absent records
+    are treated as no credentials; startup diagnostics remain secret-free.
+    """
+
+    path = home / ".cutctx" / "control" / "credentials.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    records = payload.get("credentials") if isinstance(payload, dict) else None
+    if not isinstance(records, list):
+        return {}
+    names = {
+        "openai_api_key": "OPENAI_API_KEY",
+        "cutctx_license_key": "CUTCTX_LICENSE_KEY",
+    }
+    credentials: dict[str, str] = {}
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        record_id = record.get("id")
+        if not isinstance(record_id, str):
+            continue
+        env_name = names.get(record_id)
+        token = record.get("token")
+        if env_name and isinstance(token, str) and token.strip():
+            credentials[env_name] = token.strip()
+    try:
+        seat = json.loads((home / ".cutctx" / "control" / "seat.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        seat = None
+    seat_token = seat.get("token") if isinstance(seat, dict) else None
+    if isinstance(seat_token, str) and seat_token.startswith("ctu1."):
+        credentials["CUTCTX_USER_TOKEN"] = seat_token
+    return credentials
+
+
 def _resolve_client_api_key(manifest: DeploymentManifest) -> str | None:
     """Resolve the server verifier for a persistent proxy."""
 
@@ -115,6 +159,8 @@ def _resolve_client_api_key(manifest: DeploymentManifest) -> str | None:
 def _runtime_env(manifest: DeploymentManifest) -> dict[str, str]:
     env = os.environ.copy()
     env.update(manifest.base_env)
+    for name, value in _load_control_credentials(Path.home()).items():
+        env.setdefault(name, value)
     env.update(_deployment_env(manifest))
     client_api_key = _resolve_client_api_key(manifest)
     env.pop("CUTCTX_API_KEY", None)

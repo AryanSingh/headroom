@@ -28,6 +28,13 @@ from cutctx.transforms.reversible_code_compressor import ReversibleCodeCompresso
 _HASH = re.compile(r"sha256=([0-9a-fA-F]+)")
 
 
+def test_reversible_code_defaults_on_but_explicit_off_is_preserved() -> None:
+    from cutctx.proxy.models import ProxyConfig
+
+    assert ProxyConfig().enable_reversible_code is True
+    assert ProxyConfig(enable_reversible_code=False).enable_reversible_code is False
+
+
 def _sample(functions: int = 6, body_lines: int = 14) -> str:
     parts = ["import os", "import sys", "", ""]
     for i in range(functions):
@@ -223,6 +230,26 @@ def test_reversible_path_adds_savings_through_the_router() -> None:
         )
 
     assert totals[True] < totals[False], "enabling reversible code compression saved nothing"
+
+
+def test_proxy_passes_default_on_reversible_code_policy_to_content_router() -> None:
+    from cutctx.proxy.server import CutctxProxy, ProxyConfig
+    from cutctx.transforms.content_router import ContentRouter
+
+    proxy = CutctxProxy(
+        ProxyConfig(
+            cache_enabled=False,
+            rate_limit_enabled=False,
+            cost_tracking_enabled=False,
+        )
+    )
+    router = next(
+        transform
+        for transform in proxy.openai_pipeline.transforms
+        if isinstance(transform, ContentRouter)
+    )
+
+    assert router.config.enable_reversible_code is True
 
 
 def test_guard_leaves_non_python_alone() -> None:

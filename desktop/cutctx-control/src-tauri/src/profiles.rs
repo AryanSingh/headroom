@@ -1,7 +1,6 @@
 //! Profile persistence under `~/.cutctx/control/profiles`.
 
 use crate::argv::ProxyProfile;
-use serde_json;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -22,7 +21,13 @@ pub fn ensure_dirs(home: &Path) -> std::io::Result<PathBuf> {
 fn profile_path(home: &Path, name: &str) -> PathBuf {
     let safe: String = name
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect();
     profiles_dir(home).join(format!("{safe}.json"))
 }
@@ -39,8 +44,7 @@ pub fn save_profile(home: &Path, profile: &ProxyProfile) -> std::io::Result<Path
 pub fn load_profile(home: &Path, name: &str) -> std::io::Result<ProxyProfile> {
     let path = profile_path(home, name);
     let data = fs::read_to_string(path)?;
-    serde_json::from_str(&data)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    serde_json::from_str(&data).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
 pub fn list_profiles(home: &Path) -> std::io::Result<Vec<String>> {
@@ -62,6 +66,7 @@ pub fn list_profiles(home: &Path) -> std::io::Result<Vec<String>> {
     Ok(names)
 }
 
+#[cfg(test)]
 pub fn delete_profile(home: &Path, name: &str) -> std::io::Result<()> {
     let path = profile_path(home, name);
     if path.exists() {

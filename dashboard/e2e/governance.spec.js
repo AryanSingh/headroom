@@ -69,6 +69,42 @@ test.describe('Governance Toggles', () => {
     await expect.poll(() => postFired).toBe(true);
   });
 
+  test('restart-required toggle shows desired state without claiming the runtime changed', async ({ page }) => {
+    await page.route('**/config/flags*', async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            applied_live: {},
+            restart_required: {
+              firewall_enabled: { current: false, desired: true, requested: true },
+            },
+          }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          live_toggleable: {},
+          restart_required: { firewall_enabled: { enabled: false } },
+        }),
+      });
+    });
+
+    await page.goto('/governance');
+    const row = page.locator('.feature-config-row').filter({ hasText: 'Request firewall' });
+    await expect(row.getByText('Inactive')).toBeVisible();
+
+    await row.locator('.feature-toggle').click();
+
+    await expect(row.getByText('Inactive')).toBeVisible();
+    await expect(row.getByText('Restart pending')).toBeVisible();
+    await expect(row.locator('.feature-toggle')).toHaveClass(/feature-toggle-on/);
+  });
+
   test('opens the routing page without escaping the dashboard basename', async ({ page }) => {
     await page.goto('/dashboard/governance');
 

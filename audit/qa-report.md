@@ -1,5 +1,78 @@
 # QA Audit Report — Cutctx
 
+## 2026-07-28 live Governance and release-candidate addendum
+
+**Verdict: NO-GO for a product release from the current local tree.** The core
+regression suite and the principal live compression paths are healthy, but the
+candidate is uncommitted and changed while verification was in progress. Three
+functional/release blockers and three high-risk inconsistencies remain.
+
+### Fresh evidence
+
+| Area | Result | Evidence |
+|---|---|---|
+| Python regression suite | PASS | 9,380 passed, 526 skipped, 17 warnings; exit 0; 13m01s outside the restricted sandbox |
+| Governance-focused regression | PASS | 141 passed, 1 deprecation warning |
+| Python lint/format | PASS | CI-pinned Ruff 0.9.4 check; 1,476 files format-clean |
+| Dashboard | PASS | ESLint clean; 29/29 tests; Vite production build |
+| Cutctx Control web UI | PASS | oxlint clean; 13/13 tests; TypeScript + Vite build |
+| Cutctx Control native backend | PASS | Cargo: 40 tests passed across 3 suites |
+| Live health | PASS | `/livez` and `/health` healthy; v0.32.0; Rust core and SQLite stores healthy |
+| Firewall positive control | PASS | Prompt injection, SSN, and email detected; request marked blocked; streaming redaction active |
+| Playground live compression | PASS | 3,323 -> 586 tokens, 82.4% saved; critical identifier `ORDER-ALPHA-93817` preserved |
+| Optional savings engines | PARTIAL | Drain3 64.8%, Difftastic 51.7%, dedup 79.4%, context budget 56.7%, memoization 76.7%; each had real upstream evidence |
+| Graphify knowledge graph | FAIL | Proxy startup raises `RuntimeError` because `graphify` is not installed |
+| OpenAI-compatible harness | INVALID | Both log and JSON cases report `OK / 100%` with 0 upstream calls from 1 request |
+| Production dependency audit | FAIL | `react-router` / `react-router-dom` report two high-severity production vulnerabilities (GHSA-qwww-vcr4-c8h2) |
+
+### Live Governance observations
+
+- Firewall, rate limiting, task-aware controls, deduplication, context budget,
+  routing, audit, and RBAC were active. Profiles, cross-agent memory, episodic
+  memory, cost forecasting, and autopilot were initially inactive and were
+  enabled manually during this run.
+- The firewall scanner had 24 patterns and correctly blocked a synthetic
+  injection/PII payload. Rate limiting reported two active keys, 100,000 TPM,
+  and 60 RPM. Audit and RBAC endpoints returned live data.
+- `cutctx config doctor --production` still reports `firewall_required` while
+  the live Governance UI and scanner show the firewall active. Dashboard
+  toggles therefore do not prove restart-persistent production configuration.
+- Live capability reporting and isolated harness startup disagree: Graphify is
+  presented as available but fails at runtime for a missing package; Drain3 was
+  reported missing by the live capability inventory but worked in the isolated
+  harness environment.
+- Audit/RBAC/organization CLI commands work when `CUTCTX_ADMIN_API_KEY` is set,
+  but unlike other commands they do not discover `~/.cutctx/admin_key.txt`.
+
+### Blocking defects and release gates
+
+1. **RC-01 — Unstable, unreproducible candidate (blocker).** The tree is dirty
+   and source/test files changed during verification. Freeze and commit the
+   intended candidate, build from that revision, then rerun release gates.
+2. **RC-02 — Harness false-success logic (blocker).** `savings_harness.py`
+   ignores response status, accepts zero upstream calls as 100% savings, and
+   bases process success only on absence of an `error` field. Savings/model
+   expectations do not control exit status.
+3. **RC-03 — Graphify toggle is not executable (blocker when advertised or
+   enabled).** Install/package the optional dependency or fail closed in the UI
+   and capability inventory.
+4. **RC-04 — High-severity production dependency advisory (high).** Upgrade to
+   a non-vulnerable React Router combination and rerun the audit/build/browser
+   flows; do not apply `npm audit fix --force` blindly.
+5. **RC-05 — Governance persistence/config truth mismatch (high).** Prove the
+   enabled state survives restart and make production doctor agree with runtime
+   truth before release.
+6. **RC-06 — CLI admin-key discovery inconsistency (medium).** Align
+   audit/RBAC/org commands with the established local admin-key discovery path.
+
+### Required rerun after remediation
+
+Freeze one commit; install from its built wheel/app artifact in a clean home;
+run production doctor; restart the proxy; verify every enabled Governance
+feature; require non-2xx responses or zero upstream calls to fail the savings
+harness; rerun the full Python, dashboard, native Control, lint, format,
+dependency-audit, and live provider/harness gates.
+
 ## 2026-07-26 release certification
 
 **Overall QA score: 88/100 (product-wide). Pilot path: 95/100.**

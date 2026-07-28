@@ -34,6 +34,7 @@ impl ProxyStatus {
         }
     }
 
+    #[cfg(test)]
     pub fn tray_color(&self) -> &'static str {
         match self.phase {
             ProxyPhase::Healthy => "green",
@@ -112,6 +113,19 @@ impl HealthMachine {
         }
     }
 
+    /// Drop restart-pending when the desired argv already matches what is running.
+    pub fn on_restart_not_needed(&mut self) {
+        if self.status.phase != ProxyPhase::RestartPending {
+            return;
+        }
+        self.status.phase = ProxyPhase::Healthy;
+        self.status.message = if self.status.external {
+            "Attached to external proxy".into()
+        } else {
+            "Healthy".into()
+        };
+    }
+
     pub fn on_stop_requested(&mut self) {
         self.status.phase = ProxyPhase::Stopping;
         self.status.message = "Stopping…".into();
@@ -187,5 +201,16 @@ mod tests {
         assert_eq!(m.status.phase, ProxyPhase::Healthy);
         assert!(!m.status.external);
         assert_eq!(m.status.message, "Healthy — changes applied");
+    }
+
+    #[test]
+    fn restart_not_needed_clears_pending_badge_state() {
+        let mut m = HealthMachine::new(8787);
+        m.on_start_requested();
+        m.on_health_ok(0);
+        m.on_toggle_needs_restart();
+        m.on_restart_not_needed();
+        assert_eq!(m.status.phase, ProxyPhase::Healthy);
+        assert_eq!(m.status.message, "Healthy");
     }
 }

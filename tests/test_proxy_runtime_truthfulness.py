@@ -40,6 +40,7 @@ def test_stats_surface_truthful_knowledge_graph_status(monkeypatch: pytest.Monke
     )
     monkeypatch.setattr(server, "_get_context_tool_stats", lambda: None)
     monkeypatch.setattr(server, "get_toin", lambda: _ToinStub())
+    monkeypatch.setattr("cutctx.graph.graphify.graphify_available", lambda: False)
 
     app = create_app(
         ProxyConfig(
@@ -79,6 +80,9 @@ def test_stats_surface_truthful_knowledge_graph_status(monkeypatch: pytest.Monke
     assert knowledge_graph["status"] == "unavailable"
     assert knowledge_graph["reason"] == "graphify_not_installed"
     assert knowledge_graph["interceptor_registered"] is False
+    availability = payload["feature_availability"]["knowledge_graph"]
+    assert availability["available"] is False
+    assert availability["knowledge_graph_engine_installed"] is False
 
 
 def test_requested_knowledge_graph_fails_with_install_command(

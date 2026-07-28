@@ -283,6 +283,12 @@ select {
   display: grid;
 }
 
+.cred-block + .cred-block {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(217, 208, 191, 0.65);
+}
+
 .profile-row {
   display: flex;
   gap: 8px;

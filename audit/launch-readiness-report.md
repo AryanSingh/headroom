@@ -1,5 +1,28 @@
 # Cutctx Launch-Readiness Report — 2026-07-18
 
+## 2026-07-28 release decision addendum
+
+**Current decision: NO-GO for release.** This supersedes the older candidate's
+technical sign-off only for the present local state. The core test signal is
+strong (9,380 Python tests, 29 dashboard tests, 13 Control UI tests, 40 native
+Control tests, clean pinned Ruff and formatting gates), and live Governance,
+firewall, memory, audit, RBAC, and five optional compression engines were
+exercised successfully. The release gate remains closed for the following
+reasons:
+
+| Priority | Gate | Release condition |
+|---|---|---|
+| Blocker | Candidate is dirty and changed during testing | Freeze/commit one revision and test its built artifacts |
+| Blocker | OpenAI harness reports 100% savings with zero upstream calls | Make response failures/zero calls/model mismatch fail the scenario and process |
+| Blocker | Graphify can be enabled but cannot start | Package dependency or make capability/toggle unavailable |
+| High | Runtime firewall active while production doctor says it is required | Persist config and prove state after restart |
+| High | Two high-severity production React Router advisories | Upgrade safely; rerun audit, dashboard tests/build, and browser flows |
+| Medium | Admin CLI commands do not auto-discover the local admin key | Align credential discovery and rerun authenticated CLI flows |
+
+The present state is suitable for continued local QA, not tagging or
+publishing. Detailed commands, measurements, and defect notes are in the
+2026-07-28 addendum to `audit/qa-report.md`.
+
 **Product:** Cutctx v0.31.0 — Context compression layer for AI agents  
 **Repo:** `main @ 7b726934` (2026-07-18 hardening, attribution, entitlement enforcement)  
 **Live proxy:** `GET /livez` → 200, v0.31.0 (verified)  

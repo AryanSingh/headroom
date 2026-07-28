@@ -407,6 +407,15 @@ def _selected_context_tool() -> str:
     ),
 )
 @click.option(
+    "--enable-reversible-code/--no-reversible-code",
+    "reversible_code_flag",
+    default=None,
+    help=(
+        "Enable CCR-backed, syntax-checked Python function-body elision. "
+        "Enabled by default; --no-reversible-code or CUTCTX_REVERSIBLE_CODE=0 disables it."
+    ),
+)
+@click.option(
     "--enable-kompress",
     is_flag=True,
     envvar="CUTCTX_ENABLE_KOMPRESS",
@@ -1012,6 +1021,7 @@ def proxy(
     codex_wire_debug_dir: str | None,
     budget: float | None,
     code_aware_flag: bool | None,
+    reversible_code_flag: bool | None,
     enable_kompress: bool,
     disable_kompress: bool,
     compression_mode: str | None,
@@ -1294,6 +1304,11 @@ def proxy(
             else os.environ.get("CUTCTX_CODE_AWARE_ENABLED", "").strip().lower()
             in ("true", "1", "yes", "on")
         ),
+        enable_reversible_code=(
+            bool(reversible_code_flag)
+            if reversible_code_flag is not None
+            else _get_env_bool("CUTCTX_REVERSIBLE_CODE", True)
+        ),
         deterministic_mode=deterministic_mode,
         enable_kompress=enable_kompress,
         disable_kompress=disable_kompress or deterministic_mode,
@@ -1418,6 +1433,10 @@ def proxy(
         # Ensemble
         ensemble_enabled=enable_ensemble or _get_env_bool("CUTCTX_ENSEMBLE_ENABLED", False),
     )
+
+    from cutctx.proxy.feature_flags import apply_desired_feature_flags
+
+    apply_desired_feature_flags(config)
 
     if enable_learned_policies and not is_stateless and config.hooks is None:
         from cutctx.policy_learning import LearnedPolicyHooks

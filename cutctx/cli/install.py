@@ -17,7 +17,7 @@ from cutctx.install.models import (
     RuntimeKind,
     SupervisorKind,
 )
-from cutctx.install.planner import build_manifest
+from cutctx.install.planner import build_manifest, build_product_manifest
 from cutctx.install.providers import apply_mutations, revert_mutations
 from cutctx.install.runtime import (
     run_foreground,
@@ -92,6 +92,40 @@ def _restore_deployment(manifest: DeploymentManifest) -> None:
     restored.artifacts = install_supervisor(restored)
     save_manifest(restored)
     _start_deployment(restored)
+
+
+def _product_runtime_matches(existing: DeploymentManifest, desired: DeploymentManifest) -> bool:
+    """Compare the operator-controlled product runtime contract.
+
+    Installation artifacts, reversible mutations, and timestamps describe the
+    installed instance rather than the desired runtime.  Excluding them lets an
+    idle matching service restart without being destructively reinstalled.
+    """
+
+    fields = (
+        "preset",
+        "runtime_kind",
+        "supervisor_kind",
+        "scope",
+        "provider_mode",
+        "targets",
+        "port",
+        "host",
+        "backend",
+        "anyllm_provider",
+        "region",
+        "proxy_mode",
+        "memory_enabled",
+        "telemetry_enabled",
+        "image",
+        "service_name",
+        "container_name",
+        "health_url",
+        "base_env",
+        "tool_envs",
+        "proxy_args",
+    )
+    return all(getattr(existing, field, None) == getattr(desired, field, None) for field in fields)
 
 
 def _reject_task_lifecycle(manifest: DeploymentManifest, action: str) -> None:
@@ -268,6 +302,84 @@ def install_apply(
 
     # Update installed plugin.json files to use the resolved port
     _update_plugin_port(port)
+
+
+@install.command("ensure-product-runtime")
+@click.option("--port", default=8787, type=int, show_default=True, help="Product proxy port.")
+@click.option("--backend", default="anthropic", show_default=True, help="Proxy backend.")
+@click.option(
+    "--proxy-arg",
+    "proxy_args",
+    multiple=True,
+    help="One proxy argument from the product profile; repeat for each value.",
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    help="Install and start the managed runtime when no healthy proxy is listening.",
+)
+@click.option(
+    "--replace-existing",
+    is_flag=True,
+    help="Replace a different installed product profile after an explicit restart request.",
+)
+def ensure_product_runtime(
+    port: int,
+    backend: str,
+    proxy_args: tuple[str, ...],
+    apply_changes: bool,
+    replace_existing: bool,
+) -> None:
+    """Ensure the product-owned proxy is persistently supervised.
+
+    The health probe is deliberately first-class: an existing listener may be
+    carrying active WebSocket sessions, so it is attached to unchanged rather
+    than replaced by a LaunchAgent installation.
+    """
+
+    manifest = build_product_manifest(port=port, backend=backend, proxy_args=proxy_args)
+    healthy = probe_ready(manifest.health_url)
+    if healthy and not replace_existing:
+        click.echo(f"Proxy on port {port} is already healthy; attached without restart.")
+        return
+    if not apply_changes:
+        click.echo(
+            f"Product runtime is not healthy on port {port}. "
+            "Run again with --apply to install and start it."
+        )
+        return
+
+    existing = load_manifest(manifest.profile)
+    if healthy and replace_existing and existing is None:
+        raise click.ClickException(
+            f"Healthy proxy on port {port} is not owned by the product runtime; "
+            "refusing to replace it. Stop it explicitly or choose another port."
+        )
+    if existing is not None:
+        if replace_existing:
+            _remove_deployment(existing)
+        elif not _product_runtime_matches(existing, manifest):
+            if not replace_existing:
+                raise click.ClickException(
+                    "Installed product runtime differs from the requested profile; "
+                    "restart required before replacing it."
+                )
+        else:
+            _start_deployment(existing)
+            click.echo(f"Started existing product runtime on port {port}.")
+            return
+    try:
+        manifest.mutations = apply_mutations(manifest)
+        manifest.artifacts = install_supervisor(manifest)
+        save_manifest(manifest)
+        _start_deployment(manifest)
+    except Exception:
+        _remove_deployment(manifest)
+        if existing is not None:
+            _restore_deployment(existing)
+        raise
+    click.echo(f"Installed and started product runtime on port {port}.")
 
 
 @install.command("status")

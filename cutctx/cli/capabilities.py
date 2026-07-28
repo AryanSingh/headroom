@@ -198,8 +198,10 @@ def _check_feature(feature: dict[str, object]) -> dict[str, object]:
 
     main_ok = _module_available(str(key_package) if key_package else None)
     also = {pkg: _module_available(pkg) for pkg in also_requires}
-    if str(feature.get("name")) == "knowledge_graph" and not main_ok:
-        main_ok = _module_available("graphifyy")
+    if str(feature.get("name")) == "knowledge_graph":
+        from cutctx.graph.graphify import graphify_available
+
+        main_ok = graphify_available()
     if str(feature.get("name")) == "stack_graph":
         from cutctx.graph.resolver import stack_graph_available
 

@@ -219,6 +219,12 @@ class ProxyConfig:
     # Code-aware compression (disabled by default — use code graph tools instead)
     code_aware_enabled: bool = False
 
+    # Reversible Python code compression defaults on. It only elides a
+    # parse-checked function body after storing it in CCR, and operators retain
+    # an explicit rollback via --no-reversible-code / CUTCTX_REVERSIBLE_CODE=0.
+    # CLI: --enable-reversible-code / --no-reversible-code.
+    enable_reversible_code: bool = True
+
     # Explicit deterministic mode alias for users who want rule-based-only
     # compression without using the historical "disable kompress" wording.
     # CLI: --deterministic; env: CUTCTX_DETERMINISTIC_MODE=1.

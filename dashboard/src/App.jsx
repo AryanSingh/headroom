@@ -1,6 +1,6 @@
 import { readStoredAdminKey, writeStoredAdminKey } from './lib/admin-auth';
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router';
 import {
   Activity,
   BarChart3,

@@ -1,6 +1,8 @@
 //! Build `cutctx proxy` argv from a profile of feature values — restart applies these.
 
-use crate::argv::{build_proxy_argv, FeatureValue, ProxyProfile};
+#[cfg(test)]
+use crate::argv::FeatureValue;
+use crate::argv::{build_proxy_argv, ProxyProfile};
 
 /// Snapshot whether a restart would change the process command line.
 pub fn restart_would_change_argv(before: &ProxyProfile, after: &ProxyProfile) -> bool {
@@ -8,6 +10,7 @@ pub fn restart_would_change_argv(before: &ProxyProfile, after: &ProxyProfile) ->
 }
 
 /// Apply a bool feature flip and return the argv that a restart must use.
+#[cfg(test)]
 pub fn argv_after_bool_toggle(mut profile: ProxyProfile, key: &str, enabled: bool) -> Vec<String> {
     profile
         .features
@@ -27,15 +30,11 @@ mod tests {
             after_argv.iter().any(|a| a == "--memory"),
             "restart argv must include --memory after toggle"
         );
-        assert!(restart_would_change_argv(
-            &before,
-            &{
-                let mut p = before.clone();
-                p.features
-                    .insert("memory".into(), FeatureValue::bool(true));
-                p
-            }
-        ));
+        assert!(restart_would_change_argv(&before, &{
+            let mut p = before.clone();
+            p.features.insert("memory".into(), FeatureValue::bool(true));
+            p
+        }));
     }
 
     #[test]

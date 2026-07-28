@@ -37,6 +37,66 @@ impl ProxySupervisor {
         build_proxy_argv(profile)
     }
 
+    /// Build the product-managed service command without exposing any secret.
+    /// The full proxy profile is passed as repeated values so LaunchAgent
+    /// startup uses the same feature configuration as an interactive start.
+    pub fn product_runtime_plan(profile: &ProxyProfile, replace_existing: bool) -> Vec<String> {
+        let mut plan = vec![
+            "install".into(),
+            "ensure-product-runtime".into(),
+            "--port".into(),
+            profile.port.to_string(),
+            "--apply".into(),
+        ];
+        for arg in Self::spawn_plan(profile).into_iter().skip(1) {
+            plan.push(format!("--proxy-arg={arg}"));
+        }
+        if replace_existing {
+            plan.push("--replace-existing".into());
+        }
+        plan
+    }
+
+    pub fn ensure_product_runtime(
+        &self,
+        profile: &ProxyProfile,
+        replace_existing: bool,
+    ) -> Result<(), String> {
+        let plan = Self::product_runtime_plan(profile, replace_existing);
+        let status = Command::new(&self.cutctx_bin)
+            .args(&plan)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map_err(|e| format!("failed to ensure managed proxy runtime: {e}"))?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!("managed proxy runtime exited with {status}"))
+        }
+    }
+
+    pub fn product_runtime_stop_plan() -> [&'static str; 4] {
+        ["install", "stop", "--profile", "product"]
+    }
+
+    pub fn stop_product_runtime(&self) -> Result<(), String> {
+        let status = Command::new(&self.cutctx_bin)
+            .args(Self::product_runtime_stop_plan())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map_err(|e| format!("failed to stop managed proxy runtime: {e}"))?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err("no stoppable product runtime is installed".into())
+        }
+    }
+
+    #[cfg(test)]
     pub fn start(
         &self,
         profile: &ProxyProfile,
@@ -47,10 +107,12 @@ impl ProxySupervisor {
         }
         let args = Self::spawn_plan(profile);
         let mut cmd = Command::new(&self.cutctx_bin);
+        // Never pipe stdout/stderr without a drain — the startup banner can fill
+        // the pipe buffer and stall the child before it binds the port.
         cmd.args(&args)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::piped());
+            .stderr(Stdio::null());
         for (key, value) in env_vars {
             cmd.env(key, value);
         }
@@ -70,55 +132,6 @@ impl ProxySupervisor {
         }
         Ok(())
     }
-
-    /// Stop the supervised child and best-effort free `port` so a restart can
-    /// respawn with a new argv (including when we previously attached external).
-    pub fn stop_and_reclaim_port(&self, port: u16) -> Result<(), String> {
-        self.stop()?;
-        reclaim_listeners_on_port(port);
-        // Brief settle so the OS releases the bind.
-        std::thread::sleep(std::time::Duration::from_millis(300));
-        Ok(())
-    }
-}
-
-/// Best-effort: terminate processes listening on `port` (Unix `lsof`).
-fn reclaim_listeners_on_port(port: u16) {
-    #[cfg(unix)]
-    {
-        use std::process::Command;
-        let output = Command::new("lsof")
-            .args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN", "-t"])
-            .output();
-        let Ok(output) = output else {
-            return;
-        };
-        if !output.status.success() {
-            return;
-        }
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        for pid in stdout.split_whitespace() {
-            let Ok(pid) = pid.parse::<i32>() else {
-                continue;
-            };
-            let _ = Command::new("kill").args(["-TERM", &pid.to_string()]).status();
-        }
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        // Force stubborn listeners.
-        let output = Command::new("lsof")
-            .args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN", "-t"])
-            .output();
-        if let Ok(output) = output {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for pid in stdout.split_whitespace() {
-                let _ = Command::new("kill").args(["-KILL", pid]).status();
-            }
-        }
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = port;
-    }
 }
 
 #[cfg(test)]
@@ -133,8 +146,118 @@ mod tests {
     }
 
     #[test]
+    fn product_runtime_plan_preserves_the_profile_and_enables_managed_startup() {
+        let mut profile = ProxyProfile::default_profile();
+        profile.port = 9123;
+        profile
+            .features
+            .insert("memory".into(), crate::argv::FeatureValue::bool(true));
+
+        let plan = ProxySupervisor::product_runtime_plan(&profile, false);
+
+        assert_eq!(
+            plan[..4],
+            ["install", "ensure-product-runtime", "--port", "9123"]
+        );
+        assert!(plan.iter().any(|arg| arg == "--apply"));
+        assert!(plan.iter().any(|arg| arg == "--proxy-arg=--memory"));
+        assert!(plan
+            .iter()
+            .any(|arg| arg == "--proxy-arg=--enable-reversible-code"));
+        assert!(!plan.iter().any(|arg| arg == "--replace-existing"));
+    }
+
+    #[test]
+    fn explicit_restart_allows_replacing_a_different_managed_profile() {
+        let profile = ProxyProfile::default_profile();
+
+        let plan = ProxySupervisor::product_runtime_plan(&profile, true);
+
+        assert!(plan.iter().any(|arg| arg == "--replace-existing"));
+    }
+
+    #[test]
+    fn stop_plan_targets_only_the_named_product_runtime() {
+        assert_eq!(
+            ProxySupervisor::product_runtime_stop_plan(),
+            ["install", "stop", "--profile", "product"]
+        );
+    }
+
+    #[test]
     fn fresh_supervisor_is_not_running() {
         let s = ProxySupervisor::new("cutctx");
         assert!(!s.is_running());
+    }
+
+    #[test]
+    fn supervised_restart_becomes_healthy() {
+        // This exercises a real installed proxy plus a local license and is
+        // intentionally opt-in.  It cannot be deterministic in the normal
+        // unit suite (the local runtime may be upgrading or another process
+        // may briefly own the test port).  Release CI enables it explicitly.
+        if std::env::var("CUTCTX_LIVE_SUPERVISOR_TEST").as_deref() != Ok("1") {
+            eprintln!("skip: set CUTCTX_LIVE_SUPERVISOR_TEST=1 for live supervisor smoke");
+            return;
+        }
+        let bin = std::env::var("CUTCTX_BIN").unwrap_or_else(|_| "cutctx".into());
+        let Ok(license) = std::fs::read_to_string(
+            dirs::home_dir()
+                .unwrap_or_default()
+                .join(".cutctx/license_key.txt"),
+        ) else {
+            eprintln!("skip: no license_key.txt");
+            return;
+        };
+        let license = license.trim().to_string();
+        if license.is_empty() {
+            return;
+        }
+        let port: u16 = 8795;
+        if std::net::TcpListener::bind(("127.0.0.1", port)).is_err() {
+            eprintln!("skip: live supervisor test port {port} is already in use");
+            return;
+        }
+        let s = ProxySupervisor::new(&bin);
+        let mut profile = ProxyProfile::default_profile();
+        profile.port = port;
+        let env = vec![("CUTCTX_LICENSE_KEY".into(), license)];
+        s.start(&profile, &env).expect("spawn");
+        let mut healthy = false;
+        for _ in 0..25 {
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            let url = format!("http://127.0.0.1:{port}/health");
+            if let Ok(resp) = ureq::get(&url)
+                .timeout(std::time::Duration::from_secs(1))
+                .call()
+            {
+                if (200..300).contains(&resp.status()) {
+                    healthy = true;
+                    break;
+                }
+            }
+        }
+        assert!(healthy, "proxy should become healthy after spawn");
+        s.stop().unwrap();
+        profile
+            .features
+            .insert("memory".into(), crate::argv::FeatureValue::bool(true));
+        s.start(&profile, &env).expect("respawn");
+        healthy = false;
+        for _ in 0..25 {
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            let url = format!("http://127.0.0.1:{port}/health");
+            if let Ok(resp) = ureq::get(&url)
+                .timeout(std::time::Duration::from_secs(1))
+                .call()
+            {
+                if (200..300).contains(&resp.status()) {
+                    healthy = true;
+                    break;
+                }
+            }
+        }
+        let _ = s.stop();
+        assert!(healthy, "proxy should become healthy after restart");
     }
 }

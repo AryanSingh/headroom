@@ -18,6 +18,7 @@ impl FeatureValue {
         }
     }
 
+    #[cfg(test)]
     pub fn text(text: impl Into<String>) -> Self {
         Self {
             enabled: true,
@@ -151,8 +152,7 @@ mod tests {
     #[test]
     fn memory_on_adds_memory_flag() {
         let mut p = ProxyProfile::default_profile();
-        p.features
-            .insert("memory".into(), FeatureValue::bool(true));
+        p.features.insert("memory".into(), FeatureValue::bool(true));
         let argv = build_proxy_argv(&p);
         assert!(argv.iter().any(|a| a == "--memory"));
     }

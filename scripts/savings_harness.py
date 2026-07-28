@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -51,6 +52,7 @@ REPO = Path(__file__).resolve().parent.parent
 # live endpoint does not get a surprise bill.
 MODEL = "claude-haiku-4-5"
 ROUTING_SOURCE_MODEL = "claude-sonnet-4-5"  # routes down to haiku
+HARNESS_ADMIN_KEY = "savings-harness-admin-key"
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +162,20 @@ def corpus(kind: str, n: int = 400) -> str:
         return "\n".join(
             f"def handler_{i}(request, context):\n"
             f"    payload = request.get('data', {{}})\n"
-            f"    return {{'id': {i}, 'ok': True, 'payload': payload}}\n"
+            f"    request_id = request.get('request_id', 'req-{i}')\n"
+            f"    user_id = context.get('user_id', 'anonymous')\n"
+            f"    flags = context.get('flags', {{}})\n"
+            f"    normalized = {{str(key): value for key, value in payload.items()}}\n"
+            f"    items = list(normalized.items())\n"
+            f"    active = [key for key, value in items if value is not None]\n"
+            f"    total = sum(len(str(value)) for _, value in items)\n"
+            f"    result = {{'id': {i}, 'ok': True, 'payload': normalized}}\n"
+            f"    result['request_id'] = request_id\n"
+            f"    result['user_id'] = user_id\n"
+            f"    result['flags'] = flags\n"
+            f"    result['active'] = active\n"
+            f"    result['total'] = total\n"
+            f"    return result\n"
             for i in range(n // 3)
         )
     if kind == "prose":
@@ -332,11 +347,17 @@ def scenarios() -> list[Scenario]:
 
     # --- on by default -----------------------------------------------------
     for kind in ("logs", "code", "prose", "table", "json", "html"):
+        conservative_passthrough = kind in {"prose", "table"}
         out.append(
             Scenario(
                 name=f"compression:{kind}",
-                why=f"aggregate compressor on {kind} content",
+                why=(
+                    f"safe-mode passthrough preserves {kind} content"
+                    if conservative_passthrough
+                    else f"aggregate compressor on {kind} content"
+                ),
                 body={**base, "messages": deep_history(kind)},
+                expect_savings=not conservative_passthrough,
                 default_on=True,
             )
         )
@@ -348,10 +369,11 @@ def scenarios() -> list[Scenario]:
                 why=f"same {kind} payload as a PAYG client (lossy compressors permitted)",
                 body={**base, "messages": deep_history(kind)},
                 ua=PAYG_UA,
+                expect_savings=kind not in {"prose", "table"},
                 default_on=True,
             )
         )
-    for kind in ("code", "json", "html"):
+    for kind in ("code", "prose", "json", "html"):
         out.append(
             Scenario(
                 name=f"compression:{kind}:aggressive",
@@ -488,6 +510,26 @@ def scenarios() -> list[Scenario]:
 # ---------------------------------------------------------------------------
 
 
+def build_proxy_command(sc: Scenario, *, proxy_port: int, upstream_port: int) -> list[str]:
+    """Build an isolated proxy command whose provider traffic is fully captured."""
+
+    return [
+        sys.executable,
+        "-m",
+        "cutctx.proxy.server" if sc.raw_server else "cutctx.cli.main",
+        *([] if sc.raw_server else ["proxy"]),
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(proxy_port),
+        "--anthropic-api-url",
+        f"http://127.0.0.1:{upstream_port}",
+        "--openai-api-url",
+        f"http://127.0.0.1:{upstream_port}",
+        *sc.args,
+    ]
+
+
 def run_scenario(sc: Scenario, *, verbose: bool = False) -> dict[str, Any]:
     _Capture.records = []
     up_port, proxy_port = _free_port(), _free_port()
@@ -498,31 +540,20 @@ def run_scenario(sc: Scenario, *, verbose: bool = False) -> dict[str, Any]:
     # difftastic scenario pulls a ~108MB `difft`) would otherwise drop them
     # into the working tree, where `git add -A` happily commits them and the
     # push is rejected for exceeding GitHub's 100MB file limit.
-    home = Path(tempfile.gettempdir()) / "cutctx-savings-harness-home"
-    home.mkdir(parents=True, exist_ok=True)
+    home = Path(tempfile.mkdtemp(prefix="cutctx-savings-harness-home-"))
     env = {
         **os.environ,
         "HOME": str(home),  # keep the operator's licence out of the measurement
+        "CUTCTX_WORKSPACE_DIR": str(home / ".cutctx"),
         "CUTCTX_TELEMETRY": "off",
+        "CUTCTX_ADMIN_API_KEY": HARNESS_ADMIN_KEY,
         "PYTHONPATH": str(REPO),
         **sc.env,
     }
     env.pop("CUTCTX_LICENSE_KEY", None)
 
     proc = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "cutctx.proxy.server" if sc.raw_server else "cutctx.cli.main",
-            *([] if sc.raw_server else ["proxy"]),
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(proxy_port),
-            "--anthropic-api-url",
-            f"http://127.0.0.1:{up_port}",
-            *sc.args,
-        ],
+        build_proxy_command(sc, proxy_port=proxy_port, upstream_port=up_port),
         cwd=REPO,
         env=env,
         stdout=subprocess.PIPE,
@@ -554,6 +585,7 @@ def run_scenario(sc: Scenario, *, verbose: bool = False) -> dict[str, Any]:
             return {"scenario": sc.name, "error": "proxy never became ready"}
 
         sent = count_tokens(sc.body)
+        response_statuses: list[int] = []
         for _ in range(sc.repeat):
             _is_openai = "/v1/messages" not in sc.endpoint
             _headers = {
@@ -565,23 +597,41 @@ def run_scenario(sc: Scenario, *, verbose: bool = False) -> dict[str, Any]:
             else:
                 _headers["x-api-key"] = "sk-harness"
                 _headers["anthropic-version"] = "2023-06-01"
-            httpx.post(
+            response = httpx.post(
                 f"{base}{sc.endpoint}",
                 json=sc.body,
                 headers=_headers,
                 timeout=120,
             )
+            response_statuses.append(response.status_code)
+            if not response.is_success:
+                return {
+                    "scenario": sc.name,
+                    "error": f"proxy returned HTTP {response.status_code}",
+                    "response_statuses": response_statuses,
+                    "response_body": response.text[:500],
+                }
 
         recs = list(_Capture.records)
         upstream = sum(r["tokens"] for r in recs)
         billed_client = sent * sc.repeat
         saved = billed_client - upstream
+        stats_status = 0
         try:
-            stats = httpx.get(f"{base}/stats", timeout=10).json()
+            stats_response = httpx.get(
+                f"{base}/stats",
+                headers={"Authorization": f"Bearer {HARNESS_ADMIN_KEY}"},
+                timeout=10,
+            )
+            stats_status = stats_response.status_code
+            stats_response.raise_for_status()
+            stats = stats_response.json()
             by_source = stats.get("summary", {})
             funnel = stats.get("opportunity_funnel", {})
+            recent_requests = stats.get("recent_requests") or []
+            recent_request = recent_requests[0] if recent_requests else None
         except Exception:
-            by_source, funnel = {}, {}
+            by_source, funnel, recent_request = {}, {}, None
         return {
             "scenario": sc.name,
             "why": sc.why,
@@ -592,6 +642,9 @@ def run_scenario(sc: Scenario, *, verbose: bool = False) -> dict[str, Any]:
             "saved_pct": round(saved / billed_client * 100, 1) if billed_client else 0.0,
             "upstream_calls": len(recs),
             "requests_sent": sc.repeat,
+            "response_statuses": response_statuses,
+            "stats_status": stats_status,
+            "recent_request": recent_request,
             "models_upstream": sorted({r["model"] for r in recs if r["model"]}),
             "proxy_reported_pct": by_source.get("savings_percent"),
             "expect_savings": sc.expect_savings,
@@ -599,12 +652,11 @@ def run_scenario(sc: Scenario, *, verbose: bool = False) -> dict[str, Any]:
             "decline_reasons": (funnel or {}).get("decline_reasons"),
             "funnel": {k: v for k, v in (funnel or {}).items() if k != "decline_reasons"},
             "expect_upstream_model": sc.expect_upstream_model,
-            "model_ok": (
-                None
-                if sc.expect_upstream_model is None
-                else all(
-                    m == sc.expect_upstream_model for m in {r["model"] for r in recs if r["model"]}
-                )
+            "model_ok": None
+            if sc.expect_upstream_model is None
+            else bool({r["model"] for r in recs if r["model"]})
+            and all(
+                m == sc.expect_upstream_model for m in {r["model"] for r in recs if r["model"]}
             ),
         }
     finally:
@@ -614,6 +666,30 @@ def run_scenario(sc: Scenario, *, verbose: bool = False) -> dict[str, Any]:
         except Exception:
             proc.kill()
         httpd.shutdown()
+        shutil.rmtree(home, ignore_errors=True)
+
+
+def scenario_passed(sc: Scenario, result: dict[str, Any]) -> bool:
+    """Return whether a scenario produced billable upstream evidence as promised."""
+
+    if "error" in result:
+        return False
+    statuses = result.get("response_statuses")
+    if (
+        not isinstance(statuses, list)
+        or not statuses
+        or any(not isinstance(status, int) or not 200 <= status < 300 for status in statuses)
+    ):
+        return False
+    if int(result.get("upstream_calls") or 0) < 1:
+        return False
+    if int(result.get("stats_status") or 0) != 200:
+        return False
+    if sc.expect_savings and int(result.get("saved_tokens") or 0) <= 0:
+        return False
+    if sc.expect_upstream_model is not None and result.get("model_ok") is not True:
+        return False
+    return True
 
 
 def main() -> int:
@@ -643,9 +719,7 @@ def main() -> int:
         if "error" in r:
             print(f"  ERROR    {s.name}: {r['error']}")
         else:
-            ok = (r["saved_tokens"] > 0) if s.expect_savings else True
-            if r.get("model_ok") is False:
-                ok = False
+            ok = scenario_passed(s, r)
             flag = "OK  " if ok else "NONE"
             print(
                 f"  {flag}  {s.name:<32} {r['client_tokens']:>7} -> {r['upstream_tokens']:<7}"
@@ -658,7 +732,7 @@ def main() -> int:
         a.json.write_text(json.dumps(results, indent=2) + "\n")
         print(f"\nwrote {a.json}")
 
-    return 0 if all("error" not in r for r in results) else 1
+    return 0 if all(scenario_passed(s, r) for s, r in zip(chosen, results, strict=True)) else 1
 
 
 if __name__ == "__main__":
