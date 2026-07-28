@@ -37,6 +37,7 @@ services, an operator dashboard, enterprise governance, SDKs, and host plugins.
 | `cutctx/` | Python SDK, CLI, proxy runtime, transforms, memory, providers, security, telemetry, and operations. | [Map](cutctx/codemap.md) |
 | `cutctx_ee/` | Optional commercial multi-tenant governance, identity, billing, policy, audit, and retention services. | [Map](cutctx_ee/codemap.md) |
 | `dashboard/` | Vite/React operator console for health, savings, routing, governance, memory, replay, and diagnostics. | [Map](dashboard/codemap.md) |
+| `desktop/` | Native operator apps (CutCtx Control tray) for proxy lifecycle and client setup. | [Map](desktop/codemap.md) |
 | `crates/` | Rust compression core, native proxy, Python bindings, and parity tooling. | [Map](crates/codemap.md) |
 | `sdk/` | TypeScript, Go, and Python client libraries and provider adapters. | [Map](sdk/codemap.md) |
 | `plugins/` | Coding-agent, gateway, MCP, retrieval, and authentication integrations. | [Map](plugins/codemap.md) |
