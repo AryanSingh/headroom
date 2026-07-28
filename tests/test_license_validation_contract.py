@@ -202,6 +202,103 @@ def test_paid_provider_request_requires_user_scoped_token() -> None:
     assert response.status_code == 401
 
 
+def test_paid_provider_loopback_accepts_cutctx_user_token_env(monkeypatch) -> None:
+    """Codex cannot set X-Cutctx-User-Token on the built-in openai provider.
+
+    Trusted loopback traffic may use a pre-provisioned CUTCTX_USER_TOKEN on
+    the proxy process instead (minted by Control / wrap).
+    """
+    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
+    monkeypatch.setenv("CUTCTX_USER_TOKEN", _user_token(subject="loopback-user"))
+    app = _paid_app()
+
+    async def accepted(_request):
+        return JSONResponse({"status": "accepted"})
+
+    app.state.proxy.handle_openai_chat = accepted
+    response = TestClient(app).post(
+        "/v1/chat/completions",
+        headers={
+            "X-Cutctx-Proxy-Key": "proxy-key",
+            "Host": "127.0.0.1:8787",
+        },
+        json={"messages": [{"role": "user", "content": "hello"}]},
+    )
+
+    assert response.status_code == 200
+
+
+def test_paid_provider_loopback_accepts_control_seat_json(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
+    monkeypatch.delenv("CUTCTX_USER_TOKEN", raising=False)
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    seat_dir = tmp_path / ".cutctx" / "control"
+    seat_dir.mkdir(parents=True)
+    (seat_dir / "seat.json").write_text(
+        json.dumps(
+            {
+                "subject": "loopback-user",
+                "token": _user_token(subject="loopback-user"),
+                "issued_at_unix": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _paid_app()
+
+    async def accepted(_request):
+        return JSONResponse({"status": "accepted"})
+
+    app.state.proxy.handle_openai_chat = accepted
+    response = TestClient(app).post(
+        "/v1/chat/completions",
+        headers={
+            "X-Cutctx-Proxy-Key": "proxy-key",
+            "Host": "127.0.0.1:8787",
+        },
+        json={"messages": [{"role": "user", "content": "hello"}]},
+    )
+
+    assert response.status_code == 200
+
+
+def test_paid_provider_rejects_invalid_header_even_when_env_token_exists(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
+    monkeypatch.setenv("CUTCTX_USER_TOKEN", _user_token(subject="loopback-user"))
+    app = _paid_app()
+
+    response = TestClient(app).post(
+        "/v1/chat/completions",
+        headers={
+            "X-Cutctx-Proxy-Key": "proxy-key",
+            "Host": "127.0.0.1:8787",
+            "X-Cutctx-User-Token": "not-a-token",
+        },
+        json={"messages": [{"role": "user", "content": "hello"}]},
+    )
+
+    assert response.status_code == 401
+
+
+def test_paid_provider_does_not_fallback_for_non_loopback_host(monkeypatch) -> None:
+    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
+    monkeypatch.setenv("CUTCTX_USER_TOKEN", _user_token(subject="loopback-user"))
+    app = _paid_app()
+
+    response = TestClient(app).post(
+        "/v1/chat/completions",
+        headers={
+            "X-Cutctx-Proxy-Key": "proxy-key",
+            "Host": "attacker.example",
+        },
+        json={"messages": [{"role": "user", "content": "hello"}]},
+    )
+
+    assert response.status_code == 401
+
+
 def test_paid_provider_request_denies_when_user_has_no_seat(monkeypatch) -> None:
     monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: False)
     app = _paid_app()

@@ -1,6 +1,6 @@
 import { readStoredAdminKey, writeStoredAdminKey } from './lib/admin-auth';
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router';
 import {
   Activity,
   BarChart3,
@@ -29,6 +29,7 @@ const Docs = lazy(() => import('./pages/Docs'));
 const Orchestrator = lazy(() => import('./pages/Orchestrator'));
 const Replay = lazy(() => import('./pages/Replay'));
 import { PageHeader } from './components/PageHeader';
+import { RouteLoader } from './components/RouteLoader';
 import { StatePanel } from './components/StatePanel';
 import { DashboardDataProvider } from './lib/dashboard-context';
 import { useDashboardData } from './lib/use-dashboard-data';
@@ -265,7 +266,7 @@ function AppFrame() {
   const searchInputRef = useRef(null);
   const sidebarToggleRef = useRef(null);
 
-  const { error } = useDashboardData();
+  const { error, loading } = useDashboardData();
   const [adminKey, setAdminKey] = useState(() => readStoredAdminKey());
 
   const handleSaveKey = () => {
@@ -391,21 +392,25 @@ function AppFrame() {
         />
         <main className="page-shell" id="main-content" tabIndex="-1">
           <RouteErrorBoundary>
-            <Suspense fallback={<div className="page-shell" role="status">Loading dashboard…</div>}>
-              <Routes>
-                <Route path="/" element={<Overview searchQuery={searchQuery} />} />
-                <Route path="/savings" element={<Savings />} />
-                <Route path="/orchestrator" element={<Orchestrator searchQuery={searchQuery} />} />
-                <Route path="/capabilities" element={<Capabilities />} />
-                <Route path="/governance" element={<Governance searchQuery={searchQuery.toLowerCase()} />} />
-                <Route path="/firewall" element={<Firewall searchQuery={searchQuery.toLowerCase()} />} />
-                <Route path="/memory" element={<Memory searchQuery={searchQuery.toLowerCase()} />} />
-                <Route path="/replay" element={<Replay />} />
-                <Route path="/playground" element={<Playground />} />
-                <Route path="/docs" element={<Docs />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
+            {loading ? (
+              <RouteLoader label="Loading dashboard…" />
+            ) : (
+              <Suspense fallback={<RouteLoader label="Loading module…" />}>
+                <Routes>
+                  <Route path="/" element={<Overview searchQuery={searchQuery} />} />
+                  <Route path="/savings" element={<Savings />} />
+                  <Route path="/orchestrator" element={<Orchestrator searchQuery={searchQuery} />} />
+                  <Route path="/capabilities" element={<Capabilities />} />
+                  <Route path="/governance" element={<Governance searchQuery={searchQuery.toLowerCase()} />} />
+                  <Route path="/firewall" element={<Firewall searchQuery={searchQuery.toLowerCase()} />} />
+                  <Route path="/memory" element={<Memory searchQuery={searchQuery.toLowerCase()} />} />
+                  <Route path="/replay" element={<Replay />} />
+                  <Route path="/playground" element={<Playground />} />
+                  <Route path="/docs" element={<Docs />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+            )}
           </RouteErrorBoundary>
         </main>
       </div>

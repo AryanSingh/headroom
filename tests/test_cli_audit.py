@@ -90,3 +90,18 @@ def test_audit_stats_uses_structured_query_parameters() -> None:
         headers={"Content-Type": "application/json", "Authorization": "Bearer explicit-key"},
         timeout=10,
     )
+
+
+def test_audit_discovers_the_local_admin_key(tmp_path, monkeypatch) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "admin_key.txt").write_text("discovered-key\n", encoding="utf-8")
+    monkeypatch.setenv("CUTCTX_WORKSPACE_DIR", str(workspace))
+    monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)
+    runner = CliRunner()
+
+    with patch("cutctx.cli.audit.httpx.get", return_value=_response(payload={"events": []})) as get:
+        result = runner.invoke(audit, ["list"])
+
+    assert result.exit_code == 0
+    assert get.call_args.kwargs["headers"]["Authorization"] == "Bearer discovered-key"

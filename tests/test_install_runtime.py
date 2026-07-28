@@ -1,11 +1,44 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 
 from cutctx.auth.client_credentials import ClientCredential
 from cutctx.install import runtime
 from cutctx.install.models import DeploymentManifest
-from cutctx.install.runtime import _runtime_env, build_runtime_command
+from cutctx.install.runtime import _load_control_credentials, _runtime_env, build_runtime_command
+
+
+def test_control_credentials_are_available_to_persistent_product_runtime(tmp_path) -> None:
+    vault_path = tmp_path / ".cutctx" / "control" / "credentials.json"
+    vault_path.parent.mkdir(parents=True)
+    vault_path.write_text(
+        json.dumps(
+            {
+                "credentials": [
+                    {"id": "openai_api_key", "token": "sk-product-runtime", "updated_at_unix": 1},
+                    {
+                        "id": "cutctx_license_key",
+                        "token": "license-product-runtime",
+                        "updated_at_unix": 1,
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault_path.parent / "seat.json").write_text(
+        json.dumps({"subject": "desktop-user", "token": "ctu1.product-seat", "issued_at_unix": 1}),
+        encoding="utf-8",
+    )
+
+    credentials = _load_control_credentials(tmp_path)
+
+    assert credentials == {
+        "OPENAI_API_KEY": "sk-product-runtime",
+        "CUTCTX_LICENSE_KEY": "license-product-runtime",
+        "CUTCTX_USER_TOKEN": "ctu1.product-seat",
+    }
 
 
 def _manifest() -> DeploymentManifest:

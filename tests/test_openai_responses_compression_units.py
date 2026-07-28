@@ -711,6 +711,47 @@ def test_openai_responses_adapter_keeps_small_and_opaque_items():
     assert strategy_chain == []
 
 
+def test_openai_responses_reversible_code_respects_router_policy():
+    source = (
+        "def long_function(value: int) -> int:\n"
+        + "\n".join(f"    local_{index:03d} = value + {index}" for index in range(32))
+        + "\n    return local_031\n"
+    )
+    payload = {
+        "model": "gpt-5",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": source,
+            }
+        ],
+    }
+
+    unchanged, default_modified, default_saved, *_ = _handler_with_router(
+        ContentRouter(ContentRouterConfig(enable_code_aware=False))
+    )._compress_openai_responses_live_text_units_with_router(
+        payload,
+        model="gpt-5",
+        request_id="req_reversible_code_default",
+    )
+    compressed, enabled_modified, enabled_saved, transforms, *_ = _handler_with_router(
+        ContentRouter(ContentRouterConfig(enable_code_aware=False, enable_reversible_code=True))
+    )._compress_openai_responses_live_text_units_with_router(
+        payload,
+        model="gpt-5",
+        request_id="req_reversible_code_enabled",
+    )
+
+    assert default_modified is False
+    assert default_saved == 0
+    assert unchanged == payload
+    assert enabled_modified is True
+    assert enabled_saved > 0
+    assert "<cutctx:code_elided sha256=" in compressed["input"][0]["output"]
+    assert "router:openai:responses:function_call_output:reversible_code" in transforms
+
+
 def test_openai_responses_payload_routes_through_content_router_without_rust(
     monkeypatch,
 ):

@@ -158,3 +158,16 @@ def test_check_feature_llmlingua_requires_runtime_module(
 
     assert result["available"] is False
     assert "cutctx.transforms.llmlingua_compressor" in result["missing_packages"]
+
+
+def test_check_feature_knowledge_graph_requires_compatible_graphify_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli_capabilities, "_module_available", lambda name: True)
+    monkeypatch.setattr("cutctx.graph.graphify.graphify_available", lambda: False)
+
+    feature = next(item for item in cli_capabilities._FEATURES if item["name"] == "knowledge_graph")
+    result = cli_capabilities._check_feature(feature)
+
+    assert result["available"] is False
+    assert "graphify" in result["missing_packages"]

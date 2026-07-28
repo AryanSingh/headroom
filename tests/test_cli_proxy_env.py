@@ -246,6 +246,58 @@ class TestCLIProxyEnvVars:
         assert result.exit_code == 0, result.output
         assert captured_config["config"].code_aware_enabled is True
 
+    def test_reversible_code_enabled_from_env(self, runner):
+        """CUTCTX_REVERSIBLE_CODE should opt the proxy into CCR-backed code elision."""
+        captured_config = {}
+
+        def mock_run_server(config, **kwargs):
+            captured_config["config"] = config
+
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
+            result = runner.invoke(
+                main,
+                ["proxy"],
+                env={"CUTCTX_REVERSIBLE_CODE": "1"},
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == 0, result.output
+        assert captured_config["config"].enable_reversible_code is True
+
+    def test_reversible_code_enabled_from_cli_flag(self, runner):
+        """--enable-reversible-code should opt the proxy into CCR-backed code elision."""
+        captured_config = {}
+
+        def mock_run_server(config, **kwargs):
+            captured_config["config"] = config
+
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
+            result = runner.invoke(
+                main,
+                ["proxy", "--enable-reversible-code"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == 0, result.output
+        assert captured_config["config"].enable_reversible_code is True
+
+    def test_no_reversible_code_cli_flag_overrides_default(self, runner):
+        """Operators can preserve legacy behavior for a newly started proxy."""
+        captured_config = {}
+
+        def mock_run_server(config, **kwargs):
+            captured_config["config"] = config
+
+        with patch("cutctx.proxy.server.run_server", mock_run_server):
+            result = runner.invoke(
+                main,
+                ["proxy", "--no-reversible-code"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == 0, result.output
+        assert captured_config["config"].enable_reversible_code is False
+
     def test_disable_kompress_from_env(self, runner):
         """CUTCTX_DISABLE_KOMPRESS should be passed to ProxyConfig."""
         captured_config = {}
@@ -811,6 +863,15 @@ class TestArgparseBackendValidation:
             config = _proxy_config_from_env()
 
         assert config.disable_kompress is True
+
+    def test_proxy_config_from_env_reads_reversible_code_explicit_off(self):
+        """The direct server env path must preserve the default-on rollback."""
+        from cutctx.proxy.server import _proxy_config_from_env
+
+        with patch.dict(os.environ, {"CUTCTX_REVERSIBLE_CODE": "0"}):
+            config = _proxy_config_from_env()
+
+        assert config.enable_reversible_code is False
 
     def test_proxy_config_from_env_reads_deterministic_mode(self):
         """The direct server env path should honor CUTCTX_DETERMINISTIC_MODE."""

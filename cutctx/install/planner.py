@@ -15,6 +15,7 @@ from .models import (
     DeploymentManifest,
     InstallPreset,
     ProviderSelectionMode,
+    RuntimeKind,
     SupervisorKind,
     ToolTarget,
 )
@@ -203,3 +204,38 @@ def build_manifest(
         tool_envs=tool_envs,
         proxy_args=proxy_args,
     )
+
+
+def build_product_manifest(
+    *, port: int, backend: str, proxy_args: tuple[str, ...] = ()
+) -> DeploymentManifest:
+    """Build the durable, user-scoped runtime used by CutCtx Control.
+
+    Product launches must not depend on shell PATH configuration or implicit
+    feature defaults.  Keep the compression contract explicit in the
+    manifest so a release upgrade cannot silently turn it off.
+    """
+
+    manifest = build_manifest(
+        profile="product",
+        preset=InstallPreset.PERSISTENT_SERVICE.value,
+        runtime_kind=RuntimeKind.PYTHON.value,
+        scope=ConfigScope.USER.value,
+        provider_mode=ProviderSelectionMode.MANUAL.value,
+        targets=[],
+        port=port,
+        backend=backend,
+        anyllm_provider=None,
+        region=None,
+        proxy_mode="token",
+        memory_enabled=False,
+        telemetry_enabled=True,
+        image="ghcr.io/cutctx/cutctx:latest",
+    )
+    if proxy_args:
+        manifest.proxy_args = list(proxy_args)
+    reversible_disabled = "--no-reversible-code" in manifest.proxy_args
+    manifest.base_env["CUTCTX_REVERSIBLE_CODE"] = "0" if reversible_disabled else "1"
+    if not reversible_disabled and "--enable-reversible-code" not in manifest.proxy_args:
+        manifest.proxy_args.append("--enable-reversible-code")
+    return manifest

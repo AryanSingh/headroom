@@ -191,6 +191,12 @@ def _compress_marker_free_text(
         return text, [], router_result
 
     strategy = router_result.strategy_used.value
+    # Reversible code elision is selected as a safe fallback from the code
+    # route, so ``strategy_used`` remains ``code_aware`` for compatibility.
+    # Attribute the emitted transform to what actually changed the payload;
+    # otherwise savings telemetry falsely reports code-aware compression.
+    if "reversible_code" in router_result.strategy_chain:
+        strategy = "reversible_code"
     return (
         f"{leading}{router_result.compressed}{trailing}",
         [
@@ -308,6 +314,8 @@ def compress_unit_with_router(
             router._runtime_target_ratio = prior_target_ratio
     replacement = router_result.compressed
     strategy = router_result.strategy_used.value
+    if "reversible_code" in router_result.strategy_chain:
+        strategy = "reversible_code"
     if replacement == unit.text:
         return _with_reason(
             strategy=strategy,

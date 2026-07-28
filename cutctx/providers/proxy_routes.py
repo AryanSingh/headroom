@@ -571,13 +571,31 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
                 "Paid provider traffic requires CUTCTX_USER_TOKEN_HMAC_SECRET and "
                 "X-Cutctx-User-Token.",
             )
+        from cutctx.auth.local_seat import (
+            is_trusted_local_seat_connection,
+            resolve_local_user_token,
+        )
         from cutctx_ee.billing.client import checkout_seat
         from cutctx_ee.user_tokens import UserTokenError, verify_user_token
 
-        try:
-            user_id = verify_user_token(
-                connection.headers.get("x-cutctx-user-token", ""), secret, license_key
+        def _trusted_loopback() -> bool:
+            client = getattr(connection, "client", None)
+            client_host = getattr(client, "host", None) if client is not None else None
+            return is_trusted_local_seat_connection(
+                bind_host=getattr(proxy.config, "host", None),
+                host_header=connection.headers.get("host"),
+                client_host=client_host,
             )
+
+        header_token = str(connection.headers.get("x-cutctx-user-token", "") or "").strip()
+        # Only fill a *missing* header for trusted local Codex/desktop clients.
+        # A present but invalid header must still fail closed.
+        token = header_token
+        if not token and _trusted_loopback():
+            token = resolve_local_user_token() or ""
+
+        try:
+            user_id = verify_user_token(token, secret, license_key)
         except UserTokenError as exc:
             deny(401, str(exc))
         if not await run_in_threadpool(checkout_seat, license_key, user_id):

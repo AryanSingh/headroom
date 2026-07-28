@@ -610,6 +610,7 @@ class CutctxProxy(
         router_config = ContentRouterConfig(
             compression_mode=config.compression_mode,
             enable_code_aware=config.code_aware_enabled,
+            enable_reversible_code=config.enable_reversible_code,
             tool_profiles=config.tool_profiles,
             read_lifecycle=ReadLifecycleConfig(enabled=config.read_lifecycle),
             ccr_inject_marker=config.ccr_inject_marker,
@@ -2344,6 +2345,7 @@ def _proxy_config_from_env() -> ProxyConfig:
         bedrock_profile=os.environ.get("AWS_PROFILE"),
         anyllm_provider=_get_env_str("CUTCTX_ANYLLM_PROVIDER", "openai"),
         compression_mode=_get_env_str("CUTCTX_COMPRESSION_MODE", "safe").lower(),
+        enable_reversible_code=_get_env_bool("CUTCTX_REVERSIBLE_CODE", True),
         deterministic_mode=_get_env_bool("CUTCTX_DETERMINISTIC_MODE", False),
         disable_kompress=(
             _get_env_bool("CUTCTX_DISABLE_KOMPRESS", False)
@@ -2879,10 +2881,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         cli_tokens_avoided = int(
             cli_filtering_stats.get("tokens_saved", 0) if cli_filtering_stats else 0
         )
-        graphify_py = (
-            importlib.util.find_spec("graphifyy") is not None
-            or importlib.util.find_spec("graphify") is not None
-        )
+        from cutctx.graph.graphify import graphify_available
+
+        graphify_py = graphify_available()
         networkx_py = importlib.util.find_spec("networkx") is not None
         llmlingua_py = importlib.util.find_spec("llmlingua") is not None
         llmlingua_runtime_py = (
@@ -4502,6 +4503,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     async def get_config_flags(request: Request):
         """Get live intelligence layer feature flags."""
         await _require_local_admin_auth(request)
+        from cutctx.proxy.feature_flags import load_desired_feature_flags
         from cutctx.proxy.model_router import model_routing_mode_for_state
 
         model_router = getattr(proxy, "_model_router", None)
@@ -4517,9 +4519,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             or getattr(config, "ccr_handle_responses", False),
             "memory": getattr(config, "episodic_memory_enabled", False),
             "firewall": getattr(config, "firewall_enabled", False),
-            "rate_limiter": getattr(config, "rate_limiter_enabled", False),
+            "rate_limiter": getattr(config, "rate_limit_enabled", False),
+            "reversible_code": getattr(config, "enable_reversible_code", False),
             "orchestrator": getattr(config, "orchestrator_enabled", False),
             "orchestrator_mode": orchestrator_mode,
+            "desired_overrides": load_desired_feature_flags(),
         }
 
     @app.post("/admin/config/flags")
@@ -4527,7 +4531,25 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         """Update live intelligence layer feature flags at runtime."""
         await _require_local_admin_auth(request)
         payload = await request.json()
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=422, detail="config flags payload must be an object")
 
+        boolean_keys = {
+            "cache",
+            "ccr",
+            "memory",
+            "firewall",
+            "rate_limiter",
+            "reversible_code",
+            "orchestrator",
+        }
+        for key in boolean_keys.intersection(payload):
+            if not isinstance(payload[key], bool):
+                raise HTTPException(status_code=422, detail=f"{key} must be boolean")
+        if "orchestrator_mode" in payload and not isinstance(payload["orchestrator_mode"], str):
+            raise HTTPException(status_code=422, detail="orchestrator_mode must be a string")
+
+        from cutctx.proxy.feature_flags import persist_desired_feature_flags
         from cutctx.proxy.model_router import (
             ModelRouter,
             ModelRouterConfig,
@@ -4577,17 +4599,35 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             proxy._model_router = bind_registry(ModelRouter(config=fallback_config))
             config.orchestrator_enabled = True
 
-        if "cache" in payload:
-            config.cache_enabled = bool(payload["cache"])
+        desired_updates: dict[str, bool | str] = {}
+        legacy_desired_keys = {
+            "cache": "cache_enabled",
+            "firewall": "firewall_enabled",
+            "rate_limiter": "rate_limit_enabled",
+        }
+        for legacy_key, canonical_key in legacy_desired_keys.items():
+            if legacy_key in payload:
+                desired_updates[canonical_key] = bool(payload[legacy_key])
+        if bool(payload.get("memory")):
+            # Same entitlement gate as the canonical /config/flags route:
+            # episodic memory is a BUSINESS-tier feature.
+            await _runtime_require_entitlement("episodic_memory")(request)
+
+        if desired_updates:
+            try:
+                persist_desired_feature_flags(desired_updates)
+            except (OSError, ValueError) as exc:
+                logger.error("Failed to persist Governance desired state", exc_info=True)
+                raise HTTPException(
+                    status_code=500,
+                    detail="feature flag desired state could not be persisted",
+                ) from exc
+
         if "ccr" in payload:
             ccr_enabled = bool(payload["ccr"])
             config.ccr_context_tracking = ccr_enabled
             config.ccr_handle_responses = ccr_enabled
         if "memory" in payload:
-            if bool(payload["memory"]):
-                # Same entitlement gate as the canonical /config/flags route:
-                # episodic memory is a BUSINESS-tier feature.
-                await _runtime_require_entitlement("episodic_memory")(request)
             config.episodic_memory_enabled = bool(payload["memory"])
             if config.episodic_memory_enabled and getattr(proxy, "episodic_tracker", None) is None:
                 try:
@@ -4608,10 +4648,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     proxy.episodic_tracker = tracker
                 except ImportError as exc:
                     logger.warning("Could not load memory dependencies: %s", exc)
-        if "firewall" in payload:
-            config.firewall_enabled = bool(payload["firewall"])
-        if "rate_limiter" in payload:
-            config.rate_limit_enabled = bool(payload["rate_limiter"])
+        reversible_code_routers_updated = None
+        if "reversible_code" in payload:
+            from cutctx.proxy.routes.admin import set_live_reversible_code
+
+            config.enable_reversible_code = bool(payload["reversible_code"])
+            reversible_code_routers_updated = set_live_reversible_code(
+                proxy, config.enable_reversible_code
+            )
         if "orchestrator_mode" in payload:
             _apply_orchestrator_mode(str(payload["orchestrator_mode"]))
         if "orchestrator" in payload:
@@ -4626,6 +4670,18 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
 
         logger.info("Runtime configuration updated: %s", payload)
+        restart_required = {}
+        for legacy_key, canonical_key in {
+            "cache": "cache_enabled",
+            "firewall": "firewall_enabled",
+            "rate_limiter": "rate_limit_enabled",
+        }.items():
+            if legacy_key in payload:
+                restart_required[canonical_key] = {
+                    "requested": bool(payload[legacy_key]),
+                    "current": bool(getattr(config, canonical_key)),
+                    "desired": bool(payload[legacy_key]),
+                }
         return {
             "status": "success",
             "config": {
@@ -4634,10 +4690,22 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 "memory": bool(getattr(config, "episodic_memory_enabled", False)),
                 "firewall": bool(getattr(config, "firewall_enabled", False)),
                 "rate_limiter": bool(getattr(config, "rate_limit_enabled", False)),
+                "reversible_code": bool(getattr(config, "enable_reversible_code", False)),
                 "orchestrator": bool(getattr(config, "orchestrator_enabled", False)),
                 "orchestrator_mode": orchestrator_mode,
             },
             "payload": payload,
+            "restart_required": restart_required,
+            "applied_live": (
+                {
+                    "reversible_code": {
+                        "enabled": config.enable_reversible_code,
+                        "routers_updated": reversible_code_routers_updated,
+                    }
+                }
+                if reversible_code_routers_updated is not None
+                else {}
+            ),
         }
 
     try:
@@ -5184,6 +5252,22 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "--enable-reversible-code",
+        dest="enable_reversible_code",
+        action="store_true",
+        help=(
+            "Enable CCR-backed, syntax-checked Python function-body elision. "
+            "Enabled by default; also settable via CUTCTX_REVERSIBLE_CODE=1."
+        ),
+    )
+    parser.add_argument(
+        "--no-reversible-code",
+        dest="enable_reversible_code",
+        action="store_false",
+        help="Disable reversible code compression for this proxy process.",
+    )
+    parser.set_defaults(enable_reversible_code=None)
+    parser.add_argument(
         "--exclude-tools",
         default=None,
         help="Comma-separated tool names whose output is never compressed, "
@@ -5513,6 +5597,11 @@ if __name__ == "__main__":
         or str(_hr_paths.request_history_path()),
         log_full_messages=args.log_messages or _get_env_bool("CUTCTX_LOG_MESSAGES", False),
         code_aware_enabled=code_aware_enabled,
+        enable_reversible_code=(
+            _get_env_bool("CUTCTX_REVERSIBLE_CODE", True)
+            if args.enable_reversible_code is None
+            else args.enable_reversible_code
+        ),
         deterministic_mode=deterministic_mode,
         disable_kompress=disable_kompress,
         # Connection pool settings
@@ -5594,6 +5683,10 @@ if __name__ == "__main__":
             args.cost_forecast or _get_env_bool("CUTCTX_COST_FORECAST_ENABLED", False)
         ),
     )
+
+    from cutctx.proxy.feature_flags import apply_desired_feature_flags
+
+    apply_desired_feature_flags(config)
 
     # Get worker and concurrency settings
     workers = _get_env_int("CUTCTX_WORKERS", args.workers)

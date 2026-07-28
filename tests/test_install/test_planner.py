@@ -1,7 +1,49 @@
 from __future__ import annotations
 
 from cutctx.install.models import ConfigScope, InstallPreset, ProviderSelectionMode, ToolTarget
-from cutctx.install.planner import build_manifest, resolve_targets
+from cutctx.install.planner import build_manifest, build_product_manifest, resolve_targets
+
+
+def test_build_product_manifest_uses_persistent_service_and_explicit_reversible_code() -> None:
+    manifest = build_product_manifest(port=9123, backend="openai")
+
+    assert manifest.profile == "product"
+    assert manifest.preset == InstallPreset.PERSISTENT_SERVICE.value
+    assert manifest.runtime_kind == "python"
+    assert manifest.supervisor_kind == "service"
+    assert manifest.scope == "user"
+    assert manifest.port == 9123
+    assert manifest.base_env["CUTCTX_REVERSIBLE_CODE"] == "1"
+    assert "--enable-reversible-code" in manifest.proxy_args
+
+
+def test_build_product_manifest_preserves_product_profile_arguments() -> None:
+    manifest = build_product_manifest(
+        port=9123,
+        backend="anthropic",
+        proxy_args=("--host", "127.0.0.1", "--port", "9123", "--memory"),
+    )
+
+    assert manifest.proxy_args == [
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "9123",
+        "--memory",
+        "--enable-reversible-code",
+    ]
+
+
+def test_build_product_manifest_preserves_explicit_reversible_code_off() -> None:
+    manifest = build_product_manifest(
+        port=9123,
+        backend="anthropic",
+        proxy_args=("--host", "127.0.0.1", "--port", "9123", "--no-reversible-code"),
+    )
+
+    assert "--no-reversible-code" in manifest.proxy_args
+    assert "--enable-reversible-code" not in manifest.proxy_args
+    assert manifest.base_env["CUTCTX_REVERSIBLE_CODE"] == "0"
 
 
 def test_resolve_targets_auto_falls_back_when_detection_empty(monkeypatch) -> None:
