@@ -3,7 +3,6 @@ import { invoke } from '@tauri-apps/api/core'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import './App.css'
 import {
-  canRotateCredential,
   shouldShowCredentialInput,
   type CredentialStatus,
 } from './lib/credentials'
@@ -71,7 +70,6 @@ export default function App() {
 
   const color = trayColorForPhase(status.phase)
   const showCredentialInput = shouldShowCredentialInput(credential)
-  const showRotate = canRotateCredential(credential)
   const startEnabled = canStartProxy(status.phase)
   const stopEnabled = canStopProxy(status.phase)
   const restartEnabled = canRestartProxy(status.phase)
