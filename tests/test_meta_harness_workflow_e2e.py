@@ -119,7 +119,9 @@ async def test_planner_codex_implementer_reviewer_handoff(tmp_path, monkeypatch)
         Path(".cutctx/agents/example-implementer.yaml").read_text(encoding="utf-8")
     )
     fake = tmp_path / "fake_codex"
-    fake.write_text(Path("tests/fixtures/fake_codex_cli.py").read_text(encoding="utf-8"), encoding="utf-8")
+    fake.write_text(
+        Path("tests/fixtures/fake_codex_cli.py").read_text(encoding="utf-8"), encoding="utf-8"
+    )
     fake.chmod(0o755)
     monkeypatch.setenv("CUTCTX_CODEX_CLI_BIN", str(fake))
 

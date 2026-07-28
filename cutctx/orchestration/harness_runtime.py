@@ -30,7 +30,9 @@ class HarnessRuntime:
         except KeyError as exc:
             raise KeyError(f"unknown harness adapter: {harness_id}") from exc
 
-    async def run_task(self, workflow_id: str, task: TaskSpec, *, package_id: str) -> dict[str, Any]:
+    async def run_task(
+        self, workflow_id: str, task: TaskSpec, *, package_id: str
+    ) -> dict[str, Any]:
         package = self.registry.get(package_id)
         adapter = self.resolve(package.harness)
         ctx = HarnessRunContext(

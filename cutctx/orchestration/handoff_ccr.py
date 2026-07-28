@@ -32,9 +32,4 @@ def compress_artifact_for_handoff(
 
 
 def handoff_payload_from_artifacts(refs: list[ArtifactRef]) -> dict[str, object]:
-    return {
-        "artifact_refs": [
-            {"blob_id": ref.blob_id, "ccr_hash": ref.ccr_hash}
-            for ref in refs
-        ]
-    }
+    return {"artifact_refs": [{"blob_id": ref.blob_id, "ccr_hash": ref.ccr_hash} for ref in refs]}

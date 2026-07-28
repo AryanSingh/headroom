@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from cutctx.cache.compression_store import CompressionStore
 from cutctx.orchestration.artifact_store import ArtifactBlobStore
-from cutctx.orchestration.handoff_ccr import compress_artifact_for_handoff, handoff_payload_from_artifacts
+from cutctx.orchestration.handoff_ccr import (
+    compress_artifact_for_handoff,
+    handoff_payload_from_artifacts,
+)
 
 
 def test_compress_artifact_attaches_ccr_hash(tmp_path) -> None:

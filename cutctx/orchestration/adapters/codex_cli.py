@@ -19,7 +19,7 @@ class CodexCliAdapter:
         binary: str | None = None,
     ) -> None:
         self.blob_store = blob_store
-        self.binary = binary or os.environ.get("CUTCTX_CODEX_CLI_BIN", "codex")
+        self.binary: str = binary or os.environ.get("CUTCTX_CODEX_CLI_BIN") or "codex"
         self._active: dict[str, asyncio.subprocess.Process] = {}
 
     def capabilities(self) -> HarnessCapabilities:
@@ -31,7 +31,9 @@ class CodexCliAdapter:
     async def run(self, ctx: HarnessRunContext) -> HarnessRunResult:
         run_id = ctx.run_id or uuid.uuid4().hex
         env = {**os.environ, **ctx.env}
-        env.setdefault("CUTCTX_PROXY_URL", os.environ.get("CUTCTX_PROXY_URL", "http://127.0.0.1:8787"))
+        env.setdefault(
+            "CUTCTX_PROXY_URL", os.environ.get("CUTCTX_PROXY_URL", "http://127.0.0.1:8787")
+        )
         proc = await asyncio.create_subprocess_exec(
             self.binary,
             "exec",
@@ -51,7 +53,9 @@ class CodexCliAdapter:
         text = stdout.decode("utf-8", errors="replace")
         if "diff --git" in text:
             artifacts.append(
-                self.blob_store.ref_for_text(text, media_type="text/x-patch", provenance={"harness": self.harness_id})
+                self.blob_store.ref_for_text(
+                    text, media_type="text/x-patch", provenance={"harness": self.harness_id}
+                )
             )
         return HarnessRunResult(
             status=status,

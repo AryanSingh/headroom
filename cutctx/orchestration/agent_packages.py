@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 AGENT_PACKAGE_API_VERSION = "cutctx.dev/agent/v1"
 

@@ -13,7 +13,9 @@ from cutctx.orchestration.harness_adapter import HarnessRunContext
 @pytest.mark.asyncio
 async def test_codex_adapter_emits_patch_artifact(tmp_path) -> None:
     fake = tmp_path / "fake_codex"
-    fake.write_text(Path("tests/fixtures/fake_codex_cli.py").read_text(encoding="utf-8"), encoding="utf-8")
+    fake.write_text(
+        Path("tests/fixtures/fake_codex_cli.py").read_text(encoding="utf-8"), encoding="utf-8"
+    )
     fake.chmod(fake.stat().st_mode | stat.S_IXUSR)
     blobs = ArtifactBlobStore(tmp_path / "artifacts")
     adapter = CodexCliAdapter(blob_store=blobs, binary=str(fake))

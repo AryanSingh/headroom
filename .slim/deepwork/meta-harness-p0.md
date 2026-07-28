@@ -79,7 +79,7 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 | Task | Commit | Status |
 |---|---|---|
 | 9 — Workflow harness dispatch + e2e | `c993fff` | Done |
-| 10 — Public exports + docs + regression | (this commit) | Done |
+| 10 — Public exports + docs + regression | `33ff5ca` | Done |
 
 **Tests:** `tests/test_meta_harness_workflow_e2e.py` (1 passed)
 

@@ -11,7 +11,6 @@ from cutctx.orchestration.agent_packages import (
     parse_agent_package_yaml,
 )
 
-
 EXAMPLE = """\
 apiVersion: cutctx.dev/agent/v1
 id: implementer-codex
