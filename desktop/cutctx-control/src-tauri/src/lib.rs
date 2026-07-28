@@ -369,6 +369,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(state)
         .setup(|app| {
+            use tauri::menu::{Menu, MenuItem};
+            use tauri::tray::TrayIconBuilder;
+            use tauri::Manager;
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -376,6 +380,38 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            let show = MenuItem::with_id(app, "show", "Open Control", true, None::<&str>)?;
+            let start = MenuItem::with_id(app, "start", "Start Proxy", true, None::<&str>)?;
+            let stop = MenuItem::with_id(app, "stop", "Stop Proxy", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &start, &stop, &quit])?;
+
+            let mut tray = TrayIconBuilder::with_id("cutctx-control")
+                .menu(&menu)
+                .tooltip("CutCtx Control")
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "start" => {
+                        let state = app.state::<AppState>();
+                        let _ = start_proxy(state);
+                    }
+                    "stop" => {
+                        let state = app.state::<AppState>();
+                        let _ = stop_proxy(state);
+                    }
+                    "quit" => app.exit(0),
+                    _ => {}
+                });
+            if let Some(icon) = app.default_window_icon() {
+                tray = tray.icon(icon.clone());
+            }
+            let _ = tray.build(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
