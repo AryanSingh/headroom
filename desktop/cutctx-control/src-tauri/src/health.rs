@@ -63,15 +63,32 @@ impl HealthMachine {
     }
 
     pub fn on_health_ok(&mut self, tokens_saved: u64) {
-        let pending = self.status.phase == ProxyPhase::RestartPending;
-        if pending {
-            // stay amber until restart completes
+        // A fresh start/restart always clears restart-pending.
+        if matches!(
+            self.status.phase,
+            ProxyPhase::Starting | ProxyPhase::Stopping
+        ) {
+            self.status.phase = ProxyPhase::Healthy;
+            self.status.message = "Healthy".into();
+            self.status.tokens_saved = tokens_saved;
+            return;
+        }
+        if self.status.phase == ProxyPhase::RestartPending {
+            // Stay amber until an explicit restart cycles through Starting.
             self.status.tokens_saved = tokens_saved;
             return;
         }
         self.status.phase = ProxyPhase::Healthy;
         self.status.message = "Healthy".into();
         self.status.tokens_saved = tokens_saved;
+    }
+
+    /// Clear restart-pending after a successful supervised restart.
+    pub fn on_restart_applied(&mut self, tokens_saved: u64) {
+        self.status.phase = ProxyPhase::Healthy;
+        self.status.message = "Healthy — changes applied".into();
+        self.status.tokens_saved = tokens_saved;
+        self.status.external = false;
     }
 
     pub fn on_health_fail(&mut self, message: impl Into<String>) {
@@ -140,14 +157,35 @@ mod tests {
     }
 
     #[test]
-    fn stop_cycle() {
+    fn restart_cycle_clears_pending_and_is_green() {
         let mut m = HealthMachine::new(8787);
         m.on_start_requested();
-        m.on_health_ok(1);
+        m.on_health_ok(0);
+        m.on_toggle_needs_restart();
+        assert_eq!(m.status.phase, ProxyPhase::RestartPending);
+        // Poll while pending must not clear the amber state.
+        m.on_health_ok(7);
+        assert_eq!(m.status.phase, ProxyPhase::RestartPending);
+        // Restart: stop → start → healthy
         m.on_stop_requested();
-        assert_eq!(m.status.tray_color(), "grey");
         m.on_stopped();
-        assert_eq!(m.status.phase, ProxyPhase::Stopped);
-        assert_eq!(m.status.tray_color(), "red");
+        m.on_start_requested();
+        m.on_health_ok(7);
+        assert_eq!(m.status.phase, ProxyPhase::Healthy);
+        assert_eq!(m.status.tray_color(), "green");
+        assert_eq!(m.status.tokens_saved, 7);
+    }
+
+    #[test]
+    fn on_restart_applied_forces_healthy_supervised() {
+        let mut m = HealthMachine::new(8787);
+        m.on_start_requested();
+        m.on_health_ok(0);
+        m.on_external_detected();
+        m.on_toggle_needs_restart();
+        m.on_restart_applied(3);
+        assert_eq!(m.status.phase, ProxyPhase::Healthy);
+        assert!(!m.status.external);
+        assert_eq!(m.status.message, "Healthy — changes applied");
     }
 }

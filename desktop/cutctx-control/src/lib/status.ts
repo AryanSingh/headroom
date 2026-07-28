@@ -47,3 +47,23 @@ export function statusLabel(phase: ProxyPhase): string {
       return phase
   }
 }
+
+/** Proxy is up (or coming up) — Start must be disabled. */
+export function canStartProxy(phase: ProxyPhase): boolean {
+  return phase === 'stopped' || phase === 'error'
+}
+
+/** Proxy is down — Stop must be disabled. */
+export function canStopProxy(phase: ProxyPhase): boolean {
+  return (
+    phase === 'healthy' ||
+    phase === 'degraded' ||
+    phase === 'restart_pending' ||
+    phase === 'starting'
+  )
+}
+
+/** Restart is useful when running or when changes are pending. */
+export function canRestartProxy(phase: ProxyPhase): boolean {
+  return canStopProxy(phase) || phase === 'stopping'
+}

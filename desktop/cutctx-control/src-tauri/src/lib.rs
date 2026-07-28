@@ -4,6 +4,7 @@ mod codex_config;
 mod credentials;
 mod health;
 mod profiles;
+mod restart_apply;
 mod seat;
 mod supervisor;
 
@@ -271,11 +272,13 @@ fn start_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
 
 #[tauri::command]
 fn stop_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
+    let port = state.profile.lock().map_err(|e| e.to_string())?.port;
     {
         let mut health = state.health.lock().map_err(|e| e.to_string())?;
         health.on_stop_requested();
     }
-    state.supervisor.stop()?;
+    // Reclaim port so Stop works for attached/external proxies too.
+    state.supervisor.stop_and_reclaim_port(port)?;
     let mut health = state.health.lock().map_err(|e| e.to_string())?;
     health.on_stopped();
     Ok(health.status.clone())
@@ -283,9 +286,33 @@ fn stop_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
 
 #[tauri::command]
 fn restart_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
-    let _ = stop_proxy(state.clone())?;
-    std::thread::sleep(std::time::Duration::from_millis(400));
-    start_proxy(state)
+    let profile = state.profile.lock().map_err(|e| e.to_string())?.clone();
+    let port = profile.port;
+    {
+        let mut health = state.health.lock().map_err(|e| e.to_string())?;
+        health.on_stop_requested();
+    }
+    state.supervisor.stop_and_reclaim_port(port)?;
+    {
+        let mut health = state.health.lock().map_err(|e| e.to_string())?;
+        health.on_stopped();
+        health.on_start_requested();
+    }
+    let env_vars = {
+        let vault = state.credentials.lock().map_err(|e| e.to_string())?;
+        proxy_launch_env(&state.home, &vault)?
+    };
+    // Always spawn with the current profile argv so restart-required toggles apply.
+    state.supervisor.start(&profile, &env_vars)?;
+    std::thread::sleep(std::time::Duration::from_millis(900));
+    let tokens = probe_health(port)
+        .ok()
+        .and_then(|(ok, n)| if ok { Some(n) } else { None })
+        .unwrap_or(0);
+    let mut health = state.health.lock().map_err(|e| e.to_string())?;
+    health.on_restart_applied(tokens);
+    health.status.port = port;
+    Ok(health.status.clone())
 }
 
 #[tauri::command]

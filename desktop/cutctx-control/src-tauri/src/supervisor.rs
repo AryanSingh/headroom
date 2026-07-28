@@ -70,6 +70,55 @@ impl ProxySupervisor {
         }
         Ok(())
     }
+
+    /// Stop the supervised child and best-effort free `port` so a restart can
+    /// respawn with a new argv (including when we previously attached external).
+    pub fn stop_and_reclaim_port(&self, port: u16) -> Result<(), String> {
+        self.stop()?;
+        reclaim_listeners_on_port(port);
+        // Brief settle so the OS releases the bind.
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        Ok(())
+    }
+}
+
+/// Best-effort: terminate processes listening on `port` (Unix `lsof`).
+fn reclaim_listeners_on_port(port: u16) {
+    #[cfg(unix)]
+    {
+        use std::process::Command;
+        let output = Command::new("lsof")
+            .args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN", "-t"])
+            .output();
+        let Ok(output) = output else {
+            return;
+        };
+        if !output.status.success() {
+            return;
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for pid in stdout.split_whitespace() {
+            let Ok(pid) = pid.parse::<i32>() else {
+                continue;
+            };
+            let _ = Command::new("kill").args(["-TERM", &pid.to_string()]).status();
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        // Force stubborn listeners.
+        let output = Command::new("lsof")
+            .args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN", "-t"])
+            .output();
+        if let Ok(output) = output {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for pid in stdout.split_whitespace() {
+                let _ = Command::new("kill").args(["-KILL", pid]).status();
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = port;
+    }
 }
 
 #[cfg(test)]

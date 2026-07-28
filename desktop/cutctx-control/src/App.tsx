@@ -7,7 +7,14 @@ import {
   shouldShowCredentialInput,
   type CredentialStatus,
 } from './lib/credentials'
-import { statusLabel, trayColorForPhase, type ProxyPhase } from './lib/status'
+import {
+  canRestartProxy,
+  canStartProxy,
+  canStopProxy,
+  statusLabel,
+  trayColorForPhase,
+  type ProxyPhase,
+} from './lib/status'
 
 type ProxyStatus = {
   phase: ProxyPhase
@@ -65,6 +72,9 @@ export default function App() {
   const color = trayColorForPhase(status.phase)
   const showCredentialInput = shouldShowCredentialInput(credential)
   const showRotate = canRotateCredential(credential)
+  const startEnabled = canStartProxy(status.phase)
+  const stopEnabled = canStopProxy(status.phase)
+  const restartEnabled = canRestartProxy(status.phase)
 
   const grouped = useMemo(() => {
     const map = new Map<string, CatalogEntry[]>()
@@ -244,13 +254,25 @@ export default function App() {
       <section className="panel">
         <h2>Power</h2>
         <div className="actions">
-          <button className="btn primary" disabled={busy} onClick={() => void run(() => call('start_proxy'))}>
+          <button
+            className="btn primary"
+            disabled={busy || !startEnabled}
+            onClick={() => void run(() => call('start_proxy'))}
+          >
             Start
           </button>
-          <button className="btn danger" disabled={busy} onClick={() => void run(() => call('stop_proxy'))}>
+          <button
+            className="btn danger"
+            disabled={busy || !stopEnabled}
+            onClick={() => void run(() => call('stop_proxy'))}
+          >
             Stop
           </button>
-          <button className="btn" disabled={busy} onClick={() => void run(() => call('restart_proxy'))}>
+          <button
+            className="btn"
+            disabled={busy || !restartEnabled}
+            onClick={() => void run(() => call('restart_proxy'))}
+          >
             Restart
           </button>
           <button
