@@ -13,6 +13,110 @@ import click
 
 from .main import main
 
+_BUYER_CAVEAT = "Rates below are for eligible compressible payloads unless labeled all-traffic."
+
+_BUYER_ELIGIBLE_NOTE = (
+    "Eligible requests = total requests minus those bypassed as too small to compress."
+)
+
+_BUYER_NO_BYPASS_NOTE = (
+    "No request in this period recorded a bypassed-as-too-small reason, so the "
+    "eligible rate is the all-traffic rate. Treat them as one measurement, not two."
+)
+
+_SMALL_DECLINE_REASONS = frozenset(
+    {
+        "below_threshold",
+        "too_small",
+        "below_min_tokens",
+    }
+)
+
+
+def _derive_buyer_honesty_fields(row: dict[str, Any]) -> dict[str, bool]:
+    """Derive compressed/bypassed_small from persisted tracker telemetry."""
+    if "bypassed_small" in row:
+        bypassed_small = bool(row["bypassed_small"])
+    else:
+        reason = row.get("decline_reason")
+        normalized = None
+        if isinstance(reason, str) and reason.strip():
+            from cutctx.proxy.outcome import normalize_decline_reason
+
+            normalized = normalize_decline_reason(reason)
+        bypassed_small = normalized in _SMALL_DECLINE_REASONS
+
+    if "compressed" in row:
+        compressed = bool(row["compressed"])
+    else:
+        funnel = row.get("opportunity_funnel") or {}
+        compressed_tokens = 0
+        if isinstance(funnel, dict):
+            compressed_tokens = int(funnel.get("compressed_tokens", 0) or 0)
+        sources = row.get("savings_by_source_tokens") or {}
+        cutctx_compression = 0
+        if isinstance(sources, dict):
+            cutctx_compression = int(sources.get("cutctx_compression", 0) or 0)
+        compressed = compressed_tokens > 0 or cutctx_compression > 0
+
+    return {"compressed": compressed, "bypassed_small": bypassed_small}
+
+
+def build_buyer_report_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build honesty fields for the buyer ROI report.
+
+    Separates Cutctx-created compression savings from observed provider
+    cache discounts, and reports eligible vs all-traffic compression rates.
+    """
+    requests_total = len(rows)
+    requests_compressed = 0
+    requests_bypassed_small = 0
+    created_savings_tokens = 0
+    observed_provider_cache_tokens = 0
+
+    for row in rows:
+        sources = row.get("savings_by_source_tokens") or {}
+        if not isinstance(sources, dict):
+            sources = {}
+        created_savings_tokens += int(sources.get("cutctx_compression", 0) or 0)
+        observed_provider_cache_tokens += int(sources.get("provider_prompt_cache", 0) or 0)
+
+        bypassed = bool(row.get("bypassed_small"))
+        if bypassed:
+            requests_bypassed_small += 1
+
+        compressed = row.get("compressed")
+        if compressed is None:
+            compressed = int(sources.get("cutctx_compression", 0) or 0) > 0
+        if compressed and not bypassed:
+            requests_compressed += 1
+
+    eligible = max(0, requests_total - requests_bypassed_small)
+    eligible_rate = (requests_compressed / eligible) if eligible else 0.0
+    all_traffic_rate = (requests_compressed / requests_total) if requests_total else 0.0
+
+    # The eligible/all-traffic split is only a real distinction when the
+    # request path recorded a below-threshold decline reason. Today most
+    # producers emit no per-request reason, so the two rates collapse. Say
+    # that out loud rather than printing one number twice as if it were two
+    # measurements.
+    bypass_telemetry_available = requests_bypassed_small > 0
+
+    return {
+        "requests_total": requests_total,
+        "requests_compressed": requests_compressed,
+        "requests_bypassed_small": requests_bypassed_small,
+        "eligible_compression_rate": eligible_rate,
+        "all_traffic_compression_rate": all_traffic_rate,
+        "bypass_telemetry_available": bypass_telemetry_available,
+        "created_savings_tokens": created_savings_tokens,
+        "observed_provider_cache_tokens": observed_provider_cache_tokens,
+        "caveat": _BUYER_CAVEAT,
+        "eligibility_note": (
+            _BUYER_ELIGIBLE_NOTE if bypass_telemetry_available else _BUYER_NO_BYPASS_NOTE
+        ),
+    }
+
 
 def _get_schedule_path() -> Path:
     """Get the schedule config file path."""
@@ -106,6 +210,7 @@ def _collect_savings_history(days: int) -> list[dict[str, Any]]:
 
     from cutctx.proxy.savings_tracker import (
         SCHEMA_VERSION,
+        _normalize_history_entry,
         get_default_savings_storage_path,
     )
 
@@ -126,46 +231,51 @@ def _collect_savings_history(days: int) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     history = payload.get("history") or []
     for raw in history:
-        ts_str = raw.get("timestamp")
+        normalized = _normalize_history_entry(raw)
+        if normalized is None:
+            continue
+        ts_str = normalized.get("timestamp")
         ts = _parse_iso(ts_str) if isinstance(ts_str, str) else None
         if start is not None and ts is not None and ts < start:
             continue
-        rows.append(
-            {
-                "timestamp": ts_str,
-                "provider": raw.get("provider"),
-                "model": raw.get("model"),
-                # Per-request DELTAS only. Never fall back to the lifetime
-                # counters that sit alongside them.
-                #
-                # `compression_savings_usd`, `cache_savings_usd` and
-                # `total_tokens_saved` are cumulative running totals — $10,794
-                # on the first history row and $12,000 on the last. The old
-                # `delta or cumulative` fallback substituted that running total
-                # whenever a row had no delta (1,006 of 5,000 rows here), and
-                # the caller then SUMS these rows. Summing a monotonic counter
-                # as though it were a delta inflated the buyer-facing ROI
-                # report by ~9,730x: it reported $1,740,947 saved where the
-                # truth was $1,236.
-                #
-                # A row without a delta contributed nothing measurable, so it
-                # contributes zero. Under-reporting an unrecorded row is
-                # survivable; inflating an ROI number by four orders of
-                # magnitude in front of a buyer is not.
-                "tokens_saved": _delta_int(raw, "delta_tokens_saved"),
-                "compression_savings_usd": _delta_float(raw, "delta_savings_usd"),
-                "cache_savings_usd": _delta_float(raw, "delta_cache_savings_usd"),
-                # Deliberately excludes savings_by_source_usd: that dict is a
-                # breakdown *of* these same deltas, and adding it here double
-                # counted every attributed request.
-                "cost_savings_usd": (
-                    _delta_float(raw, "delta_savings_usd")
-                    + _delta_float(raw, "delta_cache_savings_usd")
-                ),
-                "savings_by_source_tokens": dict(raw.get("savings_by_source_tokens") or {}),
-                "savings_by_source_usd": dict(raw.get("savings_by_source_usd") or {}),
-            }
-        )
+        row = {
+            "timestamp": ts_str,
+            "provider": normalized.get("provider"),
+            "model": normalized.get("model"),
+            # Per-request DELTAS only. Never fall back to the lifetime
+            # counters that sit alongside them.
+            #
+            # `compression_savings_usd`, `cache_savings_usd` and
+            # `total_tokens_saved` are cumulative running totals — $10,794
+            # on the first history row and $12,000 on the last. The old
+            # `delta or cumulative` fallback substituted that running total
+            # whenever a row had no delta (1,006 of 5,000 rows here), and
+            # the caller then SUMS these rows. Summing a monotonic counter
+            # as though it were a delta inflated the buyer-facing ROI
+            # report by ~9,730x: it reported $1,740,947 saved where the
+            # truth was $1,236.
+            #
+            # A row without a delta contributed nothing measurable, so it
+            # contributes zero. Under-reporting an unrecorded row is
+            # survivable; inflating an ROI number by four orders of
+            # magnitude in front of a buyer is not.
+            "tokens_saved": _delta_int(raw, "delta_tokens_saved"),
+            "compression_savings_usd": _delta_float(raw, "delta_savings_usd"),
+            "cache_savings_usd": _delta_float(raw, "delta_cache_savings_usd"),
+            # Deliberately excludes savings_by_source_usd: that dict is a
+            # breakdown *of* these same deltas, and adding it here double
+            # counted every attributed request.
+            "cost_savings_usd": (
+                _delta_float(raw, "delta_savings_usd")
+                + _delta_float(raw, "delta_cache_savings_usd")
+            ),
+            "savings_by_source_tokens": dict(normalized.get("savings_by_source_tokens") or {}),
+            "savings_by_source_usd": dict(normalized.get("savings_by_source_usd") or {}),
+            "opportunity_funnel": dict(normalized.get("opportunity_funnel") or {}),
+            "decline_reason": normalized.get("decline_reason"),
+        }
+        row.update(_derive_buyer_honesty_fields(row))
+        rows.append(row)
     return rows
 
 
@@ -570,6 +680,8 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             compression_usd += row_compression_usd
             cache_usd += row_cache_usd
 
+    honesty = build_buyer_report_payload(data)
+
     if fmt == "json":
         payload = {
             "period_days": days,
@@ -599,16 +711,34 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
                 "upstream side; Cutctx compression, self-hosted prefix "
                 "cache, and model routing are observed on the proxy side."
             ),
+            **honesty,
         }
         content = json.dumps(payload, indent=2)
     elif fmt == "markdown":
         lines: list[str] = []
         lines.append(f"# Cutctx ROI Report — last {days} days")
         lines.append("")
+        lines.append(f"> {honesty['caveat']}")
+        lines.append(">")
+        lines.append(f"> {honesty['eligibility_note']}")
+        lines.append("")
         lines.append("## Combined savings")
         lines.append("")
         lines.append(f"- **Total tokens saved:** {total_tokens:,}")
         lines.append(f"- **Total USD saved:** ${total_usd:,.2f}")
+        lines.append(
+            f"- **Requests:** {honesty['requests_total']} total, "
+            f"{honesty['requests_compressed']} compressed, "
+            f"{honesty['requests_bypassed_small']} bypassed (too small)"
+        )
+        lines.append(f"- **Eligible compression rate:** {honesty['eligible_compression_rate']:.1%}")
+        lines.append(
+            f"- **All-traffic compression rate:** {honesty['all_traffic_compression_rate']:.1%}"
+        )
+        lines.append(f"- **Created (Cutctx) tokens:** {honesty['created_savings_tokens']:,}")
+        lines.append(
+            f"- **Observed provider cache tokens:** {honesty['observed_provider_cache_tokens']:,}"
+        )
         lines.append("")
         lines.append("## By source")
         lines.append("")
@@ -649,8 +779,25 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         lines.append(f"Cutctx ROI Report — last {days} days")
         lines.append("=" * 50)
         lines.append("")
+        lines.append(honesty["caveat"])
+        lines.append(honesty["eligibility_note"])
+        lines.append("")
         lines.append(f"Total tokens saved:        {total_tokens:>12,}")
         lines.append(f"Total USD saved:            ${total_usd:>11,.2f}")
+        lines.append(
+            f"Requests (compressed/bypassed/total): "
+            f"{honesty['requests_compressed']}/"
+            f"{honesty['requests_bypassed_small']}/"
+            f"{honesty['requests_total']}"
+        )
+        lines.append(f"Eligible compression rate:  {honesty['eligible_compression_rate']:>11.1%}")
+        lines.append(
+            f"All-traffic compression:    {honesty['all_traffic_compression_rate']:>11.1%}"
+        )
+        lines.append(f"Created (Cutctx) tokens:    {honesty['created_savings_tokens']:>12,}")
+        lines.append(
+            f"Observed provider cache:    {honesty['observed_provider_cache_tokens']:>12,}"
+        )
         lines.append("")
         lines.append("By source:")
         for src in SavingsSource:

@@ -883,6 +883,11 @@ class ContentRouterConfig:
     selective_filter_protect_recent: int = 6
     selective_filter_scorer: str = "bm25"  # "bm25" or "hybrid"
 
+    # Skill/instruction preservation: detect SKILL.md / AGENTS-style blocks and
+    # skip aggressive crushers on those messages. Default on; wrap can reinforce
+    # via CUTCTX_SKILL_PRESERVE=1.
+    skill_preserve: bool = True
+
     # Pre-compress hook: called before each `compress()` invocation with
     # ``(router, content, context)``.  The proxy uses this to resolve the
     # user query through the stack graph and set protected symbols on the
@@ -2898,13 +2903,34 @@ class ContentRouter(Transform):
                 diagnostics={"content_router": {"compression_mode": CompressionMode.OFF.value}},
             )
 
+        # Skill/instruction preserve: resolve the config once, then derive
+        # protected indices where they are needed. We deliberately do NOT
+        # annotate the message dicts — an extra key is rejected by provider
+        # APIs on the outbound request and makes an untouched body look
+        # mutated to the byte-faithful forwarder.
+        skill_preserve_cfg = None
+        if self.config.skill_preserve and messages:
+            try:
+                from .skill_preserve import SkillPreserveConfig
+
+                env_flag = os.environ.get("CUTCTX_SKILL_PRESERVE", "1").strip().lower()
+                if env_flag not in {"0", "false", "off", "no"}:
+                    skill_preserve_cfg = SkillPreserveConfig(enabled=True)
+            except Exception as _sp_exc:
+                logger.debug("skill_preserve config failed (non-fatal): %s", _sp_exc)
+
         # Selective filtering: drop low-relevance turns before compression.
         # Runs FIRST (before read_lifecycle and all compression logic).
         if self.config.selective_filter and messages:
             try:
                 sf = self._get_selective_filter()
                 if sf is not None:
-                    messages, _sf_result = sf.filter(messages)
+                    _sf_preserve: frozenset[int] = frozenset()
+                    if skill_preserve_cfg is not None:
+                        from .skill_preserve import skill_preserve_indices
+
+                        _sf_preserve = skill_preserve_indices(messages, config=skill_preserve_cfg)
+                    messages, _sf_result = sf.filter(messages, preserve_indices=_sf_preserve)
                     if _sf_result.messages_dropped > 0:
                         logger.debug(
                             "selective_filter: %d -> %d messages (%d dropped)",
@@ -2941,6 +2967,25 @@ class ContentRouter(Transform):
             kwargs.get("compress_user_messages") is not True and self.config.skip_user_messages
         )
         skip_system = kwargs.get("compress_system_messages") is not True
+
+        # Skill-preserved indices for the routing pass. Recomputed here because
+        # the selective filter and read-lifecycle stages above may have dropped
+        # or rewritten messages, which shifts indices.
+        skill_preserved: frozenset[int] = frozenset()
+        if skill_preserve_cfg is not None:
+            from .skill_preserve import skill_preserve_indices
+
+            skill_preserved = skill_preserve_indices(messages, config=skill_preserve_cfg)
+            if not skip_system:
+                # The caller explicitly asked for system/developer compression
+                # (e.g. the agent_90 / max_savings profiles). That opt-in wins
+                # over preservation, or the profile silently under-delivers.
+                skill_preserved = frozenset(
+                    i
+                    for i in skill_preserved
+                    if messages[i].get("role") not in {"system", "developer"}
+                )
+
         protect_recent = kwargs.get("protect_recent", self.config.protect_recent_code)
         protect_analysis = kwargs.get(
             "protect_analysis_context", self.config.protect_analysis_context
@@ -3135,6 +3180,11 @@ class ContentRouter(Transform):
             role = message.get("role", "")
             content = message.get("content", "")
             bias = 1.0  # Default bias, may be overridden for tool messages
+
+            if i in skill_preserved:
+                result_slots[i] = message
+                transforms_applied.append("skill_preserve:passthrough")
+                continue
 
             messages_from_end = num_messages - i
 

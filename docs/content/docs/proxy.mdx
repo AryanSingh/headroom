@@ -261,6 +261,17 @@ Older request-log rows are returned with
 `observation.completeness="legacy"`; their receipt is inferred only from the
 historical fields that were stored. Treat missing legacy evidence as unknown.
 
+### AIE buyer mapping
+
+| AIE language | Cutctx surface |
+|---|---|
+| Agents need receipts | Decision receipts + `cutctx report buyer` |
+| Permissions / provenance | Local firewall (`CUTCTX_FIREWALL_ENABLED=1`) + audit (entitled) + CCR hashes |
+| Verifiers are king | Thin compression / skill-survival evals (`cutctx.evals.skill_survival`) |
+
+Builder can run the local firewall scan without a license. Audit export and paid
+memory features remain entitlement-gated (fail closed).
+
 ### `GET /metrics`
 
 Prometheus-format metrics for monitoring.

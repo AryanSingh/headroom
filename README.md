@@ -139,7 +139,7 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 
 ## Proof
 
-**Per-workload savings on eligible payloads:**
+**Per-workload savings on eligible payloads** (tool outputs, logs, long RAG/code dumps): see `cutctx report buyer` for created vs observed attribution. Short prompts are often bypassed and must not be averaged into headline claims.
 
 | Workload                      | Before | After  | Savings |
 |-------------------------------|-------:|-------:|--------:|

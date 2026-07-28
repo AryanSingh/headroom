@@ -1,4 +1,338 @@
-# QA Audit Report — Cutctx
+# QA Audit Report — AIE Commercial Capability Integration
+
+**Date:** 2026-07-27  
+**Branch:** `feat/aie-commercial-capability-integration`  
+**Commit:** `25714eb5` — `test: add thin skill-survival and attribution integrity evals`  
+**Worktree:** `.worktrees/aie-commercial-capability-integration`  
+**Auditor:** Staff QA (read-only audit + test execution)  
+**Diff vs `main`:** 9 commits, 22 files, +699 / −18 lines
+
+---
+
+## Executive summary
+
+| Area | Verdict | Score |
+|------|---------|-------|
+| Skill/instruction preservation (compression pipeline) | **PASS** | 90/100 |
+| Wrap-time skill discovery | **PASS** | 88/100 |
+| Buyer report honesty fields | **CONDITIONAL** | 72/100 |
+| Docs / GTM packaging | **PASS** | 92/100 |
+| Thin evals (`skill_survival`) | **PASS** | 85/100 |
+| Firewall builder availability | **PASS** | 95/100 |
+| Entitlements / licensing regression | **PASS** | 95/100 |
+
+**Overall QA score: 84/100**
+
+**Release verdict: CONDITIONAL GO** — Core skill-preserve and discovery paths are tested and working. Buyer-report eligible vs all-traffic separation is implemented and unit-tested but **not wired to persisted savings rows**, so production CLI output currently shows identical eligible and all-traffic rates. Fix or document before GTM claims that depend on that split.
+
+### Post-audit remediation (2026-07-27)
+
+Subsequent commits on the same branch **resolve the P1 buyer-report gap** audited at `25714eb5`:
+
+| Commit | Fix |
+|--------|-----|
+| `c9fe67cf` | `_collect_savings_history` → `_normalize_history_entry` + `_derive_buyer_honesty_fields` wires `bypassed_small` / `compressed` from `decline_reason`, `opportunity_funnel`, and `savings_by_source_tokens` |
+| `6e2561ae` | Skill preserve markers narrowed so tool-role logs are not auto-protected |
+
+**Re-verification:** `rtk pytest tests/test_buyer_report_honesty.py tests/test_savings_buyer_report.py -q` → **13 passed** at `6e2561ae`.
+
+**Updated verdict (buyer report): PASS** — eligible vs all-traffic split is wired for persisted savings rows. Remaining pre-merge items: UI/UX P0 copy (see `audit/ui-ux-review-aie-commercial.md`), not functional QA blockers.
+
+---
+
+## Scope (9 commits)
+
+| Commit | Summary |
+|--------|---------|
+| `624a2b3b` | `feat(compression): detect skill and instruction blocks for preservation` |
+| `a7535197` | `feat(compression): never drop skill-preserved messages in selective filter` |
+| `41844a99` | `feat(compression): honor skill_preserve in content router` |
+| `8a61f61b` | `feat(wrap): discover installed skills and enable skill_preserve` |
+| `d37e56f7` | `fix(report): expose eligible vs all-traffic savings honesty fields` |
+| `d7a742b0` | `docs: package Cutctx as a progressive skill with preserve semantics` |
+| `9a8d8074` | `docs: position Cutctx as the context plane under agent harnesses` |
+| `82cdcb54` | `docs: map AIE receipts/security language to Cutctx surfaces` |
+| `25714eb5` | `test: add thin skill-survival and attribution integrity evals` |
+
+---
+
+## Feature inventory
+
+### 1. Skill/instruction preservation (`skill_preserve.py`)
+
+**Files:** `cutctx/transforms/skill_preserve.py`
+
+| Capability | Evidence |
+|------------|----------|
+| Detect YAML front matter (`---` + `name:` in first 200 chars) | `tests/test_skill_preserve.py::test_detects_skill_frontmatter_and_body` — PASS |
+| Detect `# AGENTS` / RTK instruction blocks | `tests/test_skill_preserve.py::test_detects_agents_md_style_instructions` — PASS |
+| Ignore ordinary tool logs | `tests/test_skill_preserve.py::test_ignores_ordinary_tool_log` — PASS |
+| Annotate `system` + skill-like `user` messages with `metadata.cutctx_skill_preserve` | `tests/test_skill_preserve.py::test_annotate_marks_system_and_skill_messages` — PASS |
+| `SkillPreserveConfig(enabled=False)` is a no-op | `tests/test_skill_preserve.py::test_disabled_config_is_noop` — PASS |
+
+**Implementation refs:**
+
+- Marker list and front-matter heuristic: `cutctx/transforms/skill_preserve.py:8–35`
+- Annotation: `cutctx/transforms/skill_preserve.py:38–56`
+
+### 2. Selective filter integration (`selective_filter.py`)
+
+**Files:** `cutctx/transforms/selective_filter.py`
+
+| Capability | Evidence |
+|------------|----------|
+| `preserve_skills` config (default `True`) | `selective_filter.py:49–50` |
+| Never drop messages with `metadata.cutctx_skill_preserve === True` | `selective_filter.py:178–181` |
+| Skill message kept under `min_score=0.99` | `tests/test_selective_filter_skill_preserve.py` — PASS |
+
+### 3. Content router integration (`content_router.py`)
+
+**Files:** `cutctx/transforms/content_router.py`
+
+| Capability | Evidence |
+|------------|----------|
+| `ContentRouterConfig.skill_preserve` default `True` | `content_router.py:851–854`; test PASS |
+| Annotate before selective filter | `content_router.py:2815–2858` |
+| Honor `CUTCTX_SKILL_PRESERVE` env (`0/false/off/no` disables) | `content_router.py:2825–2839` |
+| Merge `CUTCTX_SKILL_MARKERS` into marker set | `content_router.py:2827–2837` |
+| Passthrough on protected messages (no aggressive crush) | `content_router.py:3081–3085` |
+| Skill body survives compression | `tests/test_content_router_skill_preserve.py::test_skill_body_not_aggressively_crushed` — PASS |
+
+### 4. Wrap-time skill discovery (`skill_discovery.py`, `wrap.py`)
+
+**Files:** `cutctx/transforms/skill_discovery.py`, `cutctx/cli/wrap.py:464–472`
+
+| Capability | Evidence |
+|------------|----------|
+| Discover `~/.claude/skills`, `~/.codex/skills`, project `.claude` / `.agents` | `tests/test_skill_discovery.py` — PASS |
+| Extract `name:` from SKILL.md front matter | `skill_discovery.py:60–80` |
+| Fallback to directory name when front matter missing | Manual: `load_skill_preserve_markers` → `('my-skill',)` — PASS |
+| Export `CUTCTX_SKILL_PRESERVE=1` and optional `CUTCTX_SKILL_MARKERS` | `skill_discovery.py:83–94` |
+| Wrap injects env into proxy subprocess | `wrap.py:464–472` |
+| Discovery failure → fallback `CUTCTX_SKILL_PRESERVE=1` | `wrap.py:471–472` (bare `except`) |
+
+**Live discovery (this machine):**
+
+```text
+discovered_count: 86
+CUTCTX_SKILL_MARKERS length: 1368 chars
+env_updates keys: CUTCTX_SKILL_PRESERVE, CUTCTX_SKILL_MARKERS
+```
+
+Command: `PYTHONPATH=. python3 -c "from cutctx.transforms.skill_discovery import skill_preserve_env_updates; print(skill_preserve_env_updates())"`
+
+### 5. Buyer report honesty (`report.py`)
+
+**Files:** `cutctx/cli/report.py`
+
+| Field | Purpose |
+|-------|---------|
+| `eligible_compression_rate` | Compressed / (total − bypassed_small) |
+| `all_traffic_compression_rate` | Compressed / total |
+| `created_savings_tokens` | Sum of `cutctx_compression` tokens |
+| `observed_provider_cache_tokens` | Sum of `provider_prompt_cache` tokens |
+| `caveat` | Eligible vs all-traffic labeling note |
+
+**Unit tests:** `tests/test_buyer_report_honesty.py` — 2 tests PASS
+
+**CLI (worktree code via `PYTHONPATH=.`):**
+
+```bash
+PYTHONPATH=. python3 -m cutctx.cli.main report buyer --format text --days 0
+```
+
+Sample output (truncated):
+
+```text
+Rates below are for eligible compressible payloads unless labeled all-traffic.
+Eligible compression rate:        14.7%
+All-traffic compression:          14.7%
+Created (Cutctx) tokens:       1,862,424
+Observed provider cache:     502,782,076
+```
+
+JSON includes honesty keys when run from worktree:
+
+```json
+{
+  "eligible_compression_rate": 0.1472,
+  "all_traffic_compression_rate": 0.1472,
+  "caveat": "Rates below are for eligible compressible payloads unless labeled all-traffic.",
+  "requests_total": 5000,
+  "requests_compressed": 736,
+  "requests_bypassed_small": 0
+}
+```
+
+**Installed global CLI (`cutctx` 0.32.0 at `/opt/homebrew/bin/cutctx`):** JSON output **does not** include honesty fields — expected until branch is released/installed.
+
+### 6. Thin evals (`skill_survival.py`)
+
+**Files:** `cutctx/evals/skill_survival.py`, `tests/test_eval_skill_survival.py`
+
+| Eval | Evidence |
+|------|----------|
+| `evaluate_skill_survival` — 95% rule retention default | 3 tests PASS |
+| `check_attribution_invariant` — created ≠ observed double-count | PASS |
+| Fixture uses 20 `SKILL_SURVIVAL_RULE_*` strings | `skill_survival.py:14–22` |
+
+### 7. Firewall builder availability
+
+**File:** `tests/test_firewall_builder_available.py`
+
+| Check | Evidence |
+|-------|----------|
+| `FirewallScanner(FirewallConfig(enabled=True)).scan_text("SSN ...")` returns findings without EE license | PASS |
+
+**Regression:** `rtk pytest tests/ -k "firewall"` — **100 passed**
+
+### 8. Docs / GTM
+
+| Asset | Change verified |
+|-------|-----------------|
+| `docs/content/docs/skills.mdx` | Skill-aware compression, env vars, wrap discovery paths |
+| `docs/content/docs/global-routing.mdx` | Context plane positioning under harnesses |
+| `docs/content/docs/proxy.mdx` | References `cutctx.evals.skill_survival` |
+| `docs/content/docs/meta.json` | `"skills"` nav entry added |
+| `plugins/cutctx-plugin/skills/cutctx/SKILL.md` | Progressive disclosure + honest savings guidance |
+| `artifacts/value-proposition.md` | Skills + MCP pillar, attributed ROI |
+| `README.md` | Per-workload table caveat + `cutctx report buyer` pointer |
+| `website/index.html` | “Context control plane under your agents” section |
+
+---
+
+## Test execution summary
+
+| Suite | Command | Result |
+|-------|---------|--------|
+| New feature tests (7 files) | `rtk pytest tests/test_skill_preserve.py tests/test_skill_discovery.py tests/test_buyer_report_honesty.py tests/test_content_router_skill_preserve.py tests/test_selective_filter_skill_preserve.py tests/test_eval_skill_survival.py tests/test_firewall_builder_available.py` | **16 passed** |
+| Keyword regression | `rtk pytest tests/ -k "skill_preserve or skill_discovery or buyer_report or skill_survival or firewall_builder"` | **28 passed** |
+| Firewall full | `rtk pytest tests/ -k "firewall"` | **100 passed** |
+| Buyer / report | `rtk pytest tests/ -k "buyer or report_honesty"` | **16 passed** |
+
+No failures observed in scoped runs.
+
+---
+
+## User flow verification
+
+### CLI: `cutctx report buyer`
+
+| Step | Result | Notes |
+|------|--------|-------|
+| `--format json` | PASS (worktree) | Honesty fields present with `PYTHONPATH=.` |
+| `--format text` | PASS | Caveat + both rates in stdout |
+| `--format markdown` | Not executed | Code path mirrors text fields at `report.py:631–657` |
+| Legacy fallback when no savings history | PASS | Report renders with zeros; honesty still computed |
+| Global `cutctx` 0.32.0 | **GAP** | Pre-branch binary lacks honesty fields |
+
+### CLI: `cutctx wrap` (skill env injection)
+
+| Step | Result | Notes |
+|------|--------|-------|
+| Code review `wrap.py:464–472` | PASS | Calls `skill_preserve_env_updates(project_root=cwd)` |
+| Error handling | PASS | Bare except → `CUTCTX_SKILL_PRESERVE=1` |
+| Full wrap E2E | **NOT RUN** | Requires proxy spawn + agent session (out of scoped audit) |
+
+### Compression with skills
+
+| Step | Result | Notes |
+|------|--------|-------|
+| Annotate + selective filter | PASS | Test + manual |
+| ContentRouter passthrough | PASS | Test |
+| `CUTCTX_SKILL_PRESERVE=0` | PASS | Manual — annotation disabled |
+| End-to-end proxy request | **NOT RUN** | Would need live proxy + annotated traffic |
+
+---
+
+## API / database
+
+- **No new HTTP API endpoints** in this diff.
+- **No schema migrations.**
+- Buyer report reads existing `proxy_savings.json` via `_collect_savings_history` (`report.py:126–193`).
+
+---
+
+## Edge cases & error handling
+
+| Case | Expected | Observed |
+|------|----------|----------|
+| Empty skill directories | `CUTCTX_SKILL_PRESERVE=1` only | PASS |
+| Missing SKILL.md / OSError on read | Skip path, continue | PASS (`load_skill_preserve_markers`) |
+| `name:` after 200 chars in front matter | Not detected as skill | **FAIL heuristic** — manual: `late name marker: False` |
+| Very long marker list (86 skills) | Env still injectable | PASS — 1368 chars |
+| Skill preserve annotate exception | Non-fatal debug log | `content_router.py:2840–2841` |
+| Selective filter scoring failure | Keep message | `selective_filter.py:197–199` |
+| `build_buyer_report_payload([])` | Zero rates + caveat | PASS |
+
+---
+
+## Permissions / entitlements
+
+| Check | Result |
+|-------|--------|
+| Firewall without EE license | PASS — `test_firewall_builder_available.py` |
+| Firewall regression suite | 100 passed |
+| No changes to license gates in diff | Confirmed via `git diff main...HEAD --stat` (no `license` / `entitlement` files) |
+
+---
+
+## Defects & gaps
+
+### P1 — Eligible vs all-traffic rates not differentiated in production data
+
+**Severity:** P1 (GTM honesty)  
+**Evidence:**
+
+- `build_buyer_report_payload` expects per-row `bypassed_small` and `compressed` (`report.py:40–48`).
+- `_collect_savings_history` maps tracker rows **without** those fields (`report.py:162–191`).
+- Live savings sample keys: no `bypassed_small`, no `compressed`; `opportunity_funnel` has no bypass flag.
+- Production CLI: `requests_bypassed_small: 0`, `eligible_compression_rate === all_traffic_compression_rate` (14.7%).
+
+**Impact:** Caveat text promises eligible vs all-traffic distinction, but persisted data cannot populate `bypassed_small` today. Unit tests use synthetic rows only.
+
+**Recommendation:** Map `opportunity_funnel` / `decline_reason` (or new tracker fields) into `bypassed_small` when collecting history, or document that rates are equivalent until tracker schema v8.
+
+### P2 — Installed CLI behind branch
+
+**Severity:** P2 (developer experience)  
+**Evidence:** `/opt/homebrew/bin/cutctx` v0.32.0 JSON lacks honesty fields; worktree requires `PYTHONPATH=.` or `pip install -e`.
+
+### P3 — Front-matter `name:` detection window
+
+**Severity:** P3  
+**Evidence:** `skill_preserve.py:33` checks `\nname:` only in `sample[:200]`. Late `name:` fields are not protected.
+
+### P3 — No E2E wrap / proxy skill-preserve test
+
+**Severity:** P3  
+**Evidence:** Wrap injection is code-reviewed only; no automated test that proxy honors env under real requests.
+
+---
+
+## Recommendations before merge / GTM
+
+1. **Wire `bypassed_small` from savings tracker** (or `opportunity_funnel.declined_tokens` / decline reasons) into `_collect_savings_history` so eligible rate differs from all-traffic when small payloads are bypassed.
+2. **Add integration test** for `wrap` → proxy env → annotated message surviving compression (can use in-process router + mocked wrap env).
+3. **Release note:** Users must upgrade CLI past 0.32.0 for buyer honesty JSON fields.
+4. **Optional:** Cap or hash `CUTCTX_SKILL_MARKERS` when discovery returns dozens of skills (1368 chars is OK today; monitor on Windows env limits).
+
+---
+
+## Sign-off
+
+| Role | Verdict |
+|------|---------|
+| Skill preservation pipeline | ✅ Approved |
+| Wrap discovery | ✅ Approved |
+| Buyer honesty (code + unit tests) | ✅ Approved |
+| Buyer honesty (live persisted data) | ⚠️ Conditional — P1 gap |
+| Docs / GTM | ✅ Approved |
+| Eval harness | ✅ Approved |
+| Security / entitlements | ✅ No regression |
+
+
+---
 
 ## 2026-07-28 live Governance and release-candidate addendum
 

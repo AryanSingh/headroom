@@ -1,0 +1,37 @@
+---
+title: Skills
+description: Skill-aware compression and the Cutctx progressive skill
+---
+
+# Skills
+
+Cutctx treats installed agent skills as **instruction context to protect**, not as bulky tool output to crush.
+
+## Skill-aware compression
+
+When `skill_preserve` is enabled (default on; wrap sets `CUTCTX_SKILL_PRESERVE=1`):
+
+- A message is recognised as instruction context when its text starts with `SKILL.md`-style front matter (`---` then `name:`) or contains a `SKILL.md` / `# AGENTS` / `# CLAUDE.md` heading. Detection is structural — skill *names* are never substring-matched, because names like `pdf` or `run` would exempt ordinary traffic.
+- The selective filter never drops those messages for low relevance.
+- The content router passes those messages through uncompressed.
+
+Recognition is per-message and does not alter the request Cutctx forwards upstream.
+
+Tool-role messages are never preserved, so tool outputs (logs, search dumps, JSON arrays) remain aggressively compressible. Skill preserve is a narrow protection for instruction text, not a global soft mode.
+
+System and developer messages are protected separately, by the router's `skip_system` and the selective filter's `protect_system`. An explicit `compress_system_messages=true` (as set by the `agent_90` and `max_savings` profiles) still compresses them.
+
+### Environment
+
+| Variable | Meaning |
+|---|---|
+| `CUTCTX_SKILL_PRESERVE` | `1` (default) enables preservation; `0` disables |
+
+## Progressive Cutctx skill
+
+The installable skill at `plugins/cutctx-plugin/skills/cutctx/SKILL.md` uses progressive disclosure:
+
+1. Short front-matter `description` (one line) for catalogs.
+2. Body sections: Automatic Mode → Compress → Retrieve → Verify → Do Not.
+
+Agents should load the one-liner first and only pull the full body when the task needs compression/retrieve discipline.

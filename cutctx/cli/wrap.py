@@ -461,6 +461,10 @@ def _start_proxy(
 
         proxy_env.setdefault("CURSOR_TARGET_API_URL", resolve_cursor_target_api_url())
 
+    # Enable skill-preserve for this wrap session (a no-op restated explicitly:
+    # the proxy default is already on). Don't clobber an operator's own value.
+    proxy_env.setdefault("CUTCTX_SKILL_PRESERVE", "1")
+
     proc = subprocess.Popen(
         cmd,
         stdout=log_file,
