@@ -153,10 +153,10 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 > chose to compress. They are not the savings you should expect across a
 > whole fleet, and the difference is large.
 >
-> **Fleet-wide reduction on our own production traffic is 0.7%**
-> (10,802 requests, 927.4M → 920.5M tokens; run `cutctx perf` to
-> reproduce on your own telemetry). Two reasons account for the gap, and
-> both are by design:
+> **Fleet-wide, Cutctx-created reduction on our own production traffic is
+> 2.8%** (84,144 requests, 6.01B input tokens, 165.9M tokens created;
+> run `cutctx report buyer` to reproduce on your own telemetry). Two
+> reasons account for the gap, and both are by design:
 >
 > - **Most traffic is deliberately bypassed.** Short turns, and any
 >   output from a tool on the protected denylist (`Read`, `Grep`,
@@ -167,14 +167,24 @@ Granular extras: `[proxy]`, `[mcp]`, `[ml]`, `[code]`, `[memory]`, `[relevance]`
 >   reduction by design. See
 >   [docs/configuration-reference.md](docs/configuration-reference.md)
 >   for `CUTCTX_EXCLUDE_TOOLS`.
-> - **Cache reads dominate the token count.** 870M of those 927M tokens
->   are provider cache reads, which are already billed at a discount and
->   are not a compression target.
+> - **Cache reads dominate the token count.** 5.37B tokens of provider
+>   prompt-cache reads sit alongside those 6.01B, already billed at a
+>   discount and not a compression target. We report them separately
+>   rather than folding them into a headline: the provider's cache is
+>   worth ~$11,995 on this traffic against $1,275 that Cutctx created.
+>   Anything that blends the two is not a number you can defend.
 >
-> Per-model results vary accordingly: on our traffic `gpt-4o` and
-> `gpt-5.4` saw 95–98% reduction, while `gpt-5.6-terra` — 71% of request
-> volume — saw 0%. **Model your ROI on your own `cutctx perf` output,
-> not on the table above.**
+> Results vary by **client**, not by model — that distinction took us a
+> while to find. On our traffic `claude-code` sees 32.9% and `opencode`
+> 19.1%, while `codex` sees **0.33% across 4.16 billion tokens**, because
+> a coding agent's context is source code and patches and those are 0% by
+> default. See [docs/why-codex-saves-nothing.md](docs/why-codex-saves-nothing.md).
+>
+> And of the 165.9M tokens Cutctx did create, **model routing accounts for
+> 136.9M and compression for 28.9M** — routing is worth 4.7x what
+> compression is on this workload, despite compression being the headline
+> feature. **Model your ROI on your own `cutctx report buyer` output, not
+> on the table above.**
 
 Savings are reported by source: RTK CLI filtering, Cutctx compression,
 provider/native cache behavior, semantic cache hits, and model routing are

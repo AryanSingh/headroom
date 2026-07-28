@@ -74,6 +74,26 @@ def _collect_data(days: int) -> list[dict[str, Any]]:
     ]
 
 
+def _delta_float(raw: dict[str, Any], key: str) -> float:
+    """Read a per-request USD delta, or 0.0 when the row has none.
+
+    Deliberately has no fallback to a lifetime counter — see the note at the
+    call site. Anything summable must be a delta.
+    """
+    try:
+        return float(raw.get(key) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _delta_int(raw: dict[str, Any], key: str) -> int:
+    """Token-count equivalent of :func:`_delta_float`."""
+    try:
+        return int(raw.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _collect_savings_history(days: int) -> list[dict[str, Any]]:
     """Collect per-request savings history from the durable savings tracker.
 
@@ -115,27 +135,32 @@ def _collect_savings_history(days: int) -> list[dict[str, Any]]:
                 "timestamp": ts_str,
                 "provider": raw.get("provider"),
                 "model": raw.get("model"),
-                # Use per-request deltas when present (Phase 1.3+);
-                # fall back to lifetime counters for older rows.
-                "tokens_saved": int(
-                    raw.get("delta_tokens_saved") or raw.get("total_tokens_saved", 0) or 0
-                ),
-                "compression_savings_usd": float(
-                    raw.get("delta_savings_usd") or raw.get("compression_savings_usd", 0.0) or 0.0
-                ),
-                "cache_savings_usd": float(
-                    raw.get("delta_cache_savings_usd") or raw.get("cache_savings_usd", 0.0) or 0.0
-                ),
-                "cost_savings_usd": float(
-                    (raw.get("delta_savings_usd") or raw.get("compression_savings_usd", 0.0) or 0.0)
-                    + (
-                        raw.get("delta_cache_savings_usd")
-                        or raw.get("cache_savings_usd", 0.0)
-                        or 0.0
-                    )
-                    + float(
-                        sum(float(v) for v in (raw.get("savings_by_source_usd") or {}).values())
-                    )
+                # Per-request DELTAS only. Never fall back to the lifetime
+                # counters that sit alongside them.
+                #
+                # `compression_savings_usd`, `cache_savings_usd` and
+                # `total_tokens_saved` are cumulative running totals — $10,794
+                # on the first history row and $12,000 on the last. The old
+                # `delta or cumulative` fallback substituted that running total
+                # whenever a row had no delta (1,006 of 5,000 rows here), and
+                # the caller then SUMS these rows. Summing a monotonic counter
+                # as though it were a delta inflated the buyer-facing ROI
+                # report by ~9,730x: it reported $1,740,947 saved where the
+                # truth was $1,236.
+                #
+                # A row without a delta contributed nothing measurable, so it
+                # contributes zero. Under-reporting an unrecorded row is
+                # survivable; inflating an ROI number by four orders of
+                # magnitude in front of a buyer is not.
+                "tokens_saved": _delta_int(raw, "delta_tokens_saved"),
+                "compression_savings_usd": _delta_float(raw, "delta_savings_usd"),
+                "cache_savings_usd": _delta_float(raw, "delta_cache_savings_usd"),
+                # Deliberately excludes savings_by_source_usd: that dict is a
+                # breakdown *of* these same deltas, and adding it here double
+                # counted every attributed request.
+                "cost_savings_usd": (
+                    _delta_float(raw, "delta_savings_usd")
+                    + _delta_float(raw, "delta_cache_savings_usd")
                 ),
                 "savings_by_source_tokens": dict(raw.get("savings_by_source_tokens") or {}),
                 "savings_by_source_usd": dict(raw.get("savings_by_source_usd") or {}),
