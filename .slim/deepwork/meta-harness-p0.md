@@ -8,7 +8,7 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 
 | Phase | Scope | Status |
 |---|---|---|
-| P0 | Adapter seam + artifact handoffs (weeks 1–4) | **In progress** — Batch A+B+C+D partial (Tasks 1–8) |
+| P0 | Adapter seam + artifact handoffs (weeks 1–4) | **Complete** |
 | P1 | Lifecycle, control plane, policy (weeks 5–10) | Not started |
 | P2 | Enterprise hardening + partner slots (weeks 11–18) | Not started |
 
@@ -25,10 +25,10 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 - [x] Agent package schema v1 + `.cutctx/agents/*.yaml` registry
 - [x] `GET/PUT /v1/orchestration/agent-packages` API
 - [x] Codex CLI adapter POC
-- [ ] Workflow dispatch by `task.payload.harness`
+- [x] Workflow dispatch by `task.payload.harness`
 - [x] Content-addressed artifact blob store
 - [x] CCR compression at workflow handoffs
-- [ ] E2E: planner → Codex implementer → LLM reviewer
+- [x] E2E: planner → Codex implementer → LLM reviewer
 
 ## Constraints
 
@@ -73,3 +73,14 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 | 8 — HarnessRuntime dispatcher | `ade26e8` | Done |
 
 **Tests:** `tests/test_codex_cli_adapter.py` (1 passed), `tests/test_harness_runtime.py` (1 passed)
+
+## Batch E progress (Tasks 9–10)
+
+| Task | Commit | Status |
+|---|---|---|
+| 9 — Workflow harness dispatch + e2e | `c993fff` | Done |
+| 10 — Public exports + docs + regression | (this commit) | Done |
+
+**Tests:** `tests/test_meta_harness_workflow_e2e.py` (1 passed)
+
+**Full P0 regression (Task 10):** all plan-listed suites green (see commit message for count).

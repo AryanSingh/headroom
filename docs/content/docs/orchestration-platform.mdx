@@ -174,3 +174,9 @@ Streaming retries and falls back only before the first response byte. Account se
 Credentials are encrypted with Fernet. Set `CUTCTX_ORCHESTRATION_MASTER_KEY` to an externally managed Fernet key, or Cutctx lazily creates a mode-0600 local key on the first credential write. Put sensitive headers such as `Authorization` and `X-API-Key` in the credential payload's `headers` object; configuration rejects them in plaintext `custom_headers`. Secrets and custom-header values are never returned by management APIs. Provider accounts do not inherit process-global API keys unless `metadata.allow_environment_credentials` is explicitly set to `true`.
 
 Configuration replacement validates the fully merged global-to-project candidate before persistence, prunes models removed from configuration, and swaps routing state under a process lock. This prevents a partial update from exposing mixed policy and registry state inside one proxy process.
+
+## Meta-harness adapter seam (P0)
+
+Durable workflows can dispatch **harness tasks** alongside LLM role tasks. When a workflow task payload includes `harness` (for example `codex_cli`) and `agent_package_id`, `OrchestrationService.run_workflow` routes execution through `HarnessRuntime` instead of provider invocation. Agent packages are project-scoped YAML files under `.cutctx/agents/` (or `CUTCTX_AGENT_PACKAGES_DIR`); package definitions are content-hashed and exposed via `GET|PUT /v1/orchestration/agent-packages`.
+
+Harness workers write outputs to a content-addressed artifact blob store at `{CUTCTX_ORCHESTRATION_DIR}/artifacts/sha256/…`. Workflow handoffs pass `ArtifactRef` values (with optional `ccr_hash` from boundary CCR compression) rather than raw transcripts, so planner → implementer → reviewer chains do not share hidden chat sessions. The P0 Codex CLI adapter runs as a local subprocess (`CUTCTX_CODEX_CLI_BIN`); cloud sandboxes and additional harness adapters are deferred to later phases.
