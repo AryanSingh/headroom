@@ -96,7 +96,38 @@ agent is most sensitive to". Turning this on by default would override that
 stance for every user at once, on the strength of token arithmetic that does
 not model round-trip latency or task success.
 
-The honest gate for flipping the default is one experiment: run a real coding
-agent through a task set with the flag on and off, and compare completion
-rather than tokens. Until someone runs it, this ships as a measured option
-rather than a new default.
+The honest gate for flipping the default is completion data, not token data.
+
+## Measuring it on your own traffic
+
+You do not need a task-set harness. Both signals are already recorded, so a
+week with the flag on answers it:
+
+```bash
+cutctx proxy --enable-reversible-code        # or CUTCTX_REVERSIBLE_CODE=1
+```
+
+**Did it save anything?** Compression savings are attributed under
+`cutctx_compression` in `cutctx perf` / the Savings page. Compare a week with
+the flag against a week without. `reversible_code` also appears in
+`strategy_chain` and in `transforms_applied` per request, so you can confirm
+it is firing rather than inferring it from the total.
+
+**Did it cost anything?** That is the number that decides the default. Every
+retrieval is recorded in `retrieval_labels` (`~/.cutctx/episodes.db`):
+
+```sql
+SELECT COUNT(*) FROM retrieval_labels
+WHERE timestamp_ts > strftime('%s','now','-7 days');
+```
+
+Compare against the count of elided bodies over the same window. The
+break-even is ~89%: if the agent is retrieving fewer than roughly nine in ten
+elided bodies, the flag is winning on tokens. Watch task behaviour alongside
+it — a retrieval is a round-trip, and the token arithmetic does not price
+latency or a lost train of thought.
+
+If that comes back clean on your traffic, flipping the default is an
+evidence-backed decision rather than a hopeful one. It is deliberately not
+flipped here, because code arrives through tools this product explicitly
+protects and one week of your data settles it better than any argument.
