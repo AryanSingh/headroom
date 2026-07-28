@@ -55,11 +55,28 @@ patches, and reasoning — and all three are 0% in the default configuration.**
 Shell output, the one shape that compresses well, is a minority of a coding
 agent's context.
 
-`--enable-kompress` does *not* rescue it on this path: reasoning prose and
-source code both stayed at 0.0% with Kompress on, even though the router
-compresses the same prose standalone. Something in the Responses unit
-adapter declines these units before the ML path sees them — that is the next
-thing to investigate, and it is where the 4B tokens are.
+`--enable-kompress` does *not* rescue it on this path, and the reason is not
+what it first looked like. Driving `compress_unit_with_router` directly on a
+`function_call_output` unit with Kompress enabled:
+
+| Content | Unit result |
+| --- | --- |
+| Logs | ratio 0.007 — accepted |
+| Reasoning prose | ratio **0.932** — compressed only 6.8% |
+| Source code | `reason=router_no_change` |
+
+So the unit adapter is **not** rejecting these units — an earlier revision of
+this page said it was, and that was wrong. What happens is:
+
+- **Code** reaches the router and the router changes nothing
+  (`router_no_change`), because `code_aware_enabled` is off.
+- **Prose** does compress, but only to 0.932, which fails the acceptance gate
+  (`min_ratio_relaxed = 0.85`). The result is correctly discarded, so the
+  payload shows 0%.
+
+That distinction matters for what to do next: the plumbing is fine and the
+acceptance gate is doing its job. The gap is that Kompress only finds ~7% on
+this content.
 
 ## Why each shape is zero
 
@@ -79,10 +96,12 @@ thing to investigate, and it is where the 4B tokens are.
 
 Ranked by measured value, not ease:
 
-1. **Find out why the Responses unit adapter declines prose/code units even
-   with Kompress enabled.** The router compresses this content standalone, so
-   the loss is in the adapter. Largest prize by far: it is the difference
-   between 0.33% and something like claude-code's 33% on 4B tokens.
+1. **Measure Kompress against *real* Codex reasoning text.** The 6.8% above
+   was produced on a synthetic corpus — one sentence repeated 200 times —
+   which is not representative and may understate or overstate badly. Real
+   reasoning traces are varied prose and are a large, growing share of the
+   4B tokens. This is cheap to run against captured traffic and decides
+   whether the ML path is worth recommending to Codex users at all.
 2. **Expose `reasoning` items as compressible units.** They are a large and
    growing share of Codex context and are currently untouched by design.
    Needs care: reasoning is model-authored and may be cache-anchored.
