@@ -16,6 +16,7 @@ from typing import Any
 
 import httpx
 
+from .agent_packages import AgentPackageRegistry
 from .audit import ReceiptAuditStore
 from .compiler import CompiledRoutingPolicy, compile_contract
 from .config import LayeredConfigStore, default_config_paths
@@ -658,6 +659,17 @@ class OrchestrationService:
         payload = to_dict(self.config)
         payload["providers"] = [self._public_account(account) for account in self.config.providers]
         return payload
+
+    @property
+    def data_dir(self) -> Path:
+        return self.workflow_store.path.parent
+
+    @property
+    def agent_package_registry(self) -> AgentPackageRegistry:
+        agents_dir = os.environ.get("CUTCTX_AGENT_PACKAGES_DIR")
+        if not agents_dir:
+            agents_dir = str(Path(self.data_dir).parent / ".cutctx" / "agents")
+        return AgentPackageRegistry(agents_dir)
 
     @staticmethod
     def _public_account(account: ProviderAccount) -> dict[str, Any]:
