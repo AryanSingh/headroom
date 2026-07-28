@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import yaml
 
@@ -53,3 +54,40 @@ def canonical_package_bytes(package: AgentPackage) -> bytes:
 
 def compute_package_hash(package: AgentPackage) -> str:
     return hashlib.sha256(canonical_package_bytes(package)).hexdigest()
+
+
+class AgentPackageRegistry:
+    def __init__(self, agents_dir: Path | str) -> None:
+        self.agents_dir = Path(agents_dir)
+        self.agents_dir.mkdir(parents=True, exist_ok=True)
+
+    def _path_for(self, package_id: str) -> Path:
+        if not package_id or "/" in package_id or ".." in package_id:
+            raise ValueError(f"invalid package id: {package_id!r}")
+        return self.agents_dir / f"{package_id}.yaml"
+
+    def list(self) -> list[AgentPackage]:
+        packages: list[AgentPackage] = []
+        for path in sorted(self.agents_dir.glob("*.yaml")):
+            packages.append(parse_agent_package_yaml(path.read_text(encoding="utf-8")))
+        return packages
+
+    def get(self, package_id: str) -> AgentPackage:
+        path = self._path_for(package_id)
+        if not path.exists():
+            raise KeyError(package_id)
+        return parse_agent_package_yaml(path.read_text(encoding="utf-8"))
+
+    def put(self, text: str) -> AgentPackage:
+        package = parse_agent_package_yaml(text)
+        self._path_for(package.id).write_text(
+            text if text.endswith("\n") else text + "\n", encoding="utf-8"
+        )
+        return package
+
+    def delete(self, package_id: str) -> bool:
+        path = self._path_for(package_id)
+        if not path.exists():
+            return False
+        path.unlink()
+        return True

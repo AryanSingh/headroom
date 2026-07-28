@@ -52,3 +52,25 @@ def test_example_fixture_on_disk() -> None:
     text = Path(".cutctx/agents/example-implementer.yaml").read_text(encoding="utf-8")
     pkg = parse_agent_package_yaml(text)
     assert pkg.id == "implementer-codex"
+
+
+def test_registry_round_trip(tmp_path) -> None:
+    from cutctx.orchestration.agent_packages import AgentPackageRegistry
+
+    registry = AgentPackageRegistry(tmp_path / "agents")
+    saved = registry.put(EXAMPLE)
+    assert saved.package_hash
+    listed = registry.list()
+    assert [item.id for item in listed] == ["implementer-codex"]
+    loaded = registry.get("implementer-codex")
+    assert loaded.harness == "codex_cli"
+
+
+def test_registry_delete(tmp_path) -> None:
+    from cutctx.orchestration.agent_packages import AgentPackageRegistry
+
+    registry = AgentPackageRegistry(tmp_path / "agents")
+    registry.put(EXAMPLE)
+    assert registry.delete("implementer-codex") is True
+    with pytest.raises(KeyError):
+        registry.get("implementer-codex")
