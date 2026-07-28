@@ -1,4 +1,12 @@
-"""Discover installed agent skills and derive preserve markers for wrap."""
+"""Discover installed agent skills on this machine.
+
+Discovery is deliberately *not* wired into compression. The obvious wiring —
+feed each skill's ``name`` in as an extra substring marker — is unsafe: real
+installs yield names like ``pdf``, ``docx``, ``run``, and ``review``, and a
+substring match on those exempts most ordinary traffic from compression. Skill
+bodies are recognised structurally instead (front matter, ``SKILL.md`` /
+``# AGENTS`` / ``# CLAUDE.md`` headings) in ``skill_preserve``.
+"""
 
 from __future__ import annotations
 
@@ -58,7 +66,11 @@ def discover_skill_paths(
 
 
 def load_skill_preserve_markers(paths: list[Path]) -> tuple[str, ...]:
-    """Extract skill ``name:`` values from SKILL.md front matter as markers."""
+    """Extract skill ``name:`` values from SKILL.md front matter.
+
+    Reporting/diagnostics only. See the module docstring for why these names
+    must not be used as compression preserve markers.
+    """
     markers: list[str] = []
     seen: set[str] = set()
     for path in paths:
@@ -78,17 +90,3 @@ def load_skill_preserve_markers(paths: list[Path]) -> tuple[str, ...]:
         seen.add(name)
         markers.append(name)
     return tuple(markers)
-
-
-def skill_preserve_env_updates(
-    home: Path | None = None,
-    *,
-    project_root: Path | None = None,
-) -> dict[str, str]:
-    """Env vars wrap should inject so the proxy enables skill preserve."""
-    paths = discover_skill_paths(home=home, project_root=project_root)
-    markers = load_skill_preserve_markers(paths)
-    updates = {"CUTCTX_SKILL_PRESERVE": "1"}
-    if markers:
-        updates["CUTCTX_SKILL_MARKERS"] = ",".join(markers)
-    return updates

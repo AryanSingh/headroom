@@ -44,6 +44,35 @@ def test_buyer_report_caveat_mentions_all_traffic_label() -> None:
     assert "all-traffic" in payload["caveat"].lower() or "all traffic" in payload["caveat"].lower()
 
 
+def test_buyer_report_discloses_when_bypass_telemetry_is_absent() -> None:
+    """Two identical rates must not read as two independent measurements.
+
+    No producer currently records a below-threshold decline reason, so on real
+    history ``requests_bypassed_small`` is 0 and the eligible rate collapses
+    onto the all-traffic rate. The report has to say so.
+    """
+    payload = build_buyer_report_payload(
+        [
+            {"savings_by_source_tokens": {"cutctx_compression": 10}, "compressed": True},
+            {"savings_by_source_tokens": {"provider_prompt_cache": 5}, "compressed": False},
+        ]
+    )
+    assert payload["bypass_telemetry_available"] is False
+    assert payload["eligible_compression_rate"] == payload["all_traffic_compression_rate"]
+    assert "one measurement" in payload["eligibility_note"]
+
+
+def test_buyer_report_explains_eligibility_when_bypasses_recorded() -> None:
+    payload = build_buyer_report_payload(
+        [
+            {"savings_by_source_tokens": {"cutctx_compression": 10}, "compressed": True},
+            {"savings_by_source_tokens": {}, "compressed": False, "bypassed_small": True},
+        ]
+    )
+    assert payload["bypass_telemetry_available"] is True
+    assert "too small" in payload["eligibility_note"]
+
+
 def test_collect_savings_history_wires_buyer_honesty_fields(tmp_path) -> None:
     """Integration: durable tracker rows must carry compressed/bypassed_small."""
     now = datetime.now(timezone.utc).isoformat()

@@ -13,8 +13,15 @@ import click
 
 from .main import main
 
-_BUYER_CAVEAT = (
-    "Rates below are for eligible compressible payloads unless labeled all-traffic."
+_BUYER_CAVEAT = "Rates below are for eligible compressible payloads unless labeled all-traffic."
+
+_BUYER_ELIGIBLE_NOTE = (
+    "Eligible requests = total requests minus those bypassed as too small to compress."
+)
+
+_BUYER_NO_BYPASS_NOTE = (
+    "No request in this period recorded a bypassed-as-too-small reason, so the "
+    "eligible rate is the all-traffic rate. Treat them as one measurement, not two."
 )
 
 _SMALL_DECLINE_REASONS = frozenset(
@@ -88,15 +95,26 @@ def build_buyer_report_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
     eligible_rate = (requests_compressed / eligible) if eligible else 0.0
     all_traffic_rate = (requests_compressed / requests_total) if requests_total else 0.0
 
+    # The eligible/all-traffic split is only a real distinction when the
+    # request path recorded a below-threshold decline reason. Today most
+    # producers emit no per-request reason, so the two rates collapse. Say
+    # that out loud rather than printing one number twice as if it were two
+    # measurements.
+    bypass_telemetry_available = requests_bypassed_small > 0
+
     return {
         "requests_total": requests_total,
         "requests_compressed": requests_compressed,
         "requests_bypassed_small": requests_bypassed_small,
         "eligible_compression_rate": eligible_rate,
         "all_traffic_compression_rate": all_traffic_rate,
+        "bypass_telemetry_available": bypass_telemetry_available,
         "created_savings_tokens": created_savings_tokens,
         "observed_provider_cache_tokens": observed_provider_cache_tokens,
         "caveat": _BUYER_CAVEAT,
+        "eligibility_note": (
+            _BUYER_ELIGIBLE_NOTE if bypass_telemetry_available else _BUYER_NO_BYPASS_NOTE
+        ),
     }
 
 
@@ -211,10 +229,7 @@ def _collect_savings_history(days: int) -> list[dict[str, Any]]:
                 (normalized.get("delta_savings_usd", 0.0) or 0.0)
                 + (normalized.get("delta_cache_savings_usd", 0.0) or 0.0)
                 + float(
-                    sum(
-                        float(v)
-                        for v in (normalized.get("savings_by_source_usd") or {}).values()
-                    )
+                    sum(float(v) for v in (normalized.get("savings_by_source_usd") or {}).values())
                 )
             ),
             "savings_by_source_tokens": dict(normalized.get("savings_by_source_tokens") or {}),
@@ -667,6 +682,8 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         lines.append(f"# Cutctx ROI Report — last {days} days")
         lines.append("")
         lines.append(f"> {honesty['caveat']}")
+        lines.append(">")
+        lines.append(f"> {honesty['eligibility_note']}")
         lines.append("")
         lines.append("## Combined savings")
         lines.append("")
@@ -677,15 +694,11 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             f"{honesty['requests_compressed']} compressed, "
             f"{honesty['requests_bypassed_small']} bypassed (too small)"
         )
-        lines.append(
-            f"- **Eligible compression rate:** {honesty['eligible_compression_rate']:.1%}"
-        )
+        lines.append(f"- **Eligible compression rate:** {honesty['eligible_compression_rate']:.1%}")
         lines.append(
             f"- **All-traffic compression rate:** {honesty['all_traffic_compression_rate']:.1%}"
         )
-        lines.append(
-            f"- **Created (Cutctx) tokens:** {honesty['created_savings_tokens']:,}"
-        )
+        lines.append(f"- **Created (Cutctx) tokens:** {honesty['created_savings_tokens']:,}")
         lines.append(
             f"- **Observed provider cache tokens:** {honesty['observed_provider_cache_tokens']:,}"
         )
@@ -730,6 +743,7 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         lines.append("=" * 50)
         lines.append("")
         lines.append(honesty["caveat"])
+        lines.append(honesty["eligibility_note"])
         lines.append("")
         lines.append(f"Total tokens saved:        {total_tokens:>12,}")
         lines.append(f"Total USD saved:            ${total_usd:>11,.2f}")
@@ -739,15 +753,11 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             f"{honesty['requests_bypassed_small']}/"
             f"{honesty['requests_total']}"
         )
-        lines.append(
-            f"Eligible compression rate:  {honesty['eligible_compression_rate']:>11.1%}"
-        )
+        lines.append(f"Eligible compression rate:  {honesty['eligible_compression_rate']:>11.1%}")
         lines.append(
             f"All-traffic compression:    {honesty['all_traffic_compression_rate']:>11.1%}"
         )
-        lines.append(
-            f"Created (Cutctx) tokens:    {honesty['created_savings_tokens']:>12,}"
-        )
+        lines.append(f"Created (Cutctx) tokens:    {honesty['created_savings_tokens']:>12,}")
         lines.append(
             f"Observed provider cache:    {honesty['observed_provider_cache_tokens']:>12,}"
         )

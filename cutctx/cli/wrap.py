@@ -461,15 +461,9 @@ def _start_proxy(
 
         proxy_env.setdefault("CURSOR_TARGET_API_URL", resolve_cursor_target_api_url())
 
-    # Discover installed skills and enable skill-preserve for this wrap session.
-    try:
-        from pathlib import Path as _Path
-
-        from cutctx.transforms.skill_discovery import skill_preserve_env_updates
-
-        proxy_env.update(skill_preserve_env_updates(project_root=_Path.cwd()))
-    except Exception:
-        proxy_env.setdefault("CUTCTX_SKILL_PRESERVE", "1")
+    # Enable skill-preserve for this wrap session (a no-op restated explicitly:
+    # the proxy default is already on). Don't clobber an operator's own value.
+    proxy_env.setdefault("CUTCTX_SKILL_PRESERVE", "1")
 
     proc = subprocess.Popen(
         cmd,

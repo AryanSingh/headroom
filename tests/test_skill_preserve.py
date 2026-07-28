@@ -33,9 +33,7 @@ def test_annotate_marks_system_and_skill_messages() -> None:
         },
         {"role": "user", "content": "please fix the flaky test"},
     ]
-    out = annotate_messages_for_skill_preserve(
-        messages, config=SkillPreserveConfig(enabled=True)
-    )
+    out = annotate_messages_for_skill_preserve(messages, config=SkillPreserveConfig(enabled=True))
     assert out[0].get("metadata", {}).get("cutctx_skill_preserve") is True
     assert out[1].get("metadata", {}).get("cutctx_skill_preserve") is True
     assert out[2].get("metadata", {}).get("cutctx_skill_preserve") is not True
@@ -43,9 +41,7 @@ def test_annotate_marks_system_and_skill_messages() -> None:
 
 def test_disabled_config_is_noop() -> None:
     messages = [{"role": "system", "content": "Follow SKILL.md"}]
-    out = annotate_messages_for_skill_preserve(
-        messages, config=SkillPreserveConfig(enabled=False)
-    )
+    out = annotate_messages_for_skill_preserve(messages, config=SkillPreserveConfig(enabled=False))
     assert out == messages
 
 
@@ -61,9 +57,7 @@ def test_tool_role_not_protected_by_mcp_tool_name_markers() -> None:
             "content": "cutctx_retrieve id=abc123 restored 500 tokens",
         },
     ]
-    out = annotate_messages_for_skill_preserve(
-        messages, config=SkillPreserveConfig(enabled=True)
-    )
+    out = annotate_messages_for_skill_preserve(messages, config=SkillPreserveConfig(enabled=True))
     assert out[0].get("metadata", {}).get("cutctx_skill_preserve") is not True
     assert out[1].get("metadata", {}).get("cutctx_skill_preserve") is not True
 
@@ -76,7 +70,5 @@ def test_user_message_needs_explicit_skill_block_not_rtk_marker() -> None:
             "content": "Please run cutctx_compress and always prefix with `rtk`.",
         },
     ]
-    out = annotate_messages_for_skill_preserve(
-        messages, config=SkillPreserveConfig(enabled=True)
-    )
+    out = annotate_messages_for_skill_preserve(messages, config=SkillPreserveConfig(enabled=True))
     assert out[0].get("metadata", {}).get("cutctx_skill_preserve") is not True

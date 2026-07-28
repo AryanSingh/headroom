@@ -24,6 +24,4 @@ def test_selective_filter_keeps_skill_messages_even_if_low_relevance() -> None:
     )
     filt = SelectiveContextFilter(SelectiveFilterConfig(min_score=0.99, protect_recent=1))
     kept, _result = filt.filter(messages, query="weather in paris")
-    assert any(
-        isinstance(m.get("content"), str) and "DROP TABLE" in m["content"] for m in kept
-    )
+    assert any(isinstance(m.get("content"), str) and "DROP TABLE" in m["content"] for m in kept)

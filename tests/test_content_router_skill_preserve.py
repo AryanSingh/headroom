@@ -13,9 +13,8 @@ def _tokenizer() -> Tokenizer:
 
 
 def test_skill_body_not_aggressively_crushed() -> None:
-    skill = (
-        "---\nname: cutctx\ndescription: compress bulky outputs\n---\n"
-        + ("Rule: always call cutctx_retrieve before quoting.\n" * 40)
+    skill = "---\nname: cutctx\ndescription: compress bulky outputs\n---\n" + (
+        "Rule: always call cutctx_retrieve before quoting.\n" * 40
     )
     messages = [
         {"role": "system", "content": "Follow installed skills."},
@@ -40,6 +39,10 @@ def test_skill_body_not_aggressively_crushed() -> None:
     )
     assert "always call cutctx_retrieve before quoting" in joined
     assert "name: cutctx" in joined
+    # The log message next to it must still be crushed — otherwise a router
+    # that preserved *everything* would satisfy the assertions above.
+    assert result.tokens_after < result.tokens_before
+    assert out[2]["content"].count("ERROR boom") < 200
 
 
 def test_skill_preserve_config_defaults_on() -> None:

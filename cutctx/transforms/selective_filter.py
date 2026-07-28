@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -129,12 +130,18 @@ class SelectiveContextFilter:
         self,
         messages: list[dict[str, Any]],
         query: str | None = None,
+        *,
+        preserve_indices: Iterable[int] | None = None,
     ) -> tuple[list[dict[str, Any]], FilterResult]:
         """Filter messages by relevance to query.
 
         Args:
             messages: Full message list (Anthropic or OpenAI format).
             query: Query to score against. If None, uses last user message.
+            preserve_indices: Indices that must be kept regardless of score.
+                Callers that must not mutate the messages (the content router,
+                whose output is forwarded to the provider) pass protection this
+                way instead of tagging ``metadata.cutctx_skill_preserve``.
 
         Returns:
             (filtered_messages, FilterResult)
@@ -156,6 +163,7 @@ class SelectiveContextFilter:
             )
 
         n = len(messages)
+        preserve = frozenset(preserve_indices) if preserve_indices else frozenset()
         # Indices of the last `protect_recent` messages are always kept
         protected_start = max(0, n - self.config.protect_recent)
         protected_indices = set(range(protected_start, n))
@@ -172,6 +180,10 @@ class SelectiveContextFilter:
 
             # Always keep system messages if configured
             if self.config.protect_system and msg.get("role") == "system":
+                keep.append(True)
+                continue
+
+            if self.config.preserve_skills and i in preserve:
                 keep.append(True)
                 continue
 
