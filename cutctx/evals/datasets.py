@@ -1680,7 +1680,7 @@ def generate_retrieval_probes(
     """
     import re
 
-    probes = []
+    probes: list[str] = []
 
     # Look for specific patterns
     patterns = [
