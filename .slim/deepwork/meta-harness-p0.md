@@ -8,7 +8,7 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 
 | Phase | Scope | Status |
 |---|---|---|
-| P0 | Adapter seam + artifact handoffs (weeks 1–4) | **In progress** — Batch A+B+C done (Tasks 1–6) |
+| P0 | Adapter seam + artifact handoffs (weeks 1–4) | **In progress** — Batch A+B+C+D partial (Tasks 1–8) |
 | P1 | Lifecycle, control plane, policy (weeks 5–10) | Not started |
 | P2 | Enterprise hardening + partner slots (weeks 11–18) | Not started |
 
@@ -24,7 +24,7 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 - [x] `HarnessAdapter` protocol (`capabilities`, `run`, `cancel`, `health`)
 - [x] Agent package schema v1 + `.cutctx/agents/*.yaml` registry
 - [x] `GET/PUT /v1/orchestration/agent-packages` API
-- [ ] Codex CLI adapter POC
+- [x] Codex CLI adapter POC
 - [ ] Workflow dispatch by `task.payload.harness`
 - [x] Content-addressed artifact blob store
 - [x] CCR compression at workflow handoffs
@@ -64,3 +64,12 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 **Tests:** `tests/test_orchestration_agent_packages_api.py` (1 passed), `tests/test_handoff_ccr.py` (2 passed)
 
 **Batch A–C combined:** 16 passed (`test_harness_adapter_types`, `test_artifact_store`, `test_agent_packages`, `test_orchestration_agent_packages_api`, `test_handoff_ccr`)
+
+## Batch D progress (Tasks 7–8)
+
+| Task | Commit | Status |
+|---|---|---|
+| 7 — Codex CLI harness adapter POC | `a538d05` | Done |
+| 8 — HarnessRuntime dispatcher | (pending) | Done |
+
+**Tests:** `tests/test_codex_cli_adapter.py` (1 passed), `tests/test_harness_runtime.py` (1 passed)
