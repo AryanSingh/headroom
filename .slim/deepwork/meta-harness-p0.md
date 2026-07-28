@@ -70,6 +70,6 @@ Ship P0 meta-harness adapter seam: `HarnessAdapter` protocol, agent package YAML
 | Task | Commit | Status |
 |---|---|---|
 | 7 — Codex CLI harness adapter POC | `a538d05` | Done |
-| 8 — HarnessRuntime dispatcher | (pending) | Done |
+| 8 — HarnessRuntime dispatcher | `ade26e8` | Done |
 
 **Tests:** `tests/test_codex_cli_adapter.py` (1 passed), `tests/test_harness_runtime.py` (1 passed)
