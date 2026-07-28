@@ -23,7 +23,12 @@ returns the input unchanged.
 1. **Output parses.** Re-parsed before return; discarded if not.
 2. **Every elided body is retrievable** from CCR under the hash in its marker.
 3. **The skeleton survives** — imports, decorators, signatures, annotations,
-   docstrings, module-level code.
+   docstrings, module-level code, and *nested* definitions. A body containing
+   a nested `def` or `class` is never elided: the inner signature is skeleton
+   too, and retrievability does not rescue it because the agent has to see
+   that the inner function exists before it knows to retrieve anything.
+   Measured on CodeSearchNet, the flat-fixture version of this cost 3
+   signatures and 1 docstring across 47 compressions.
 4. **Never inflates.**
 
 The gap is self-describing, which is the whole point:
@@ -43,6 +48,7 @@ def handler(request: dict, context: str) -> dict:
 | --- | ---: |
 | Tokens | 451,181 → 221,571 |
 | Saving on code | **50.9%** |
+| CodeSearchNet mean ratio | 0.664 (signatures 46/46, docstrings 46/46) |
 | Invalid syntax | 0 |
 | Unretrievable markers | 0 |
 

@@ -138,6 +138,21 @@ class ReversibleCodeCompressor:
             body = [s for s in node.body if not _is_docstring(s)]
             if not body:
                 continue
+            # Never elide a body containing nested definitions.
+            #
+            # Contract 3 says the skeleton survives, and a nested def or class
+            # is skeleton: eliding the outer body takes the inner signature
+            # and docstring with it. Flat fixtures never caught this — on real
+            # CodeSearchNet functions it cost 3 signatures and 1 docstring in
+            # 47 compressions. Retrievability is not the point; the agent has
+            # to be able to *see* that the inner function exists in order to
+            # know it should retrieve anything.
+            if any(
+                isinstance(inner, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
+                for stmt in body
+                for inner in ast.walk(stmt)
+            ):
+                continue
             start = body[0].lineno - 1
             end = max(_end_line(s) for s in body)
             if end - start < self.min_body_lines:

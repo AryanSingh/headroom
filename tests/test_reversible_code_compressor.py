@@ -234,3 +234,38 @@ def test_guard_leaves_non_python_alone() -> None:
     assert _python_syntax_preserved("def (:", "def (:", language="python") is True
     # valid in, broken out -> caught
     assert _python_syntax_preserved("def f():\n    return 1\n", "  return 1", "python") is False
+
+
+def test_nested_definitions_are_never_swallowed() -> None:
+    """Eliding an outer body must not take an inner def with it.
+
+    Contract 3 says the skeleton survives, and a nested def or class *is*
+    skeleton. Flat fixtures never caught this; on real CodeSearchNet functions
+    it cost 3 signatures and 1 docstring across 47 compressions. Retrievability
+    does not rescue it — the agent has to be able to see that the inner
+    function exists before it knows to retrieve anything.
+    """
+    source = (
+        "def outer(items):\n"
+        '    """Outer docstring."""\n'
+        "    total = 0\n"
+        "    for i in items:\n"
+        "        total += i\n"
+        "    scale = total * 2\n"
+        "    offset = scale - 1\n"
+        "\n"
+        "    def inner(value):\n"
+        '        """Inner docstring."""\n'
+        "        return value + offset\n"
+        "\n"
+        "    result = inner(total)\n"
+        "    extra = result + 1\n"
+        "    return extra\n"
+    )
+
+    result = ReversibleCodeCompressor().compress(source)
+
+    tree = ast.parse(result.compressed)
+    names = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert "inner" in names, "nested function was elided out of existence"
+    assert "Inner docstring." in result.compressed
