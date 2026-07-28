@@ -2,6 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import './App.css'
+import {
+  canRotateCredential,
+  shouldShowCredentialInput,
+  type CredentialStatus,
+} from './lib/credentials'
 import { statusLabel, trayColorForPhase, type ProxyPhase } from './lib/status'
 
 type ProxyStatus = {
@@ -31,6 +36,13 @@ const browserMockStatus: ProxyStatus = {
   external: false,
 }
 
+const emptyCredential: CredentialStatus = {
+  id: 'openai_api_key',
+  configured: false,
+  masked: null,
+  unlocked_for_entry: true,
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   try {
     return await invoke<T>(cmd, args)
@@ -45,10 +57,14 @@ export default function App() {
   const [catalog, setCatalog] = useState<CatalogEntry[]>([])
   const [profiles, setProfiles] = useState<string[]>([])
   const [profileName, setProfileName] = useState('default')
+  const [credential, setCredential] = useState<CredentialStatus>(emptyCredential)
+  const [apiTokenDraft, setApiTokenDraft] = useState('')
   const [toast, setToast] = useState('')
   const [busy, setBusy] = useState(false)
 
   const color = trayColorForPhase(status.phase)
+  const showCredentialInput = shouldShowCredentialInput(credential)
+  const showRotate = canRotateCredential(credential)
 
   const grouped = useMemo(() => {
     const map = new Map<string, CatalogEntry[]>()
@@ -62,14 +78,19 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     try {
-      const [nextStatus, nextCatalog, nextProfiles] = await Promise.all([
+      const [nextStatus, nextCatalog, nextProfiles, nextCred] = await Promise.all([
         call<ProxyStatus>('refresh_health'),
         call<CatalogEntry[]>('get_catalog'),
         call<string[]>('list_named_profiles'),
+        call<CredentialStatus>('get_api_credential_status'),
       ])
       setStatus(nextStatus)
       setCatalog(nextCatalog)
       setProfiles(nextProfiles)
+      setCredential(nextCred)
+      if (!nextCred.unlocked_for_entry) {
+        setApiTokenDraft('')
+      }
     } catch {
       // Keep UI usable in pure browser preview.
     }
@@ -129,6 +150,95 @@ export default function App() {
           </div>
         </div>
         <div className="sub">{status.message}</div>
+      </section>
+
+      <section className="panel">
+        <h2>API credentials</h2>
+        {credential.configured && !showCredentialInput ? (
+          <div className="client-row">
+            <div>
+              <div className="name">OpenAI API key</div>
+              <div className="sub locked-hint">
+                Saved · <span className="mono">{credential.masked}</span>
+              </div>
+            </div>
+            <button
+              className="btn"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  const next = await call<CredentialStatus>('begin_api_credential_rotation')
+                  setCredential(next)
+                  setApiTokenDraft('')
+                  return 'Enter the new token, then Save'
+                })
+              }
+            >
+              Rotate
+            </button>
+          </div>
+        ) : null}
+
+        {showCredentialInput ? (
+          <div className="cred-form">
+            <div className="name" style={{ marginBottom: 8 }}>
+              {credential.configured ? 'Rotate OpenAI API key' : 'OpenAI API key'}
+            </div>
+            <input
+              className="cred-input"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="sk-…"
+              value={apiTokenDraft}
+              disabled={busy}
+              onChange={(e) => setApiTokenDraft(e.target.value)}
+            />
+            <div className="profile-row" style={{ marginTop: 8, marginBottom: 0 }}>
+              <button
+                className="btn primary"
+                disabled={busy || !apiTokenDraft.trim()}
+                onClick={() =>
+                  void run(async () => {
+                    const next = await call<CredentialStatus>('save_api_credential', {
+                      token: apiTokenDraft.trim(),
+                    })
+                    setCredential(next)
+                    setApiTokenDraft('')
+                    return 'API credential saved and locked'
+                  })
+                }
+              >
+                Save
+              </button>
+              {credential.configured ? (
+                <button
+                  className="btn"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      const next = await call<CredentialStatus>(
+                        'cancel_api_credential_rotation',
+                      )
+                      setCredential(next)
+                      setApiTokenDraft('')
+                      return 'Rotation cancelled'
+                    })
+                  }
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+            <div className="sub" style={{ marginTop: 8 }}>
+              After save, the token is locked. Use Rotate to replace it.
+            </div>
+          </div>
+        ) : null}
+
+        {!credential.configured && !showCredentialInput ? (
+          <div className="sub">No API credential configured.</div>
+        ) : null}
       </section>
 
       <section className="panel">

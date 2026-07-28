@@ -264,6 +264,25 @@ select {
   font-size: 0.72rem;
 }
 
+.cred-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.locked-hint .mono {
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+
+.cred-form {
+  display: grid;
+}
+
 .profile-row {
   display: flex;
   gap: 8px;

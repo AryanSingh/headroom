@@ -1,6 +1,7 @@
 mod argv;
 mod catalog;
 mod codex_config;
+mod credentials;
 mod health;
 mod profiles;
 mod seat;
@@ -19,6 +20,7 @@ struct AppState {
     supervisor: ProxySupervisor,
     health: Mutex<HealthMachine>,
     profile: Mutex<ProxyProfile>,
+    credentials: Mutex<credentials::CredentialVault>,
     home: PathBuf,
 }
 
@@ -256,7 +258,11 @@ fn start_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
         health.on_health_ok(tokens);
         return Ok(health.status.clone());
     }
-    state.supervisor.start(&profile)?;
+    let env_vars = {
+        let vault = state.credentials.lock().map_err(|e| e.to_string())?;
+        proxy_launch_env(&state.home, &vault)?
+    };
+    state.supervisor.start(&profile, &env_vars)?;
     // Brief wait then probe
     std::thread::sleep(std::time::Duration::from_millis(800));
     drop(profile);
@@ -338,6 +344,59 @@ fn fix_codex_seat(state: State<'_, AppState>) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn get_api_credential_status(
+    state: State<'_, AppState>,
+) -> Result<credentials::CredentialStatus, String> {
+    let vault = state.credentials.lock().map_err(|e| e.to_string())?;
+    vault
+        .status(&state.home, credentials::OPENAI_API_KEY)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_api_credential(
+    state: State<'_, AppState>,
+    token: String,
+) -> Result<credentials::CredentialStatus, String> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let mut vault = state.credentials.lock().map_err(|e| e.to_string())?;
+    vault.save(&state.home, credentials::OPENAI_API_KEY, &token, now)
+}
+
+#[tauri::command]
+fn begin_api_credential_rotation(
+    state: State<'_, AppState>,
+) -> Result<credentials::CredentialStatus, String> {
+    let mut vault = state.credentials.lock().map_err(|e| e.to_string())?;
+    vault.begin_rotate(&state.home, credentials::OPENAI_API_KEY)
+}
+
+#[tauri::command]
+fn cancel_api_credential_rotation(
+    state: State<'_, AppState>,
+) -> Result<credentials::CredentialStatus, String> {
+    let mut vault = state.credentials.lock().map_err(|e| e.to_string())?;
+    vault.cancel_rotate(&state.home, credentials::OPENAI_API_KEY)
+}
+
+fn proxy_launch_env(
+    home: &std::path::Path,
+    vault: &credentials::CredentialVault,
+) -> Result<Vec<(String, String)>, String> {
+    let mut env = Vec::new();
+    if let Some(token) = vault
+        .get_secret(home, credentials::OPENAI_API_KEY)
+        .map_err(|e| e.to_string())?
+    {
+        env.push(("OPENAI_API_KEY".into(), token));
+    }
+    Ok(env)
+}
+
+#[tauri::command]
 fn copy_claude_snippet(state: State<'_, AppState>) -> Result<String, String> {
     let port = state.profile.lock().map_err(|e| e.to_string())?.port;
     let seat = seat::load_seat(&state.home).map_err(|e| e.to_string())?;
@@ -362,6 +421,7 @@ pub fn run() {
         supervisor: ProxySupervisor::new(resolve_cutctx_bin()),
         health: Mutex::new(HealthMachine::new(port)),
         profile: Mutex::new(profile),
+        credentials: Mutex::new(credentials::CredentialVault::default()),
         home,
     };
 
@@ -432,6 +492,10 @@ pub fn run() {
             mint_seat_token,
             fix_codex_seat,
             copy_claude_snippet,
+            get_api_credential_status,
+            save_api_credential,
+            begin_api_credential_rotation,
+            cancel_api_credential_rotation,
         ])
         .run(tauri::generate_context!())
         .expect("error while running CutCtx Control");

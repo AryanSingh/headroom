@@ -37,16 +37,24 @@ impl ProxySupervisor {
         build_proxy_argv(profile)
     }
 
-    pub fn start(&self, profile: &ProxyProfile) -> Result<(), String> {
+    pub fn start(
+        &self,
+        profile: &ProxyProfile,
+        env_vars: &[(String, String)],
+    ) -> Result<(), String> {
         if self.is_running() {
             return Err("proxy already supervised".into());
         }
         let args = Self::spawn_plan(profile);
-        let child = Command::new(&self.cutctx_bin)
-            .args(&args)
+        let mut cmd = Command::new(&self.cutctx_bin);
+        cmd.args(&args)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::piped());
+        for (key, value) in env_vars {
+            cmd.env(key, value);
+        }
+        let child = cmd
             .spawn()
             .map_err(|e| format!("failed to spawn {}: {e}", self.cutctx_bin.display()))?;
         let mut guard = self.child.lock().expect("supervisor lock");
