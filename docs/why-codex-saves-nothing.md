@@ -118,6 +118,25 @@ and patches, and those are 0% by deliberate configuration.
 
 ## What to do about it
 
+### Lossless code compression was tried. It is worth 0.03%.
+
+Before assuming the unlock needs lossy techniques, the safe option was
+measured: strip trailing whitespace, collapse runs of blank lines, touch
+nothing else. Across 142 source files in this repo, gated on the AST being
+byte-identical before and after:
+
+    aggregate tokens   453,611 -> 453,465
+    lossless saving    0.03%
+    median file ratio  1.0000
+
+Nothing there. Modern code is already dense — formatters have taken the slack
+that a whitespace pass would reclaim. One file even failed the AST-equality
+guard, so blank-line collapsing is not unconditionally safe either.
+
+That closes off the cheap option and confirms the shape of the problem: any
+material saving on code has to remove or reference *semantic* content, which
+means it needs a fidelity contract, not a compression ratio.
+
 1. **The unlock for Codex is safe code compression, not more extraction.**
    That is an R&D problem, not a config change. `code_aware` exists and is off
    for measured reasons: it elides ~a quarter of function-body statements
