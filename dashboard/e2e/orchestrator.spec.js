@@ -319,6 +319,29 @@ test.describe("Orchestrator Modes", () => {
     await expect(page.getByRole("heading", { name: "Routing readiness" })).toBeVisible();
   });
 
+  test("shows the contract lifecycle before contract work", async ({ page }) => {
+    await mockRoutingStudio(page);
+    await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Contracts");
+
+    const lifecycle = page.getByLabel("Contract lifecycle");
+    await expect(lifecycle).toContainText("Draft");
+    await expect(lifecycle).toContainText("Simulate");
+    await expect(lifecycle).toContainText("Shadow");
+    await expect(lifecycle).toContainText("Canary");
+    await expect(lifecycle).toContainText("Active");
+  });
+
+  test("marks configuration edits unsaved until the proxy acknowledges them", async ({ page }) => {
+    await mockOrchestrationStudio(page);
+    await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Configuration");
+    await page.getByRole("tab", { name: "Routing", exact: true }).click();
+
+    await page.getByLabel("Retries per model").fill("3");
+    await expect(page.getByText("Unsaved changes", { exact: true })).toBeVisible();
+  });
+
   test("times out contract loading and retries without surfacing an abort error", async ({ page }) => {
     await page.addInitScript(() => {
       const nativeFetch = window.fetch.bind(window);

@@ -11,10 +11,11 @@ import {
   useDashboardData,
 } from "../lib/use-dashboard-data";
 import OrchestrationStudio from "../components/OrchestrationStudio";
-import OrchestratorOperate, { getOrchestratorRecommendation } from "../components/OrchestratorOperate";
+import OrchestratorOperate from "../components/OrchestratorOperate";
 import OrchestratorWorkspaceTabs from "../components/OrchestratorWorkspaceTabs";
 import RoutingStudio from "../components/routing-studio/RoutingStudio";
 import SafeSavingsPanel from "../components/SafeSavingsPanel";
+import { getOrchestratorRecommendation } from "../lib/orchestrator-recommendation";
 
 const ROUTING_MODES = [
   {

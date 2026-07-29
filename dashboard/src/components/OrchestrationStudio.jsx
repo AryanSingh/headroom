@@ -92,6 +92,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
   const [harnessManifestAvailable, setHarnessManifestAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState("clean");
   const [removingCredentialId, setRemovingCredentialId] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -135,6 +136,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       setHarnesses(Array.isArray(nextHarnesses?.harnesses) ? nextHarnesses.harnesses : []);
       setHarnessManifestAvailable(nextHarnesses !== null);
       setError(null);
+      setSaveState("clean");
     } catch (err) {
       setError(err?.message || "Orchestration platform is unavailable");
     } finally {
@@ -245,8 +247,14 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
     );
   }
 
+  function editConfig(next) {
+    setConfig(next);
+    setSaveState("dirty");
+    setNotice(null);
+  }
+
   function updateBinding(bindingId, patch) {
-    setConfig((current) => {
+    editConfig((current) => {
       const nextId = typeof patch.id === "string" ? patch.id.trim() : bindingId;
       if (Object.prototype.hasOwnProperty.call(patch, "id")) {
         if (!nextId) {
@@ -268,7 +276,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
   }
 
   function removeBinding(bindingId) {
-    setConfig((current) => ({
+    editConfig((current) => ({
       ...current,
       bindings: current.bindings.filter((binding) => binding.id !== bindingId),
     }));
@@ -285,7 +293,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       setError("Binding " + nextId + " already exists");
       return;
     }
-    setConfig((current) => ({
+    editConfig((current) => ({
       ...current,
       bindings: [
         ...current.bindings,
@@ -305,6 +313,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
 
   async function save(nextConfig = config, message = "Orchestration configuration saved") {
     setSaving(true);
+    setSaveState("saving");
     setError(null);
     try {
       const stored = await orchestrationApi("/config", {
@@ -312,6 +321,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
         body: JSON.stringify(nextConfig),
       });
       setConfig(stored);
+      setSaveState("saved");
       if (message) {
         setNotice(message);
         window.setTimeout(() => setNotice(null), 3000);
@@ -319,6 +329,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       return stored;
     } catch (err) {
       setError(err?.message || "Unable to save orchestration configuration");
+      setSaveState("failed");
       return null;
     } finally {
       setSaving(false);
@@ -343,7 +354,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
             enabled: true,
           },
         ];
-    setConfig({ ...config, bindings: nextBindings });
+    editConfig({ ...config, bindings: nextBindings });
   }
 
   function addRole() {
@@ -359,7 +370,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       setError(`Role ${name} already exists`);
       return;
     }
-    setConfig({
+    editConfig({
       ...config,
       roles: [
         ...config.roles,
@@ -494,6 +505,13 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
         <button className="primary-button" onClick={() => save()} disabled={saving} type="button">
           <Save size={15} /> {saving ? "Saving…" : "Save changes"}
         </button>
+      </div>
+
+      <div className={`orchestration-save-state is-${saveState}`} role="status">
+        {saveState === "dirty" ? "Unsaved changes" : null}
+        {saveState === "saving" ? "Saving changes" : null}
+        {saveState === "saved" ? "Changes saved" : null}
+        {saveState === "failed" ? "Save failed · changes remain unsaved" : null}
       </div>
 
       {error ? <div className="alert-card" role="alert">{error}</div> : null}
@@ -688,11 +706,11 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
 
       {tab === "routing" ? (
         <div className="orchestration-pane routing-settings-grid">
-          <label><span>Enforcement mode</span><select value={config.settings.mode} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, mode: event.target.value } })}><option value="strict">Strict — refuse unavailable assignments</option><option value="relaxed">Relaxed — use configured fallbacks</option></select></label>
-          <label><span>Routing policy</span><select value={config.settings.policy} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, policy: event.target.value } })}><option value="role_locked">Role locked</option><option value="manual">Manual</option><option value="fastest">Fastest</option><option value="cheapest">Cheapest</option><option value="highest_quality">Highest quality</option><option value="balanced">Balanced</option></select></label>
-          <label><span>Retries per model</span><input type="number" min="0" max="10" value={config.settings.retries} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, retries: Number(event.target.value) } })} /></label>
-          <label><span>Timeout (seconds)</span><input type="number" min="1" value={config.settings.timeout_seconds} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, timeout_seconds: Number(event.target.value) } })} /></label>
-          <label><span>Deployment cooldown (seconds)</span><input type="number" min="1" max="3600" value={config.settings.deployment_cooldown_seconds ?? 30} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, deployment_cooldown_seconds: Number(event.target.value) } })} /></label>
+          <label><span>Enforcement mode</span><select value={config.settings.mode} onChange={(event) => editConfig({ ...config, settings: { ...config.settings, mode: event.target.value } })}><option value="strict">Strict — refuse unavailable assignments</option><option value="relaxed">Relaxed — use configured fallbacks</option></select></label>
+          <label><span>Routing policy</span><select value={config.settings.policy} onChange={(event) => editConfig({ ...config, settings: { ...config.settings, policy: event.target.value } })}><option value="role_locked">Role locked</option><option value="manual">Manual</option><option value="fastest">Fastest</option><option value="cheapest">Cheapest</option><option value="highest_quality">Highest quality</option><option value="balanced">Balanced</option></select></label>
+          <label><span>Retries per model</span><input type="number" min="0" max="10" value={config.settings.retries} onChange={(event) => editConfig({ ...config, settings: { ...config.settings, retries: Number(event.target.value) } })} /></label>
+          <label><span>Timeout (seconds)</span><input type="number" min="1" value={config.settings.timeout_seconds} onChange={(event) => editConfig({ ...config, settings: { ...config.settings, timeout_seconds: Number(event.target.value) } })} /></label>
+          <label><span>Deployment cooldown (seconds)</span><input type="number" min="1" max="3600" value={config.settings.deployment_cooldown_seconds ?? 30} onChange={(event) => editConfig({ ...config, settings: { ...config.settings, deployment_cooldown_seconds: Number(event.target.value) } })} /></label>
           <div className="route-preview">
             <h3>Deterministic route preview</h3>
             <div className="orchestration-inline-form">

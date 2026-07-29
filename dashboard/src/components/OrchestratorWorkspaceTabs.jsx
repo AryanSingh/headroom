@@ -19,7 +19,9 @@ export default function OrchestratorWorkspaceTabs({ value, onChange }) {
   }
 
   function onKeyDown(event, index) {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+      return;
+    }
     event.preventDefault();
     const next = event.key === "Home"
       ? 0

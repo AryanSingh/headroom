@@ -4085,6 +4085,56 @@ grid-template-columns: 1fr;
   display: none;
 }
 
+.routing-lifecycle {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.routing-lifecycle li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+}
+
+.routing-lifecycle li span {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--accent-strong, var(--accent));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-size: var(--text-xs);
+}
+
+.orchestration-save-state {
+  min-height: 20px;
+  margin: calc(var(--space-md) * -1) 0 var(--space-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.orchestration-save-state.is-dirty,
+.orchestration-save-state.is-failed {
+  color: var(--warning, #b45309);
+}
+
+.orchestration-save-state.is-saved {
+  color: var(--success, #047857);
+}
+
 @media (max-width: 700px) {
   .orchestrator-workspace-nav {
     position: static;
@@ -4114,5 +4164,16 @@ grid-template-columns: 1fr;
   .orchestrator-diagnostics-content {
     padding-left: var(--space-lg);
     padding-right: var(--space-lg);
+  }
+
+  .routing-lifecycle {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orchestrator-workspace-tabs button,
+  .orchestrator-diagnostics-trigger {
+    transition: none;
   }
 }

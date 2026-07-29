@@ -274,6 +274,14 @@ export default function RoutingStudio() {
           {actionError}
         </div>
       ) : null}
+      <ol className="routing-lifecycle" aria-label="Contract lifecycle">
+        {["Draft", "Simulate", "Shadow", "Canary", "Active"].map((stage, index) => (
+          <li key={stage}>
+            <span>{index + 1}</span>
+            <strong>{stage}</strong>
+          </li>
+        ))}
+      </ol>
       <div
         className="routing-workspace-tabs"
         role="tablist"
