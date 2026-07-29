@@ -62,10 +62,14 @@ spec:
             - secretRef:
                 name: cutctx-proxy-secret
           args:
-            - "--listen-addr"
-            - "0.0.0.0:8787"
-            - "--max-body-bytes"
-            - "52428800"
+            # ghcr.io/cutctx/cutctx runs the Python Click CLI, not the
+            # native Rust proxy binary. Keep these flags aligned with
+            # `cutctx proxy --help`; Rust-only --listen-addr caused every
+            # pod to exit before readiness during the Chaos gate.
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8787"
 
           resources:
             requests:

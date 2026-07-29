@@ -10,3 +10,17 @@ def test_kubernetes_prometheus_port_matches_proxy_container_port() -> None:
 
     assert 'prometheus.io/port: "8787"' in deployment
     assert "containerPort: 8787" in deployment
+
+
+def test_kubernetes_proxy_uses_the_python_cli_bind_arguments() -> None:
+    deployment = (Path(__file__).resolve().parents[1] / "k8s" / "deployment.yaml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "image: ghcr.io/cutctx/cutctx:" in deployment
+    assert '"--host"' in deployment
+    assert '"0.0.0.0"' in deployment
+    assert '"--port"' in deployment
+    assert '"8787"' in deployment
+    assert '"--listen-addr"' not in deployment
+    assert '"--max-body-bytes"' not in deployment

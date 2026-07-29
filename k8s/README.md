@@ -30,7 +30,7 @@ kubectl logs -f deployment/cutctx-proxy -n cutctx
 | `configmap.yaml` | Non-sensitive configuration |
 | `secret.yaml` | Secrets template (edit before deploying) |
 | `deployment.yaml` | 2-replica deployment with probes + resource limits |
-| `service.yaml` | ClusterIP service (port 80 → 8080) |
+| `service.yaml` | ClusterIP service (port 80 → 8787) |
 | `hpa.yaml` | HorizontalPodAutoscaler (2-10 replicas) |
 | `pdb.yaml` | PodDisruptionBudget (min 1 available) |
 | `ingress.yaml` | Ingress with TLS placeholder |

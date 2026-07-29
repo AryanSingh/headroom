@@ -19,6 +19,7 @@ jobs:
 
       - name: Deploy cutctx to cluster
         run: |
+          set -euo pipefail
           kubectl create namespace cutctx
           # The disposable Kind cluster exercises the proxy's recovery path;
           # it intentionally does not install the Prometheus Operator CRD.
@@ -30,7 +31,16 @@ jobs:
             fi
             kubectl apply -f "$manifest"
           done
-          kubectl wait --for=condition=available --timeout=60s deployment/cutctx-proxy -n cutctx
+          if ! kubectl wait --for=condition=available --timeout=180s deployment/cutctx-proxy -n cutctx; then
+            echo "::group::cutctx deployment diagnostics"
+            kubectl get deployment,pods,events -n cutctx --sort-by=.lastTimestamp || true
+            kubectl describe deployment/cutctx-proxy -n cutctx || true
+            kubectl describe pods -l app.kubernetes.io/name=cutctx-proxy -n cutctx || true
+            kubectl logs -l app.kubernetes.io/name=cutctx-proxy -n cutctx --all-containers --tail=200 || true
+            kubectl logs -l app.kubernetes.io/name=cutctx-proxy -n cutctx --all-containers --previous --tail=200 || true
+            echo "::endgroup::"
+            exit 1
+          fi
 
       - name: Run Synthetic Load & Pod Evictions
         run: |
