@@ -2993,6 +2993,7 @@ grid-template-columns: 1fr;
   .topbar-shell {
     flex-wrap: wrap;
     padding: var(--space-md);
+    position: static;
   }
 
   .topbar-tools {

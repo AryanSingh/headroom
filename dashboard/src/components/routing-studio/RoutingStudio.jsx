@@ -35,8 +35,8 @@ function newDraft() {
     role_aliases: ["implementation", "worker"],
     selectors: {},
     task_types: ["implementation"],
-    baseline_model: "anthropic:sonnet",
-    fallback_models: ["openai:gpt-5.4-mini"],
+    baseline_model: "openai:gpt-5.4-mini",
+    fallback_models: [],
     requirements: {
       required_capabilities: ["reasoning", "tool_calling"],
       allowed_providers: [],

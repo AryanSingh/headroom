@@ -253,6 +253,7 @@ audit/screenshots/
 audit/screenshot-report.json
 audit/phase3-ui-test-results.json
 dashboard/console-log.txt
+dashboard/output/
 dashboard/screenshot-report.json
 dashboard/screenshots/
 plugins/cutctx-opencode/node_modules/

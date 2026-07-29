@@ -92,7 +92,7 @@ async function mockRoutingStudio(page, options = {}) {
   });
 }
 
-async function mockOrchestrationStudio(page) {
+async function mockOrchestrationStudio(page, options = {}) {
   const responses = {
     "/v1/orchestration/config": {
       version: 1,
@@ -108,7 +108,10 @@ async function mockOrchestrationStudio(page) {
         global_fallback_chain: [],
       },
     },
-    "/v1/orchestration/providers": { catalog: [], accounts: [] },
+    "/v1/orchestration/providers": {
+      catalog: options.providerCatalog || [],
+      accounts: options.providerAccounts || [],
+    },
     "/v1/orchestration/models": { models: [] },
     "/v1/orchestration/executions": { executions: [] },
     "/v1/orchestration/harness-compatibility": { harnesses: [] },
@@ -342,6 +345,184 @@ test.describe("Orchestrator Modes", () => {
     await expect(page.getByText("Unsaved changes", { exact: true })).toBeVisible();
   });
 
+  test("keeps a failed configuration save dirty and recovers on retry", async ({ page }) => {
+    await mockOrchestrationStudio(page);
+    let saveAttempts = 0;
+    await page.route("**/v1/orchestration/config", async (route) => {
+      if (route.request().method() !== "PUT") {
+        await route.fallback();
+        return;
+      }
+      saveAttempts += 1;
+      if (saveAttempts === 1) {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "configuration store unavailable" }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(route.request().postDataJSON()),
+      });
+    });
+
+    await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Configuration");
+    await page.getByRole("tab", { name: "Routing", exact: true }).click();
+    await page.getByLabel("Retries per model").fill("3");
+    await page.getByRole("button", { name: "Save changes" }).click();
+
+    await expect(page.getByText("Save failed · changes remain unsaved", { exact: true })).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText("configuration store unavailable");
+    await expect(page.getByLabel("Retries per model")).toHaveValue("3");
+
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByText("Changes saved", { exact: true })).toBeVisible();
+    expect(saveAttempts).toBe(2);
+  });
+
+  test("disables duplicate configuration saves while one request is pending", async ({ page }) => {
+    await mockOrchestrationStudio(page);
+    let releaseSave;
+    const saveGate = new Promise((resolve) => { releaseSave = resolve; });
+    await page.route("**/v1/orchestration/config", async (route) => {
+      if (route.request().method() !== "PUT") {
+        await route.fallback();
+        return;
+      }
+      await saveGate;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(route.request().postDataJSON()),
+      });
+    });
+
+    await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Configuration");
+    await page.getByRole("tab", { name: "Routing", exact: true }).click();
+    await page.getByLabel("Retries per model").fill("4");
+    const save = page.getByRole("button", { name: "Save changes" });
+    await save.click();
+
+    await expect(page.getByRole("button", { name: "Saving…" })).toBeDisabled();
+    releaseSave();
+    await expect(page.getByText("Changes saved", { exact: true })).toBeVisible();
+  });
+
+  test("reports a partial provider credential failure and succeeds on retry", async ({ page }) => {
+    await mockOrchestrationStudio(page, {
+      providerCatalog: [{
+        id: "openai",
+        display_name: "OpenAI",
+        auth_methods: ["api_key"],
+        runtime: "openai",
+      }],
+    });
+    let credentialAttempts = 0;
+    await page.route("**/v1/orchestration/providers/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (route.request().method() !== "PUT") {
+        await route.fallback();
+        return;
+      }
+      if (path.endsWith("/credential")) {
+        credentialAttempts += 1;
+        if (credentialAttempts === 1) {
+          await route.fulfill({
+            status: 503,
+            contentType: "application/json",
+            body: JSON.stringify({ detail: "credential vault unavailable" }),
+          });
+          return;
+        }
+      }
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+
+    await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Configuration");
+    await page.getByRole("tab", { name: "Providers", exact: true }).click();
+    await page.getByLabel("Account display name").fill("Recovery account");
+    await page.getByLabel("API key").fill("test-secret");
+    await page.getByRole("button", { name: "Add account" }).click();
+
+    await expect(page.getByRole("alert")).toContainText(
+      "Account was added, but its credential was not stored: credential vault unavailable",
+    );
+    await expect(page.getByText("Provider account and credential saved", { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("API key")).toHaveValue("test-secret");
+
+    await page.getByRole("button", { name: "Add account" }).click();
+    await expect(page.getByText("Provider account and credential saved", { exact: true })).toBeVisible();
+    expect(credentialAttempts).toBe(2);
+  });
+
+  test("keeps Safe Savings on after a rejected disable and recovers on retry", async ({ page }) => {
+    let enabled = true;
+    let shouldRejectDisable = true;
+    let disableAttempts = 0;
+    await page.route("**/v1/orchestration/safe-savings/status", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          experience_enabled: true,
+          enabled,
+          mode: enabled ? "auto" : "off",
+          preset: enabled ? "economy" : null,
+          route_count: enabled ? 2 : 0,
+          routes: [],
+          transport_safe_targets: [],
+          decision: null,
+          rollback_available: enabled,
+        }),
+      });
+    });
+    await page.route("**/config/flags*", async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+        return;
+      }
+      disableAttempts += 1;
+      if (shouldRejectDisable) {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "runtime config unavailable" }),
+        });
+        return;
+      }
+      enabled = false;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ applied_live: { orchestrator_mode: { mode: "off" } } }),
+      });
+    });
+
+    await page.goto("/orchestrator");
+    await page.getByRole("button", { name: "Diagnostics and compatibility" }).click();
+    const panel = page.getByRole("region", { name: "Guided Safe Savings" });
+    await expect(panel.getByRole("button", { name: "Turn Safe Savings off" })).toBeVisible();
+    page.once("dialog", (dialog) => dialog.accept());
+    await panel.getByRole("button", { name: "Turn Safe Savings off" }).click();
+
+    await expect(panel.getByRole("alert")).toContainText(
+      "Unable to turn Safe Savings off: Failed update config: 503",
+    );
+    await expect(panel.getByRole("button", { name: "Turn Safe Savings off" })).toBeVisible();
+
+    shouldRejectDisable = false;
+    page.once("dialog", (dialog) => dialog.accept());
+    await panel.getByRole("button", { name: "Turn Safe Savings off" }).click();
+    await expect(panel.getByText("Requests retain the originally requested model.", { exact: true })).toBeVisible();
+    expect(disableAttempts).toBeGreaterThanOrEqual(2);
+  });
+
   test("times out contract loading and retries without surfacing an abort error", async ({ page }) => {
     await page.addInitScript(() => {
       const nativeFetch = window.fetch.bind(window);
@@ -481,7 +662,7 @@ test.describe("Orchestrator Modes", () => {
       page.getByText("Draft version 2", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByText("anthropic:sonnet", { exact: true }),
+      page.getByRole("heading", { name: "openai:gpt-5.4-mini", exact: true }),
     ).toBeVisible();
     await page.screenshot({ path: "/tmp/routing-studio-desktop.png", fullPage: true });
   });
@@ -501,6 +682,47 @@ test.describe("Orchestrator Modes", () => {
     expect(overflow).toBeLessThanOrEqual(1);
     await expect(page.getByRole("button", { name: "Run draft simulation" })).toBeVisible();
     await page.screenshot({ path: "/tmp/routing-studio-mobile.png", fullPage: true });
+  });
+
+  test("all primary workspaces stay reachable and unobscured at desktop and 390px", async ({ page }) => {
+    await mockRoutingStudio(page);
+    await mockOrchestrationStudio(page);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("/orchestrator");
+
+    for (const workspace of ["Operate", "Contracts", "Configuration"]) {
+      await openOrchestratorWorkspace(page, workspace);
+      await page.screenshot({
+        path: `output/playwright/orchestrator/${workspace.toLowerCase()}-desktop.png`,
+        fullPage: true,
+      });
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(async () => page.locator(".sidebar-shell").evaluate(
+      (sidebar) => sidebar.getBoundingClientRect().right,
+    )).toBeLessThanOrEqual(1);
+    for (const workspace of ["Operate", "Contracts", "Configuration"]) {
+      await openOrchestratorWorkspace(page, workspace);
+      await expect(page.locator(`#orchestrator-workspace-${workspace.toLowerCase()}`)).toBeVisible();
+      const layout = await page.evaluate(() => {
+        const header = document.querySelector(".topbar-shell");
+        const workspaces = document.querySelector(".orchestrator-workspace-nav");
+        return {
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          headerPosition: window.getComputedStyle(header).position,
+          headerBottom: header.getBoundingClientRect().bottom,
+          workspaceTop: workspaces.getBoundingClientRect().top,
+        };
+      });
+      expect(layout.overflow).toBeLessThanOrEqual(1);
+      expect(layout.headerPosition).toBe("static");
+      expect(layout.workspaceTop).toBeGreaterThanOrEqual(layout.headerBottom - 1);
+      await page.screenshot({
+        path: `output/playwright/orchestrator/${workspace.toLowerCase()}-390.png`,
+        fullPage: true,
+      });
+    }
   });
 
   test("routing studio tabs use arrow keys and one active tab stop", async ({
