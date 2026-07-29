@@ -215,6 +215,8 @@ uv run --extra ee --extra dev pytest tests -k 'not slow and not real_llm and not
   `tests/test_openai_codex_ws_timings.py`: **92 passed** (2026-07-29).
 - `uvx ruff@0.9.4 check` passed for the changed handler and focused test
   modules; `ruff format --check` passed after formatting the added test.
-- The release-equivalent command is running separately. It is known to enter
-  a CPU-intensive CoreML compressor test despite the supplied marker filter;
-  its exit status must be recorded before this plan is marked release-ready.
+- Release-equivalent suite:
+  `pytest tests -k 'not slow and not real_llm and not live and not e2e' -q`
+  completed successfully on 2026-07-29: **9,205 passed, 500 skipped,
+  243 deselected** in 7m50s. The CoreML compressor test is CPU-intensive but
+  completes within the suite; the logged run captured its exit status 0.
