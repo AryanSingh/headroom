@@ -68,9 +68,7 @@ def _raise_timeout(*_args, **_kwargs):
         ("active_false", lambda *a, **k: _FakeResponse(200, payload={"active": False}), False),
         (
             "expired_expires_at",
-            lambda *a, **k: _FakeResponse(
-                200, payload={"active": True, "expires_at": _past_iso()}
-            ),
+            lambda *a, **k: _FakeResponse(200, payload={"active": True, "expires_at": _past_iso()}),
             False,
         ),
         (
