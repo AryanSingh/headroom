@@ -26,7 +26,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 
@@ -52,6 +52,60 @@ _DEFAULT_LICENSE_API_URL = (
     or os.environ.get("CUTCTX_LICENSE_API_URL")
     or "https://pitchtoship.com"
 )
+
+#: Typed outcome of a usage-report attempt. Never represent a known-bad
+#: response (e.g. the historical HTTP 405 from the obsolete endpoint) as
+#: "delivered".
+UsageReportResult = Literal["delivered", "unavailable", "retryable_failure"]
+
+#: Product decision (verified-production-remediation Task 2, 2026-07-29):
+#: no hosted usage-ingestion edge function is deployed. The seven Supabase
+#: functions that exist are create-order, list-plans, my-licenses,
+#: request-license-link, seat-heartbeat, verify-license, and verify-payment
+#: -- none accept usage reports. `UsageReporter._report_usage` therefore
+#: never POSTs anywhere; it reports "unavailable" with a rate-limited
+#: operator warning instead of guessing at a new endpoint. Flip this to a
+#: real mode only once an authenticated endpoint is deployed and approved.
+_USAGE_REPORTING_MODE: UsageReportResult = "unavailable"
+
+#: Avoid re-logging the same operator warning every report interval
+#: (default 300s) for the lifetime of a long-running proxy process.
+_USAGE_UNAVAILABLE_WARNING_INTERVAL_SECONDS = 3600
+
+
+def _classify_usage_response(response: httpx.Response) -> UsageReportResult:
+    """Map a usage-report HTTP response to a typed result.
+
+    Documents the contract a future authenticated usage-ingestion endpoint
+    must satisfy. Not called by `_report_usage` today (see
+    `_USAGE_REPORTING_MODE`); kept next to the reporter so the mapping is
+    pinned down and tested before such an endpoint exists.
+    """
+    if response.status_code == 200:
+        try:
+            data = response.json()
+        except ValueError:
+            return "unavailable"
+        if isinstance(data, dict) and data.get("status") in {"ok", "accepted", "recorded"}:
+            return "delivered"
+        return "unavailable"
+    if response.status_code >= 500:
+        return "retryable_failure"
+    # 401/403 (auth failure), 404/405 (no such endpoint/method), and any
+    # other 4xx are all treated as "unavailable": none of them are resolved
+    # by blindly retrying the same request.
+    return "unavailable"
+
+
+def _classify_usage_exception(exc: Exception) -> UsageReportResult:
+    """Map a request-level exception to a typed result (see `_classify_usage_response`).
+
+    `httpx.TransportError` covers both timeouts (`httpx.TimeoutException`)
+    and connection failures (e.g. `httpx.ConnectError`); both are transient.
+    """
+    if isinstance(exc, httpx.TransportError):
+        return "retryable_failure"
+    return "unavailable"
 
 
 @dataclass
@@ -163,6 +217,7 @@ class UsageReporter:
         self._last_tokens_saved_by_model: dict[str, int] = {}
         self._last_tokens_sent_by_model: dict[str, int] = {}
         self._last_requests_by_model: dict[str, int] = {}
+        self._last_unavailable_warning_at: datetime | None = None
 
     @property
     def license_info(self) -> LicenseInfo | None:
@@ -340,101 +395,64 @@ class UsageReporter:
             except Exception:
                 logger.warning("Usage report failed, will retry next interval", exc_info=True)
 
-    async def _report_usage(self) -> None:
-        """Collect aggregate stats from the proxy and send to cloud."""
+    async def _report_usage(self) -> UsageReportResult:
+        """Collect aggregate stats from the proxy and report them.
+
+        Product decision (see `_USAGE_REPORTING_MODE`): there is no deployed
+        hosted usage-ingestion endpoint, so this never sends a request. The
+        previous implementation POSTed to the obsolete `/v1/license/usage`
+        path on the marketing site, which answered every call with HTTP 405;
+        that response was silently swallowed (logged, not surfaced) while
+        still being sent, so the call site looked wired up while doing
+        nothing. This stops calling that path and returns "unavailable"
+        directly, with a single rate-limited operator warning instead of a
+        per-interval log line. Callers that await this and ignore the return
+        value (e.g. `_report_loop`) continue to work unchanged.
+        """
         if self._proxy is None:
-            return
+            return "unavailable"
 
         cost_tracker = self._proxy.cost_tracker
         if cost_tracker is None:
-            return
+            return "unavailable"
 
         now = datetime.now(timezone.utc)
-        period_start = self._last_report_time or now
-
-        # Compute deltas since last report
-        current_saved = dict(cost_tracker._tokens_saved_by_model)
-        current_sent = dict(cost_tracker._tokens_sent_by_model)
         current_reqs = dict(cost_tracker._requests_by_model)
+        total_requests = sum(
+            max(0, current_reqs.get(model, 0) - self._last_requests_by_model.get(model, 0))
+            for model in set(current_reqs) | set(self._last_requests_by_model)
+        )
 
-        delta_saved_by_model: dict[str, int] = {}
-        delta_sent_by_model: dict[str, int] = {}
-        delta_reqs_by_model: dict[str, int] = {}
-
-        all_models = set(current_saved) | set(current_sent) | set(current_reqs)
-        total_tokens_saved = 0
-        total_tokens_before = 0
-        total_tokens_after = 0
-        total_requests = 0
-
-        for model in all_models:
-            saved = current_saved.get(model, 0) - self._last_tokens_saved_by_model.get(model, 0)
-            sent = current_sent.get(model, 0) - self._last_tokens_sent_by_model.get(model, 0)
-            reqs = current_reqs.get(model, 0) - self._last_requests_by_model.get(model, 0)
-            if reqs > 0:
-                delta_reqs_by_model[model] = reqs
-            if saved > 0:
-                delta_saved_by_model[model] = saved
-            if sent > 0:
-                delta_sent_by_model[model] = sent
-            total_tokens_saved += max(0, saved)
-            total_tokens_after += max(0, sent)
-            total_tokens_before += max(0, saved) + max(0, sent)
-            total_requests += max(0, reqs)
-
-        # Skip empty reports
+        # Skip empty reports (nothing to report, nothing to warn about).
         if total_requests == 0:
             self._last_report_time = now
-            return
+            return "unavailable"
 
-        payload = {
-            "license_key": self._license_key,
-            "period_start": period_start.isoformat(),
-            "period_end": now.isoformat(),
-            "requests": total_requests,
-            "tokens_before": total_tokens_before,
-            "tokens_after": total_tokens_after,
-            "tokens_saved": total_tokens_saved,
-            "models": delta_reqs_by_model,
-        }
+        if _USAGE_REPORTING_MODE == "unavailable":
+            self._warn_usage_reporting_unavailable(total_requests)
+            result: UsageReportResult = "unavailable"
+        else:  # pragma: no cover - no deployed endpoint to exercise today
+            result = "unavailable"
 
-        try:
-            client = await self._get_client()
-            # NOTE: there is no usage-reporting edge function among the seven
-            # deployed (create-order, list-plans, my-licenses,
-            # request-license-link, seat-heartbeat, verify-license,
-            # verify-payment), so this POST currently 405s and the block below
-            # simply does nothing. Left pointing at the portal rather than
-            # guessed at: seat occupancy is already tracked by seat-heartbeat,
-            # and inventing an endpoint here would repeat the mistake that
-            # broke licence activation. Wire it up when the endpoint exists.
-            resp = await client.post(
-                f"{self._cloud_url}/v1/license/usage",
-                json=payload,
-                timeout=10.0,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                status = data.get("status")
-                if status == "expired" and self._license_info:
-                    self._license_info.status = "expired"
-                    self._save_cache()
-                    logger.warning("License expired: %s", data.get("message", ""))
-                elif status and self._license_info:
-                    self._license_info.status = status
-                logger.debug(
-                    "Usage reported: %d requests, %d tokens saved",
-                    total_requests,
-                    total_tokens_saved,
-                )
-            else:
-                logger.warning("Usage report returned status %d", resp.status_code)
-        except Exception:
-            logger.warning("Failed to send usage report", exc_info=True)
-
-        # Update snapshot
         self._snapshot_metrics()
         self._last_report_time = now
+        return result
+
+    def _warn_usage_reporting_unavailable(self, pending_requests: int) -> None:
+        """Log a rate-limited warning instead of one per report interval."""
+        now = datetime.now(timezone.utc)
+        last = self._last_unavailable_warning_at
+        if (
+            last is not None
+            and (now - last).total_seconds() < _USAGE_UNAVAILABLE_WARNING_INTERVAL_SECONDS
+        ):
+            return
+        self._last_unavailable_warning_at = now
+        logger.warning(
+            "Hosted usage reporting is unavailable (no deployed usage-ingestion "
+            "endpoint); %d request(s) from this period were not reported.",
+            pending_requests,
+        )
 
     def _snapshot_metrics(self) -> None:
         """Take a snapshot of current proxy metrics for delta computation."""
