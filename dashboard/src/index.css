@@ -3993,6 +3993,98 @@ grid-template-columns: 1fr;
   display: none;
 }
 
+.orchestrator-command-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  gap: var(--space-xl);
+  align-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 40%),
+    var(--surface-1);
+}
+
+.orchestrator-command-copy,
+.orchestrator-recommendation {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.orchestrator-command-copy h2 {
+  margin: 2px 0 4px;
+}
+
+.orchestrator-recommendation {
+  align-items: center;
+  padding: var(--space-lg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-2) 84%, transparent);
+}
+
+.orchestrator-recommendation > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.orchestrator-recommendation span {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.orchestrator-recommendation button {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.orchestrator-diagnostics {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  background: var(--surface-1);
+  overflow: clip;
+}
+
+.orchestrator-diagnostics-trigger {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-xl);
+  border: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.orchestrator-diagnostics-trigger::after {
+  content: "+";
+  margin-left: auto;
+  font-size: 1.25rem;
+}
+
+.orchestrator-diagnostics-trigger[aria-expanded="true"]::after {
+  content: "−";
+}
+
+.orchestrator-diagnostics-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.orchestrator-diagnostics-content {
+  display: grid;
+  gap: var(--space-xl);
+  padding: 0 var(--space-xl) var(--space-xl);
+}
+
+.orchestrator-diagnostics-content[hidden] {
+  display: none;
+}
+
 @media (max-width: 700px) {
   .orchestrator-workspace-nav {
     position: static;
@@ -4001,5 +4093,26 @@ grid-template-columns: 1fr;
 
   .orchestrator-workspace-tabs {
     min-width: 390px;
+  }
+
+  .orchestrator-command-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .orchestrator-recommendation {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .orchestrator-recommendation button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .orchestrator-diagnostics-trigger,
+  .orchestrator-diagnostics-content {
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
   }
 }

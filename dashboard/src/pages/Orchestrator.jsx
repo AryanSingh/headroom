@@ -11,6 +11,7 @@ import {
   useDashboardData,
 } from "../lib/use-dashboard-data";
 import OrchestrationStudio from "../components/OrchestrationStudio";
+import OrchestratorOperate, { getOrchestratorRecommendation } from "../components/OrchestratorOperate";
 import OrchestratorWorkspaceTabs from "../components/OrchestratorWorkspaceTabs";
 import RoutingStudio from "../components/routing-studio/RoutingStudio";
 import SafeSavingsPanel from "../components/SafeSavingsPanel";
@@ -120,6 +121,7 @@ export default function Orchestrator({ searchQuery = "" }) {
   const [safeSavingsDisabling, setSafeSavingsDisabling] = useState(false);
   const [safeSavingsDisableError, setSafeSavingsDisableError] = useState(null);
   const [workspace, setWorkspace] = useState("operate");
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -408,6 +410,13 @@ export default function Orchestrator({ searchQuery = "" }) {
       : activeMode === "auto" || activeMode === "balanced"
         ? "Auto (codex-gpt54mini-high) works like Cursor Auto: send model=auto to pick fast/mid/strong from complexity, or keep a strong default and let clear low-risk turns use a cheaper certified model."
         : "Off disables routing while preserving locked role assignments.";
+  const recommendation = getOrchestratorRecommendation({
+    configAvailable: canToggle,
+    roleCount: Number(modelRouting.configured_routes || 0),
+    mode: activeMode,
+    evidenceStatus,
+    providers: providerStatus,
+  });
 
   useEffect(() => {
     if (
@@ -531,14 +540,7 @@ export default function Orchestrator({ searchQuery = "" }) {
         role="tabpanel"
       >
 
-      <SafeSavingsPanel
-        status={safeSavingsStatus}
-        loading={safeSavingsLoading}
-        error={safeSavingsError}
-        disabling={safeSavingsDisabling}
-        disableError={safeSavingsDisableError}
-        onDisable={handleSafeSavingsDisable}
-      />
+      <OrchestratorOperate recommendation={recommendation} onNavigate={setWorkspace} />
 
       <section className="panel orchestrator-mode-panel">
         <div className="section-heading">
@@ -706,6 +708,30 @@ export default function Orchestrator({ searchQuery = "" }) {
           ) : null}
       </section>
 
+      <section className="orchestrator-diagnostics">
+        <button
+          aria-controls="orchestrator-diagnostics-content"
+          aria-expanded={diagnosticsOpen}
+          className="orchestrator-diagnostics-trigger"
+          onClick={() => setDiagnosticsOpen((current) => !current)}
+          type="button"
+        >
+          Diagnostics and compatibility
+        </button>
+        <div
+          className="orchestrator-diagnostics-content"
+          hidden={!diagnosticsOpen}
+          id="orchestrator-diagnostics-content"
+        >
+      <SafeSavingsPanel
+        status={safeSavingsStatus}
+        loading={safeSavingsLoading}
+        error={safeSavingsError}
+        disabling={safeSavingsDisabling}
+        disableError={safeSavingsDisableError}
+        onDisable={handleSafeSavingsDisable}
+      />
+
       <section className="panel">
           <div className="section-heading">
             <div>
@@ -861,6 +887,9 @@ export default function Orchestrator({ searchQuery = "" }) {
               )}
             </div>
           ) : null}
+      </section>
+
+        </div>
       </section>
 
       </section>

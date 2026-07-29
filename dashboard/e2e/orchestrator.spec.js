@@ -302,6 +302,23 @@ test.describe("Orchestrator Modes", () => {
     await expect(page.getByText("Workload contracts, before provider calls")).toBeHidden();
   });
 
+  test("keeps the live command surface focused and diagnostics collapsed", async ({ page }) => {
+    await page.route("**/config/flags*", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+    await page.goto("/orchestrator");
+
+    await expect(page.getByRole("heading", { name: "Route requests" })).toBeVisible();
+    await expect(page.getByText("Set up role assignments", { exact: true })).toBeVisible();
+    const diagnostics = page.getByRole("button", { name: "Diagnostics and compatibility" });
+    await expect(diagnostics).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByRole("heading", { name: "Routing readiness" })).toBeHidden();
+
+    await diagnostics.click();
+    await expect(diagnostics).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("heading", { name: "Routing readiness" })).toBeVisible();
+  });
+
   test("times out contract loading and retries without surfacing an abort error", async ({ page }) => {
     await page.addInitScript(() => {
       const nativeFetch = window.fetch.bind(window);
