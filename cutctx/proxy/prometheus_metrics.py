@@ -87,8 +87,49 @@ def _append_metric(
     )
 
 
+_OTHER_LABEL = "other"
+
+
+def bounded_label(value: str, known: set[str] | frozenset[str], seen: set[str], limit: int) -> str:
+    """Return a bounded label value for Prometheus series cardinality control.
+
+    Allowlisted ``known`` values always remain distinct. Up to ``limit`` unseen
+    values are tracked in ``seen``; additional distinct values collapse to
+    ``"other"``.
+    """
+    if value in known or value in seen:
+        return value
+    if len(seen) >= limit:
+        return _OTHER_LABEL
+    seen.add(value)
+    return value
+
+
 class PrometheusMetrics:
     """Prometheus-compatible metrics."""
+
+    MAX_DISTINCT_PROVIDERS = 16
+    MAX_DISTINCT_MODELS = 32
+    MAX_DISTINCT_PATHS = 32
+
+    KNOWN_PROVIDERS = frozenset({"anthropic", "openai", "google", "azure", "bedrock"})
+    KNOWN_MODELS = frozenset(
+        {
+            "gpt-4o",
+            "gpt-4o-mini",
+            "claude-sonnet-4-0",
+            "claude-opus-4-6",
+        }
+    )
+    KNOWN_PATHS = frozenset(
+        {
+            "/v1/responses",
+            "/v1/chat/completions",
+            "/v1/messages",
+            "/metrics",
+            "/health",
+        }
+    )
 
     def __init__(
         self,
@@ -280,6 +321,9 @@ class PrometheusMetrics:
         # string without holding anything.
         self._stage_timing_lock = threading.Lock()
         self._otel_metrics = otel_metrics
+        self._seen_providers: set[str] = set()
+        self._seen_models: set[str] = set()
+        self._seen_paths: set[str] = set()
 
     async def reset_runtime(self) -> None:
         """Reset in-memory request/compression counters for local test/debug use."""
@@ -363,6 +407,9 @@ class PrometheusMetrics:
             self.cache_bust_tokens_lost = 0
             self.cache_bust_count = 0
             self.savings_history = []
+            self._seen_providers.clear()
+            self._seen_models.clear()
+            self._seen_paths.clear()
 
         with self._stage_timing_lock:
             self.stage_timing_sum.clear()
@@ -556,10 +603,16 @@ class PrometheusMetrics:
         self.codex_ws_frame_tokens_saved_sum += max(0, int(tokens_saved))
 
     def record_inbound_request(self, *, method: str, path: str) -> None:
+        bounded_path = bounded_label(
+            path,
+            self.KNOWN_PATHS,
+            self._seen_paths,
+            self.MAX_DISTINCT_PATHS,
+        )
         self.inbound_requests_total += 1
         self.inbound_requests_active += 1
         self.inbound_requests_by_method[method.upper()] += 1
-        self.inbound_requests_by_path[path] += 1
+        self.inbound_requests_by_path[bounded_path] += 1
 
     def record_inbound_response(self, *, status_code: int | str) -> None:
         self.inbound_requests_completed += 1
@@ -629,10 +682,22 @@ class PrometheusMetrics:
         pricing_basis: str = "model_input_list_price",
     ):
         """Record metrics for a request."""
+        bounded_provider = bounded_label(
+            provider,
+            self.KNOWN_PROVIDERS,
+            self._seen_providers,
+            self.MAX_DISTINCT_PROVIDERS,
+        )
+        bounded_model = bounded_label(
+            model,
+            self.KNOWN_MODELS,
+            self._seen_models,
+            self.MAX_DISTINCT_MODELS,
+        )
         async with self._lock:
             self.requests_total += 1
-            self.requests_by_provider[provider] += 1
-            self.requests_by_model[model] += 1
+            self.requests_by_provider[bounded_provider] += 1
+            self.requests_by_model[bounded_model] += 1
 
             if cached:
                 self.requests_cached += 1
