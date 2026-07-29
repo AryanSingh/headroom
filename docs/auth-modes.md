@@ -53,6 +53,14 @@ Both are byte-for-byte identical on every header set covered by the parity test 
 - Never mutate `User-Agent`.
 - Skip `X-Forwarded-*` headers on upstream-bound requests (see Phase F PR-F4).
 
+For ChatGPT/Codex Responses WebSocket traffic, opaque continuations,
+remote-compaction requests, and resumed responses remain whole-envelope
+passthrough. The only direct-compression exception is a final, string-valued
+tool-output tail with a provider call ID: Cutctx compresses an isolated copy
+and accepts it only when every earlier input item is unchanged and both token
+count and serialized request bytes decrease. It never applies tool-schema
+compaction, model routing, memory injection, or deduplication on that path.
+
 The Subscription UA wins over any bearer token shape — a Claude Code session that happens to carry a `sk-ant-oat-*` token is still a subscription client, never OAuth.
 
 ## Detection signals — full decision order

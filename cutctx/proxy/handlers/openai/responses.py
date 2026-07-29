@@ -1439,14 +1439,16 @@ class OpenAIResponsesMixin:
         ):
             return "passthrough", "subscription_no_eligible_output"
 
-        eligible = any(
-            item.get("type") in self.OPENAI_RESPONSES_OUTPUT_TYPES
-            and isinstance(item.get("output"), str)
-            for item in items
-        )
-        if not eligible:
+        tail = items[-1] if items else None
+        if not (
+            isinstance(tail, dict)
+            and tail.get("type") in self.OPENAI_RESPONSES_OUTPUT_TYPES
+            and isinstance(tail.get("output"), str)
+            and isinstance(tail.get("call_id"), str)
+            and tail["call_id"]
+        ):
             return "passthrough", "subscription_no_eligible_output"
-        return "tool_outputs_only", None
+        return "mutable_tail_only", None
 
     def _validate_chatgpt_subscription_tool_output_candidate(
         self,
@@ -1471,13 +1473,17 @@ class OpenAIResponsesMixin:
 
         total_saved = 0
         changed_outputs = 0
-        for original_item, candidate_item in zip(original_items, candidate_items, strict=True):
+        for index, (original_item, candidate_item) in enumerate(
+            zip(original_items, candidate_items, strict=True)
+        ):
             if not isinstance(original_item, dict) or not isinstance(candidate_item, dict):
                 return False, 0
             if original_item.keys() != candidate_item.keys():
                 return False, 0
             if original_item == candidate_item:
                 continue
+            if index != len(original_items) - 1:
+                return False, 0
             if original_item.get("type") not in self.OPENAI_RESPONSES_OUTPUT_TYPES:
                 return False, 0
 
@@ -1503,6 +1509,10 @@ class OpenAIResponsesMixin:
             changed_outputs += 1
 
         if changed_outputs == 0:
+            return False, 0
+        if len(json.dumps(candidate, separators=(",", ":")).encode()) >= len(
+            json.dumps(original, separators=(",", ":")).encode()
+        ):
             return False, 0
         return True, total_saved
 
@@ -2055,12 +2065,14 @@ class OpenAIResponsesMixin:
 
         try:
             policy, passthrough_reason = self._classify_chatgpt_subscription_compression(payload)
-            if policy != "tool_outputs_only":
+            if policy != "mutable_tail_only":
                 return payload, False, 0, [], passthrough_reason, input_bytes, input_bytes, 0
 
-            candidate, modified, _router_saved, transforms, _units, _strategies, attempted = (
+            original_items = payload["input"]
+            tail_candidate = {"input": [copy.deepcopy(original_items[-1])]}
+            compressed_tail, modified, _router_saved, transforms, _units, _strategies, attempted = (
                 self._compress_openai_responses_live_text_units_with_router(
-                    copy.deepcopy(payload),
+                    tail_candidate,
                     model=model,
                     request_id=request_id,
                     timing=timing,
@@ -2078,6 +2090,8 @@ class OpenAIResponsesMixin:
                     attempted,
                 )
 
+            candidate = copy.deepcopy(payload)
+            candidate["input"][-1]["output"] = compressed_tail["input"][0]["output"]
             tokenizer = self.openai_provider.get_token_counter(model)
             valid, validated_saved = self._validate_chatgpt_subscription_tool_output_candidate(
                 payload,

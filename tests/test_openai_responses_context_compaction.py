@@ -581,8 +581,31 @@ def test_chatgpt_subscription_classifier_allows_only_recognized_string_outputs()
 
     policy, reason = handler._classify_chatgpt_subscription_compression(payload)
 
-    assert policy == "tool_outputs_only"
+    assert policy == "mutable_tail_only"
     assert reason is None
+
+
+def test_chatgpt_subscription_classifier_rejects_historical_output_when_tail_is_not_output() -> (
+    None
+):
+    """Only the current final tool result is safe to rewrite on subscription WS."""
+    handler = _HandlerHarness(ContentRouter(ContentRouterConfig()))
+    payload = {
+        "model": "gpt-5.4",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "historic",
+                "output": "compressible output " * 200,
+            },
+            {"type": "message", "role": "user", "content": "continue"},
+        ],
+    }
+
+    assert handler._classify_chatgpt_subscription_compression(payload) == (
+        "passthrough",
+        "subscription_no_eligible_output",
+    )
 
 
 def test_chatgpt_subscription_validator_accepts_only_smaller_output_strings() -> None:

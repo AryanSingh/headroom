@@ -253,14 +253,14 @@ def test_chatgpt_subscription_helper_compresses_only_tool_output_and_attributes_
         "instructions": long_text,
         "input": [
             {
-                "type": "function_call_output",
-                "call_id": "call_1",
-                "output": long_text,
-            },
-            {
                 "type": "message",
                 "role": "user",
                 "content": [{"type": "input_text", "text": long_text}],
+            },
+            {
+                "type": "function_call_output",
+                "call_id": "call_1",
+                "output": long_text,
             },
         ],
     }
@@ -278,13 +278,102 @@ def test_chatgpt_subscription_helper_compresses_only_tool_output_and_attributes_
     assert attempted == 180
     assert reason is None
     assert after < before
-    assert updated["input"][0]["output"] == "kept words"
-    assert updated["input"][1] == payload["input"][1]
+    assert updated["input"][0] == payload["input"][0]
+    assert updated["input"][1]["output"] == "kept words"
     assert updated["tools"] == payload["tools"]
     assert updated["instructions"] == payload["instructions"]
     assert "router:openai:responses:function_call_output:kompress" in transforms
     assert "openai:responses:tool_schema_compaction" not in transforms
     assert "openai:responses:tool_surface_slimming" not in transforms
+
+
+def test_chatgpt_subscription_compresses_only_current_output_tail():
+    router = ContentRouter()
+
+    def compress(self, content: str, **_kwargs):
+        return RouterCompressionResult(
+            compressed="kept words",
+            original=content,
+            strategy_used=CompressionStrategy.KOMPRESS,
+        )
+
+    router.compress = MethodType(compress, router)
+    handler = _handler_with_router(router)
+    long_text = " ".join(f"word{i}" for i in range(180))
+    payload = {
+        "model": "gpt-5.4",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "historic",
+                "output": long_text,
+            },
+            {"type": "message", "role": "user", "content": "continue"},
+            {
+                "type": "local_shell_call_output",
+                "call_id": "current",
+                "output": long_text,
+            },
+        ],
+    }
+
+    updated, modified, *_ = handler._compress_chatgpt_subscription_tool_outputs(
+        payload,
+        model="gpt-5.4",
+        request_id="req_mutable_tail",
+    )
+
+    assert modified is True
+    assert updated["input"][:-1] == payload["input"][:-1]
+    assert updated["input"][-1]["output"] == "kept words"
+
+
+def test_subscription_tail_validator_rejects_token_saving_wire_inflation():
+    handler = _handler_with_router(ContentRouter())
+    original = {
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "c1",
+                "output": "one two",
+            }
+        ]
+    }
+    candidate = copy.deepcopy(original)
+    candidate["input"][0]["output"] = "one" + "x" * 100
+
+    assert handler._validate_chatgpt_subscription_tool_output_candidate(
+        original,
+        candidate,
+        tokenizer=TokenCounter(),
+    ) == (False, 0)
+
+
+def test_subscription_tail_validator_rejects_historical_output_mutation():
+    handler = _handler_with_router(ContentRouter())
+    original = {
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "historic",
+                "output": "one two three four",
+            },
+            {
+                "type": "function_call_output",
+                "call_id": "current",
+                "output": "five six seven eight",
+            },
+        ]
+    }
+    candidate = copy.deepcopy(original)
+    candidate["input"][0]["output"] = "one"
+    candidate["input"][1]["output"] = "five"
+
+    assert handler._validate_chatgpt_subscription_tool_output_candidate(
+        original,
+        candidate,
+        tokenizer=TokenCounter(),
+    ) == (False, 0)
 
 
 def test_chatgpt_subscription_helper_passthrough_preserves_opaque_payload():
@@ -313,7 +402,7 @@ def test_chatgpt_subscription_helper_passthrough_preserves_opaque_payload():
     assert result[7] == 0
 
 
-def test_chatgpt_subscription_helper_rejects_router_mutation_outside_output(monkeypatch):
+def test_chatgpt_subscription_helper_ignores_outer_router_mutation(monkeypatch):
     handler = _handler_with_router(ContentRouter())
     payload = {
         "model": "gpt-5.4",
@@ -340,8 +429,9 @@ def test_chatgpt_subscription_helper_rejects_router_mutation_outside_output(monk
         request_id="req_subscription_invariant",
     )
 
-    assert result[0] is payload
-    assert result[1:5] == (False, 0, [], "subscription_invariant_failed")
+    assert result[1] is True
+    assert result[0]["model"] == payload["model"]
+    assert result[0]["input"][0]["output"] == "short"
 
 
 def test_chatgpt_subscription_helper_fails_open_when_router_raises(monkeypatch):
