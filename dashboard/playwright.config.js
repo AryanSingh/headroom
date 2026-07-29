@@ -20,7 +20,13 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: auditSpec,
+      testIgnore: [auditSpec, /orchestrator-live\.spec\.js/],
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'live-proxy',
+      testMatch: /orchestrator-live\.spec\.js/,
+      workers: 1,
       use: { ...devices['Desktop Chrome'] },
     },
     ...auditViewports.map(({ name, width, height }) => ({
@@ -29,9 +35,17 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width, height } },
     })),
   ],
-  webServer: {
-    command: 'npm run dev -- --port 4123',
-    url: 'http://localhost:4123',
-    reuseExistingServer: true,
-  },
+  webServer: [
+    {
+      command: 'uv run python ../tests/fixtures/orchestration_e2e_server.py --port 48787',
+      url: 'http://127.0.0.1:48787/health',
+      reuseExistingServer: true,
+      timeout: 120_000,
+    },
+    {
+      command: 'CUTCTX_PROXY_PORT=48787 CUTCTX_ADMIN_API_KEY=test-admin-key-for-live-e2e npm run dev -- --port 4123',
+      url: 'http://localhost:4123',
+      reuseExistingServer: true,
+    },
+  ],
 });
