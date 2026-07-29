@@ -573,6 +573,7 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
             )
         from cutctx.auth.local_seat import (
             is_trusted_local_seat_connection,
+            remint_local_seat_token,
             resolve_local_user_token,
         )
         from cutctx_ee.billing.client import checkout_seat
@@ -589,15 +590,24 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
 
         header_token = str(connection.headers.get("x-cutctx-user-token", "") or "").strip()
         # Only fill a *missing* header for trusted local Codex/desktop clients.
-        # A present but invalid header must still fail closed.
+        # A present but invalid header must still fail closed — never remint
+        # over an explicit client-supplied token.
+        trusted = _trusted_loopback()
         token = header_token
-        if not token and _trusted_loopback():
-            token = resolve_local_user_token() or ""
+        if not token and trusted:
+            token = resolve_local_user_token(secret=secret, license_key=license_key) or ""
 
         try:
             user_id = verify_user_token(token, secret, license_key)
         except UserTokenError as exc:
-            deny(401, str(exc))
+            if header_token or not trusted:
+                deny(401, str(exc))
+            # Codex/Cursor loopback: silent remint when seat.json / env aged out.
+            try:
+                token = remint_local_seat_token(secret=secret, license_key=license_key)
+                user_id = verify_user_token(token, secret, license_key)
+            except Exception:
+                deny(401, str(exc))
         if not await run_in_threadpool(checkout_seat, license_key, user_id):
             deny(403, "No licensed seat is available for this user.")
         connection.state.cutctx_user_id = user_id

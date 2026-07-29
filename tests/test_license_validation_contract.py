@@ -5,6 +5,7 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import time
 from unittest.mock import Mock
 
@@ -297,6 +298,103 @@ def test_paid_provider_does_not_fallback_for_non_loopback_host(monkeypatch) -> N
     )
 
     assert response.status_code == 401
+
+
+def test_paid_provider_loopback_remints_expired_seat(tmp_path, monkeypatch) -> None:
+    """Codex loopback remints seat.json when the local ctu1 token ages out."""
+    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
+    monkeypatch.delenv("CUTCTX_USER_TOKEN", raising=False)
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    expired = (
+        base64.urlsafe_b64encode(
+            json.dumps(
+                {"sub": "loopback-user", "license_key": "license-1", "exp": int(time.time()) - 10}
+            ).encode()
+        )
+        .rstrip(b"=")
+        .decode()
+    )
+    signed = f"ctu1.{expired}"
+    expired_token = (
+        f"{signed}.{hmac.new(b'user-secret', signed.encode(), hashlib.sha256).hexdigest()}"
+    )
+    seat_dir = tmp_path / ".cutctx" / "control"
+    seat_dir.mkdir(parents=True)
+    (seat_dir / "seat.json").write_text(
+        json.dumps(
+            {
+                "subject": "loopback-user",
+                "token": expired_token,
+                "issued_at_unix": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _paid_app()
+
+    async def accepted(_request):
+        return JSONResponse({"status": "accepted"})
+
+    app.state.proxy.handle_openai_chat = accepted
+    response = TestClient(app).post(
+        "/v1/chat/completions",
+        headers={
+            "X-Cutctx-Proxy-Key": "proxy-key",
+            "Host": "127.0.0.1:8787",
+        },
+        json={"messages": [{"role": "user", "content": "hello"}]},
+    )
+
+    assert response.status_code == 200
+    refreshed = json.loads((seat_dir / "seat.json").read_text(encoding="utf-8"))
+    assert refreshed["token"] != expired_token
+    assert refreshed["token"].startswith("ctu1.")
+    assert os.environ.get("CUTCTX_USER_TOKEN") == refreshed["token"]
+
+
+def test_paid_provider_loopback_remints_when_seat_missing(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
+    monkeypatch.delenv("CUTCTX_USER_TOKEN", raising=False)
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    app = _paid_app()
+
+    async def accepted(_request):
+        return JSONResponse({"status": "accepted"})
+
+    app.state.proxy.handle_openai_chat = accepted
+    response = TestClient(app).post(
+        "/v1/chat/completions",
+        headers={
+            "X-Cutctx-Proxy-Key": "proxy-key",
+            "Host": "127.0.0.1:8787",
+        },
+        json={"messages": [{"role": "user", "content": "hello"}]},
+    )
+
+    assert response.status_code == 200
+    seat_path = tmp_path / ".cutctx" / "control" / "seat.json"
+    assert seat_path.is_file()
+    assert json.loads(seat_path.read_text(encoding="utf-8"))["token"].startswith("ctu1.")
+
+
+def test_paid_provider_does_not_remint_over_bad_explicit_header(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
+    monkeypatch.delenv("CUTCTX_USER_TOKEN", raising=False)
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    app = _paid_app()
+
+    response = TestClient(app).post(
+        "/v1/chat/completions",
+        headers={
+            "X-Cutctx-Proxy-Key": "proxy-key",
+            "Host": "127.0.0.1:8787",
+            "X-Cutctx-User-Token": "not-a-token",
+        },
+        json={"messages": [{"role": "user", "content": "hello"}]},
+    )
+
+    assert response.status_code == 401
+    assert not (tmp_path / ".cutctx" / "control" / "seat.json").exists()
 
 
 def test_paid_provider_request_denies_when_user_has_no_seat(monkeypatch) -> None:

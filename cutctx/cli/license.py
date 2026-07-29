@@ -562,7 +562,7 @@ def generate(tier: str, org: str, seats: int, expiry: str | None, dry_run: bool)
 
 @license.command("token")
 @click.option("--subject", default=None, help="Seat subject (defaults to the current OS user).")
-@click.option("--ttl-hours", default=12.0, show_default=True, help="Token lifetime in hours.")
+@click.option("--ttl-hours", default=72.0, show_default=True, help="Token lifetime in hours.")
 @click.option("--header", "as_header", is_flag=True, help="Print as an HTTP header line.")
 def license_token(subject: str | None, ttl_hours: float, as_header: bool) -> None:
     """Mint a signed user token for paid provider traffic.

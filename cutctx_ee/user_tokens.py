@@ -14,9 +14,10 @@ class UserTokenError(ValueError):
     pass
 
 
-#: Default lifetime. Long enough to cover a working session without
-#: re-issuing mid-run, short enough that a leaked token expires on its own.
-DEFAULT_TTL_SECONDS = 12 * 60 * 60
+#: Default lifetime. Long enough for multi-day local Codex/Cursor use;
+#: short enough that a leaked token still expires on its own. Trusted
+#: loopback remints automatically when this elapses (see local_seat).
+DEFAULT_TTL_SECONDS = 72 * 60 * 60
 
 
 def issue_user_token(
