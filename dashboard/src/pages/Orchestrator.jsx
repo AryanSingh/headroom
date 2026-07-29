@@ -11,6 +11,7 @@ import {
   useDashboardData,
 } from "../lib/use-dashboard-data";
 import OrchestrationStudio from "../components/OrchestrationStudio";
+import OrchestratorWorkspaceTabs from "../components/OrchestratorWorkspaceTabs";
 import RoutingStudio from "../components/routing-studio/RoutingStudio";
 import SafeSavingsPanel from "../components/SafeSavingsPanel";
 
@@ -118,6 +119,7 @@ export default function Orchestrator({ searchQuery = "" }) {
   const [safeSavingsLoading, setSafeSavingsLoading] = useState(true);
   const [safeSavingsDisabling, setSafeSavingsDisabling] = useState(false);
   const [safeSavingsDisableError, setSafeSavingsDisableError] = useState(null);
+  const [workspace, setWorkspace] = useState("operate");
 
   useEffect(() => {
     if (!loading) {
@@ -518,6 +520,17 @@ export default function Orchestrator({ searchQuery = "" }) {
         </div>
       ) : null}
 
+      <OrchestratorWorkspaceTabs value={workspace} onChange={setWorkspace} />
+
+      <section
+        aria-label="Operate"
+        aria-labelledby="orchestrator-workspace-tab-operate"
+        className="orchestrator-workspace-panel"
+        hidden={workspace !== "operate"}
+        id="orchestrator-workspace-operate"
+        role="tabpanel"
+      >
+
       <SafeSavingsPanel
         status={safeSavingsStatus}
         loading={safeSavingsLoading}
@@ -850,8 +863,28 @@ export default function Orchestrator({ searchQuery = "" }) {
           ) : null}
       </section>
 
-      <RoutingStudio />
-      <OrchestrationStudio searchQuery={normalizedQuery} />
+      </section>
+
+      <section
+        aria-label="Contracts"
+        aria-labelledby="orchestrator-workspace-tab-contracts"
+        className="orchestrator-workspace-panel"
+        hidden={workspace !== "contracts"}
+        id="orchestrator-workspace-contracts"
+        role="tabpanel"
+      >
+        <RoutingStudio />
+      </section>
+      <section
+        aria-label="Configuration"
+        aria-labelledby="orchestrator-workspace-tab-configuration"
+        className="orchestrator-workspace-panel"
+        hidden={workspace !== "configuration"}
+        id="orchestrator-workspace-configuration"
+        role="tabpanel"
+      >
+        <OrchestrationStudio searchQuery={normalizedQuery} />
+      </section>
     </div>
   );
 }

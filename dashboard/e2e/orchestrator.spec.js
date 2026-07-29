@@ -92,6 +92,49 @@ async function mockRoutingStudio(page, options = {}) {
   });
 }
 
+async function mockOrchestrationStudio(page) {
+  const responses = {
+    "/v1/orchestration/config": {
+      version: 1,
+      providers: [],
+      roles: [],
+      bindings: [],
+      settings: {
+        mode: "strict",
+        policy: "role_locked",
+        retries: 1,
+        timeout_seconds: 120,
+        fallback_triggers: [],
+        global_fallback_chain: [],
+      },
+    },
+    "/v1/orchestration/providers": { catalog: [], accounts: [] },
+    "/v1/orchestration/models": { models: [] },
+    "/v1/orchestration/executions": { executions: [] },
+    "/v1/orchestration/harness-compatibility": { harnesses: [] },
+  };
+  await page.route("**/v1/orchestration/**", async (route) => {
+    const url = new URL(route.request().url());
+    const key = url.pathname;
+    if (responses[key]) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(responses[key]),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+}
+
+async function openOrchestratorWorkspace(page, name) {
+  await page
+    .getByRole("tablist", { name: "Orchestrator workspaces" })
+    .getByRole("tab", { name, exact: true })
+    .click();
+}
+
 async function deferContractFetches(page) {
   await page.addInitScript(() => {
     const nativeFetch = window.fetch.bind(window);
@@ -238,6 +281,27 @@ test.describe("Orchestrator Modes", () => {
     });
   });
 
+  test("separates operate contracts and configuration into primary workspaces", async ({ page }) => {
+    await mockRoutingStudio(page);
+    await mockOrchestrationStudio(page);
+    await page.goto("/orchestrator");
+
+    await expect(page.getByRole("tabpanel", { name: "Operate" })).toBeVisible();
+    await expect(page.getByText("Workload contracts, before provider calls")).toBeHidden();
+    await expect(page.getByText("Provider-neutral model control plane")).toBeHidden();
+
+    const workspaces = page.getByRole("tablist", { name: "Orchestrator workspaces" });
+    const operate = workspaces.getByRole("tab", { name: "Operate", exact: true });
+    await operate.focus();
+    await operate.press("ArrowRight");
+    await expect(workspaces.getByRole("tab", { name: "Contracts", exact: true })).toBeFocused();
+    await expect(page.getByText("Workload contracts, before provider calls")).toBeVisible();
+
+    await workspaces.getByRole("tab", { name: "Configuration", exact: true }).click();
+    await expect(page.getByText("Provider-neutral model control plane")).toBeVisible();
+    await expect(page.getByText("Workload contracts, before provider calls")).toBeHidden();
+  });
+
   test("times out contract loading and retries without surfacing an abort error", async ({ page }) => {
     await page.addInitScript(() => {
       const nativeFetch = window.fetch.bind(window);
@@ -254,6 +318,7 @@ test.describe("Orchestrator Modes", () => {
     });
     await mockRoutingStudio(page);
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Contracts");
     await expect(page.getByRole("alert")).toContainText("Request timed out after 10000ms", { timeout: 12_000 });
     const retry = page.getByRole("button", { name: "Retry" });
     await expect(retry).toBeVisible({ timeout: 500 });
@@ -265,6 +330,7 @@ test.describe("Orchestrator Modes", () => {
   test("aborts a pending load on Retry and ignores its stale success and finally", async ({ page }) => {
     await deferContractFetches(page);
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Contracts");
     await page.waitForFunction(() => window.__deferredContractFetches.length === 1);
     const retry = page.getByRole("button", { name: "Retry" });
     await expect(retry).toBeVisible({ timeout: 500 });
@@ -282,6 +348,7 @@ test.describe("Orchestrator Modes", () => {
   test("aborts a pending load on Retry and ignores its stale error and finally", async ({ page }) => {
     await deferContractFetches(page);
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Contracts");
     await page.waitForFunction(() => window.__deferredContractFetches.length === 1);
     await page.getByRole("button", { name: "Retry" }).click();
     await page.waitForFunction(() => window.__deferredContractFetches.length === 2);
@@ -343,10 +410,12 @@ test.describe("Orchestrator Modes", () => {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ contract: saved, revision: 2 }) });
     });
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Contracts");
     await page.getByRole("button", { name: "New contract" }).click();
     await page.getByRole("button", { name: "Save immutable draft" }).click();
     await expect(page.getByRole("button", { name: /Implementation/ })).toHaveCount(1);
     await page.reload();
+    await openOrchestratorWorkspace(page, "Contracts");
     await expect(page.getByRole("button", { name: /Implementation/ })).toHaveCount(1);
     await page.getByLabel("Baseline model").fill("openai:gpt-5.4-mini");
     await page.getByRole("button", { name: "Save immutable draft" }).click();
@@ -362,6 +431,7 @@ test.describe("Orchestrator Modes", () => {
   }) => {
     await mockRoutingStudio(page);
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Contracts");
     await page.getByRole("button", { name: "New contract" }).click();
     await page.getByLabel("Contract template").selectOption("implementation");
     await page.getByLabel("Quality floor").fill("0.95");
@@ -380,6 +450,7 @@ test.describe("Orchestrator Modes", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await mockRoutingStudio(page);
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Contracts");
     await page.getByRole("button", { name: "New contract" }).click();
     await page.getByRole("tab", { name: "Simulator", exact: true }).click();
     await page.getByRole("button", { name: "Run draft simulation" }).click();
@@ -397,7 +468,9 @@ test.describe("Orchestrator Modes", () => {
   }) => {
     await mockRoutingStudio(page);
     await page.goto("/orchestrator");
-    const contracts = page.getByRole("tab", { name: "Contracts", exact: true });
+    await openOrchestratorWorkspace(page, "Contracts");
+    const routingTabs = page.getByRole("tablist", { name: "Routing Studio workspaces" });
+    const contracts = routingTabs.getByRole("tab", { name: "Contracts", exact: true });
     await contracts.focus();
     await contracts.press("ArrowRight");
     await expect(
@@ -413,6 +486,7 @@ test.describe("Orchestrator Modes", () => {
   }) => {
     await mockRoutingStudio(page, { evidenceStatus: "quality_blocked" });
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Contracts");
     await page.getByRole("tab", { name: "Evidence", exact: true }).click();
     await expect(page.getByText("Quality-safe savings")).toBeVisible();
     await expect(page.getByText("$9.80", { exact: true })).toBeVisible();
@@ -431,6 +505,7 @@ test.describe("Orchestrator Modes", () => {
       contractState: "draft",
     });
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Contracts");
     await page.getByRole("tab", { name: "Rollouts", exact: true }).click();
     const start = page.getByRole("button", { name: "Start shadow" });
     await expect(start).toBeEnabled();
@@ -814,6 +889,7 @@ test.describe("Orchestrator Modes", () => {
     );
 
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Configuration");
     await page.getByRole("tab", { name: "Harnesses" }).click();
 
     await expect(
@@ -874,6 +950,7 @@ test.describe("Orchestrator Modes", () => {
     );
 
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Configuration");
     await expect(page.getByRole("tab", { name: "Routing" })).toBeVisible();
     await page.getByRole("tab", { name: "Harnesses" }).click();
     await expect(
@@ -959,6 +1036,7 @@ test.describe("Orchestrator Modes", () => {
     });
 
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Configuration");
     await page.getByRole("tab", { name: "Routing" }).click();
     await page.locator(".route-preview select").selectOption("worker");
     await page.getByRole("button", { name: "Preview" }).click();
@@ -1036,6 +1114,7 @@ test.describe("Orchestrator Modes", () => {
     );
 
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Configuration");
     await page.getByRole("tab", { name: "Routing" }).click();
 
     await expect(page.getByLabel("Deployment cooldown (seconds)")).toHaveValue(
@@ -1110,6 +1189,7 @@ test.describe("Orchestrator Modes", () => {
     });
 
     await page.goto("/orchestrator");
+    await openOrchestratorWorkspace(page, "Configuration");
     await page.getByRole("tab", { name: "Routing" }).click();
     await page.locator(".route-preview select").selectOption("worker");
     await page.getByRole("button", { name: "Preview" }).click();
