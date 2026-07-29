@@ -53,7 +53,7 @@ def _install_dashboard_routes(
             return
 
         if "/assets/" in url:
-            asset_path = ROOT_DIR / "dashboard/dist" / url.split("cutctx.local/")[1]
+            asset_path = ROOT_DIR / "cutctx/dashboard" / url.split("cutctx.local/")[1]
             if asset_path.exists():
                 mime = "text/javascript" if url.endswith(".js") else "text/css"
                 route.fulfill(status=200, content_type=mime, body=asset_path.read_bytes())

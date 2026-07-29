@@ -115,7 +115,11 @@ def _install_dashboard_routes(
 
         if "/assets/" in url:
             asset_rel = url.split("cutctx.local/")[1]
-            asset_path = root_dir / "dashboard/dist" / asset_rel
+            # ``get_dashboard_html(prefer_react=True)`` serves the packaged
+            # dashboard bundle. ``dashboard/dist`` is a local build artifact
+            # and is absent from a clean checkout, so test the same assets the
+            # proxy actually serves.
+            asset_path = root_dir / "cutctx/dashboard" / asset_rel
             if asset_path.exists():
                 mime = "text/javascript" if url.endswith(".js") else "text/css"
                 route.fulfill(
