@@ -26,7 +26,7 @@ The contract enforced here:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -156,3 +156,23 @@ def test_trial_manager_start_trial_without_token_never_calls_network(monkeypatch
 
     assert state.trial_token is None
     assert state.org_id is None
+
+
+def test_trial_manager_start_trial_denies_when_hosted_start_fails(tmp_path, monkeypatch):
+    """When the portal denies hosted trial start, TrialManager must not persist
+    server trial credentials or claim a successful server-side start."""
+    state_path = tmp_path / "trial_state.json"
+    manager = TrialManager(state_path)
+
+    monkeypatch.setattr(client, "start_trial", lambda *a, **k: False)
+
+    with patch("cutctx.billing.client.start_trial", return_value=False):
+        with pytest.raises(RuntimeError, match="Hosted trial start denied"):
+            manager.start_trial(
+                org_id="org_1",
+                trial_token="trial-token",
+                customer_email="user@example.com",
+            )
+
+    assert not state_path.exists()
+    assert manager._state is None

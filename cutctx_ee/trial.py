@@ -113,7 +113,12 @@ class TrialManager:
         if trial_token and customer_email:
             from cutctx.billing.client import start_trial as server_start_trial
 
-            server_start_trial(trial_token, customer_email)
+            if not server_start_trial(trial_token, customer_email):
+                logger.warning(
+                    "Hosted trial start denied for org=%s; not persisting local trial state",
+                    org_id,
+                )
+                raise RuntimeError("Hosted trial start denied by portal")
 
         self._state = TrialState(started_at=time.time(), org_id=org_id, trial_token=trial_token)
         self._save()
