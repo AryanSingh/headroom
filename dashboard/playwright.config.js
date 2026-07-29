@@ -31,7 +31,12 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev -- --port 4123',
-    url: 'http://localhost:4123',
-    reuseExistingServer: true,
+    url: 'http://localhost:4123/dashboard',
+    // Reusing a stray/stale server hides startup failures and can point
+    // tests at the wrong build. Only reuse locally; CI always starts fresh.
+    reuseExistingServer: !process.env.CI,
+    stdout: 'pipe',
+    stderr: 'pipe',
+    timeout: 30_000,
   },
 });
