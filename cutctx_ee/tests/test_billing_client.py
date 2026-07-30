@@ -320,13 +320,18 @@ def test_activate_instance_requires_expected_json(monkeypatch):
     assert client.activate_instance("lic-1", "inst-1") is True
 
 
-def test_trial_status_fails_open_on_non_json(monkeypatch):
+def test_trial_status_fails_closed_on_non_json(monkeypatch):
+    """Audit-Deep-2026-07-29: a non-JSON reply (e.g. the marketing SPA answering
+    every unmatched route with HTML) must deny the trial, not grant it. The
+    previous fail-open behavior let an unreachable/misconfigured portal
+    silently grant server-side trials to anyone.
+    """
     monkeypatch.setattr(
         client.httpx,
         "post",
         lambda *args, **kwargs: _FakeResponse(200, content_type="text/html"),
     )
-    assert client.is_trial_active("trial-1") is True
+    assert client.is_trial_active("trial-1") is False
 
 
 # SPDX-License-Identifier: LicenseRef-Cutctx-Commercial

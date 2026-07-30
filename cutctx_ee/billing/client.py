@@ -7,6 +7,7 @@
 import logging
 import os
 import time
+from datetime import datetime, timezone
 
 import httpx
 
@@ -254,7 +255,15 @@ def checkout_seat(license_key: str, user_id: str) -> bool:
 
 
 def start_trial(trial_token: str, customer_email: str, duration: float = 14 * 86400.0) -> bool:
-    """Start a server-side trial; network errors fail open for compatibility."""
+    """Start a server-side trial.
+
+    Fails CLOSED: a timeout, connection error, non-200 status (including a
+    405 from the marketing SPA answering an unmatched POST route), or a
+    non-JSON body all deny the trial start. There is no legitimate reason to
+    grant a server-side trial without a definite portal acknowledgement —
+    the previous fail-open behavior meant an unreachable or misconfigured
+    portal silently granted trials to anyone.
+    """
     try:
         resp = httpx.post(
             f"{get_portal_url()}/v1/license/start-trial",
@@ -269,22 +278,61 @@ def start_trial(trial_token: str, customer_email: str, duration: float = 14 * 86
             return False
         payload = resp.json()
         return isinstance(payload, dict) and payload.get("status") == "ok"
-    except Exception:
-        return True  # Fail open
+    except Exception as exc:
+        logger.warning("Trial start failed (%s); denying (fail closed)", exc)
+        return False
+
+
+def _expires_at_is_future(expires_at: object) -> bool:
+    """Return True when `expires_at` is a parseable RFC3339 timestamp in the future.
+
+    Any value that is not a string, or that fails to parse, is treated as
+    malformed and therefore NOT in the future — callers must deny in that
+    case rather than default to granting access.
+    """
+    if not isinstance(expires_at, str):
+        return False
+    try:
+        expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=timezone.utc)
+    return expiry > datetime.now(timezone.utc)
 
 
 def is_trial_active(trial_token: str) -> bool:
-    """Check if a trial is active; unavailable portal responses fail open."""
+    """Check if a server-side trial is active.
+
+    Fails CLOSED: a timeout, connection error, non-200 status, or a
+    non-JSON body all deny. A missing or non-``True`` ``active`` field also
+    denies — it is never defaulted to ``True``. When the response includes
+    an ``expires_at``, it must parse as RFC3339 and be in the future, or the
+    trial is denied even if ``active`` was ``True``.
+
+    Audit-Deep-2026-07-29: the previous implementation defaulted to
+    ``True`` on every unreachable-portal path (timeout, 5xx, non-JSON, and
+    even a definite ``{"active": false}`` reply mistranslated via
+    ``payload.get("active", True)``'s default only helping the *missing*
+    key case, but the surrounding `except`/status-code branches granted
+    access on every failure). That let a forged or expired trial token
+    bypass enforcement simply by making the portal unreachable.
+    """
     try:
         resp = httpx.post(
             f"{get_portal_url()}/v1/license/check-trial",
             json={"trial_token": trial_token},
             **_service_request_kwargs(timeout=5.0),
         )
-        if resp.status_code == 200 and _response_is_json(resp):
-            payload = resp.json()
-            if isinstance(payload, dict):
-                return bool(payload.get("active", True))
-        return True  # Fail open
-    except Exception:
-        return True  # Fail open
+        if resp.status_code != 200 or not _response_is_json(resp):
+            return False
+        payload = resp.json()
+        if not isinstance(payload, dict) or payload.get("active") is not True:
+            return False
+        expires_at = payload.get("expires_at")
+        if expires_at is not None and not _expires_at_is_future(expires_at):
+            return False
+        return True
+    except Exception as exc:
+        logger.warning("Trial status check failed (%s); denying (fail closed)", exc)
+        return False

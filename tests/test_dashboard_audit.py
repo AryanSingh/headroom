@@ -5,9 +5,13 @@ from __future__ import annotations
 import json
 import os
 import re
+import signal
 import socket
 import subprocess
+import threading
 import time
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -155,36 +159,197 @@ def _available_loopback_port() -> int:
         return int(probe.getsockname()[1])
 
 
-@pytest.fixture(scope="session")
-def dashboard_server():
-    base_url = os.environ.get("CUTCTX_DASHBOARD_AUDIT_BASE_URL")
-    process = None
-    if not base_url:
+@dataclass
+class DashboardStartResult:
+    """Outcome of :func:`start_dashboard`.
+
+    Exactly one of ``(base_url, process)`` or ``error`` is populated: a
+    successful start leaves ``error`` as ``None`` and hands back the running
+    ``process`` for the caller to manage; a failed start always terminates
+    any process it spawned and returns a diagnostic ``error`` message.
+    """
+
+    base_url: str | None
+    process: subprocess.Popen | None
+    error: str | None
+
+
+def _drain_stream(stream, buffer: list[str]) -> None:
+    """Continuously read a pipe into ``buffer`` so it never fills and blocks."""
+    try:
+        for line in iter(stream.readline, ""):
+            buffer.append(line)
+    except (ValueError, OSError):
+        pass
+    finally:
+        try:
+            stream.close()
+        except OSError:
+            pass
+
+
+def _terminate_process(process: subprocess.Popen) -> None:
+    """Terminate ``process`` (and its process group, if any) and reap it."""
+    if process.poll() is not None:
+        return
+    pgid: int | None
+    try:
+        pgid = os.getpgid(process.pid)
+    except (ProcessLookupError, OSError):
+        pgid = None
+
+    def _signal(sig: int) -> None:
+        try:
+            if pgid is not None:
+                os.killpg(pgid, sig)
+            else:
+                process.send_signal(sig)
+        except ProcessLookupError:
+            pass
+
+    _signal(signal.SIGTERM)
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        _signal(signal.SIGKILL)
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+
+
+def _format_start_error(
+    command: Sequence[str], port: int, elapsed: float, *, stdout: str, stderr: str
+) -> str:
+    return (
+        "Dashboard server failed to become ready.\n"
+        f"command: {list(command)!r}\n"
+        f"port: {port}\n"
+        f"elapsed: {elapsed:.2f}s\n"
+        f"stdout:\n{stdout or '(empty)'}\n"
+        f"stderr:\n{stderr or '(empty)'}\n"
+    )
+
+
+def start_dashboard(
+    command: Sequence[str],
+    *,
+    cwd: Path = DASHBOARD_DIR,
+    port: int | None = None,
+    timeout_seconds: float = 20.0,
+    ready_path: str = "/dashboard",
+) -> DashboardStartResult:
+    """Start ``command`` and wait for an HTTP readiness probe to succeed.
+
+    Captures stdout/stderr (never ``DEVNULL``) so a failure can report the
+    command, port, elapsed time, and the process's actual output. On any
+    failure path the spawned process (and its process group) is terminated
+    and waited on before returning; on success the running process is handed
+    back to the caller, who owns shutting it down.
+    """
+    if port is None:
         port = _available_loopback_port()
-        base_url = f"http://127.0.0.1:{port}"
+    base_url = f"http://127.0.0.1:{port}"
+    started_at = time.monotonic()
+
+    try:
         process = subprocess.Popen(
-            ["npm", "run", "dev", "--", "--host", "127.0.0.1", "--port", str(port)],
-            cwd=DASHBOARD_DIR,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            list(command),
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        elapsed = time.monotonic() - started_at
+        return DashboardStartResult(
+            base_url=None,
+            process=None,
+            error=_format_start_error(command, port, elapsed, stdout="", stderr=str(exc)),
         )
 
-    deadline = time.monotonic() + 20
+    stdout_lines: list[str] = []
+    stderr_lines: list[str] = []
+    stdout_thread = threading.Thread(
+        target=_drain_stream, args=(process.stdout, stdout_lines), daemon=True
+    )
+    stderr_thread = threading.Thread(
+        target=_drain_stream, args=(process.stderr, stderr_lines), daemon=True
+    )
+    stdout_thread.start()
+    stderr_thread.start()
+
+    deadline = started_at + timeout_seconds
+    ready = False
     while time.monotonic() < deadline:
+        if process.poll() is not None:
+            break
         try:
-            with urlopen(f"{base_url}/dashboard", timeout=1):
+            with urlopen(f"{base_url}{ready_path}", timeout=1):
+                ready = True
                 break
         except (OSError, URLError):
             time.sleep(0.1)
-    else:
-        if process:
-            process.terminate()
-        pytest.fail(f"Dashboard server did not start at {base_url}")
 
-    yield base_url.rstrip("/")
-    if process:
-        process.terminate()
-        process.wait(timeout=10)
+    if ready:
+        return DashboardStartResult(base_url=base_url, process=process, error=None)
+
+    elapsed = time.monotonic() - started_at
+    _terminate_process(process)
+    stdout_thread.join(timeout=2)
+    stderr_thread.join(timeout=2)
+    return DashboardStartResult(
+        base_url=None,
+        process=None,
+        error=_format_start_error(
+            command,
+            port,
+            elapsed,
+            stdout="".join(stdout_lines),
+            stderr="".join(stderr_lines),
+        ),
+    )
+
+
+def test_vite_start_failure_includes_stderr_and_command() -> None:
+    result = start_dashboard(command=["false"], timeout_seconds=1)
+
+    assert result.error is not None
+    assert result.base_url is None
+    assert result.process is None
+    assert "command" in result.error
+    assert "stderr" in result.error
+    assert "false" in result.error
+
+
+def test_vite_start_timeout_includes_command_port_and_elapsed() -> None:
+    result = start_dashboard(command=["sleep", "5"], timeout_seconds=0.5)
+
+    assert result.error is not None
+    assert result.process is None
+    assert "command" in result.error
+    assert "port" in result.error
+    assert "elapsed" in result.error
+    assert "stderr" in result.error
+    assert "sleep" in result.error
+
+
+@pytest.fixture(scope="session")
+def dashboard_server():
+    base_url = os.environ.get("CUTCTX_DASHBOARD_AUDIT_BASE_URL")
+    if base_url:
+        yield base_url.rstrip("/")
+        return
+
+    port = _available_loopback_port()
+    command = ["npm", "run", "dev", "--", "--host", "127.0.0.1", "--port", str(port)]
+    result = start_dashboard(command=command, port=port, timeout_seconds=20.0)
+    if result.error:
+        pytest.fail(result.error)
+
+    yield result.base_url
+    _terminate_process(result.process)
 
 
 @pytest.fixture(scope="module")
