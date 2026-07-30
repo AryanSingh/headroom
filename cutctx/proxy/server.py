@@ -33,6 +33,7 @@ import json
 import logging
 import math
 import os
+import secrets
 import sys
 import threading
 import time
@@ -62,6 +63,7 @@ try:
         FileResponse,
         HTMLResponse,
         JSONResponse,
+        RedirectResponse,
     )
 
     FASTAPI_AVAILABLE = True
@@ -2462,6 +2464,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     app.state.rust_core_status = _rust_core_status
     app.state.rust_core_error = _rust_core_error
     app.state.retention_manager = None
+    dashboard_bootstrap_tokens: dict[str, float] = {}
+    dashboard_sessions: dict[str, float] = {}
+    dashboard_bootstrap_ttl_seconds = 60
+    dashboard_session_ttl_seconds = 8 * 60 * 60
+    dashboard_session_cookie = "cutctx_dashboard_session"
 
     from cutctx.proxy.agent_auth import AgentClientAuthError
 
@@ -3586,6 +3593,15 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
         from cutctx.proxy.forwarded_headers import resolve_client_ip
 
+        dashboard_session = request.cookies.get(dashboard_session_cookie, "")
+        if dashboard_session:
+            expires_at = dashboard_sessions.get(dashboard_session)
+            if expires_at is not None and expires_at > time.monotonic():
+                request.state.cutctx_role = "admin"
+                request.state.cutctx_admin_authenticated = True
+                return
+            dashboard_sessions.pop(dashboard_session, None)
+
         async def _reject_failed_auth(detail: dict[str, str]) -> None:
             if admin_auth_failure_limiter is not None:
                 client_ip = resolve_client_ip(request) or "unknown"
@@ -3828,6 +3844,58 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             )
 
         return _check
+
+    @app.post("/admin/dashboard-sessions", dependencies=[Depends(_require_local_admin_auth)])
+    async def create_dashboard_session() -> dict[str, str]:
+        """Mint a short-lived, single-use dashboard bootstrap token.
+
+        Control authenticates this request with the locally stored license; the
+        browser receives only this opaque value and never sees that license.
+        """
+        now = time.monotonic()
+        dashboard_bootstrap_tokens_copy = {
+            token: expires_at
+            for token, expires_at in dashboard_bootstrap_tokens.items()
+            if expires_at > now
+        }
+        dashboard_bootstrap_tokens.clear()
+        dashboard_bootstrap_tokens.update(dashboard_bootstrap_tokens_copy)
+        dashboard_sessions_copy = {
+            token: expires_at
+            for token, expires_at in dashboard_sessions.items()
+            if expires_at > now
+        }
+        dashboard_sessions.clear()
+        dashboard_sessions.update(dashboard_sessions_copy)
+        token = secrets.token_urlsafe(32)
+        dashboard_bootstrap_tokens[token] = now + dashboard_bootstrap_ttl_seconds
+        return {"bootstrap_token": token}
+
+    @app.get("/dashboard/connect", include_in_schema=False)
+    async def connect_dashboard(request: Request, token: str = "") -> Response:
+        """Exchange a Control bootstrap token for a browser-only session cookie."""
+        from cutctx.proxy.deployment_security import is_loopback_host
+
+        client_host = request.client.host if request.client is not None else None
+        if not is_loopback_host(client_host):
+            raise HTTPException(status_code=403, detail="Dashboard bootstrap is local-only.")
+        expires_at = dashboard_bootstrap_tokens.pop(token, None)
+        if expires_at is None or expires_at <= time.monotonic():
+            raise HTTPException(
+                status_code=401, detail="Dashboard bootstrap token is invalid or expired."
+            )
+        session = secrets.token_urlsafe(32)
+        dashboard_sessions[session] = time.monotonic() + dashboard_session_ttl_seconds
+        response = RedirectResponse(url="/dashboard", status_code=303)
+        response.set_cookie(
+            key=dashboard_session_cookie,
+            value=session,
+            max_age=dashboard_session_ttl_seconds,
+            httponly=True,
+            samesite="strict",
+            path="/",
+        )
+        return response
 
     @app.get("/stats")
     @app.get("/v1/stats")

@@ -284,14 +284,21 @@ fn use_all_optional_profile(state: State<'_, AppState>) -> Result<ProxyProfile, 
     Ok(p)
 }
 
-fn probe_health(port: u16) -> Result<(bool, u64), String> {
+fn saved_license_key(state: &AppState) -> Result<Option<String>, String> {
+    let vault = state.credentials.lock().map_err(|e| e.to_string())?;
+    vault
+        .token_for_internal_use(&state.home, credentials::CUTCTX_LICENSE_KEY)
+        .map_err(|e| e.to_string())
+}
+
+fn probe_health(port: u16, license_key: Option<&str>) -> Result<(bool, u64), String> {
     let url = format!("http://127.0.0.1:{port}/health");
     match ureq::get(&url)
         .timeout(std::time::Duration::from_secs(2))
         .call()
     {
         Ok(resp) if resp.status() >= 200 && resp.status() < 300 => {
-            let tokens = probe_tokens_saved(port).unwrap_or(0);
+            let tokens = probe_tokens_saved(port, license_key).unwrap_or(0);
             Ok((true, tokens))
         }
         Ok(_) => Ok((false, 0)),
@@ -300,10 +307,15 @@ fn probe_health(port: u16) -> Result<(bool, u64), String> {
 }
 
 /// Proxy cold-start often needs a few seconds before `/health` answers.
-fn wait_until_healthy(port: u16, attempts: u32, delay_ms: u64) -> Result<u64, String> {
+fn wait_until_healthy(
+    port: u16,
+    attempts: u32,
+    delay_ms: u64,
+    license_key: Option<&str>,
+) -> Result<u64, String> {
     let mut last_err = "proxy did not become healthy".to_string();
     for _ in 0..attempts {
-        match probe_health(port) {
+        match probe_health(port, license_key) {
             Ok((true, tokens)) => return Ok(tokens),
             Ok((false, _)) => last_err = "health returned non-OK".into(),
             Err(e) => last_err = e,
@@ -313,9 +325,14 @@ fn wait_until_healthy(port: u16, attempts: u32, delay_ms: u64) -> Result<u64, St
     Err(last_err)
 }
 
-fn probe_tokens_saved(port: u16) -> Option<u64> {
+fn probe_tokens_saved(port: u16, license_key: Option<&str>) -> Option<u64> {
+    let license_key = license_key?.trim();
+    if license_key.is_empty() {
+        return None;
+    }
     let url = format!("http://127.0.0.1:{port}/stats");
     let resp = ureq::get(&url)
+        .set("X-Cutctx-Admin-Key", license_key)
         .timeout(std::time::Duration::from_secs(2))
         .call()
         .ok()?;
@@ -334,8 +351,9 @@ fn refresh_health(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
         let profile = state.profile.lock().map_err(|e| e.to_string())?;
         profile.port
     };
+    let license_key = saved_license_key(&state)?;
     let mut health = state.health.lock().map_err(|e| e.to_string())?;
-    match probe_health(port) {
+    match probe_health(port, license_key.as_deref()) {
         Ok((true, tokens)) => {
             if matches!(
                 health.status.phase,
@@ -368,12 +386,13 @@ fn refresh_health(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
 #[tauri::command]
 fn start_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
     let profile = state.profile.lock().map_err(|e| e.to_string())?.clone();
+    let license_key = saved_license_key(&state)?;
     {
         let mut health = state.health.lock().map_err(|e| e.to_string())?;
         health.on_start_requested();
     }
     // If something already healthy on port, attach instead of double-bind.
-    if let Ok((true, tokens)) = probe_health(profile.port) {
+    if let Ok((true, tokens)) = probe_health(profile.port, license_key.as_deref()) {
         let mut health = state.health.lock().map_err(|e| e.to_string())?;
         health.on_external_detected();
         health.on_health_ok(tokens);
@@ -384,7 +403,7 @@ fn start_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
     }
     state.supervisor.ensure_product_runtime(&profile, false)?;
     // Cold start with optional engines can take several seconds.
-    match wait_until_healthy(profile.port, 40, 500) {
+    match wait_until_healthy(profile.port, 40, 500, license_key.as_deref()) {
         Ok(tokens) => {
             {
                 let mut applied = state.applied_profile.lock().map_err(|e| e.to_string())?;
@@ -407,6 +426,7 @@ fn start_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
 #[tauri::command]
 fn stop_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
     let port = state.profile.lock().map_err(|e| e.to_string())?.port;
+    let license_key = saved_license_key(&state)?;
     {
         let mut health = state.health.lock().map_err(|e| e.to_string())?;
         health.on_stop_requested();
@@ -416,12 +436,12 @@ fn stop_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
     state.supervisor.stop()?;
     let managed_stop = state.supervisor.stop_product_runtime();
     for _ in 0..20 {
-        if probe_health(port).is_err() {
+        if probe_health(port, license_key.as_deref()).is_err() {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    if probe_health(port).is_ok() {
+    if probe_health(port, license_key.as_deref()).is_ok() {
         let mut health = state.health.lock().map_err(|e| e.to_string())?;
         health.on_external_detected();
         return Err(
@@ -444,13 +464,14 @@ fn stop_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
 fn restart_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
     let profile = state.profile.lock().map_err(|e| e.to_string())?.clone();
     let port = profile.port;
+    let license_key = saved_license_key(&state)?;
     let mut health = state.health.lock().map_err(|e| e.to_string())?;
     health.on_start_requested();
     drop(health);
     // Reinstall with the current profile argv so restart-required toggles
     // survive future login-started service launches too.
     state.supervisor.ensure_product_runtime(&profile, true)?;
-    match wait_until_healthy(port, 40, 500) {
+    match wait_until_healthy(port, 40, 500, license_key.as_deref()) {
         Ok(tokens) => {
             {
                 let mut applied = state.applied_profile.lock().map_err(|e| e.to_string())?;
@@ -475,7 +496,30 @@ fn restart_proxy(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
 #[tauri::command]
 fn dashboard_url(state: State<'_, AppState>) -> Result<String, String> {
     let profile = state.profile.lock().map_err(|e| e.to_string())?;
-    Ok(dashboard_link::dashboard_url_for_port(profile.port))
+    let port = profile.port;
+    drop(profile);
+    let license_key = saved_license_key(&state)?
+        .filter(|key| !key.trim().is_empty())
+        .ok_or_else(|| {
+            "Save your CutCtx license key in Control before opening the dashboard.".to_string()
+        })?;
+    let endpoint = format!("http://127.0.0.1:{port}/admin/dashboard-sessions");
+    let response = ureq::post(&endpoint)
+        .set("X-Cutctx-Admin-Key", &license_key)
+        .timeout(std::time::Duration::from_secs(2))
+        .send_json(serde_json::json!({}))
+        .map_err(|_| {
+            "Could not create a local dashboard session. Confirm the proxy is healthy.".to_string()
+        })?;
+    let payload: serde_json::Value = response
+        .into_json()
+        .map_err(|_| "Proxy returned an invalid dashboard session response.".to_string())?;
+    let token = payload
+        .get("bootstrap_token")
+        .and_then(|value| value.as_str())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "Proxy did not return a dashboard session token.".to_string())?;
+    Ok(dashboard_link::dashboard_connect_url_for_port(port, token))
 }
 
 #[tauri::command]

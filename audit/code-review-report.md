@@ -62,3 +62,38 @@ None after remediation and verification.
 ## Final recommendation
 
 Push the reviewed `main` history. Keep `gh-pages` and the unsafe/uncommitted worktree drafts separate. Do not delete those worktrees without explicit confirmation from their owner.
+
+---
+
+# Control Credential Handoff Review — 2026-07-30
+
+## Scope
+
+- Proxy bootstrap-token and browser-session exchange in `cutctx/proxy/server.py`
+- Native Control credential use and dashboard deep link in
+  `desktop/cutctx-control/src-tauri/src/`
+- Admin-auth regression tests and current audit/planning artifacts
+
+## Findings
+
+No blocking correctness, credential-exposure, or test-coverage issue was
+identified in the reviewed change set.
+
+- Control reads the saved license only in native code and sends it in an admin
+  header to mint a session; the browser receives an opaque, single-use token.
+- The token exchange is loopback-only and creates an `HttpOnly`,
+  `SameSite=Strict` session cookie. It does not place a credential in the URL,
+  browser storage, or returned dashboard payload.
+- The proxy token and session registries are intentionally process-local. This
+  is appropriate for the local Control-to-local-proxy handoff; a future
+  multi-process deployment would need shared session storage.
+- `.slim/worktrees.json` is stale, local orchestration metadata and is
+  intentionally excluded from the commit.
+
+## Verification
+
+- `pytest tests/test_runtime_app_admin_auth.py -q` — 10 passed
+- `uvx ruff@0.9.4 check cutctx/proxy/server.py tests/test_runtime_app_admin_auth.py` — passed
+- `cargo fmt --check` — passed
+- `cargo test` in `desktop/cutctx-control/src-tauri` — 46 passed
+- `git diff --check` — passed

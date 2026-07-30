@@ -137,9 +137,10 @@ impl CredentialVault {
         }
     }
 
-    #[cfg(test)]
-    pub fn get_secret(&self, home: &Path, id: &str) -> std::io::Result<Option<String>> {
-        // Ensure license file bootstrap is visible to supervised launches.
+    /// Return a credential only to native Control runtime code. This is never
+    /// exposed through a Tauri command or returned to the web frontend.
+    pub fn token_for_internal_use(&self, home: &Path, id: &str) -> std::io::Result<Option<String>> {
+        // Ensure license-file bootstrap is visible to native Control calls.
         if id == CUTCTX_LICENSE_KEY {
             let _ = self.status(home, id)?;
         }
@@ -275,7 +276,10 @@ mod tests {
         assert!(!replaced.unlocked_for_entry);
         assert_eq!(replaced.masked.as_deref(), Some("sk-…bbbb"));
 
-        let secret = vault.get_secret(&home, OPENAI_API_KEY).unwrap().unwrap();
+        let secret = vault
+            .token_for_internal_use(&home, OPENAI_API_KEY)
+            .unwrap()
+            .unwrap();
         assert_eq!(secret, "sk-new-token-bbbb");
 
         // Second save without rotate fails again
@@ -297,7 +301,10 @@ mod tests {
         let status = vault.cancel_rotate(&home, OPENAI_API_KEY).unwrap();
         assert!(!status.unlocked_for_entry);
         assert_eq!(
-            vault.get_secret(&home, OPENAI_API_KEY).unwrap().unwrap(),
+            vault
+                .token_for_internal_use(&home, OPENAI_API_KEY)
+                .unwrap()
+                .unwrap(),
             "sk-keep-token-zzzz"
         );
         let _ = fs::remove_dir_all(&home);
@@ -341,7 +348,7 @@ mod tests {
         assert!(status.configured);
         assert!(!status.unlocked_for_entry);
         let secret = vault
-            .get_secret(&home, CUTCTX_LICENSE_KEY)
+            .token_for_internal_use(&home, CUTCTX_LICENSE_KEY)
             .unwrap()
             .unwrap();
         assert_eq!(secret, "cutctx_preexisting_license_key");

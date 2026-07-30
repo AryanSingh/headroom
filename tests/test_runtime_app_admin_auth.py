@@ -70,6 +70,44 @@ def test_sensitive_surfaces_do_not_accept_query_parameter_credentials(client: Te
     assert response.status_code == 401
 
 
+def test_dashboard_bootstrap_token_exchanges_for_an_authenticated_cookie(
+    client: TestClient,
+) -> None:
+    minted = client.post(
+        "/admin/dashboard-sessions",
+        headers={"X-Cutctx-Admin-Key": "test-admin-key"},
+    )
+
+    assert minted.status_code == 200
+    token = minted.json()["bootstrap_token"]
+    assert token != "test-admin-key"
+
+    connected = client.get(f"/dashboard/connect?token={token}", follow_redirects=False)
+
+    assert connected.status_code == 303
+    assert connected.headers["location"] == "/dashboard"
+    assert "HttpOnly" in connected.headers["set-cookie"]
+    assert client.get("/stats").status_code == 200
+    assert (
+        client.get(f"/dashboard/connect?token={token}", follow_redirects=False).status_code == 401
+    )
+
+
+def test_dashboard_bootstrap_tokens_do_not_invalidate_other_opening_windows(
+    client: TestClient,
+) -> None:
+    headers = {"X-Cutctx-Admin-Key": "test-admin-key"}
+    first = client.post("/admin/dashboard-sessions", headers=headers).json()["bootstrap_token"]
+    second = client.post("/admin/dashboard-sessions", headers=headers).json()["bootstrap_token"]
+
+    assert (
+        client.get(f"/dashboard/connect?token={first}", follow_redirects=False).status_code == 303
+    )
+    assert (
+        client.get(f"/dashboard/connect?token={second}", follow_redirects=False).status_code == 303
+    )
+
+
 @pytest.mark.no_auto_admin
 def test_local_write_route_does_not_trust_spoofed_admin_role(monkeypatch) -> None:
     monkeypatch.delenv("CUTCTX_ADMIN_API_KEY", raising=False)

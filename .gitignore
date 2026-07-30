@@ -319,3 +319,18 @@ patch_*.py
 
 # Scratch HOME used by scripts/savings_harness.py (may hold fetched binaries)
 .harness-home/
+
+# Local runtime data and config — machine-specific, never committed
+.cutctx/
+.opencode/
+.opencode-prompt
+AGENTS.md
+
+# Local SQLite databases (spend ledger, runtime state)
+spend_ledger.db
+*.db
+*.db-shm
+*.db-wal
+
+# Package manager lockfiles (project uses pnpm/npm; yarn not used)
+yarn.lock
