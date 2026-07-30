@@ -328,6 +328,43 @@ def test_chatgpt_subscription_compresses_only_current_output_tail():
     assert updated["input"][-1]["output"] == "kept words"
 
 
+def test_chatgpt_subscription_reversibly_compresses_a_large_python_output_tail():
+    """A large fresh file must reach the reversible-code live-zone route."""
+    handler = _handler_with_router(
+        ContentRouter(ContentRouterConfig(enable_code_aware=False, enable_reversible_code=True))
+    )
+    source = (
+        "def large_fixture():\n"
+        + "".join(f"    value_{index} = {index}\n" for index in range(100))
+        + "    return value_99\n"
+    )
+    payload = {
+        "model": "gpt-5.6-terra",
+        "input": [
+            {
+                "type": "function_call_output",
+                "call_id": "call_current",
+                "output": source,
+            }
+        ],
+    }
+
+    updated, modified, saved, transforms, reason, *_ = (
+        handler._compress_chatgpt_subscription_tool_outputs(
+            payload,
+            model="gpt-5.6-terra",
+            request_id="req_large_python_tail",
+        )
+    )
+
+    assert modified is True
+    assert saved > 0
+    assert reason is None
+    assert updated["input"][0]["call_id"] == payload["input"][0]["call_id"]
+    assert updated["input"][0]["output"] != source
+    assert "reversible_code" in transforms
+
+
 def test_subscription_tail_validator_rejects_token_saving_wire_inflation():
     handler = _handler_with_router(ContentRouter())
     original = {
