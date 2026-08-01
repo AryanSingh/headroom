@@ -398,14 +398,17 @@ class SQLiteEpisodeLedger:
         return self._transaction(partitions)
 
     def records_for_user(self, user_key: str) -> list[EpisodeRecord]:
-        return self._transaction(
-            lambda connection: [
-                self._record(row)
-                for row in connection.execute(
-                    "SELECT * FROM episodes WHERE user_key = ?", (_hash(user_key),)
-                ).fetchall()
-            ]
-        )  # type: ignore[list-item]
+        def records(connection: sqlite3.Connection) -> list[EpisodeRecord]:
+            result: list[EpisodeRecord] = []
+            for row in connection.execute(
+                "SELECT * FROM episodes WHERE user_key = ?", (_hash(user_key),)
+            ).fetchall():
+                record = self._record(row)
+                assert record is not None
+                result.append(record)
+            return result
+
+        return self._transaction(records)
 
     def invalid_at_for(self, episode_ids: list[str]) -> datetime | None:
         if not episode_ids:

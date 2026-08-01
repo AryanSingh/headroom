@@ -6,6 +6,7 @@ Unit tests mock graphiti_core — no Neo4j required in CI.
 from __future__ import annotations
 
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -61,7 +62,24 @@ def _mock_client() -> MagicMock:
     client.search = AsyncMock(return_value=[])
     client.close = AsyncMock()
     client.remove_episode = AsyncMock()
+    client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], []))
     return client
+
+
+@pytest.fixture(autouse=True)
+def _in_process_partition_lock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep backend tests independent of Graphiti's optional filelock extra."""
+    class Lock:
+        def __init__(self, *_: Any, **__: Any) -> None:
+            pass
+
+        async def __aenter__(self) -> Lock:
+            return self
+
+        async def __aexit__(self, *_: Any) -> None:
+            return None
+
+    monkeypatch.setitem(sys.modules, "cutctx.memory.backends.graphiti_lock", SimpleNamespace(PartitionOperationLock=Lock))
 
 
 class TestGraphitiImportGuard:
@@ -87,13 +105,14 @@ class TestGraphitiSaveMapping:
         mock_client = _mock_client()
         backend = GraphitiBackend(_cfg(ledger_path), client=mock_client)
         memory = Memory(id="recover-me", content="durable", user_id="alice", session_id="s1")
+        original_activate = backend._ledger.activate
         monkeypatch.setattr(backend._ledger, "activate", lambda _: (_ for _ in ()).throw(ValueError()))
 
         with pytest.raises(GraphitiWriteRecoveryRequired) as exc:
             await backend.save(memory, idempotency_key="retry-1")
         assert backend._ledger.get("recover-me").state == "write_pending"  # type: ignore[union-attr]
 
-        monkeypatch.undo()
+        monkeypatch.setattr(backend._ledger, "activate", original_activate)
         assert (await backend.save(memory, idempotency_key=exc.value.idempotency_key)).id == "recover-me"
         assert backend._ledger.get("recover-me").state == "active"  # type: ignore[union-attr]
         with pytest.raises(GraphitiIdempotencyConflict):
@@ -334,6 +353,21 @@ class TestGraphitiSearchMapping:
 
 class TestGraphitiSupersedeAndLedger:
     @pytest.mark.asyncio
+    async def test_failed_replacement_keeps_old_episode_active(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend
+
+        client = _mock_client()
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(Memory(id="old", content="old", user_id="alice"))
+        client.add_episode.side_effect = RuntimeError("graph down")
+
+        with pytest.raises(RuntimeError, match="graph down"):
+            await backend.supersede("old", Memory(id="new", content="new", user_id="alice"))
+
+        assert backend._ledger.get("old").state == "active"  # type: ignore[union-attr]
+        assert backend._ledger.get("new").state == "write_pending"  # type: ignore[union-attr]
+
+    @pytest.mark.asyncio
     async def test_supersede_persists_across_backend_recreate(self, ledger_path: Path) -> None:
         from cutctx.memory.backends.graphiti import GraphitiBackend
 
@@ -425,6 +459,156 @@ class TestGraphitiSupersedeAndLedger:
         await backend.save_memory(content="b", user_id="alice")
         n = await backend.clear_user("alice")
         assert n == 2
+
+
+class TestGraphitiTruthfulDeletion:
+    @staticmethod
+    async def _save(backend: Any, *episodes: str, user: str = "alice") -> None:
+        for episode_id in episodes:
+            await backend.save(Memory(id=episode_id, content=episode_id, user_id=user))
+
+    @pytest.mark.asyncio
+    async def test_delete_refuses_origin_with_active_external_supporter(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiUnsafeDeletionError
+
+        client = _mock_client()
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], [
+            SimpleNamespace(episodes=["origin", "supporter"]),
+        ]))
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await self._save(backend, "origin", "supporter")
+
+        with pytest.raises(GraphitiUnsafeDeletionError):
+            await backend.delete_memory("origin")
+        client.remove_episode.assert_not_awaited()
+        assert backend._ledger.get("origin").state == "active"  # type: ignore[union-attr]
+
+    @pytest.mark.asyncio
+    async def test_delete_confirmed_remote_failure_is_retained_for_retry(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiDeletionError
+
+        client = _mock_client()
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], []))
+        client.remove_episode.side_effect = RuntimeError("remote down")
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await self._save(backend, "episode")
+
+        with pytest.raises(GraphitiDeletionError, match="remote down"):
+            await backend.delete_memory("episode")
+        record = backend._ledger.get("episode")
+        assert record is not None and record.state == "delete_pending"
+        assert record.last_error == "remote down"
+
+    @pytest.mark.asyncio
+    async def test_delete_finalization_failure_retries_not_found_as_confirmed(self, ledger_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiDeletionError
+
+        class NodeNotFoundError(Exception):
+            pass
+
+        client = _mock_client()
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], []))
+        client.remove_episode.side_effect = [None, NodeNotFoundError("gone")]
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await self._save(backend, "episode")
+        original = backend._ledger.mark_deleted
+        monkeypatch.setattr(backend._ledger, "mark_deleted", lambda _: (_ for _ in ()).throw(RuntimeError("disk full")))
+
+        with pytest.raises(GraphitiDeletionError, match="disk full"):
+            await backend.delete_memory("episode")
+        monkeypatch.setattr(backend._ledger, "mark_deleted", original)
+
+        assert await backend.delete_memory("episode") is True
+        assert backend._ledger.get("episode").state == "deleted"  # type: ignore[union-attr]
+
+    @pytest.mark.asyncio
+    async def test_clear_deletes_supporter_before_shared_origin(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend
+
+        client = _mock_client()
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], [
+            SimpleNamespace(episodes=["origin", "supporter"]),
+        ]))
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await self._save(backend, "origin", "supporter")
+
+        assert await backend.clear_user("alice") == 2
+        assert [call.args[0] for call in client.remove_episode.await_args_list] == ["supporter", "origin"]
+
+    @pytest.mark.asyncio
+    async def test_delete_unknown_or_already_deleted_returns_false(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend
+
+        client = _mock_client()
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], []))
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        assert await backend.delete_memory("unknown") is False
+        await self._save(backend, "episode")
+        assert await backend.delete_memory("episode") is True
+        assert await backend.delete_memory("episode") is False
+
+    @pytest.mark.asyncio
+    async def test_clear_user_reports_partial_failures_after_safe_deletions(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiClearError
+
+        client = _mock_client()
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], []))
+        client.remove_episode.side_effect = lambda episode: (
+            (_ for _ in ()).throw(RuntimeError("independent failed"))
+            if episode == "independent" else None
+        )
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await self._save(backend, "safe", "independent")
+
+        with pytest.raises(GraphitiClearError) as exc:
+            await backend.clear_user("alice")
+        assert exc.value.confirmed == 1
+        assert exc.value.failed == 1
+        assert backend._ledger.get("safe").state == "deleted"  # type: ignore[union-attr]
+        assert backend._ledger.get("independent").state == "delete_pending"  # type: ignore[union-attr]
+
+    @pytest.mark.asyncio
+    async def test_clear_defers_origin_after_its_supporter_remote_failure(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiClearError
+
+        client = _mock_client()
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], [
+            SimpleNamespace(episodes=["origin", "supporter"]),
+        ]))
+        client.remove_episode.side_effect = lambda episode: (
+            (_ for _ in ()).throw(RuntimeError("supporter failed"))
+            if episode == "supporter" else None
+        )
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await self._save(backend, "origin", "supporter")
+
+        with pytest.raises(GraphitiClearError) as exc:
+            await backend.clear_user("alice")
+
+        assert exc.value.confirmed == 0
+        assert exc.value.failed == 2
+        assert [call.args[0] for call in client.remove_episode.await_args_list] == ["supporter"]
+        assert backend._ledger.get("origin").state == "active"  # type: ignore[union-attr]
+
+    @pytest.mark.asyncio
+    async def test_clear_continues_independent_episode_after_unsafe_origin(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiClearError
+
+        client = _mock_client()
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], [
+            SimpleNamespace(episodes=["origin", "foreign-supporter"]),
+        ]))
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await self._save(backend, "origin", "independent")
+        await self._save(backend, "foreign-supporter", user="bob")
+
+        with pytest.raises(GraphitiClearError) as exc:
+            await backend.clear_user("alice")
+
+        assert exc.value.confirmed == 1
+        assert exc.value.failed == 1
+        client.remove_episode.assert_awaited_once_with("independent")
+        assert backend._ledger.get("origin").state == "active"  # type: ignore[union-attr]
 
 
 class TestGraphitiEasyWiring:

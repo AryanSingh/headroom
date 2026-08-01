@@ -25,6 +25,7 @@ import logging
 import os
 import re
 import uuid
+from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -60,6 +61,24 @@ class GraphitiWriteRecoveryRequired(RuntimeError):
         self.partition_id = partition_id
         self.idempotency_key = idempotency_key
         super().__init__(f"Graphiti write recovery required for episode {episode_id}")
+
+
+class GraphitiDeletionError(RuntimeError):
+    """Graphiti did not confirm that an episode was erased."""
+
+
+class GraphitiUnsafeDeletionError(GraphitiDeletionError):
+    """Removing an episode could erase a fact still supported elsewhere."""
+
+
+class GraphitiClearError(GraphitiDeletionError):
+    """A clear operation completed only part of its safe deletion set."""
+
+    def __init__(self, confirmed: int, failed: int, failures: dict[str, Exception]) -> None:
+        self.confirmed = confirmed
+        self.failed = failed
+        self.failures = failures
+        super().__init__(f"Graphiti clear confirmed {confirmed} deletions; {failed} failed")
 
 
 def _scope_partition(user_id: str, session_id: str | None) -> str:
@@ -370,7 +389,9 @@ class GraphitiBackend:
             # without importing it.
             from .graphiti_lock import PartitionOperationLock
 
-            async with PartitionOperationLock(self._config.ledger_path, partition_id, timeout=30):
+            ledger_path = self._config.ledger_path
+            assert ledger_path is not None
+            async with PartitionOperationLock(ledger_path, partition_id, timeout=30):
                 await self._client.add_episode(**kwargs)
                 if _activate:
                     try:
@@ -608,43 +629,147 @@ class GraphitiBackend:
             ) from exc
         return replacement
 
-    async def delete_memory(self, memory_id: str) -> bool:
-        """Delete (hide) an episode from CutCtx search via the ledger.
+    @asynccontextmanager
+    async def _partition_locks(self, partition_ids: set[str]) -> Any:
+        """Acquire all scope locks in a stable order, avoiding cross-scope deadlocks."""
+        from .graphiti_lock import PartitionOperationLock
 
-        Attempts Graphiti native removal when available; always records the
-        deletion in the persistent ledger so search stays consistent.
+        ledger_path = self._config.ledger_path
+        assert ledger_path is not None
+        async with AsyncExitStack() as stack:
+            for partition_id in sorted(partition_ids):
+                await stack.enter_async_context(
+                    PartitionOperationLock(ledger_path, partition_id, timeout=30)
+                )
+            yield
+
+    async def _preflight_deletion(self, episode_ids: set[str]) -> list[str]:
+        """Refuse deletion if provenance cannot prove every shared fact survives.
+
+        Graphiti orders an edge's episodes with its origin first.  A non-origin
+        supporter can always be removed independently; an origin cannot be
+        removed while an external active supporter still refers to it.
         """
+        assert self._client is not None
+        targets = set(episode_ids)
+        records = {episode_id: self._ledger.get(episode_id) for episode_id in targets}
+        if any(record is None for record in records.values()):
+            raise GraphitiUnsafeDeletionError("unknown episode provenance")
+        partition_ids = {record.partition_id for record in records.values() if record is not None}
+        if len(partition_ids) != 1:
+            raise GraphitiUnsafeDeletionError("deletion set spans foreign scopes")
+        result = await self._client.get_nodes_and_edges_by_episode(sorted(targets))
+        edges = result[1] if isinstance(result, tuple) and len(result) > 1 else getattr(result, "edges", [])
+        origins: set[str] = set()
+        partition_id = next(iter(partition_ids))
+        for edge in edges or []:
+            supporters = [str(value) for value in (getattr(edge, "episodes", None) or [])]
+            if not supporters or supporters[0] not in targets:
+                continue
+            origin = supporters[0]
+            origins.add(origin)
+            for supporter in supporters[1:]:
+                if supporter in targets:
+                    continue
+                record = self._ledger.get(supporter)
+                if record is None or record.partition_id != partition_id:
+                    raise GraphitiUnsafeDeletionError("unknown or foreign supporter provenance")
+                if record.state in {"write_pending", "delete_pending"}:
+                    raise GraphitiUnsafeDeletionError("supporter lifecycle is unresolved")
+                if record.state not in {"deleted", "superseded"}:
+                    raise GraphitiUnsafeDeletionError("origin has an active external supporter")
+        return sorted(targets, key=lambda episode_id: (episode_id in origins, episode_id))
+
+    async def _deletion_order(self, episode_ids: set[str]) -> list[str]:
+        """Order a batch without treating planned deletion as completed deletion.
+
+        Safety is deliberately checked again for each episode just before its
+        mutation.  A supporter that fails remotely remains ``delete_pending``
+        and therefore blocks its dependent origin in that fresh preflight.
+        """
+        assert self._client is not None
+        result = await self._client.get_nodes_and_edges_by_episode(sorted(episode_ids))
+        edges = result[1] if isinstance(result, tuple) and len(result) > 1 else getattr(result, "edges", [])
+        origins = {
+            str(getattr(edge, "episodes", [])[0])
+            for edge in edges or []
+            if getattr(edge, "episodes", None) and str(edge.episodes[0]) in episode_ids
+        }
+        return sorted(episode_ids, key=lambda episode_id: (episode_id in origins, episode_id))
+
+    @staticmethod
+    def _is_not_found(error: Exception) -> bool:
+        return error.__class__.__name__ == "NodeNotFoundError"
+
+    async def _delete_memory_locked(self, memory_id: str) -> bool:
+        assert self._client is not None
+        record = self._ledger.get(memory_id)
+        if record is None or record.state == "deleted":
+            return False
+        # Do not rely on the clear batch's original membership: an earlier
+        # remote failure changes the ledger state and must block this mutation.
+        await self._preflight_deletion({memory_id})
+        try:
+            self._ledger.mark_delete_pending(memory_id)
+            await self._client.remove_episode(memory_id)
+            self._ledger.mark_deleted(memory_id)
+            return True
+        except Exception as exc:
+            # A retry after a successful remote deletion but failed local
+            # finalization is truthful: Graphiti confirms it no longer exists.
+            if self._is_not_found(exc):
+                try:
+                    self._ledger.mark_deleted(memory_id)
+                    return True
+                except Exception as finalization_error:
+                    exc = finalization_error
+            try:
+                self._ledger.mark_delete_failed(memory_id, str(exc))
+            except Exception:
+                pass
+            raise GraphitiDeletionError(str(exc)) from exc
+
+    async def delete_memory(self, memory_id: str) -> bool:
+        """Erase an owned episode only after Graphiti confirms removal."""
         await self._ensure_initialized()
         record = self._ledger.get(memory_id)
-        if record is None:
+        if record is None or record.state == "deleted":
             return False
-        if record.state in {"deleted", "delete_pending"}:
-            return False
-        self._ledger.mark_delete_pending(memory_id)
-        removed = False
-        if self._client is not None:
-            for name in ("remove_episode", "delete_episode"):
-                fn = getattr(self._client, name, None)
-                if callable(fn):
-                    try:
-                        result = fn(memory_id)
-                        if hasattr(result, "__await__"):
-                            await result
-                        removed = True
-                        break
-                    except Exception as exc:
-                        logger.debug("Graphiti %s(%s) failed: %s", name, memory_id, exc)
-        if removed:
-            self._ledger.mark_deleted(memory_id)
-        return removed
+        async with self._partition_locks({record.partition_id}):
+            return await self._delete_memory_locked(memory_id)
 
     async def clear_user(self, user_id: str) -> int:
-        """Clear tracked episodes for a user (ledger + best-effort remote delete)."""
+        """Erase every independently-safe owned episode, reporting partial failure."""
         await self._ensure_initialized()
-        eps = [record.episode_id for record in self._ledger.records_for_user(user_id)]
-        for ep in eps:
-            await self.delete_memory(ep)
-        return len(eps)
+        records = [
+            record
+            for record in self._ledger.records_for_user(user_id)
+            if record.state in {"active", "superseded", "delete_pending"}
+        ]
+        if not records:
+            return 0
+        by_partition: dict[str, set[str]] = {}
+        for record in records:
+            by_partition.setdefault(record.partition_id, set()).add(record.episode_id)
+        confirmed = 0
+        failures: dict[str, Exception] = {}
+        async with self._partition_locks(set(by_partition)):
+            for partition_id in sorted(by_partition):
+                episode_ids = by_partition[partition_id]
+                try:
+                    order = await self._deletion_order(episode_ids)
+                except Exception as exc:
+                    failures.update(dict.fromkeys(episode_ids, exc))
+                    continue
+                for episode_id in order:
+                    try:
+                        if await self._delete_memory_locked(episode_id):
+                            confirmed += 1
+                    except GraphitiDeletionError as exc:
+                        failures[episode_id] = exc
+        if failures:
+            raise GraphitiClearError(confirmed, len(failures), failures)
+        return confirmed
 
 
 @dataclass
