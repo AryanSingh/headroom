@@ -134,6 +134,12 @@ memory-stack = [
     "qdrant-client>=1.9.0,<2.0",
     "neo4j>=5.20.0,<7.0",
 ]
+# Graphiti OSS temporal knowledge-graph memory backend
+graphiti = [
+    "graphiti-core>=0.21,<0.23",
+    "neo4j>=5.26.0,<6.0",
+    "filelock>=3.20,<4",
+]
 # Apple-Silicon GPU (MPS) offload for the memory embedder. Opt in at runtime with
 # CUTCTX_EMBEDDER_RUNTIME=pytorch_mps. macOS-only; intentionally excluded from [all].
 pytorch-mps = [
@@ -630,6 +636,7 @@ markers = [
     "live: opt-in multi-turn tests that hit real upstream APIs; require provider keys",
     "no_auto_admin: skip auto-inject of admin auth header (tests that verify 401 behavior)",
     "uses_local_license: test exercises the ~/.cutctx licence lookup itself; opts out of the conftest stub that keeps the rest of the suite off the operator's licence",
+    "graphiti_live_contract: requires the CI Neo4j service; never instantiates provider clients",
 ]
 
 [tool.coverage.run]

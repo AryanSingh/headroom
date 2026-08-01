@@ -1,0 +1,580 @@
+"""Graphiti OSS backend adapter for Cutctx hierarchical memory.
+
+Maps Cutctx ``Memory`` objects onto Graphiti episodes / entity edges so
+temporal knowledge-graph provenance (episode lineage, validity windows)
+is available behind the same easy ``Memory(backend="graphiti")`` API.
+
+Requires the optional ``graphiti-core`` package::
+
+    pip install 'cutctx-ai[graphiti]'
+
+Neo4j (or FalkorDB via Graphiti drivers) must be reachable. Connection
+defaults come from ``NEO4J_URI``, ``NEO4J_USER``, ``NEO4J_PASSWORD``.
+
+CutCtx-side supersession and deletion are persisted to a JSON ledger so
+they survive process restarts (Graphiti's ``previous_episode_uuids`` is
+extraction context, not invalidation).
+"""
+
+from __future__ import annotations
+
+import hashlib
+import importlib.metadata
+import json
+import logging
+import os
+import re
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from cutctx.memory.models import Memory, Provenance
+from cutctx.memory.ports import MemorySearchResult
+
+logger = logging.getLogger(__name__)
+
+_GRAPHITI_INSTALL_HINT = (
+    "graphiti-core is required for the Graphiti memory backend. "
+    "Install with: pip install 'cutctx-ai[graphiti]'"
+)
+_GRAPHITI_VERSION_REQUIREMENT = "graphiti-core>=0.21,<0.23"
+
+
+def _scope_partition(user_id: str, session_id: str | None) -> str:
+    """Return a stable, opaque Graphiti-safe partition for a memory scope."""
+    digest = hashlib.sha256()
+    digest.update(b"cutctx.graphiti.scope.v1\0")
+    for value in (user_id, session_id or ""):
+        encoded = value.encode("utf-8")
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
+    return f"cutctx_{digest.hexdigest()[:32]}"
+
+
+def _validate_graphiti_version(version: str) -> None:
+    """Reject Graphiti releases outside the adapter's tested contract."""
+    if not re.fullmatch(r"^0\.(?:21|22)(?:\.\d+)?$", version):
+        raise RuntimeError(
+            f"Unsupported graphiti-core version {version!r}; "
+            f"requires {_GRAPHITI_VERSION_REQUIREMENT}"
+        )
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _parse_dt(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _import_graphiti() -> tuple[Any, Any]:
+    """Import Graphiti client class and EpisodeType enum.
+
+    Returns:
+        ``(Graphiti, EpisodeType)``
+
+    Raises:
+        ImportError: When ``graphiti-core`` is not installed.
+    """
+    try:
+        from graphiti_core import Graphiti
+        from graphiti_core.nodes import EpisodeType
+    except ImportError as exc:
+        raise ImportError(_GRAPHITI_INSTALL_HINT) from exc
+    return Graphiti, EpisodeType
+
+
+@dataclass
+class GraphitiConfig:
+    """Configuration for the Graphiti OSS memory backend."""
+
+    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = ""
+    default_source_description: str = "cutctx"
+    episode_source: str = "text"
+    # Persist CutCtx supersession/deletion across restarts.
+    ledger_path: Path | None = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.ledger_path, str):
+            self.ledger_path = Path(self.ledger_path)
+        if not self.neo4j_password:
+            logger.warning(
+                "Graphiti Neo4j password is empty. Set NEO4J_PASSWORD or "
+                "GraphitiConfig.neo4j_password for a working connection."
+            )
+
+    @classmethod
+    def from_env(cls, **overrides: Any) -> GraphitiConfig:
+        """Build config from ``NEO4J_*`` environment variables."""
+        values: dict[str, Any] = {
+            "neo4j_uri": os.environ.get("NEO4J_URI", "bolt://localhost:7687"),
+            "neo4j_user": os.environ.get("NEO4J_USER", "neo4j"),
+            "neo4j_password": os.environ.get("NEO4J_PASSWORD", ""),
+        }
+        ledger = os.environ.get("CUTCTX_GRAPHITI_LEDGER")
+        if ledger:
+            values["ledger_path"] = Path(ledger)
+        values.update(overrides)
+        return cls(**values)
+
+
+class _EpisodeLedger:
+    """JSON-backed ledger of superseded and deleted episode UUIDs."""
+
+    def __init__(self, path: Path | None = None) -> None:
+        self._path = path
+        self.superseded: dict[str, datetime] = {}
+        self.deleted: set[str] = set()
+        self.user_episodes: dict[str, set[str]] = {}
+        self._load()
+
+    def _load(self) -> None:
+        if self._path is None or not self._path.exists():
+            return
+        try:
+            raw = json.loads(self._path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Failed to load Graphiti ledger %s: %s", self._path, exc)
+            return
+        for ep_id, ts in (raw.get("superseded") or {}).items():
+            parsed = _parse_dt(ts)
+            if parsed is not None:
+                self.superseded[str(ep_id)] = parsed
+        self.deleted = {str(x) for x in (raw.get("deleted") or [])}
+        self.user_episodes = {
+            str(uid): {str(e) for e in eps} for uid, eps in (raw.get("user_episodes") or {}).items()
+        }
+
+    def _save(self) -> None:
+        if self._path is None:
+            return
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "superseded": {k: v.isoformat() for k, v in self.superseded.items()},
+            "deleted": sorted(self.deleted),
+            "user_episodes": {u: sorted(eps) for u, eps in self.user_episodes.items()},
+        }
+        tmp = self._path.with_suffix(self._path.suffix + ".tmp")
+        tmp.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        tmp.replace(self._path)
+
+    def mark_superseded(self, episode_id: str, when: datetime) -> None:
+        self.superseded[episode_id] = when
+        self._save()
+
+    def mark_deleted(self, episode_id: str) -> None:
+        self.deleted.add(episode_id)
+        self.superseded.pop(episode_id, None)
+        self._save()
+
+    def track_episode(self, user_id: str, episode_id: str) -> None:
+        self.user_episodes.setdefault(user_id, set()).add(episode_id)
+        self._save()
+
+    def clear_user(self, user_id: str) -> list[str]:
+        eps = sorted(self.user_episodes.get(user_id, set()))
+        for ep in eps:
+            self.deleted.add(ep)
+            self.superseded.pop(ep, None)
+        self.user_episodes[user_id] = set()
+        self._save()
+        return eps
+
+    def is_hidden(self, episode_id: str) -> bool:
+        return episode_id in self.deleted or episode_id in self.superseded
+
+    def invalid_at_for(self, episode_ids: list[str]) -> datetime | None:
+        """Return invalidation time only when ALL supporting episodes are closed.
+
+        Mirrors Graphiti provenance: a fact survives while any parent episode
+        still supports it.
+        """
+        if not episode_ids:
+            return None
+        if any(ep in self.deleted for ep in episode_ids):
+            # If any supporting episode was hard-deleted and no other open
+            # supporters remain, treat as invalid.
+            open_eps = [ep for ep in episode_ids if ep not in self.deleted]
+            if not open_eps:
+                # Use latest deletion-equivalent stamp from superseded if present
+                stamps = [self.superseded[ep] for ep in episode_ids if ep in self.superseded]
+                return max(stamps) if stamps else _utcnow()
+            episode_ids = open_eps
+        if not all(ep in self.superseded for ep in episode_ids):
+            return None
+        return max(self.superseded[ep] for ep in episode_ids)
+
+
+class GraphitiBackend:
+    """Memory backend backed by Graphiti's temporal context graph."""
+
+    def __init__(
+        self,
+        config: GraphitiConfig | None = None,
+        client: Any | None = None,
+    ) -> None:
+        self._config = config or GraphitiConfig.from_env()
+        if self._config.ledger_path is None:
+            # Default ledger under workspace so supersessions survive restarts.
+            try:
+                from cutctx import paths as _paths
+
+                default_dir = _paths.memory_db_path().parent
+            except Exception:
+                default_dir = Path.home() / ".cutctx"
+            self._config.ledger_path = default_dir / "graphiti_ledger.json"
+        self._client = client
+        self._episode_type: Any | None = None
+        self._initialized = client is not None
+        self._ledger = _EpisodeLedger(self._config.ledger_path)
+
+    async def _ensure_initialized(self) -> None:
+        if self._initialized and self._client is not None:
+            return
+
+        Graphiti, EpisodeType = _import_graphiti()
+        self._episode_type = EpisodeType
+        if self._client is None:
+            _validate_graphiti_version(importlib.metadata.version("graphiti-core"))
+            self._client = Graphiti(
+                self._config.neo4j_uri,
+                self._config.neo4j_user,
+                self._config.neo4j_password,
+            )
+            build = getattr(self._client, "build_indices_and_constraints", None)
+            if callable(build):
+                result = build()
+                if hasattr(result, "__await__"):
+                    await result
+        self._initialized = True
+
+    def _resolve_episode_source(self) -> Any:
+        if self._episode_type is None:
+            return SimpleEpisodeType(self._config.episode_source)
+        name = self._config.episode_source
+        return getattr(self._episode_type, name, self._episode_type.text)
+
+    async def close(self) -> None:
+        if self._client is not None and hasattr(self._client, "close"):
+            close = self._client.close
+            result = close()
+            if hasattr(result, "__await__"):
+                await result
+
+    async def save(self, memory: Memory) -> Memory:
+        """Persist a Cutctx Memory as a Graphiti episode."""
+        await self._ensure_initialized()
+        assert self._client is not None
+
+        source_description = str(
+            (memory.metadata or {}).get(
+                "source_description", self._config.default_source_description
+            )
+        )
+        reference_time = memory.valid_from or memory.created_at or _utcnow()
+        if reference_time.tzinfo is None:
+            reference_time = reference_time.replace(tzinfo=timezone.utc)
+        episode_uuid = memory.id or str(uuid.uuid4())
+
+        meta = dict(memory.metadata or {})
+        if memory.session_id:
+            meta.setdefault("session_id", memory.session_id)
+        memory.metadata = meta
+
+        kwargs: dict[str, Any] = {
+            "name": f"cutctx:{episode_uuid}",
+            "episode_body": memory.content,
+            "source_description": source_description,
+            "reference_time": reference_time,
+            "source": self._resolve_episode_source(),
+            "group_id": _scope_partition(memory.user_id or "", memory.session_id),
+            "uuid": episode_uuid,
+        }
+        if memory.supersedes:
+            kwargs["previous_episode_uuids"] = [memory.supersedes]
+
+        await self._client.add_episode(**kwargs)
+
+        memory.id = episode_uuid
+        if memory.user_id:
+            self._ledger.track_episode(memory.user_id, episode_uuid)
+        if memory.provenance is None:
+            memory.provenance = Provenance(
+                created_by_session=memory.session_id,
+                created_by_agent=memory.agent_id,
+                source="graphiti",
+                commit_sha=None,
+                created_at=reference_time.timestamp(),
+            )
+        return memory
+
+    async def save_memory(
+        self,
+        content: str,
+        user_id: str,
+        importance: float = 0.5,
+        entities: list[str] | None = None,
+        relationships: list[dict[str, Any]] | None = None,
+        metadata: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        agent_id: str | None = None,
+        turn_id: str | None = None,
+        facts: list[str] | None = None,
+        extracted_entities: list[dict[str, str]] | None = None,
+        extracted_relationships: list[dict[str, str]] | None = None,
+        **_: Any,
+    ) -> Memory:
+        """Easy-API compatible save (matches LocalBackend / DirectMem0).
+
+        When ``facts`` is provided, each fact is stored as its own episode
+        (same as LocalBackend). Returns the primary (first) memory.
+        """
+        entity_refs: list[str] = list(entities or [])
+        if extracted_entities:
+            for ent in extracted_entities:
+                name = ent.get("entity", "")
+                if name and name not in entity_refs:
+                    entity_refs.append(name)
+
+        base_meta = dict(metadata or {})
+        if relationships or extracted_relationships:
+            base_meta["relationships"] = relationships or extracted_relationships
+        if session_id:
+            base_meta["session_id"] = session_id
+
+        bodies = list(facts) if facts else [content]
+        created: list[Memory] = []
+        for i, body in enumerate(bodies):
+            now = _utcnow()
+            fact_meta = {**base_meta}
+            if facts:
+                fact_meta["_fact_index"] = i
+                fact_meta["_fact_count"] = len(bodies)
+            memory = Memory(
+                id=str(uuid.uuid4()),
+                content=body,
+                user_id=user_id,
+                session_id=session_id,
+                agent_id=agent_id,
+                turn_id=turn_id,
+                importance=importance,
+                entity_refs=entity_refs,
+                metadata=fact_meta,
+                created_at=now,
+                valid_from=now,
+            )
+            created.append(await self.save(memory))
+        return created[0]
+
+    def _edge_to_memory(self, edge: Any, user_id: str) -> Memory:
+        episodes = getattr(edge, "episodes", None) or []
+        if not isinstance(episodes, list):
+            episodes = list(episodes) if episodes else []
+        episode_ids = [str(e) for e in episodes]
+
+        valid_at = getattr(edge, "valid_at", None)
+        if isinstance(valid_at, datetime) and valid_at.tzinfo is None:
+            valid_at = valid_at.replace(tzinfo=timezone.utc)
+        invalid_at = getattr(edge, "invalid_at", None)
+        if isinstance(invalid_at, datetime) and invalid_at.tzinfo is None:
+            invalid_at = invalid_at.replace(tzinfo=timezone.utc)
+        edge_uuid = str(getattr(edge, "uuid", "") or uuid.uuid4())
+        fact = str(getattr(edge, "fact", "") or "")
+
+        memory_id = episode_ids[0] if episode_ids else edge_uuid
+
+        # Multi-parent semantics: hide only when ALL supporting episodes closed.
+        ledger_invalid = self._ledger.invalid_at_for(episode_ids or [memory_id])
+        if ledger_invalid is not None:
+            if invalid_at is None or ledger_invalid < invalid_at:
+                invalid_at = ledger_invalid
+
+        # Hard-deleted episodes: if primary id deleted, hide.
+        if memory_id in self._ledger.deleted or (
+            episode_ids and all(ep in self._ledger.deleted for ep in episode_ids)
+        ):
+            invalid_at = invalid_at or _utcnow()
+
+        session_id = None
+        # session_id is not on Graphiti edges; callers may filter via metadata
+        # only when we stored it on save (search cannot recover it from edges).
+
+        return Memory(
+            id=memory_id,
+            content=fact,
+            user_id=user_id,
+            session_id=session_id,
+            valid_from=valid_at or _utcnow(),
+            valid_until=invalid_at,
+            metadata={
+                "graphiti_edge_uuid": edge_uuid,
+                "graphiti_episode_uuids": episode_ids,
+                "backend": "graphiti",
+            },
+            provenance=Provenance(
+                created_by_session=None,
+                created_by_agent=None,
+                source="graphiti",
+                commit_sha=None,
+                created_at=(valid_at or _utcnow()).timestamp(),
+            ),
+        )
+
+    async def search_memories(
+        self,
+        query: str,
+        user_id: str,
+        top_k: int = 10,
+        entities: list[str] | None = None,
+        include_related: bool = True,
+        session_id: str | None = None,
+        include_superseded: bool = False,
+        valid_at: datetime | None = None,
+        **_: Any,
+    ) -> list[MemorySearchResult]:
+        """Search Graphiti and map entity edges back to Cutctx memories.
+
+        ``include_related`` is accepted for API parity with LocalBackend.
+        Graphiti hybrid search already returns graph-neighborhood facts; no
+        extra expansion pass is performed.
+        """
+        await self._ensure_initialized()
+        assert self._client is not None
+
+        # Over-fetch slightly so post-filters (superseded/deleted) still fill top_k.
+        fetch_n = max(top_k * 3, top_k)
+        edges = await self._client.search(
+            query=query,
+            group_ids=[_scope_partition(user_id, session_id)] if user_id else None,
+            num_results=fetch_n,
+        )
+
+        if valid_at is not None and valid_at.tzinfo is None:
+            valid_at = valid_at.replace(tzinfo=timezone.utc)
+
+        results: list[MemorySearchResult] = []
+        edge_list = list(edges or [])
+        for rank, edge in enumerate(edge_list):
+            memory = self._edge_to_memory(edge, user_id=user_id)
+            if not include_superseded and memory.valid_until is not None:
+                continue
+            if memory.id in self._ledger.deleted and not include_superseded:
+                continue
+            if valid_at is not None:
+                vf = memory.valid_from
+                if vf is not None and vf.tzinfo is None:
+                    vf = vf.replace(tzinfo=timezone.utc)
+                vu = memory.valid_until
+                if vu is not None and vu.tzinfo is None:
+                    vu = vu.replace(tzinfo=timezone.utc)
+                if vf is not None and vf > valid_at:
+                    continue
+                if vu is not None and vu <= valid_at:
+                    continue
+
+            if session_id:
+                # Edges don't carry session; skip filter unless metadata present.
+                meta_session = (memory.metadata or {}).get("session_id")
+                if meta_session and meta_session != session_id:
+                    continue
+            if entities:
+                content_l = memory.content.lower()
+                if not any(e.lower() in content_l for e in entities):
+                    continue
+
+            raw_score = getattr(edge, "score", None)
+            if raw_score is None:
+                # Rank-based fallback when Graphiti edges lack .score
+                score = 1.0 - (rank / max(len(edge_list), 1))
+            else:
+                score = float(raw_score or 0.0)
+            results.append(
+                MemorySearchResult(
+                    memory=memory,
+                    score=score,
+                    related_entities=list(entities or []),
+                    related_memories=[],
+                )
+            )
+            if len(results) >= top_k:
+                break
+
+        return results
+
+    async def supersede(
+        self,
+        old_memory_id: str,
+        new_memory: Memory,
+        supersede_time: datetime | None = None,
+    ) -> Memory:
+        """Supersede by writing a new episode and closing the prior episode."""
+        when = supersede_time or _utcnow()
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        self._ledger.mark_superseded(old_memory_id, when)
+        new_memory.supersedes = old_memory_id
+        new_memory.valid_from = when
+        meta = dict(new_memory.metadata or {})
+        meta["supersedes_episode_uuid"] = old_memory_id
+        new_memory.metadata = meta
+        return await self.save(new_memory)
+
+    async def delete_memory(self, memory_id: str) -> bool:
+        """Delete (hide) an episode from CutCtx search via the ledger.
+
+        Attempts Graphiti native removal when available; always records the
+        deletion in the persistent ledger so search stays consistent.
+        """
+        await self._ensure_initialized()
+        removed = False
+        if self._client is not None:
+            for name in ("remove_episode", "delete_episode"):
+                fn = getattr(self._client, name, None)
+                if callable(fn):
+                    try:
+                        result = fn(memory_id)
+                        if hasattr(result, "__await__"):
+                            await result
+                        removed = True
+                        break
+                    except Exception as exc:
+                        logger.debug("Graphiti %s(%s) failed: %s", name, memory_id, exc)
+        self._ledger.mark_deleted(memory_id)
+        return True if removed or memory_id else False
+
+    async def clear_user(self, user_id: str) -> int:
+        """Clear tracked episodes for a user (ledger + best-effort remote delete)."""
+        await self._ensure_initialized()
+        eps = self._ledger.clear_user(user_id)
+        for ep in eps:
+            await self.delete_memory(ep)
+        return len(eps)
+
+
+@dataclass
+class SimpleEpisodeType:
+    """Stand-in EpisodeType when the Graphiti package is not loaded (tests)."""
+
+    value: str = "text"
+
+    @property
+    def text(self) -> SimpleEpisodeType:
+        return SimpleEpisodeType("text")
+
+    @property
+    def message(self) -> SimpleEpisodeType:
+        return SimpleEpisodeType("message")
+
+    @property
+    def json(self) -> SimpleEpisodeType:
+        return SimpleEpisodeType("json")
