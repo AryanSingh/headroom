@@ -3,6 +3,7 @@
 import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import Barrier, Process, Queue
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,14 @@ def _reserve(ledger: SQLiteEpisodeLedger, episode: str, user: str, session: str)
         idempotency_key=f"key-{episode}",
         payload=f"payload-{episode}",
     )
+
+
+def _construct_ledger(path: str, barrier: Barrier, errors: Queue) -> None:
+    barrier.wait()
+    try:
+        SQLiteEpisodeLedger(Path(path), busy_timeout=0.001)
+    except sqlite3.OperationalError as exc:
+        errors.put(str(exc))
 
 
 def test_persistence_reopens_exact_ownership_partition_and_state(tmp_path: Path) -> None:
@@ -89,6 +98,45 @@ def test_lifecycle_transitions_and_visibility(tmp_path: Path) -> None:
     assert ledger.get("new").last_error == "remote unavailable"  # type: ignore[union-attr]
     ledger.mark_deleted("new")
     assert ledger.get("new").state == "deleted"  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize(
+    ("old_user", "old_session", "new_user", "new_session"),
+    [("alice", "s1", "bob", "s1"), ("alice", "s1", "alice", "s2")],
+)
+def test_replacement_rejects_cross_scope_pairs_without_mutating_rows(
+    tmp_path: Path,
+    old_user: str,
+    old_session: str,
+    new_user: str,
+    new_session: str,
+) -> None:
+    ledger = SQLiteEpisodeLedger(tmp_path / "episodes.sqlite3")
+    _reserve(ledger, "old", old_user, old_session)
+    _reserve(ledger, "new", new_user, new_session)
+    ledger.activate("old")
+    old_before, new_before = ledger.get("old"), ledger.get("new")
+
+    with pytest.raises(ValueError, match="scope"):
+        ledger.record_replacement("old", "new")
+
+    assert ledger.get("old") == old_before
+    assert ledger.get("new") == new_before
+
+
+def test_concurrent_first_time_construction_retries_wal_busy_errors(tmp_path: Path) -> None:
+    path = tmp_path / "episodes.sqlite3"
+    barrier, errors = Barrier(2), Queue()
+    workers = [
+        Process(target=_construct_ledger, args=(str(path), barrier, errors)) for _ in range(2)
+    ]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(5)
+
+    assert all(worker.exitcode == 0 for worker in workers)
+    assert errors.empty()
 
 
 @pytest.mark.parametrize(

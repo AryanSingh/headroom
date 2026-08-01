@@ -84,11 +84,19 @@ class SQLiteEpisodeLedger:
     def _initialize(self) -> None:
         # WAL mode must be selected before a transaction begins; setting it on
         # every short-lived operation races concurrent writers needlessly.
-        connection = self._connect()
-        try:
-            connection.execute("PRAGMA journal_mode=WAL")
-        finally:
-            connection.close()
+        for attempt in range(len(_RETRIES) + 1):
+            connection = self._connect()
+            try:
+                connection.execute("PRAGMA journal_mode=WAL")
+                break
+            except sqlite3.OperationalError as exc:
+                if attempt >= len(_RETRIES) or not self._is_lock_error(exc):
+                    raise
+                time.sleep(_RETRIES[attempt])
+            finally:
+                connection.close()
+        else:
+            raise AssertionError("unreachable")
 
         def create(connection: sqlite3.Connection) -> None:
             connection.execute(
@@ -242,6 +250,24 @@ class SQLiteEpisodeLedger:
         stamp = (when or _now()).isoformat()
 
         def replace(connection: sqlite3.Connection) -> EpisodeRecord:
+            old = self._record(
+                connection.execute(
+                    "SELECT * FROM episodes WHERE episode_id = ?", (old_episode_id,)
+                ).fetchone()
+            )
+            replacement = self._record(
+                connection.execute(
+                    "SELECT * FROM episodes WHERE episode_id = ?", (replacement_id,)
+                ).fetchone()
+            )
+            if old is None or replacement is None:
+                raise ValueError("episode does not exist")
+            if (old.user_key, old.session_key, old.partition_id) != (
+                replacement.user_key,
+                replacement.session_key,
+                replacement.partition_id,
+            ):
+                raise ValueError("replacement episodes must share the same scope")
             self._require_update(
                 connection,
                 "UPDATE episodes SET state = 'active' WHERE episode_id = ? AND state = 'write_pending'",
