@@ -53,6 +53,12 @@ The ledger records:
 - replacement episode linkage;
 - last remote-deletion error where applicable.
 
+It also owns partition-scoped operation leases. Every Graphiti write and origin
+deletion acquires the relevant partition lease. Leases use an owner token,
+expiry, and heartbeat so they serialize cross-worker provenance changes without
+holding a SQLite transaction across a network call. A worker may recover an
+expired lease, but never an actively renewed one.
+
 Schema creation is idempotent. The branch's pre-release JSON ledger does not
 contain session ownership or opaque partition identifiers, so it cannot be
 converted without mis-scoping remote data. Detecting that format fails closed
@@ -62,12 +68,16 @@ automatically.
 
 ## Write and supersession flow
 
-Normal saves first reserve the episode UUID, scope, partition, and content as a
-durable `write_pending` record. They then write the Graphiti episode and promote
-the record to `active`. If promotion fails after a successful remote write, the
-pending record remains retryable with the same UUID and the operation raises a
-recovery exception carrying that UUID and opaque partition. It never reports a
-fully successful CutCtx save without durable ownership metadata.
+Normal saves accept an optional idempotency key and first reserve the episode
+UUID, scope, partition, payload digest, and hashed idempotency key as a durable
+`write_pending` record. Calls without a supplied key generate a fresh key, so
+independent identical saves are never coalesced. They then acquire the partition
+lease, write the Graphiti episode, and promote the record to `active`. If
+promotion fails after a successful remote write, the pending record remains
+retryable with the same key and UUID and the operation raises a recovery
+exception carrying both. Reusing a key with a different scope or payload is
+rejected. It never reports a fully successful CutCtx save without durable
+ownership metadata.
 
 Supersession follows write-new-then-close-old ordering:
 
@@ -98,8 +108,14 @@ Deletion means confirmed remote erasure, not merely local hiding. Graphiti
 episode, so every deletion is preflighted against remote edge provenance.
 
 - A non-origin supporting episode may be deleted directly.
+- Preflight and remote removal run while holding the partition operation lease;
+  writes cannot add a supporter to that partition between those steps.
 - An origin episode with active supporters outside the deletion set is refused
   with a safe-deletion error; the adapter never destroys their shared fact.
+- Every non-target supporter must resolve to ledger ownership and a conclusive
+  lifecycle state. Unknown, foreign-scope, `write_pending`, or `delete_pending`
+  supporters block origin deletion. Only confirmed `deleted` or `superseded`
+  supporters are safe to disregard.
 - The ledger records `delete_pending` only after the preflight succeeds.
 - `delete_pending` remains visible in normal searches until remote erasure is
   confirmed.
@@ -138,8 +154,9 @@ Deterministic auto-supersession remains opt-in and conservative.
 
 `GraphitiConfig` keeps environment-based Neo4j configuration and adds explicit
 ledger/version validation. The easy `Memory` facade continues to accept
-`backend="graphiti"`, adds optional `session_id` to `save` and `search`, and
-gains separate optional Graphiti connection parameters. Existing qdrant Neo4j
+`backend="graphiti"`, adds optional `session_id` to `save` and `search`, adds an
+optional `idempotency_key` to `save`, and gains separate optional Graphiti
+connection parameters. Existing qdrant Neo4j
 defaults, constructor defaults, and other backend paths remain source-compatible.
 
 Operational documentation will cover:
@@ -170,15 +187,22 @@ regressions include:
 10. incompatible Graphiti versions fail with an installation hint;
 11. public facade session scoping reaches the Graphiti backend;
 12. local and `qdrant-neo4j` behavior and defaults remain unchanged;
-13. pre-release JSON state fails closed with migration guidance.
+13. pre-release JSON state fails closed with migration guidance;
+14. a two-worker write/delete race is serialized by the partition lease;
+15. unknown or pending shared provenance blocks destructive deletion;
+16. independent identical saves do not share an idempotency record, while a
+    retry using the recovery key reuses the reserved UUID.
 
 Verification proceeds from focused tests to the complete memory suite, pinned
 Ruff 0.9.4, targeted and ratcheted mypy, packaging metadata checks, secret and
 diff checks, and the repository's broader release gates after bringing the
-branch up to current `main`. A real Neo4j/Graphiti smoke test will run when the
-required local service and credentials are available; otherwise the committed
-contract test will validate the dependency boundary and the remaining live
-limitation will be stated explicitly.
+branch up to current `main`. A real Neo4j/Graphiti contract test is a shipping
+gate for both supported Graphiti releases. It creates a shared edge in an
+ephemeral Neo4j service, verifies ordered provenance returned by
+`get_nodes_and_edges_by_episode`, and exercises first/non-first deletion behavior
+without calling an external LLM. Local developer runs may report unavailable
+Neo4j prerequisites, but CI must provide the service; mock-only evidence does
+not satisfy this gate.
 
 An independent reviewer must approve privacy, failure ordering, concurrency,
 backward compatibility, and test coverage before the completion commit.
