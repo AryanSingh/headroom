@@ -179,39 +179,6 @@ class TestMemorySave:
         assert backend.save_memory.await_args.kwargs["session_id"] == "s1"
         assert backend.save_memory.await_args.kwargs["idempotency_key"] == "retry-1"
 
-    @pytest.mark.asyncio
-    async def test_qdrant_facade_does_not_forward_graphiti_retry_key(self, temp_db_path):
-        """The qdrant adapter retains its established save signature."""
-        mem = Memory(backend="qdrant-neo4j", db_path=temp_db_path)
-
-        class QdrantBackend:
-            async def save_memory(
-                self,
-                content,
-                user_id,
-                importance,
-                entities=None,
-                relationships=None,
-                session_id=None,
-                metadata=None,
-                facts=None,
-                extracted_entities=None,
-                extracted_relationships=None,
-                background=None,
-            ):
-                return SimpleNamespace(id="qdrant-1")
-
-        backend = QdrantBackend()
-        mem._backend = backend
-        mem._initialized = True
-
-        assert (
-            await mem.save(
-                "prefers vim", user_id="alice", session_id="s1", idempotency_key="retry-1"
-            )
-            == "qdrant-1"
-        )
-
     """Tests for Memory.save() operation."""
 
     @pytest.mark.asyncio

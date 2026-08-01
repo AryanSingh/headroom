@@ -37,6 +37,34 @@ async def test_facade_forwards_save_and_search_scope(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_qdrant_facade_keeps_exact_direct_mem0_save_signature(tmp_path: Path) -> None:
+    class DirectMem0Signature:
+        async def save_memory(
+            self,
+            content,
+            user_id,
+            importance,
+            entities=None,
+            relationships=None,
+            session_id=None,
+            metadata=None,
+            facts=None,
+            extracted_entities=None,
+            extracted_relationships=None,
+            background=None,
+        ):
+            return SimpleNamespace(id="qdrant-1")
+
+    memory = EasyMemory(backend="qdrant-neo4j", db_path=tmp_path / "memory.db")
+    memory._backend, memory._initialized = DirectMem0Signature(), True
+
+    assert (
+        await memory.save("fact", user_id="alice", session_id="s1", idempotency_key="retry")
+        == "qdrant-1"
+    )
+
+
+@pytest.mark.asyncio
 async def test_public_retry_reuses_pending_provider_payload_timestamp(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

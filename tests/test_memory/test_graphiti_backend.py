@@ -276,6 +276,25 @@ class TestGraphitiSearchMapping:
         assert results[0].memory.metadata["graphiti_episode_uuids"] == ["old"]
 
     @pytest.mark.asyncio
+    async def test_include_superseded_preserves_upstream_mixed_parent_order(
+        self, ledger_path: Path
+    ) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend
+
+        client = _mock_client()
+        client.search = AsyncMock(
+            return_value=[SimpleNamespace(uuid="edge", fact="fact", episodes=["old", "new"])]
+        )
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(Memory(id="old", content="old", user_id="alice"))
+        await backend.supersede("old", Memory(id="new", content="new", user_id="alice"))
+
+        result = (await backend.search_memories("fact", "alice", include_superseded=True))[0].memory
+
+        assert result.id == "old"
+        assert result.metadata["graphiti_episode_uuids"] == ["old", "new"]
+
+    @pytest.mark.asyncio
     async def test_search_enforces_session_partition(self, ledger_path: Path) -> None:
         """Search admits only episodes owned by the requested session."""
         from cutctx.memory.backends.graphiti import (

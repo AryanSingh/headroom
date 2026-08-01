@@ -92,3 +92,20 @@ provider reference and supersession time; normal superseded-inclusive searches
 retain both current and superseded provenance. Cancellation compensation is a
 detached task so repeated cancellation of the caller cannot strand a late
 file-lock acquisition.
+
+## Final minor follow-up
+
+The qdrant exact-signature regression now lives unguarded in
+`test_graphiti_facade_scope.py` and passes locally without Graphiti. RED for
+the mixed-parent `include_superseded` test showed the mapped id was `new` rather
+than upstream-origin `old`. Search now filters `owned_records` in upstream
+order, preserving both the mapped id and provenance episode ordering.
+
+```text
+focused facade + mixed-parent order tests: 2 passed
+PYTHONDONTWRITEBYTECODE=1 rtk pytest -p no:cacheprovider tests/test_memory -q
+510 passed, 0 failed, 145 skipped
+uvx ruff@0.9.4 check --exclude .venv .: All checks passed
+uvx ruff@0.9.4 format --check --exclude .venv .: 1534 files already formatted
+rtk git diff --check: exit 0
+```

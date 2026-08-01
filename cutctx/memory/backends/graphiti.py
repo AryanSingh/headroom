@@ -486,14 +486,6 @@ class GraphitiBackend:
                 if (record := self._ledger.get(episode_id)) is not None
                 and record.partition_id in allowed_partitions
             ]
-            current_episode_ids = [
-                episode_id
-                for episode_id, record in owned_records
-                if record.state in {"active", "delete_pending"}
-            ]
-            superseded_episode_ids = [
-                episode_id for episode_id, record in owned_records if record.state == "superseded"
-            ]
             if valid_at is not None:
                 visible_episode_ids = [
                     episode_id
@@ -510,9 +502,17 @@ class GraphitiBackend:
                     )
                 ]
             elif include_superseded:
-                visible_episode_ids = current_episode_ids + superseded_episode_ids
+                visible_episode_ids = [
+                    episode_id
+                    for episode_id, record in owned_records
+                    if record.state in {"active", "delete_pending", "superseded"}
+                ]
             else:
-                visible_episode_ids = current_episode_ids
+                visible_episode_ids = [
+                    episode_id
+                    for episode_id, record in owned_records
+                    if record.state in {"active", "delete_pending"}
+                ]
             if not visible_episode_ids:
                 continue
             memory = self._edge_to_memory(edge, user_id=user_id, episode_ids=visible_episode_ids)
