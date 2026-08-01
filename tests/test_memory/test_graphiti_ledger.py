@@ -162,6 +162,19 @@ def test_lifecycle_transitions_and_visibility(tmp_path: Path) -> None:
     assert ledger.get("new").state == "deleted"  # type: ignore[union-attr]
 
 
+def test_record_replacement_retries_a_completed_response_loss(tmp_path: Path) -> None:
+    ledger = SQLiteEpisodeLedger(tmp_path / "episodes.sqlite3")
+    _reserve(ledger, "old", "alice", "s1")
+    _reserve(ledger, "new", "alice", "s1")
+    ledger.activate("old")
+    ledger.record_replacement("old", "new")
+
+    retried = ledger.record_replacement("old", "new")
+
+    assert retried.state == "superseded"
+    assert retried.replacement_id == "new"
+
+
 @pytest.mark.parametrize(
     ("state", "operation", "expected_state"),
     [
@@ -207,7 +220,8 @@ def test_invalid_lifecycle_transitions_leave_the_record_unchanged(
 
     with pytest.raises(ValueError):
         if operation == "record_replacement":
-            ledger.record_replacement(episode, "replacement")
+            _reserve(ledger, "different-replacement", "alice", "s1")
+            ledger.record_replacement(episode, "different-replacement")
         else:
             getattr(ledger, operation)(episode)
 

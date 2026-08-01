@@ -182,8 +182,11 @@ jobs:
       - name: Run Graphiti upstream contract
         run: |
           python -m pytest -p no:cacheprovider \
-            -m graphiti_live_contract tests/test_memory/test_graphiti_upstream_contract.py \
+            -m "not graphiti_live_contract" \
+            tests/test_memory/test_graphiti_upstream_contract.py \
             tests/test_memory/test_graphiti_backend.py -q
+          python -m pytest -p no:cacheprovider -m graphiti_live_contract \
+            tests/test_memory/test_graphiti_upstream_contract.py -q
 
   build-wheel:
     needs: changes

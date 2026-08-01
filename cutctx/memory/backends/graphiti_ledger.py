@@ -283,6 +283,15 @@ class SQLiteEpisodeLedger:
                 replacement.partition_id,
             ):
                 raise ValueError("replacement episodes must share the same scope")
+            # The commit may have succeeded before a caller received its
+            # response.  Retrying that exact pair is therefore safe and must
+            # not turn a completed supersession into an error.
+            if (
+                old.state == "superseded"
+                and old.replacement_id == replacement_id
+                and replacement.state == "active"
+            ):
+                return old
             self._require_update(
                 connection,
                 "UPDATE episodes SET state = 'active' WHERE episode_id = ? AND state = 'write_pending'",

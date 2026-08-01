@@ -33,8 +33,20 @@ class PartitionOperationLock:
         )
 
     async def __aenter__(self) -> PartitionOperationLock:
+        acquire = asyncio.create_task(asyncio.to_thread(self._lock.acquire))
         try:
-            await asyncio.to_thread(self._lock.acquire)
+            await asyncio.shield(acquire)
+        except asyncio.CancelledError:
+            # to_thread cannot be cancelled once scheduled.  Wait for it to
+            # finish and compensate if it won the race, otherwise a cancelled
+            # waiter can strand the partition lock in its worker thread.
+            try:
+                await asyncio.shield(acquire)
+            except Timeout:
+                pass
+            else:
+                await asyncio.shield(asyncio.to_thread(self._lock.release))
+            raise
         except Timeout as exc:
             raise GraphitiOperationLockTimeout(
                 "timed out acquiring Graphiti partition lock"
@@ -42,4 +54,4 @@ class PartitionOperationLock:
         return self
 
     async def __aexit__(self, exc_type: object, exc: object, traceback: object) -> None:
-        await asyncio.to_thread(self._lock.release)
+        await asyncio.shield(asyncio.to_thread(self._lock.release))

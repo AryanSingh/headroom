@@ -256,11 +256,13 @@ export NEO4J_PASSWORD="replace-with-a-secret"
 export CUTCTX_GRAPHITI_LEDGER="$HOME/.cutctx/graphiti_ledger.sqlite3"
 ```
 
-`OPENAI_API_KEY` is not required for this adapter's Cutctx save, search, or
-cleanup operations. The backend connects to the configured Neo4j service and
-initializes Graphiti indices on first use. Any credentials required by a
-separately configured Graphiti extraction workflow remain that workflow's
-responsibility.
+Production Graphiti 0.21/0.22 construction creates Graphiti's default clients.
+Set `OPENAI_API_KEY`, or configure a Graphiti-supported OpenAI-compatible
+provider before constructing this backend. Saves can incur Graphiti extraction,
+embedding, and reranking calls in addition to Neo4j access; plan credentials,
+network egress, latency, and provider cost accordingly. The CI provenance
+contract deliberately bypasses client construction and uses only Neo4j, so it
+does not need a provider key.
 
 ```python
 from cutctx.memory.easy import Memory
@@ -280,9 +282,11 @@ results = await memory.search("language preference", user_id="alice", session_id
 #### Scope and privacy contract
 
 Each `(user_id, session_id)` scope is mapped to a deterministic, opaque partition
-(`group_id`) before it reaches Graphiti. Raw user and session IDs are
-not used as the Graphiti group ID. Searches are restricted to that partition;
-do not rely on this backend to query across users or sessions.
+(`group_id`) before it reaches Graphiti. Raw user and session IDs are not used
+as the Graphiti group ID. A search with `session_id="..."` searches exactly that
+session partition. A search with `session_id=None` searches all partitions
+durably recorded as owned by that user (including the user's no-session
+partition), never another user's partition.
 
 The SQLite episode ledger records the ownership, idempotency key digest, and
 lifecycle of each episode. Keep it on durable storage and include it in the

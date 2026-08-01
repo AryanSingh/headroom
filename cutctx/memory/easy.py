@@ -322,17 +322,21 @@ class Memory:
         """
         await self._ensure_initialized()
 
-        result = await self._backend.save_memory(
-            content=content,
-            user_id=user_id,
-            importance=importance,
-            facts=facts,
-            extracted_entities=entities,
-            extracted_relationships=relationships,
-            metadata=metadata,
-            session_id=session_id,
-            idempotency_key=idempotency_key,
-        )
+        save_kwargs: dict[str, Any] = {
+            "content": content,
+            "user_id": user_id,
+            "importance": importance,
+            "facts": facts,
+            "extracted_entities": entities,
+            "extracted_relationships": relationships,
+            "metadata": metadata,
+            "session_id": session_id,
+        }
+        # Idempotent reservations are a Graphiti ledger protocol, not part of
+        # the established DirectMem0Adapter public signature.
+        if self._backend_type == "graphiti":
+            save_kwargs["idempotency_key"] = idempotency_key
+        result = await self._backend.save_memory(**save_kwargs)
 
         return str(result.id)
 

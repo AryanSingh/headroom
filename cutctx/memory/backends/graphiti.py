@@ -105,15 +105,6 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _parse_dt(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    dt = datetime.fromisoformat(value)
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt
-
-
 def _import_graphiti() -> tuple[Any, Any]:
     """Import Graphiti client class and EpisodeType enum.
 
@@ -165,93 +156,6 @@ class GraphitiConfig:
             values["ledger_path"] = Path(ledger)
         values.update(overrides)
         return cls(**values)
-
-
-class _EpisodeLedger:
-    """JSON-backed ledger of superseded and deleted episode UUIDs."""
-
-    def __init__(self, path: Path | None = None) -> None:
-        self._path = path
-        self.superseded: dict[str, datetime] = {}
-        self.deleted: set[str] = set()
-        self.user_episodes: dict[str, set[str]] = {}
-        self._load()
-
-    def _load(self) -> None:
-        if self._path is None or not self._path.exists():
-            return
-        try:
-            raw = json.loads(self._path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Failed to load Graphiti ledger %s: %s", self._path, exc)
-            return
-        for ep_id, ts in (raw.get("superseded") or {}).items():
-            parsed = _parse_dt(ts)
-            if parsed is not None:
-                self.superseded[str(ep_id)] = parsed
-        self.deleted = {str(x) for x in (raw.get("deleted") or [])}
-        self.user_episodes = {
-            str(uid): {str(e) for e in eps} for uid, eps in (raw.get("user_episodes") or {}).items()
-        }
-
-    def _save(self) -> None:
-        if self._path is None:
-            return
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "superseded": {k: v.isoformat() for k, v in self.superseded.items()},
-            "deleted": sorted(self.deleted),
-            "user_episodes": {u: sorted(eps) for u, eps in self.user_episodes.items()},
-        }
-        tmp = self._path.with_suffix(self._path.suffix + ".tmp")
-        tmp.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-        tmp.replace(self._path)
-
-    def mark_superseded(self, episode_id: str, when: datetime) -> None:
-        self.superseded[episode_id] = when
-        self._save()
-
-    def mark_deleted(self, episode_id: str) -> None:
-        self.deleted.add(episode_id)
-        self.superseded.pop(episode_id, None)
-        self._save()
-
-    def track_episode(self, user_id: str, episode_id: str) -> None:
-        self.user_episodes.setdefault(user_id, set()).add(episode_id)
-        self._save()
-
-    def clear_user(self, user_id: str) -> list[str]:
-        eps = sorted(self.user_episodes.get(user_id, set()))
-        for ep in eps:
-            self.deleted.add(ep)
-            self.superseded.pop(ep, None)
-        self.user_episodes[user_id] = set()
-        self._save()
-        return eps
-
-    def is_hidden(self, episode_id: str) -> bool:
-        return episode_id in self.deleted or episode_id in self.superseded
-
-    def invalid_at_for(self, episode_ids: list[str]) -> datetime | None:
-        """Return invalidation time only when ALL supporting episodes are closed.
-
-        Mirrors Graphiti provenance: a fact survives while any parent episode
-        still supports it.
-        """
-        if not episode_ids:
-            return None
-        if any(ep in self.deleted for ep in episode_ids):
-            # If any supporting episode was hard-deleted and no other open
-            # supporters remain, treat as invalid.
-            open_eps = [ep for ep in episode_ids if ep not in self.deleted]
-            if not open_eps:
-                # Use latest deletion-equivalent stamp from superseded if present
-                stamps = [self.superseded[ep] for ep in episode_ids if ep in self.superseded]
-                return max(stamps) if stamps else _utcnow()
-            episode_ids = open_eps
-        if not all(ep in self.superseded for ep in episode_ids):
-            return None
-        return max(self.superseded[ep] for ep in episode_ids)
 
 
 class GraphitiBackend:
@@ -496,6 +400,16 @@ class GraphitiBackend:
 
         memory_id = episode_ids[0] if episode_ids else edge_uuid
 
+        if valid_at is None:
+            reference_times = [
+                record.provider_reference_time
+                for episode_id in episode_ids
+                if (record := self._ledger.get(episode_id)) is not None
+                and record.provider_reference_time is not None
+            ]
+            if reference_times:
+                valid_at = min(reference_times)
+
         # Multi-parent semantics: hide only when ALL retained supporting episodes close.
         ledger_invalid = self._ledger.invalid_at_for(episode_ids or [memory_id])
         if ledger_invalid is not None:
@@ -571,12 +485,22 @@ class GraphitiBackend:
                 for episode_id in episode_ids
                 if (record := self._ledger.get(episode_id)) is not None
                 and record.partition_id in allowed_partitions
-                and record.state == "active"
+                and record.state in {"active", "delete_pending"}
             ]
-            if not owned_episode_ids:
+            historical_episode_ids = [
+                episode_id
+                for episode_id in episode_ids
+                if (record := self._ledger.get(episode_id)) is not None
+                and record.partition_id in allowed_partitions
+                and record.state == "superseded"
+            ]
+            visible_episode_ids = owned_episode_ids
+            if not visible_episode_ids and (include_superseded or valid_at is not None):
+                visible_episode_ids = historical_episode_ids
+            if not visible_episode_ids:
                 continue
-            memory = self._edge_to_memory(edge, user_id=user_id, episode_ids=owned_episode_ids)
-            if not include_superseded and memory.valid_until is not None:
+            memory = self._edge_to_memory(edge, user_id=user_id, episode_ids=visible_episode_ids)
+            if valid_at is None and not include_superseded and memory.valid_until is not None:
                 continue
             if valid_at is not None:
                 vf = memory.valid_from
@@ -674,7 +598,12 @@ class GraphitiBackend:
         partition_ids = {record.partition_id for record in records.values() if record is not None}
         if len(partition_ids) != 1:
             raise GraphitiUnsafeDeletionError("deletion set spans foreign scopes")
-        result = await self._client.get_nodes_and_edges_by_episode(sorted(targets))
+        try:
+            result = await self._client.get_nodes_and_edges_by_episode(sorted(targets))
+        except GraphitiUnsafeDeletionError:
+            raise
+        except Exception as exc:
+            raise GraphitiDeletionError("Graphiti deletion preflight failed") from exc
         edges = (
             result[1]
             if isinstance(result, tuple) and len(result) > 1
@@ -708,7 +637,12 @@ class GraphitiBackend:
         and therefore blocks its dependent origin in that fresh preflight.
         """
         assert self._client is not None
-        result = await self._client.get_nodes_and_edges_by_episode(sorted(episode_ids))
+        try:
+            result = await self._client.get_nodes_and_edges_by_episode(sorted(episode_ids))
+        except GraphitiUnsafeDeletionError:
+            raise
+        except Exception as exc:
+            raise GraphitiDeletionError("Graphiti deletion preflight failed") from exc
         edges = (
             result[1]
             if isinstance(result, tuple) and len(result) > 1

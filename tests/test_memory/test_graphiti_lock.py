@@ -68,3 +68,16 @@ def test_terminating_holder_releases_os_lock(tmp_path: Path) -> None:
     process.join(5)
     assert process.exitcode is not None
     assert asyncio.run(_acquire(tmp_path))
+
+
+def test_cancelled_waiter_releases_a_late_filelock_acquisition(tmp_path: Path) -> None:
+    async def run() -> None:
+        async with PartitionOperationLock(tmp_path, "cutctx_opaque", timeout=1):
+            waiter = asyncio.create_task(_acquire(tmp_path))
+            await asyncio.sleep(0.02)
+            waiter.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await waiter
+        assert await _acquire(tmp_path)
+
+    asyncio.run(run())

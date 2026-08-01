@@ -190,6 +190,38 @@ class TestFindCandidates:
         found = find_contradiction_candidates(new, candidates)
         assert [m.id for m in found] == ["1"]
 
+    @pytest.mark.parametrize(
+        "scope",
+        [
+            {"session_id": "other"},
+            {"agent_id": "other"},
+            {"turn_id": "other"},
+        ],
+    )
+    def test_candidates_do_not_cross_session_agent_or_turn(self, scope: dict[str, str]) -> None:
+        old = Memory(
+            id="old",
+            content="Alice was born in Paris",
+            user_id="u1",
+            session_id="s1",
+            agent_id="a1",
+            turn_id="t1",
+            entity_refs=["Alice"],
+        )
+        new_values = {
+            "session_id": "s1",
+            "agent_id": "a1",
+            "turn_id": "t1",
+        }
+        new_values.update(scope)
+        new = Memory(
+            content="Alice was born in London",
+            user_id="u1",
+            entity_refs=["Alice"],
+            **new_values,
+        )
+        assert find_contradiction_candidates(new, [old]) == []
+
 
 class TestHierarchicalContradictionGate:
     @pytest.fixture

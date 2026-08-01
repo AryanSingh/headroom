@@ -55,6 +55,12 @@ def find_contradiction_candidates(
             continue
         if mem.user_id != new_memory.user_id:
             continue
+        if (
+            mem.session_id != new_memory.session_id
+            or mem.agent_id != new_memory.agent_id
+            or mem.turn_id != new_memory.turn_id
+        ):
+            continue
         shared = _normalize_entities(mem.entity_refs) & new_entities
         if shared:
             found.append(mem)

@@ -193,6 +193,53 @@ class TestGraphitiSaveMapping:
 
 class TestGraphitiSearchMapping:
     @pytest.mark.asyncio
+    async def test_failed_delete_stays_search_visible(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiDeletionError
+
+        client = _mock_client()
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(Memory(id="retryable", content="fact", user_id="alice"))
+        client.remove_episode.side_effect = RuntimeError("remote down")
+        with pytest.raises(GraphitiDeletionError):
+            await backend.delete_memory("retryable")
+        client.search = AsyncMock(
+            return_value=[SimpleNamespace(uuid="edge", fact="fact", episodes=["retryable"])]
+        )
+        assert [item.memory.content for item in await backend.search_memories("fact", "alice")] == [
+            "fact"
+        ]
+
+    @pytest.mark.asyncio
+    async def test_historical_and_include_superseded_search_admit_superseded_provenance(
+        self, ledger_path: Path
+    ) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend
+
+        client = _mock_client()
+        edge = SimpleNamespace(uuid="edge", fact="old", episodes=["old"], valid_at=None)
+        client.search = AsyncMock(return_value=[edge])
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(
+            Memory(
+                id="old",
+                content="old",
+                user_id="alice",
+                valid_from=datetime(2020, 1, 1, tzinfo=timezone.utc),
+            )
+        )
+        await backend.supersede("old", Memory(id="new", content="new", user_id="alice"))
+        assert await backend.search_memories("old", "alice") == []
+        assert len(await backend.search_memories("old", "alice", include_superseded=True)) == 1
+        assert (
+            len(
+                await backend.search_memories(
+                    "old", "alice", valid_at=datetime(2025, 1, 1, tzinfo=timezone.utc)
+                )
+            )
+            == 1
+        )
+
+    @pytest.mark.asyncio
     async def test_search_enforces_session_partition(self, ledger_path: Path) -> None:
         """Search admits only episodes owned by the requested session."""
         from cutctx.memory.backends.graphiti import (
