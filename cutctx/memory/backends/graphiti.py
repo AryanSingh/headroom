@@ -11,9 +11,9 @@ Requires the optional ``graphiti-core`` package::
 Neo4j (or FalkorDB via Graphiti drivers) must be reachable. Connection
 defaults come from ``NEO4J_URI``, ``NEO4J_USER``, ``NEO4J_PASSWORD``.
 
-CutCtx-side supersession and deletion are persisted to a JSON ledger so
-they survive process restarts (Graphiti's ``previous_episode_uuids`` is
-extraction context, not invalidation).
+CutCtx-side supersession and deletion use the transactional SQLite episode
+ledger (Graphiti's ``previous_episode_uuids`` is extraction context, not
+invalidation).
 """
 
 from __future__ import annotations
@@ -32,6 +32,9 @@ from typing import Any
 
 from cutctx.memory.models import Memory, Provenance
 from cutctx.memory.ports import MemorySearchResult
+
+# Re-exported here so Graphiti callers have one stable migration-error import.
+from .graphiti_ledger import GraphitiLegacyMigrationRequired  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
