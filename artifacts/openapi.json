@@ -1528,6 +1528,29 @@
         "summary": "Update Config Flags"
       }
     },
+    "/admin/dashboard-sessions": {
+      "post": {
+        "description": "Mint a short-lived, single-use dashboard bootstrap token.\n\nControl authenticates this request with the locally stored license; the\nbrowser receives only this opaque value and never sees that license.",
+        "operationId": "create_dashboard_session_admin_dashboard_sessions_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Create Dashboard Session Admin Dashboard Sessions Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Create Dashboard Session"
+      }
+    },
     "/analytics/dashboard": {
       "get": {
         "description": "Aggregated dashboard view: key metrics, trends, and health score.",

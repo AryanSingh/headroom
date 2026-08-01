@@ -18,6 +18,48 @@ def small_cache() -> CompressionCache:
 
 
 class TestCompressionCache:
+    def test_byte_budget_evicts_lru_entries_before_entry_limit(self) -> None:
+        cache = CompressionCache(max_entries=10, max_size_bytes=8)
+
+        cache.store_compressed("a", "1234", tokens_saved=1)
+        cache.store_compressed("b", "5678", tokens_saved=2)
+        assert cache.get_compressed("a") == "1234"
+
+        cache.store_compressed("c", "90ab", tokens_saved=3)
+
+        assert cache.get_compressed("b") is None
+        assert cache.get_compressed("a") == "1234"
+        assert cache.get_compressed("c") == "90ab"
+        assert cache.get_stats()["size_bytes"] == 8
+
+    def test_oversized_entry_is_skipped_without_replacing_existing_value(self) -> None:
+        cache = CompressionCache(max_entry_size_bytes=4)
+        cache.store_compressed("same", "good", tokens_saved=2)
+
+        cache.store_compressed("same", "too-large", tokens_saved=99)
+
+        assert cache.get_compressed("same") == "good"
+        assert cache.get_stats()["oversize_skips"] == 1
+        assert cache.get_stats()["tokens_saved"] == 2
+
+    def test_byte_accounting_uses_utf8_encoded_size(self) -> None:
+        cache = CompressionCache(max_size_bytes=4)
+        cache.store_compressed("accent", "éé", tokens_saved=1)
+
+        assert cache.get_stats()["size_bytes"] == 4
+
+    def test_replacing_multibyte_entry_replaces_byte_and_token_accounting(self) -> None:
+        cache = CompressionCache(max_entry_size_bytes=12)
+        cache.store_compressed("same", "éé", tokens_saved=9)
+
+        cache.store_compressed("same", "✨", tokens_saved=2)
+
+        stats = cache.get_stats()
+        assert cache.get_compressed("same") == "✨"
+        assert stats["size_bytes"] == len("✨".encode())
+        assert stats["tokens_saved"] == 2
+        assert stats["max_entry_size_bytes"] == 12
+
     def test_cache_miss_returns_none(self, cache: CompressionCache) -> None:
         h = CompressionCache.content_hash("some content")
         assert cache.get_compressed(h) is None
@@ -599,3 +641,28 @@ def test_get_compression_cache_returns_same_instance_under_contention() -> None:
     first = results[0]
     for c in results[1:]:
         assert c is first, "Concurrent _get_compression_cache returned different instances"
+
+
+def test_proxy_supplies_configured_byte_limits_to_session_cache() -> None:
+    pytest.importorskip("fastapi")
+    from cutctx.proxy.server import ProxyConfig, create_app
+
+    config = ProxyConfig(
+        optimize=False,
+        cache_enabled=False,
+        rate_limit_enabled=False,
+        cost_tracking_enabled=False,
+        log_requests=False,
+        ccr_inject_tool=False,
+        ccr_handle_responses=False,
+        ccr_context_tracking=False,
+        image_optimize=False,
+        compression_cache_max_size_bytes=1234,
+        compression_cache_max_entry_size_bytes=234,
+    )
+    proxy = create_app(config).state.proxy
+
+    cache = proxy._get_compression_cache("bounded-session")
+
+    assert cache.max_size_bytes == 1234
+    assert cache.max_entry_size_bytes == 234

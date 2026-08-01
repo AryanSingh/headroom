@@ -17,7 +17,10 @@ def test_hosted_smoke_prefers_project_virtualenv_runtime() -> None:
         assert Path(_hosted_server_python()).resolve() == project_python.resolve()
 
 
-def test_generate_hosted_compression_smoke_writes_live_http_artifacts(tmp_path: Path) -> None:
+def test_generate_hosted_compression_smoke_writes_live_http_artifacts(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("CUTCTX_SKIP_INTEGRITY_CHECK", "1")
     workspace = tmp_path / "workspace"
     markdown_output = tmp_path / "hosted-smoke.md"
     json_output = tmp_path / "hosted-smoke.json"

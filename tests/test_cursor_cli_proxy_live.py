@@ -17,8 +17,10 @@ import pytest
 
 from cutctx.providers.cursor.cli import build_agent_launch_args, find_agent_cli
 
+_AGENT_BIN = find_agent_cli()
+
 pytestmark = pytest.mark.skipif(
-    find_agent_cli() is None,
+    _AGENT_BIN is None,
     reason="Cursor Agent CLI is not installed",
 )
 
@@ -67,7 +69,10 @@ def test_cursor_agent_routes_auth_through_cutctx_proxy(
     upstream_server: str,
 ) -> None:
     """Cursor CLI should POST auth traffic to the configured Cutctx endpoint."""
-    agent_bin = find_agent_cli()
+    # Use the same discovery result that decided whether this module should
+    # run. Earlier tests may temporarily alter PATH or discovery state; doing
+    # a second lookup here made this live test order-dependent.
+    agent_bin = _AGENT_BIN
     assert agent_bin is not None
 
     proxy_port = _free_port()

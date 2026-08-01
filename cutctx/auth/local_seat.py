@@ -23,6 +23,7 @@ from pathlib import Path
 __all__ = [
     "LOCAL_SEAT_TTL_SECONDS",
     "control_seat_path",
+    "is_loopback_seat_peer",
     "is_trusted_local_seat_connection",
     "load_control_seat_token",
     "remint_local_seat_token",
@@ -38,24 +39,17 @@ __all__ = [
 LOCAL_SEAT_TTL_SECONDS = 72 * 60 * 60
 
 
-def is_trusted_local_seat_connection(
-    *,
-    bind_host: str | None,
-    host_header: str | None,
-    client_host: str | None,
-) -> bool:
-    """Require loopback bind, Host header, and an explicit loopback peer.
+def is_loopback_seat_peer(client_host: str | None) -> bool:
+    """Return whether the connection's peer is this machine.
 
     ``testclient`` is Starlette's exact in-process test sentinel. Every other
     non-IP or missing peer fails closed.
+
+    Callers that also control the bind should prefer
+    :func:`is_trusted_local_seat_connection`; this peer-only check exists for
+    surfaces that must stay usable on a non-loopback bind.
     """
 
-    from cutctx.proxy.loopback_guard import is_loopback_host, is_loopback_host_header
-
-    if not bind_host or not is_loopback_host(bind_host):
-        return False
-    if not is_loopback_host_header(host_header):
-        return False
     if client_host == "testclient":
         return True
     if not client_host:
@@ -67,6 +61,23 @@ def is_trusted_local_seat_connection(
     if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
         return address.ipv4_mapped.is_loopback
     return address.is_loopback
+
+
+def is_trusted_local_seat_connection(
+    *,
+    bind_host: str | None,
+    host_header: str | None,
+    client_host: str | None,
+) -> bool:
+    """Require loopback bind, Host header, and an explicit loopback peer."""
+
+    from cutctx.proxy.loopback_guard import is_loopback_host, is_loopback_host_header
+
+    if not bind_host or not is_loopback_host(bind_host):
+        return False
+    if not is_loopback_host_header(host_header):
+        return False
+    return is_loopback_seat_peer(client_host)
 
 
 def control_seat_path(home: Path | None = None) -> Path:

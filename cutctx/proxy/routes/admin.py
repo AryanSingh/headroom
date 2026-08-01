@@ -2169,6 +2169,13 @@ def create_admin_router(
     )
     async def metrics():
         """Prometheus metrics endpoint."""
+        cache_stats = _proxy.compression_cache_stats()
+        _proxy.metrics.set_compression_cache_stats(
+            active_sessions=cache_stats["active_sessions"],
+            entries=cache_stats["entries"],
+            size_bytes=cache_stats["size_bytes"],
+            oversize_skips=cache_stats["oversize_skips"],
+        )
         return PlainTextResponse(
             await _proxy.metrics.export(),
             media_type="text/plain; version=0.0.4",

@@ -2055,10 +2055,33 @@ def _ensure_proxy(
     anthropic_api_url: str | None = None,
     copilot_api_token: str | None = None,
     client_api_key: str | None = None,
+    reuse_only: bool = False,
 ) -> subprocess.Popen | None:
-    """Start or verify proxy. Returns process handle if we started it."""
+    """Start or verify proxy. Returns process handle if we started it.
+
+    ``reuse_only`` is for sessions that deliberately attach to a proxy other
+    clients already depend on. Every other path here may start, restart or
+    recover the listener on ``port`` with *this* session's flags — which for a
+    shared deployment means relaunching someone else's proxy with the wrong
+    backend and losing its capabilities. Under ``reuse_only`` the only
+    acceptable outcome is using the proxy exactly as it already runs; deciding
+    what to do instead is the caller's job, before it has committed to the
+    port.
+    """
     helpers = _live_wrap_module()
     if not no_proxy:
+        if reuse_only:
+            if helpers._check_proxy(port) and helpers._check_proxy_ready(port):
+                click.echo(f"  Proxy already running on port {port}")
+                return None
+            raise click.ClickException(
+                f"Port {port} is being shared with other Cutctx clients, so this "
+                "session will not start, restart or recover the proxy there — doing "
+                "so would relaunch their proxy with this session's configuration. "
+                "The proxy that was healthy a moment ago is no longer answering. "
+                "Retry with a different --port to get a private proxy instead."
+            )
+
         manifest = helpers._find_persistent_manifest(port)
         if manifest is None and not helpers._check_proxy(port):
             bind_error = _port_bind_error(port)
@@ -2529,6 +2552,8 @@ def _launch_tool(
     copilot_api_token: str | None = None,
     client_credential_origin: str | None = None,
     launch_note: str = "API routed through Cutctx",
+    reuse_only: bool = False,
+    post_proxy_check: Callable[[], None] | None = None,
 ) -> None:
     """Common logic: start proxy, launch tool, clean up.
 
@@ -2536,6 +2561,11 @@ def _launch_tool(
     defaults to the proxy-routed claim that holds for most tools, but hosts
     whose model endpoint we cannot repoint (``cursor-agent``) must override
     it — printing "API routed through Cutctx" there would be false.
+
+    ``reuse_only`` forbids the proxy step from touching a shared listener (see
+    ``_ensure_proxy``). ``post_proxy_check`` runs once the proxy step has
+    settled and may raise to abort the launch — it is where a caller re-checks
+    an assumption it made about the proxy *before* that step ran.
     """
     proxy_holder: list[subprocess.Popen | None] = [None]
     cleanup = _make_cleanup(proxy_holder, port)
@@ -2569,7 +2599,10 @@ def _launch_tool(
             openai_api_url=openai_api_url,
             copilot_api_token=copilot_api_token,
             client_api_key=credential.value,
+            reuse_only=reuse_only,
         )
+        if post_proxy_check is not None:
+            post_proxy_check()
         _validate_wrap_client_auth(proxy_url, credential)
 
         if code_graph:
@@ -4657,6 +4690,12 @@ def _opencode_has_routable_credentials() -> bool:
 # here instead of relying on the default.
 _OPENCODE_GO_UPSTREAM_URL = "https://opencode.ai/zen/go/v1"
 
+# Per-request upstream selector understood by the proxy's OpenAI handlers
+# (`cutctx.proxy.openai_upstream.OVERRIDE_HEADER`). Naming the upstream on
+# the request is what lets a shared proxy keep serving its process-wide
+# OpenAI upstream to every other client while this one run reaches zen/go.
+_OPENCODE_GO_UPSTREAM_HEADER = "x-cutctx-base-url"
+
 
 def _opencode_go_configured() -> bool:
     """Check whether opencode has 'opencode-go' credentials configured."""
@@ -4670,6 +4709,106 @@ def _opencode_go_configured() -> bool:
     return "opencode-go" in data
 
 
+def _opencode_go_api_key() -> str | None:
+    """Return opencode's stored opencode-go credential, if it has one.
+
+    ``auth.json`` stores API-style providers as ``{"type": "api", "key": ...}``
+    and OAuth-style ones as ``{"type": "oauth", "access": ...}``; accept either
+    shape rather than assuming which one the local login produced.
+    """
+    auth_path = Path.home() / ".local" / "share" / "opencode" / "auth.json"
+    try:
+        data = json.loads(auth_path.read_text())
+    except (OSError, ValueError):
+        return None
+    entry = data.get("opencode-go") if isinstance(data, dict) else None
+    if not isinstance(entry, dict):
+        return None
+    for field in ("key", "apiKey", "access"):
+        value = entry.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _proxy_supports_per_request_openai_base_url(port: int) -> bool:
+    """Whether the proxy on ``port`` advertises per-request upstream overrides.
+
+    The flag mirrors the proxy's runtime gate, not just the presence of the
+    code: a non-loopback bind or a translated backend reports ``false`` even on
+    a build that implements the header.
+    """
+    from cutctx.proxy.openai_upstream import CAPABILITY_FLAG
+
+    payload = _live_wrap_module()._query_proxy_health(port)
+    if not isinstance(payload, dict):
+        return False
+    capabilities = payload.get("capabilities")
+    if isinstance(capabilities, dict) and capabilities.get(CAPABILITY_FLAG) is True:
+        return True
+    return payload.get(CAPABILITY_FLAG) is True
+
+
+def _opencode_go_can_share_proxy_port(port: int) -> bool:
+    """Whether opencode-go can ride the proxy already listening on ``port``.
+
+    Both halves are required. The proxy must advertise the per-request
+    ``x-cutctx-base-url`` capability, and opencode must have a credential to
+    put in the config override — the proxy refuses an override that arrives
+    without a client Authorization (401), so a keyless shared-port session
+    would fail every request where the private-port path still works.
+    """
+    return _opencode_go_api_key() is not None and _proxy_supports_per_request_openai_base_url(port)
+
+
+def _shared_proxy_is_reusable_as_is(port: int) -> bool:
+    """Whether the proxy on ``port`` can be attached to without touching it.
+
+    Sharing a port means inheriting whatever already runs there. Every branch
+    in `_ensure_proxy` that would *change* it — the version restart, the
+    persistent restart/recover — relaunches a deployment other clients depend
+    on, with this session's flags: an opencode wrap would bring 8787 back up
+    as an anthropic-backend proxy with no per-request override capability,
+    breaking codex and this session at once. So a listener that is not ready,
+    or that runs a different Cutctx version, disqualifies the shared port here
+    — while the private-port fallback is still available — rather than later,
+    where the only remaining option is to abort.
+    """
+    helpers = _live_wrap_module()
+    if not helpers._check_proxy(port) or not helpers._check_proxy_ready(port):
+        return False
+    return not helpers._proxy_needs_version_restart(helpers._query_proxy_health(port))
+
+
+def _nested_dict(parent: dict[str, Any], key: str) -> dict[str, Any]:
+    """Return ``parent[key]`` as a dict, replacing a non-dict value in place."""
+    value = parent.get(key)
+    if not isinstance(value, dict):
+        value = {}
+        parent[key] = value
+    return value
+
+
+def _apply_opencode_go_proxy_config(
+    config: dict[str, Any], *, port: int, api_key: str
+) -> dict[str, Any]:
+    """Point ``config``'s opencode-go provider at the Cutctx proxy, in place.
+
+    Only the three fields Cutctx owns are written — ``baseURL``, the
+    per-request upstream header, and ``apiKey`` — so unrelated provider
+    options, other providers and every top-level key survive untouched.
+
+    Shared so the same shape can be applied to a durable
+    ``~/.config/opencode/opencode.json`` when the app (not just `cutctx wrap
+    opencode`) is cut over; nothing here reads or writes that file.
+    """
+    options = _nested_dict(_nested_dict(_nested_dict(config, "provider"), "opencode-go"), "options")
+    options["baseURL"] = f"http://127.0.0.1:{port}/v1"
+    _nested_dict(options, "headers")[_OPENCODE_GO_UPSTREAM_HEADER] = _OPENCODE_GO_UPSTREAM_URL
+    options["apiKey"] = api_key
+    return config
+
+
 def _write_opencode_go_config_override(port: int, existing_config_path: str | None) -> Path:
     """Write an OPENCODE_CONFIG override file redirecting opencode-go at the proxy.
 
@@ -4677,7 +4816,7 @@ def _write_opencode_go_config_override(port: int, existing_config_path: str | No
     project/global config (confirmed live: `opencode debug config` still
     showed the user's models/plugins/mcp servers with only the provider
     block added) rather than replacing it — so this only needs to carry the
-    one field being overridden. If the caller already has its own
+    fields being overridden. If the caller already has its own
     ``OPENCODE_CONFIG`` set, that file's contents are read and our provider
     override is merged on top so we don't clobber it.
 
@@ -4685,26 +4824,90 @@ def _write_opencode_go_config_override(port: int, existing_config_path: str | No
     is a documented opencode footgun (anomalyco/opencode#27853) when the
     target doesn't actually speak its wire protocol — but here it does,
     since Cutctx forwards to the same upstream unmodified.
+
+    The override also names the intended upstream per request, so it works
+    against a shared proxy whose process-wide OpenAI upstream still belongs
+    to other clients, and carries opencode's own zen/go credential because
+    the proxy rejects an override that arrives without one. That credential
+    makes the file secret, hence ``0600``. A Cutctx seat token is never
+    written here: it lives in its own 0600 file with a 72h expiry and has no
+    business being copied into client config.
     """
     from cutctx import paths as _paths
+
+    api_key = _opencode_go_api_key()
+    if not api_key:
+        raise click.ClickException(
+            "opencode's 'opencode-go' credential has no usable API key in "
+            "~/.local/share/opencode/auth.json, so opencode-go cannot be routed "
+            "through Cutctx. OPENAI_API_KEY is deliberately not substituted here — "
+            "it belongs to api.openai.com, not to opencode.ai/zen/go. Run "
+            "`opencode auth login` and pick opencode, then retry."
+        )
 
     base: dict[str, Any] = {}
     if existing_config_path:
         try:
-            base = json.loads(Path(existing_config_path).expanduser().read_text())
+            loaded = json.loads(Path(existing_config_path).expanduser().read_text())
         except (OSError, ValueError):
-            base = {}
+            loaded = None
+        if isinstance(loaded, dict):
+            base = loaded
 
-    provider_block = base.setdefault("provider", {})
-    opencode_go_block = provider_block.setdefault("opencode-go", {})
-    options_block = opencode_go_block.setdefault("options", {})
-    options_block["baseURL"] = f"http://127.0.0.1:{port}/v1"
+    _apply_opencode_go_proxy_config(base, port=port, api_key=api_key)
 
     override_dir = _paths.ensure_workspace_dir() / "opencode"
     override_dir.mkdir(parents=True, exist_ok=True)
     override_path = override_dir / f"config-override-{port}.json"
-    override_path.write_text(json.dumps(base))
+    _write_private_config_json(override_path, base)
     return override_path
+
+
+def _restrict_open_file_to_owner(fd: int) -> None:
+    """Narrow an already-open file to 0600."""
+    fchmod = getattr(os, "fchmod", None)
+    if fchmod is None:
+        return
+    try:
+        fchmod(fd, 0o600)
+    except OSError:
+        # Windows and some network filesystems treat mode bits as advisory.
+        pass
+
+
+def _write_private_config_json(path: Path, payload: dict[str, Any]) -> None:
+    """Write ``payload`` as JSON at ``path``, 0600 from the first byte.
+
+    Narrowing the temp file before anything is written into it (rather than
+    chmod-ing after ``write_text``) means the credential is never briefly
+    world-readable, and replacing rather than truncating means a concurrent
+    reader never sees a partial config.
+
+    ``os.open``'s mode argument only applies when it *creates* the file, so it
+    is not enough on its own: a ``.tmp`` left behind at 0644 by an older build
+    or a crashed run is reopened with its old mode, and ``os.replace`` would
+    then carry 0644 onto the final path. Hence the ``fchmod`` on the open
+    descriptor.
+    """
+    data = json.dumps(payload).encode("utf-8")
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(tmp, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            _restrict_open_file_to_owner(handle.fileno())
+            handle.write(data)
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise
+    os.replace(tmp, path)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        # Windows and some network filesystems treat mode bits as advisory.
+        pass
 
 
 @wrap.command(context_settings={"ignore_unknown_options": True})
@@ -4779,6 +4982,27 @@ def opencode(
     # api.openai.com — repoint this run's proxy at that upstream.
     openai_api_url = _OPENCODE_GO_UPSTREAM_URL if route_opencode_go else None
 
+    # A proxy that honors per-request `x-cutctx-base-url` needs no
+    # process-wide upstream for this session, so opencode-go can stay on the
+    # shared listener. Dropping `openai_api_url` here is what keeps it there:
+    # it is the sole trigger for both the private-port swap below and the
+    # upstream-mismatch restart inside _ensure_proxy. The shared listener then
+    # learns the zen/go upstream from the `x-cutctx-base-url` header that
+    # _write_opencode_go_config_override puts in opencode's provider options.
+    share_proxy_port = openai_api_url is not None and _opencode_go_can_share_proxy_port(port)
+    if share_proxy_port and not _shared_proxy_is_reusable_as_is(port):
+        # Capability alone is not enough: attaching to a listener that
+        # _ensure_proxy would want to restart or recover means restarting a
+        # proxy codex/claude are using. Give up the shared port instead.
+        click.echo(
+            f"  Proxy on port {port} honors per-request upstream overrides but is not "
+            "reusable as-is (not ready, or running a different Cutctx version). It is "
+            "shared, so this session will not restart it — using a private proxy instead."
+        )
+        share_proxy_port = False
+    if share_proxy_port:
+        openai_api_url = None
+
     # DeploymentManifest carries no per-invocation upstream override, so a
     # persistent, shared proxy on `port` (e.g. one also serving claude/codex)
     # can never honor this. Resolve to a private port for this session
@@ -4786,6 +5010,11 @@ def opencode(
     # savings still land in the same shared ~/.cutctx store either way.
     requested_port = port
     port, port_reassigned = _resolve_wrap_port(port, openai_api_url=openai_api_url)
+    if share_proxy_port:
+        click.echo(
+            f"  Proxy on port {port} honors per-request upstream overrides — routing "
+            "opencode-go through it instead of starting a private proxy."
+        )
     if port_reassigned:
         click.echo(
             f"  Port {requested_port} is a shared, persistent Cutctx proxy that can't be "
@@ -4836,6 +5065,26 @@ def opencode(
             )
         click.echo()
 
+    def _confirm_shared_upstream_capability() -> None:
+        """Re-probe the capability once the proxy step has settled.
+
+        The first probe happened before `_ensure_proxy` ran. If the listener
+        changed in between — restarted onto a non-loopback bind, replaced by a
+        different build, or simply a different process that grabbed the port —
+        the override this session already wrote would be rejected on every
+        request. Abort while that is still a message rather than a wall of
+        400s: the config override is written and the port is committed, so
+        there is no private-port fallback left to take here.
+        """
+        if _proxy_supports_per_request_openai_base_url(port):
+            return
+        raise click.ClickException(
+            f"The proxy on shared port {port} no longer advertises per-request "
+            "upstream overrides, so opencode-go traffic would be rejected instead "
+            "of reaching opencode.ai/zen/go. Not falling back silently. Rerun "
+            "`cutctx wrap opencode --port <other-port>` for a private proxy."
+        )
+
     _launch_tool(
         binary=opencode_bin,
         args=opencode_args,
@@ -4850,6 +5099,8 @@ def opencode(
         backend=backend,
         openai_api_url=openai_api_url,
         client_credential_origin=f"http://127.0.0.1:{requested_port}",
+        reuse_only=share_proxy_port,
+        post_proxy_check=_confirm_shared_upstream_capability if share_proxy_port else None,
     )
 
 

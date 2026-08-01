@@ -451,3 +451,100 @@ class TestCompressionWindows:
             aggressive.policy.compression_window_yellow < balanced.policy.compression_window_yellow
         )
         assert aggressive.policy.compression_window_red < balanced.policy.compression_window_red
+
+
+class TestCriticalZoneToolPairIntegrity:
+    """CRITICAL summarization must not orphan tool messages (Console Go 400)."""
+
+    def _history_with_tool_split_at_critical_cutoff(self) -> list[dict]:
+        """Build history where naive oldest-20% cutoff orphans a tool message.
+
+        For len=50, cutoff=10. Place assistant tool_calls at index 9 and the
+        matching tool result at index 10 so summarization would otherwise emit
+        ``[Context Summary]`` then ``role=tool``.
+        """
+        messages: list[dict] = []
+        for i in range(9):
+            messages.append({"role": "user" if i % 2 == 0 else "assistant", "content": f"pad {i}"})
+        messages.append(
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "call_split_1",
+                        "type": "function",
+                        "function": {"name": "read", "arguments": "{}"},
+                    }
+                ],
+            }
+        )
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": "call_split_1",
+                "content": "<path>/tmp/file</path>",
+            }
+        )
+        while len(messages) < 50:
+            i = len(messages)
+            messages.append(
+                {
+                    "role": "user" if i % 2 == 0 else "assistant",
+                    "content": f"tail {i} " + ("y" * 20),
+                }
+            )
+        return messages
+
+    def test_summarize_critical_keeps_assistant_with_tool_results(self) -> None:
+        controller = ContextBudgetController(max_tokens=1000)
+        messages = self._history_with_tool_split_at_critical_cutoff()
+        assert len(messages) == 50
+        assert messages[9]["role"] == "assistant" and messages[9].get("tool_calls")
+        assert messages[10]["role"] == "tool"
+
+        result = controller._summarize_critical_zone(messages)
+
+        assert result[0]["role"] == "user"
+        assert result[0]["content"].startswith("[Context Summary]")
+        # After the summary, never start on an orphan tool message.
+        assert result[1]["role"] != "tool"
+        # Tool result retained ⇒ matching assistant tool_calls retained.
+        roles = [m["role"] for m in result]
+        assert "tool" in roles
+        tool_idx = next(i for i, m in enumerate(result) if m.get("role") == "tool")
+        prior = result[:tool_idx]
+        assert any(
+            m.get("role") == "assistant"
+            and any(
+                tc.get("id") == "call_split_1"
+                for tc in (m.get("tool_calls") or [])
+                if isinstance(tc, dict)
+            )
+            for m in prior
+        )
+
+    def test_apply_critical_does_not_emit_orphan_tools(self) -> None:
+        controller = ContextBudgetController(max_tokens=100)
+        messages = self._history_with_tool_split_at_critical_cutoff()
+        with patch.object(controller, "_count_tokens", return_value=99):
+            result = controller.apply(messages)
+
+        assert not (
+            len(result) > 1
+            and str(result[0].get("content", "")).startswith("[Context Summary]")
+            and result[1].get("role") == "tool"
+        )
+        for i, msg in enumerate(result):
+            if msg.get("role") != "tool":
+                continue
+            prior = result[:i]
+            assert any(
+                m.get("role") == "assistant"
+                and any(
+                    tc.get("id") == msg.get("tool_call_id")
+                    for tc in (m.get("tool_calls") or [])
+                    if isinstance(tc, dict)
+                )
+                for m in prior
+            ), f"orphan tool at index {i}: {msg.get('tool_call_id')}"

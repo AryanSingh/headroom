@@ -1,9 +1,13 @@
 """Response-cache implementation for the Cutctx proxy.
 
 Despite the historical module name, this is currently an exact-match response
-cache keyed by normalized ``{model, messages}`` content. The stats emitted here
-feed the dashboard's runtime capability cards, so we track misses, evictions,
-and avoided tokens explicitly.
+cache keyed by normalized ``{model, messages, upstream}`` content. The
+``upstream`` component is optional (callers with no notion of a per-request
+upstream, e.g. Anthropic, simply omit it and get the pre-existing behavior)
+but is required for callers where the resolved upstream can vary per request
+-- see the OpenAI chat-completions handler's ``x-cutctx-base-url`` override.
+The stats emitted here feed the dashboard's runtime capability cards, so we
+track misses, evictions, and avoided tokens explicitly.
 """
 
 from __future__ import annotations
@@ -161,12 +165,21 @@ class SemanticCache:
         self._tokens_saved_per_hit_capacity -= entry.tokens_saved_per_hit
         self._resident_size_bytes -= self._entry_size_bytes(entry)
 
-    def _compute_key(self, messages: list[dict], model: str) -> str:
-        """Compute a normalized cache key for a request."""
+    def _compute_key(self, messages: list[dict], model: str, upstream: str | None = None) -> str:
+        """Compute a normalized cache key for a request.
+
+        ``upstream`` is the resolved upstream base URL for this request (for
+        example a per-request ``x-cutctx-base-url`` override). It must be
+        folded into the key: on a shared listener, two requests with the
+        same ``(messages, model)`` but different resolved upstreams are not
+        the same request and must never share a cache entry (D1, Phase 4
+        cutover — a response fetched via an override upstream was otherwise
+        served to a later request that did not send the override).
+        """
         cleaned_messages = normalize_semantic_cache_messages(_strip_per_call_annotations(messages))
 
         normalized = json.dumps(
-            {"model": model, "messages": cleaned_messages},
+            {"model": model, "messages": cleaned_messages, "upstream": upstream},
             sort_keys=True,
             separators=(",", ":"),
             ensure_ascii=False,
@@ -174,9 +187,15 @@ class SemanticCache:
         )
         return hashlib.sha256(normalized.encode()).hexdigest()[:32]
 
-    async def get(self, messages: list[dict], model: str) -> CacheEntry | None:
-        """Return a cached response when present and still valid."""
-        key = self._compute_key(messages, model)
+    async def get(
+        self, messages: list[dict], model: str, upstream: str | None = None
+    ) -> CacheEntry | None:
+        """Return a cached response when present and still valid.
+
+        ``upstream`` must match the value passed to :meth:`set` for the same
+        logical request (see :meth:`_compute_key`).
+        """
+        key = self._compute_key(messages, model, upstream)
         async with self._lock:
             entry = self._cache.get(key)
             if entry is None:
@@ -205,9 +224,14 @@ class SemanticCache:
         response_body: bytes,
         response_headers: dict[str, str],
         tokens_saved: int = 0,
+        upstream: str | None = None,
     ) -> None:
-        """Store a response in the cache."""
-        key = self._compute_key(messages, model)
+        """Store a response in the cache.
+
+        ``upstream`` must match the value passed to :meth:`get` for the same
+        logical request (see :meth:`_compute_key`).
+        """
+        key = self._compute_key(messages, model, upstream)
         is_stream = response_headers.get("content-type", "").startswith("text/event-stream")
         new_entry = CacheEntry(
             response_body=response_body,

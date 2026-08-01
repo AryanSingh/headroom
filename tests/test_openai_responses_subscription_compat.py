@@ -35,11 +35,11 @@ def test_ws_connect_header_kwargs_falls_back_to_extra_headers():
     assert kwargs == {"extra_headers": {"x-test": "1"}}
 
 
-def test_chatgpt_subscription_sanitizer_strips_backend_rejected_fields():
+def test_chatgpt_subscription_sanitizer_preserves_codex_thread_metadata():
     body = {
         "model": "gpt-5.4",
         "input": "hi",
-        "client_metadata": {"thread_id": "t_123"},
+        "client_metadata": {"thread_id": "t_123", "request_id": "drop-me"},
         "prompt_cache_key": "pk_123",
         "generate": {"foo": "bar"},
         "store": True,
@@ -53,15 +53,16 @@ def test_chatgpt_subscription_sanitizer_strips_backend_rejected_fields():
     assert sanitized == {
         "model": "gpt-5.4",
         "input": "hi",
+        "client_metadata": {"thread_id": "t_123"},
         "store": False,
         "stream": True,
     }
     assert stripped == [
-        "client_metadata",
         "generate",
         "prompt_cache_key",
         "stream_options",
         "text",
+        "client_metadata.extra",
     ]
 
 
@@ -287,9 +288,14 @@ def test_ws_http_fallback_normalization_unwraps_and_sanitizes_subscription_body(
         strip_chatgpt_subscription_fields=True,
     )
 
-    assert normalized == {"model": "gpt-5.4", "input": "hi", "store": False, "stream": True}
+    assert normalized == {
+        "model": "gpt-5.4",
+        "input": "hi",
+        "client_metadata": {"thread_id": "t_123"},
+        "store": False,
+        "stream": True,
+    }
     assert stripped == [
-        "client_metadata",
         "generate",
     ]
 

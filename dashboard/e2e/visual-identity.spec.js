@@ -58,6 +58,19 @@ test.describe('Context Command Center visual identity', () => {
     await expect(html).toHaveClass(/dark/);
   });
 
+  test('dark overview shell matches the approved visual baseline', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/dashboard');
+    await expect(page.locator('.topbar-title-row h2')).toHaveText('Dashboard');
+    await expect(page.getByText('Loading module…')).toBeHidden({ timeout: 15_000 });
+
+    await expect(page).toHaveScreenshot('overview-shell-dark.png', {
+      animations: 'disabled',
+      fullPage: true,
+      maxDiffPixelRatio: 0.005,
+    });
+  });
+
   test('mobile sidebar drawer closes with Escape', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/dashboard');
@@ -82,9 +95,5 @@ test.describe('Context Command Center visual identity', () => {
     await page.goto('/dashboard/orchestrator');
     await expect(page.getByTestId('control-plane-status')).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId('control-plane-status')).toHaveText(/Live|Degraded/);
-    await page.screenshot({
-      path: '../docs/screenshots/context-command-center/orchestrator-desktop-dark.png',
-      fullPage: true,
-    });
   });
 });

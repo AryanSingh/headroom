@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 def create_license_router(
     require_admin_auth: Callable[..., Any] | None = None,
     require_rbac_permission: Callable[..., Any] | None = None,
+    get_license_db_factory: Callable[[], Any] | None = None,
 ) -> APIRouter:
     """Build the license-management router with auth dependencies applied."""
     router = APIRouter(prefix="/v1/license", tags=["License"])
@@ -38,18 +39,21 @@ def create_license_router(
             "/v1/license/* will be reachable without auth."
         )
 
-    try:
-        from cutctx_ee.billing.license_db import get_license_db
-    except ImportError:
+    if get_license_db_factory is not None:
+        get_license_db = get_license_db_factory
+    else:
+        try:
+            from cutctx_ee.billing.license_db import get_license_db
+        except ImportError:
 
-        def get_license_db() -> Any:
-            raise HTTPException(
-                status_code=501,
-                detail={
-                    "message": "Enterprise billing module not installed",
-                    "remediation": "License management requires cutctx-ee (enterprise edition). Install via: pip install cutctx-ai[ee] or contact sales@cutctx.io",
-                },
-            )
+            def get_license_db() -> Any:
+                raise HTTPException(
+                    status_code=501,
+                    detail={
+                        "message": "Enterprise billing module not installed",
+                        "remediation": "License management requires cutctx-ee (enterprise edition). Install via: pip install cutctx-ai[ee] or contact sales@cutctx.io",
+                    },
+                )
 
     class ActivateRequest(BaseModel):
         license_key: str

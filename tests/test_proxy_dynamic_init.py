@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import os
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from cutctx.proxy import server as proxy_server
 from cutctx.proxy.models import ProxyConfig
 from cutctx.proxy.server import _apply_validated_license, create_app
 from cutctx.proxy.ws_session_registry import WSSessionHandle
@@ -21,6 +22,55 @@ os.environ["CUTCTX_SKIP_INTEGRITY_CHECK"] = "1"
 @pytest.fixture(autouse=True)
 def _isolate_governance_desired_state(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CUTCTX_CONFIG_DIR", str(tmp_path / "config"))
+
+
+def test_invalid_intercept_bypass_ips_preserves_dns_fallback_and_logs_warning(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A corrupt intercept state file must not break normal DNS resolution."""
+    bypass_file = tmp_path / "intercept_bypass_ips.json"
+    bypass_file.write_text("{not valid json", encoding="utf-8")
+    monkeypatch.setattr(proxy_server, "_INTERCEPT_BYPASS_IPS_FILE", bypass_file)
+    monkeypatch.setattr(proxy_server, "_intercept_bypass_applied", False)
+    monkeypatch.setattr(proxy_server.socket, "getaddrinfo", proxy_server._original_getaddrinfo)
+
+    with patch.object(proxy_server.logger, "warning") as warning:
+        proxy_server._patch_getaddrinfo_for_intercept()
+
+    assert proxy_server.socket.getaddrinfo is proxy_server._original_getaddrinfo
+    assert proxy_server._intercept_bypass_applied is False
+    warning.assert_called_once_with(
+        "Invalid intercept bypass state in %s; preserving standard DNS resolution (%s)",
+        bypass_file,
+        "JSONDecodeError",
+    )
+
+
+def test_profile_load_failure_preserves_router_fallback_and_logs_warning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unavailable learned profile leaves the standard router configuration intact."""
+    from cutctx.profiles import CompressionProfile
+
+    def raise_profile_load_error():
+        raise RuntimeError("profile store unavailable")
+
+    monkeypatch.setattr(CompressionProfile, "load", raise_profile_load_error)
+
+    with patch.object(proxy_server.logger, "warning") as warning:
+        app = create_app(
+            ProxyConfig(
+                optimize=False,
+                cache_enabled=False,
+                rate_limit_enabled=False,
+            )
+        )
+
+    assert not app.state.proxy._content_router.config.per_type_overrides
+    warning.assert_called_once_with(
+        "Compression profile load failed; using default router configuration (%s)",
+        "RuntimeError",
+    )
 
 
 def test_reversible_code_live_toggle_updates_existing_routers_without_restart(

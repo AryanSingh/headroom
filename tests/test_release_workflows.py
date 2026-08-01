@@ -20,6 +20,62 @@ def test_all_github_workflows_are_valid_yaml() -> None:
         assert "jobs" in parsed, f"{path.name} must declare jobs"
 
 
+def test_ci_covers_every_supported_python_minor_with_a_compatibility_smoke() -> None:
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "python-compatibility:" in content
+    assert 'python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]' in content
+    assert "tests/test_proxy_server_import.py" in content
+    assert "cutctx/tests/test_context_budget.py" in content
+
+
+def test_ruff_excludes_local_slim_worktrees_from_repository_linting() -> None:
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    ruff_section = pyproject.split("[tool.ruff]", maxsplit=1)[1].split(
+        "[tool.ruff.lint]", maxsplit=1
+    )[0]
+    assert 'exclude = [".slim/worktrees"]' in ruff_section
+
+
+def test_python_compatibility_smoke_imports_the_generated_model_registry() -> None:
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "import litellm; assert litellm.model_cost" in content
+
+
+def test_python_compatibility_smoke_fails_on_testclient_deprecations() -> None:
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "-W error::starlette.testclient.StarletteDeprecationWarning" in content
+    assert "tests/test_route_modules.py" in content
+
+
+def test_dev_dependencies_install_starlettes_current_test_client_backend() -> None:
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    assert '"httpx2>=2.9.1"' in pyproject
+
+
+def test_prometheus_rules_alert_on_websocket_admission_rejections() -> None:
+    content = (ROOT / "k8s" / "prometheus-rules.yaml").read_text(encoding="utf-8")
+
+    assert "WebSocketCapacityRejections" in content
+    assert "increase(cutctx_ws_sessions_rejected_total[5m]) > 0" in content
+    runbook_url = "https://github.com/cutctx/cutctx/blob/main/docs/runbooks/websocket-capacity.md"
+    assert runbook_url in content
+    assert (ROOT / "docs" / "runbooks" / "websocket-capacity.md").is_file()
+
+
+def test_operations_inventory_records_deployed_alerts_and_websocket_metrics() -> None:
+    inventory = (ROOT / "docs" / "runbooks" / "ops-alert-inventory.md").read_text(encoding="utf-8")
+
+    assert "Four `cutctx.rules` alert expressions" in inventory
+    assert "WebSocketCapacityRejections" in inventory
+    assert "`cutctx_ws_sessions_rejected_total`" in inventory
+    assert "exported" in inventory
+
+
 def test_ci_provisions_redis_for_redis_orchestration_integration_tests() -> None:
     """The Redis durability contract needs a real writable Redis service in CI."""
     content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")

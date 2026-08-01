@@ -179,9 +179,8 @@ _CHATGPT_SUBSCRIPTION_UNSUPPORTED_RESPONSE_FIELDS = frozenset(
     #   text               — response verbosity control ({"verbosity": "low"})
     #   stream_options     — streaming-only delivery controls
     #   parallel_tool_calls — tool parallelism flag
-    #   client_metadata, generate, prompt_cache_key — internal/legacy fields
+    #   generate, prompt_cache_key — internal/legacy fields
     {
-        "client_metadata",
         "generate",
         "include",
         "parallel_tool_calls",
@@ -573,6 +572,21 @@ def _sanitize_chatgpt_subscription_responses_body(
         if key in sanitized:
             sanitized.pop(key, None)
             stripped.append(key)
+    # Codex Desktop persists and resumes its local task through this identifier.
+    # Dropping it makes the otherwise-valid upstream response unassociated with
+    # the task, which the desktop app renders as "thread not found." The
+    # ChatGPT backend only needs the task identifier, so preserve that exact
+    # string while keeping all other client metadata out of the subscription
+    # request shape.
+    client_metadata = sanitized.get("client_metadata")
+    thread_id = client_metadata.get("thread_id") if isinstance(client_metadata, dict) else None
+    if isinstance(thread_id, str) and thread_id.strip():
+        sanitized["client_metadata"] = {"thread_id": thread_id}
+        if set(client_metadata) != {"thread_id"}:
+            stripped.append("client_metadata.extra")
+    elif "client_metadata" in sanitized:
+        sanitized.pop("client_metadata", None)
+        stripped.append("client_metadata")
     # The ChatGPT Codex backend now requires these for resumed conversations.
     # Subscription traffic must neither create a stored Responses resource nor
     # use the non-streaming HTTP response mode. Omitting either field is
@@ -2805,6 +2819,27 @@ class OpenAIResponsesMixin:
 
         codex_responses_lite = _has_codex_responses_lite_hint(raw_request_headers)
 
+        # Per-request upstream override. Resolved from the *raw* inbound
+        # headers (before `_strip_internal_headers` drops `x-cutctx-*`) into a
+        # request-local value — never onto `self.OPENAI_API_URL`.
+        from cutctx.proxy.openai_upstream import (
+            override_rejection_payload,
+            override_rejection_status_code,
+            resolve_openai_base_url_override,
+        )
+
+        base_url_override = resolve_openai_base_url_override(
+            self,
+            request,
+            raw_request_headers,
+            is_chatgpt_auth=is_chatgpt_subscription,
+        )
+        if base_url_override.rejected:
+            return JSONResponse(
+                status_code=override_rejection_status_code(base_url_override),
+                content=override_rejection_payload(base_url_override),
+            )
+
         if not is_remote_compaction:
             model, request_savings_metadata = prepare_model_routing(
                 self,
@@ -2818,8 +2853,12 @@ class OpenAIResponsesMixin:
                 assignment_identity_source=_canary_identity.source,
                 assignment_sticky=_canary_identity.sticky,
                 transport_provider="openai",
-                implicit_downgrade_allowed=not (is_chatgpt_subscription or codex_responses_lite),
-                allow_transport_safe_targets=not is_chatgpt_subscription,
+                implicit_downgrade_allowed=not (
+                    is_chatgpt_subscription or codex_responses_lite or base_url_override.active
+                ),
+                allow_transport_safe_targets=not (
+                    is_chatgpt_subscription or base_url_override.active
+                ),
                 required_capabilities=infer_request_capabilities(body),
             )
         _canary_assignments = getattr(self, "_savings_canary_assignments", None)
@@ -2858,7 +2897,15 @@ class OpenAIResponsesMixin:
         headers = _strip_openai_internal_headers(headers)
         from cutctx.proxy.auth_keyring import inject_provider_authorization
 
-        if inject_provider_authorization(headers, "openai"):
+        if base_url_override.active:
+            # The client picked this upstream, so it supplies the credential.
+            # Injecting the operator's OPENAI_API_KEY here would send it to a
+            # host the operator never configured.
+            logger.debug(
+                "[%s] upstream override active; not injecting configured OpenAI credential",
+                request_id,
+            )
+        elif inject_provider_authorization(headers, "openai"):
             logger.debug(
                 "[%s] injected OpenAI Authorization from configured credentials", request_id
             )
@@ -3151,7 +3198,14 @@ class OpenAIResponsesMixin:
                 f"(backend '{self.anthropic_backend.name}' not used for Responses API)"
             )
 
-        headers, is_chatgpt_auth = _resolve_codex_routing_headers(headers)
+        headers, _resolved_is_chatgpt_auth = _resolve_codex_routing_headers(headers)
+        # The override was resolved against the raw inbound headers. Re-deriving
+        # ChatGPT routing from the upstream-bound copy must not be able to flip
+        # an accepted override onto chatgpt.com, so keep the pre-injection
+        # verdict whenever the override is live.
+        is_chatgpt_auth = (
+            is_chatgpt_subscription if base_url_override.active else _resolved_is_chatgpt_auth
+        )
 
         # Route to correct endpoint based on auth mode.
         # ChatGPT session auth (codex login) uses chatgpt.com, not api.openai.com.
@@ -3167,7 +3221,10 @@ class OpenAIResponsesMixin:
                     ", ".join(stripped_fields),
                 )
         else:
-            url = build_copilot_upstream_url(self.OPENAI_API_URL, "/v1/responses")
+            url = build_copilot_upstream_url(
+                base_url_override.base_url or self.OPENAI_API_URL,
+                "/v1/responses",
+            )
             if codex_responses_lite:
                 body, migrated_fields = _sanitize_codex_responses_lite_model(body)
                 if migrated_fields:
@@ -4046,7 +4103,9 @@ class OpenAIResponsesMixin:
         # registration itself fails for some reason.
         ws_sessions: WebSocketSessionRegistry | None = getattr(self, "ws_sessions", None)
         session_handle: WSSessionHandle | None = None
+        session_reserved = False
         termination_cause: TerminationCause = "unknown"
+        upstream: Any = None
 
         # Forward client headers to upstream, adding required OpenAI-Beta header
         ws_headers = dict(websocket.headers)
@@ -4280,6 +4339,23 @@ class OpenAIResponsesMixin:
         )
 
         try:
+            if ws_sessions is not None:
+                session_reserved = ws_sessions.try_reserve(session_id)
+                if not session_reserved:
+                    termination_cause = "capacity_rejected"
+                    metrics = getattr(self, "metrics", None)
+                    if metrics is not None and hasattr(metrics, "record_ws_session_rejected"):
+                        with contextlib.suppress(Exception):
+                            metrics.record_ws_session_rejected()
+                    await websocket.accept(
+                        subprotocol=(client_subprotocols[0] if client_subprotocols else None),
+                    )
+                    await websocket.close(
+                        code=1013,
+                        reason="WebSocket session capacity reached; retry later",
+                    )
+                    return
+
             # --- Accept the client WebSocket FIRST ---
             # Previously we connected to upstream before accepting the client so
             # we could forward x-codex-* rate-limit headers from chatgpt.com's
@@ -4310,8 +4386,6 @@ class OpenAIResponsesMixin:
             _upstream_connect_started = time.perf_counter()
             _upstream_connect_recorded = False
             _upstream_first_event_started: float | None = None
-            upstream: Any = None
-
             for ws_attempt in range(ws_connect_attempts):
                 try:
                     connect_header_kwargs = _ws_connect_header_kwargs(websockets, upstream_headers)
@@ -4516,6 +4590,7 @@ class OpenAIResponsesMixin:
                     upstream_url=upstream_url,
                 )
                 ws_sessions.register(session_handle)
+                session_reserved = False
                 metrics = getattr(self, "metrics", None)
                 if metrics is not None and hasattr(metrics, "inc_active_ws_sessions"):
                     try:
@@ -6861,6 +6936,8 @@ class OpenAIResponsesMixin:
                             metrics_for_close.record_ws_session_duration(
                                 session_duration_ms, termination_cause
                             )
+            elif ws_sessions is not None and session_reserved:
+                ws_sessions.release(session_id)
             metrics_for_ws_inbound_close = getattr(self, "metrics", None)
             if metrics_for_ws_inbound_close is not None and hasattr(
                 metrics_for_ws_inbound_close, "record_inbound_response"

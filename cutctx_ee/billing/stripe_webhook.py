@@ -130,9 +130,45 @@ def handle_checkout_completed(event_data: dict[str, Any]) -> LicenseRecord:
         expires_at=now + (365 * 86400),  # 1 year
         active=True,
     )
-    _save_license(record)
-    _send_license_email(email, key, tier, seats)
-    return record
+    fulfillment = _save_license(record)
+    if not (isinstance(fulfillment, tuple) and len(fulfillment) == 2):
+        # Backwards-compatible seam for integrations that patched the old
+        # fire-and-forget saver. Production always returns the persisted row.
+        persisted, created = record, True
+    else:
+        persisted, created = fulfillment
+    db = _get_db()
+    if hasattr(db, "claim_license_delivery"):
+        claim_token = db.claim_license_delivery(persisted.license_key)
+        if claim_token:
+            try:
+                # This hook is currently log-only. The durable state records
+                # hook completion; it is not an assertion about an external
+                # mail provider accepting or delivering a message.
+                _send_license_email(
+                    persisted.customer_email,
+                    persisted.license_key,
+                    persisted.tier,
+                    persisted.seats,
+                )
+            except Exception as exc:
+                db.release_license_delivery(persisted.license_key, claim_token, exc)
+                raise
+            # A crash after this log-only hook succeeds but before this state
+            # update can replay the hook. Provider-side exactly-once delivery
+            # is impossible across that boundary; recorded delivery does,
+            # however, suppress every later replay.
+            db.mark_license_delivery_delivered(persisted.license_key, claim_token)
+    elif created:
+        # Compatibility seam for integrations that supply the historical DB
+        # adapter without durable delivery methods.
+        _send_license_email(
+            persisted.customer_email,
+            persisted.license_key,
+            persisted.tier,
+            persisted.seats,
+        )
+    return persisted
 
 
 def _resolve_plan_from_session(session: dict[str, Any]) -> tuple[str, int]:
@@ -262,12 +298,10 @@ def _get_db():
     return get_license_db()
 
 
-def _save_license(record: LicenseRecord) -> None:
-    """Save to license DB."""
-    from cutctx.billing.license_db import get_license_db
-
-    db = get_license_db()
-    db.upsert(record)
+def _save_license(record: LicenseRecord) -> tuple[LicenseRecord, bool]:
+    """Fulfill a checkout idempotently and report whether it was newly issued."""
+    persisted, created = _get_db().fulfill_checkout(record)
+    return persisted, created
 
 
 def _send_license_email(email: str, key: str, tier: str, seats: int) -> None:

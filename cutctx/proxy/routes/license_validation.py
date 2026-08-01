@@ -51,6 +51,7 @@ class CheckTrialRequest(BaseModel):
 def create_license_validation_router(
     require_admin_auth: Callable[..., Any] | None = None,
     require_rbac_permission: Callable[..., Any] | None = None,
+    get_license_db_factory: Callable[[], Any] | None = None,
 ) -> APIRouter:
     """Build the license-validation router with auth on management endpoints.
 
@@ -59,6 +60,13 @@ def create_license_validation_router(
     own signature verification and is not gated by admin auth.
     """
     router = APIRouter()
+
+    def resolve_license_db() -> Any:
+        if get_license_db_factory is not None:
+            return get_license_db_factory()
+        from cutctx_ee.billing.license_db import get_license_db
+
+        return get_license_db()
 
     # Admin-gated dependencies for license-management endpoints.
     admin_deps: list[Any] = []
@@ -139,9 +147,7 @@ def create_license_validation_router(
                     )
 
         try:
-            from cutctx_ee.billing.license_db import get_license_db
-
-            db = get_license_db()
+            db = resolve_license_db()
             result = db.validate(license_key)
             if not result["valid"]:
                 logger.warning(
@@ -175,9 +181,7 @@ def create_license_validation_router(
                 raise HTTPException(status_code=409, detail={"error": "activation_rejected"})
             return {"status": "ok"}
 
-        from cutctx_ee.billing.license_db import get_license_db
-
-        db = get_license_db()
+        db = resolve_license_db()
         result = db.validate(req.license_key)
         if not result["valid"]:
             raise HTTPException(status_code=403, detail=result)
@@ -187,9 +191,7 @@ def create_license_validation_router(
 
     @router.get("/v1/license/crl", dependencies=admin_deps)
     async def get_crl() -> dict:
-        from cutctx_ee.billing.license_db import get_license_db
-
-        db = get_license_db()
+        db = resolve_license_db()
         return {"revoked": db.get_crl()}
 
     @router.post("/v1/license/checkout-seat", dependencies=admin_deps)
@@ -205,9 +207,7 @@ def create_license_validation_router(
                 raise HTTPException(status_code=429, detail={"error": "no_seats_available"})
             return {"status": "ok"}
 
-        from cutctx_ee.billing.license_db import get_license_db
-
-        db = get_license_db()
+        db = resolve_license_db()
         result = db.validate(req.license_key)
         if not result["valid"]:
             raise HTTPException(status_code=403, detail=result)
@@ -218,9 +218,7 @@ def create_license_validation_router(
 
     @router.post("/v1/license/start-trial", dependencies=admin_deps)
     async def start_trial(req: StartTrialRequest) -> dict:
-        from cutctx_ee.billing.license_db import get_license_db
-
-        db = get_license_db()
+        db = resolve_license_db()
         success = db.start_trial(req.trial_token, req.customer_email, req.duration)
         if not success:
             raise HTTPException(status_code=409, detail={"error": "trial_already_started"})
@@ -228,9 +226,7 @@ def create_license_validation_router(
 
     @router.post("/v1/license/check-trial", dependencies=admin_deps)
     async def check_trial(req: CheckTrialRequest) -> dict:
-        from cutctx_ee.billing.license_db import get_license_db
-
-        db = get_license_db()
+        db = resolve_license_db()
         active = db.is_trial_active(req.trial_token)
         return {"active": active}
 

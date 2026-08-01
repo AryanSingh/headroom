@@ -319,6 +319,147 @@ class TestStripeWebhook:
         assert record.tier == "team"
         assert record.seats == 3
 
+    def test_checkout_replay_returns_same_key_and_sends_one_email(self, tmp_path):
+        from cutctx.billing.license_db import LicenseDB
+        from cutctx.billing.stripe_webhook import PRICE_TO_TIER, handle_checkout_completed
+
+        event_data = {
+            "object": {
+                "customer": "cus_replay",
+                "subscription": "sub_replay",
+                "customer_details": {"email": "buyer@example.com"},
+                "line_items": {"data": [{"price": {"id": "price_team_replay"}, "quantity": 2}]},
+            }
+        }
+        db = LicenseDB(tmp_path / "licenses.db")
+
+        with patch.dict(PRICE_TO_TIER, {"price_team_replay": "team"}, clear=True):
+            with patch(
+                "cutctx.billing.stripe_webhook.generate_license_key",
+                side_effect=["team-first-key", "team-replay-key"],
+            ):
+                with patch("cutctx.billing.stripe_webhook._get_db", return_value=db):
+                    with patch("cutctx.billing.stripe_webhook._send_license_email") as send:
+                        first = handle_checkout_completed(event_data)
+                        replay = handle_checkout_completed(event_data)
+
+        assert first.license_key == replay.license_key == "team-first-key"
+        send.assert_called_once_with("buyer@example.com", "team-first-key", "team", 2)
+
+    def test_checkout_retries_a_failed_license_delivery_on_replay(self, tmp_path, monkeypatch):
+        from cutctx.billing.license_db import LicenseDB
+        from cutctx.billing.stripe_webhook import PRICE_TO_TIER, handle_checkout_completed
+
+        event_data = {
+            "object": {
+                "customer": "cus_retry",
+                "subscription": "sub_retry",
+                "customer_details": {"email": "buyer@example.com"},
+                "line_items": {"data": [{"price": {"id": "price_team_retry"}, "quantity": 2}]},
+            }
+        }
+        db = LicenseDB(tmp_path / "licenses.db")
+        monkeypatch.setenv("CUTCTX_LICENSE_HMAC_SECRET", "test-secret")
+
+        with patch.dict(PRICE_TO_TIER, {"price_team_retry": "team"}, clear=True):
+            with patch("cutctx.billing.stripe_webhook._get_db", return_value=db):
+                with patch(
+                    "cutctx.billing.stripe_webhook._send_license_email",
+                    side_effect=[RuntimeError("mail unavailable"), None],
+                ) as send:
+                    with pytest.raises(RuntimeError, match="mail unavailable"):
+                        handle_checkout_completed(event_data)
+                    replay = handle_checkout_completed(event_data)
+
+        assert replay.license_key == db.get_by_subscription_id("sub_retry").license_key
+        assert send.call_count == 2
+        delivery = db._conn.execute(
+            "SELECT status, delivered_at FROM license_deliveries WHERE license_key = ?",
+            (replay.license_key,),
+        ).fetchone()
+        assert delivery[0] == "delivered"
+        assert delivery[1] is not None
+
+    def test_checkout_replay_does_not_resend_a_delivered_license(self, tmp_path, monkeypatch):
+        from cutctx.billing.license_db import LicenseDB
+        from cutctx.billing.stripe_webhook import PRICE_TO_TIER, handle_checkout_completed
+
+        event_data = {
+            "object": {
+                "customer": "cus_delivered",
+                "subscription": "sub_delivered",
+                "customer_details": {"email": "buyer@example.com"},
+                "line_items": {"data": [{"price": {"id": "price_team_delivered"}, "quantity": 2}]},
+            }
+        }
+        db = LicenseDB(tmp_path / "licenses.db")
+        monkeypatch.setenv("CUTCTX_LICENSE_HMAC_SECRET", "test-secret")
+
+        with patch.dict(PRICE_TO_TIER, {"price_team_delivered": "team"}, clear=True):
+            with patch("cutctx.billing.stripe_webhook._get_db", return_value=db):
+                with patch("cutctx.billing.stripe_webhook._send_license_email") as send:
+                    handle_checkout_completed(event_data)
+                    handle_checkout_completed(event_data)
+
+        send.assert_called_once()
+
+    def test_checkout_replay_reclaims_only_a_stale_sending_delivery(self, tmp_path, monkeypatch):
+        from cutctx.billing.license_db import LICENSE_DELIVERY_STALE_SECONDS, LicenseDB
+        from cutctx.billing.stripe_webhook import PRICE_TO_TIER, handle_checkout_completed
+
+        event_data = {
+            "object": {
+                "customer": "cus_stale",
+                "subscription": "sub_stale",
+                "customer_details": {"email": "buyer@example.com"},
+                "line_items": {"data": [{"price": {"id": "price_team_stale"}, "quantity": 2}]},
+            }
+        }
+        db = LicenseDB(tmp_path / "licenses.db")
+        monkeypatch.setenv("CUTCTX_LICENSE_HMAC_SECRET", "test-secret")
+
+        with patch.dict(PRICE_TO_TIER, {"price_team_stale": "team"}, clear=True):
+            with patch("cutctx.billing.stripe_webhook._get_db", return_value=db):
+                with patch("cutctx.billing.stripe_webhook._send_license_email") as send:
+                    record, created = db.fulfill_checkout(
+                        type(
+                            "Record",
+                            (),
+                            {
+                                "license_key": "team-stale-key",
+                                "tier": "team",
+                                "customer_email": "buyer@example.com",
+                                "seats": 2,
+                                "stripe_customer_id": "cus_stale",
+                                "stripe_subscription_id": "sub_stale",
+                                "created_at": time.time(),
+                                "expires_at": time.time() + 3600,
+                                "active": True,
+                            },
+                        )()
+                    )
+                    assert created is True
+                    assert db.claim_license_delivery(record.license_key) is not None
+
+                    # A concurrent replay must not steal a fresh claim.
+                    handle_checkout_completed(event_data)
+                    send.assert_not_called()
+
+                    db._conn.execute(
+                        "UPDATE license_deliveries SET claimed_at = ? WHERE license_key = ?",
+                        (time.time() - LICENSE_DELIVERY_STALE_SECONDS - 1, record.license_key),
+                    )
+                    db._conn.commit()
+                    handle_checkout_completed(event_data)
+
+        send.assert_called_once_with("buyer@example.com", "team-stale-key", "team", 2)
+        assert (
+            db._conn.execute(
+                "SELECT status FROM license_deliveries WHERE license_key = ?", (record.license_key,)
+            ).fetchone()[0]
+            == "delivered"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Billing: License DB
@@ -342,7 +483,7 @@ class TestLicenseDB:
         assert str(journal_mode).lower() == "wal"
         assert int(busy_timeout) == 5000
         assert int(synchronous) == 1
-        assert int(schema_version) == 1
+        assert int(schema_version) == 2
 
     def test_upsert_and_get(self, monkeypatch):
         from cutctx.billing.license_db import LicenseDB
