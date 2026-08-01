@@ -20,6 +20,8 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -160,6 +162,23 @@ class TestMemoryInitialization:
 
 
 class TestMemorySave:
+    @pytest.mark.asyncio
+    async def test_graphiti_facade_forwards_save_scope(self, temp_db_path):
+        """The easy facade preserves Graphiti session and retry scope."""
+        mem = Memory(backend="graphiti", db_path=temp_db_path)
+        backend = MagicMock()
+        backend.save_memory = AsyncMock(return_value=SimpleNamespace(id="episode-1"))
+        mem._backend = backend
+        mem._initialized = True
+
+        result = await mem.save(
+            "prefers vim", user_id="alice", session_id="s1", idempotency_key="retry-1"
+        )
+
+        assert result == "episode-1"
+        assert backend.save_memory.await_args.kwargs["session_id"] == "s1"
+        assert backend.save_memory.await_args.kwargs["idempotency_key"] == "retry-1"
+
     """Tests for Memory.save() operation."""
 
     @pytest.mark.asyncio
@@ -251,6 +270,18 @@ class TestMemorySave:
 
 
 class TestMemorySearch:
+    @pytest.mark.asyncio
+    async def test_graphiti_facade_forwards_search_session(self, temp_db_path):
+        """The easy facade forwards session scope without changing defaults."""
+        mem = Memory(backend="graphiti", db_path=temp_db_path)
+        backend = MagicMock()
+        backend.search_memories = AsyncMock(return_value=[])
+        mem._backend = backend
+        mem._initialized = True
+
+        assert await mem.search("preferences", user_id="alice", session_id="s1") == []
+        assert backend.search_memories.await_args.kwargs["session_id"] == "s1"
+
     """Tests for Memory.search() operation."""
 
     @pytest.mark.asyncio
