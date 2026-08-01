@@ -114,3 +114,4 @@ def classify_pair(
 def shared_entity_names(a: Memory, b: Memory) -> list[str]:
     shared = _normalize_entities(a.entity_refs) & _normalize_entities(b.entity_refs)
     return sorted(shared)
+

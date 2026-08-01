@@ -207,6 +207,7 @@ class LocalBackend:
         facts: list[str] | None = None,
         extracted_entities: list[dict[str, str]] | None = None,
         extracted_relationships: list[dict[str, str]] | None = None,
+        idempotency_key: str | None = None,
     ) -> Memory:
         """Save a memory with optional entities and relationships.
 

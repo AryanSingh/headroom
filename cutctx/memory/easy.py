@@ -133,6 +133,15 @@ class Memory:
     ) -> None:
         from cutctx.memory import qdrant_env
 
+        if backend == "graphiti" and (
+            contradiction_detection
+            or contradiction_classifier != "deterministic"
+            or contradiction_classifier_callable is not None
+        ):
+            raise ValueError(
+                "Contradiction options are local-backend-only; use Graphiti's temporal "
+                "extraction for graphiti memory."
+            )
         if contradiction_classifier not in {"deterministic", "llm"}:
             raise ValueError("contradiction_classifier must be 'deterministic' or 'llm'")
         if contradiction_classifier_callable is not None and not callable(
@@ -142,15 +151,6 @@ class Memory:
         if contradiction_classifier == "llm" and contradiction_classifier_callable is None:
             raise ValueError(
                 "contradiction_classifier='llm' requires contradiction_classifier_callable"
-            )
-        if backend == "graphiti" and (
-            contradiction_detection
-            or contradiction_classifier != "deterministic"
-            or contradiction_classifier_callable is not None
-        ):
-            raise ValueError(
-                "Contradiction options are local-backend-only; use Graphiti's temporal "
-                "extraction for graphiti memory."
             )
 
         self._backend_type = backend
@@ -184,7 +184,7 @@ class Memory:
         # not be affected by Graphiti's NEO4J_* environment variables.
         self._neo4j_uri = neo4j_uri
         self._neo4j_user = neo4j_user
-        if neo4j_password:
+        if neo4j_password and neo4j_password != "password":
             self._neo4j_password = neo4j_password
         elif backend == "qdrant-neo4j":
             self._neo4j_password = _secrets.token_urlsafe(16)
