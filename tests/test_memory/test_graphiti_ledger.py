@@ -31,6 +31,24 @@ def _construct_ledger(path: str, barrier: Barrier, errors: Queue) -> None:
         errors.put(str(exc))
 
 
+def _episode_in_state(ledger: SQLiteEpisodeLedger, state: str) -> str:
+    _reserve(ledger, "episode", "alice", "s1")
+    if state == "write_pending":
+        return "episode"
+    ledger.activate("episode")
+    if state == "active":
+        return "episode"
+    if state == "superseded":
+        _reserve(ledger, "replacement", "alice", "s1")
+        ledger.record_replacement("episode", "replacement")
+        return "episode"
+    ledger.mark_delete_pending("episode")
+    if state == "delete_pending":
+        return "episode"
+    ledger.mark_deleted("episode")
+    return "episode"
+
+
 def test_persistence_reopens_exact_ownership_partition_and_state(tmp_path: Path) -> None:
     path = tmp_path / "episodes.sqlite3"
     first = SQLiteEpisodeLedger(path)
@@ -98,6 +116,82 @@ def test_lifecycle_transitions_and_visibility(tmp_path: Path) -> None:
     assert ledger.get("new").last_error == "remote unavailable"  # type: ignore[union-attr]
     ledger.mark_deleted("new")
     assert ledger.get("new").state == "deleted"  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize(
+    ("state", "operation", "expected_state"),
+    [
+        ("write_pending", "activate", "active"),
+        ("active", "mark_delete_pending", "delete_pending"),
+        ("superseded", "mark_delete_pending", "delete_pending"),
+        ("delete_pending", "mark_delete_pending", "delete_pending"),
+        ("delete_pending", "mark_deleted", "deleted"),
+        ("delete_pending", "mark_delete_failed", "delete_pending"),
+    ],
+)
+def test_allowed_lifecycle_transitions(
+    tmp_path: Path, state: str, operation: str, expected_state: str
+) -> None:
+    ledger = SQLiteEpisodeLedger(tmp_path / "episodes.sqlite3")
+    episode = _episode_in_state(ledger, state)
+
+    if operation == "mark_delete_failed":
+        result = ledger.mark_delete_failed(episode, "remote failure")
+        assert result.last_error == "remote failure"
+    else:
+        result = getattr(ledger, operation)(episode)
+
+    assert result.state == expected_state
+
+
+@pytest.mark.parametrize(
+    ("state", "operation"),
+    [
+        ("active", "activate"),
+        ("active", "mark_deleted"),
+        ("superseded", "record_replacement"),
+        ("deleted", "mark_delete_pending"),
+        ("deleted", "mark_deleted"),
+    ],
+)
+def test_invalid_lifecycle_transitions_leave_the_record_unchanged(
+    tmp_path: Path, state: str, operation: str
+) -> None:
+    ledger = SQLiteEpisodeLedger(tmp_path / "episodes.sqlite3")
+    episode = _episode_in_state(ledger, state)
+    before = ledger.get(episode)
+
+    with pytest.raises(ValueError):
+        if operation == "record_replacement":
+            ledger.record_replacement(episode, "replacement")
+        else:
+            getattr(ledger, operation)(episode)
+
+    assert ledger.get(episode) == before
+
+
+def test_write_pending_is_not_current_and_delete_pending_remains_current(tmp_path: Path) -> None:
+    ledger = SQLiteEpisodeLedger(tmp_path / "episodes.sqlite3")
+    _reserve(ledger, "pending", "alice", "s1")
+    _reserve(ledger, "active", "alice", "s1")
+    ledger.activate("active")
+
+    # The ledger exposes lifecycle information, while Task 3 owns search
+    # filtering. These assertions preserve the visibility contract it consumes.
+    assert ledger.get("pending").state == "write_pending"  # type: ignore[union-attr]
+    ledger.mark_delete_pending("active")
+    assert ledger.get("active").state == "delete_pending"  # type: ignore[union-attr]
+
+
+def test_delete_error_can_be_confirmed_as_deleted(tmp_path: Path) -> None:
+    ledger = SQLiteEpisodeLedger(tmp_path / "episodes.sqlite3")
+    episode = _episode_in_state(ledger, "delete_pending")
+    ledger.mark_delete_failed(episode, "temporary remote failure")
+
+    deleted = ledger.mark_deleted(episode)
+
+    assert deleted.state == "deleted"
+    assert deleted.last_error == "temporary remote failure"
 
 
 @pytest.mark.parametrize(
