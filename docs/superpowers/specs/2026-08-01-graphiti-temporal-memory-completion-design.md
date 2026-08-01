@@ -47,29 +47,35 @@ The ledger records:
 - episode UUID;
 - opaque user key and optional opaque session key;
 - Graphiti partition ID;
-- lifecycle state (`active`, `superseded`, `delete_pending`, `deleted`);
+- lifecycle state (`write_pending`, `active`, `superseded`, `delete_pending`,
+  `deleted`);
 - supersession and deletion timestamps;
 - replacement episode linkage;
 - last remote-deletion error where applicable.
 
-Schema creation is idempotent. A one-time importer will accept the branch's
-pre-release JSON ledger format when present, import it transactionally, and
-retain a recoverable backup. Malformed legacy data will produce an actionable
-error rather than silently resurrecting memories.
+Schema creation is idempotent. The branch's pre-release JSON ledger does not
+contain session ownership or opaque partition identifiers, so it cannot be
+converted without mis-scoping remote data. Detecting that format fails closed
+with `GraphitiLegacyMigrationRequired`. Rewriting legacy remote groups into
+opaque partitions is a separately consented migration and is not performed
+automatically.
 
 ## Write and supersession flow
 
-Normal saves write the Graphiti episode first and then record ownership in the
-ledger. If the local ledger commit fails after a successful remote write, the
-operation raises and records enough context for diagnosis; it never reports a
+Normal saves first reserve the episode UUID, scope, partition, and content as a
+durable `write_pending` record. They then write the Graphiti episode and promote
+the record to `active`. If promotion fails after a successful remote write, the
+pending record remains retryable with the same UUID and the operation raises a
+recovery exception carrying that UUID and opaque partition. It never reports a
 fully successful CutCtx save without durable ownership metadata.
 
 Supersession follows write-new-then-close-old ordering:
 
-1. Write the replacement episode to Graphiti.
-2. In one SQLite transaction, record the replacement and mark the old episode
-   superseded.
-3. Return the replacement.
+1. Reserve the replacement as `write_pending` without changing the old record.
+2. Write the replacement episode to Graphiti using the reserved UUID.
+3. In one SQLite transaction, promote the replacement to `active` and mark the
+   old episode superseded.
+4. Return the replacement.
 
 If step 1 fails, the old episode remains current. If step 2 fails, the operation
 raises; the old episode remains visible, favoring duplication over data loss.
@@ -87,18 +93,27 @@ a fact still supported by another active parent.
 
 ## Deletion and clear semantics
 
-Deletion means confirmed remote erasure, not merely local hiding.
+Deletion means confirmed remote erasure, not merely local hiding. Graphiti
+0.21/0.22 may remove a shared fact edge when deleting its first supporting
+episode, so every deletion is preflighted against remote edge provenance.
 
-- The ledger first records `delete_pending`.
+- A non-origin supporting episode may be deleted directly.
+- An origin episode with active supporters outside the deletion set is refused
+  with a safe-deletion error; the adapter never destroys their shared fact.
+- The ledger records `delete_pending` only after the preflight succeeds.
+- `delete_pending` remains visible in normal searches until remote erasure is
+  confirmed.
 - The adapter calls the supported Graphiti `remove_episode` API.
 - On success, the ledger records `deleted` and the public method returns `True`.
 - On failure, the ledger retains `delete_pending` plus the error and the public
   method raises a dedicated deletion error. It must not return success.
 - Deleting an unknown or already-deleted ID returns `False`.
 
-`clear_user` attempts every tracked active episode and returns the count of
-confirmed deletions. If any deletion fails, it raises an aggregate error with
-confirmed and failed counts so callers can retry safely.
+`clear_user` preflights the entire deletion set, removes non-origin supporters
+before their origin episodes, and returns the count of confirmed deletions. If
+any deletion is unsafe or fails, it continues independent safe deletions and
+then raises an aggregate error with confirmed and failed counts so callers can
+retry safely.
 
 ## Contradiction handling
 
@@ -110,9 +125,12 @@ Deterministic auto-supersession remains opt-in and conservative.
 - Deterministic contradiction is limited to explicitly exclusive predicates
   with defined semantics.
 - Ambiguous pairs remain independent.
-- The public easy API accepts an optional classifier callable. Selecting
+- The public easy API accepts an optional classifier callable for the local
+  hierarchical backend. Selecting
   `contradiction_classifier="llm"` without a callable fails during construction,
   before any memory write.
+- Graphiti uses its own temporal extraction and does not run the CutCtx
+  deterministic contradiction gate in this branch.
 - Existing default behavior remains unchanged because contradiction detection
   is disabled by default.
 
@@ -120,9 +138,9 @@ Deterministic auto-supersession remains opt-in and conservative.
 
 `GraphitiConfig` keeps environment-based Neo4j configuration and adds explicit
 ledger/version validation. The easy `Memory` facade continues to accept
-`backend="graphiti"` and gains only optional Graphiti-specific parameters or a
-classifier callable. Existing constructor defaults and other backend paths must
-remain source-compatible.
+`backend="graphiti"`, adds optional `session_id` to `save` and `search`, and
+gains separate optional Graphiti connection parameters. Existing qdrant Neo4j
+defaults, constructor defaults, and other backend paths remain source-compatible.
 
 Operational documentation will cover:
 
@@ -141,14 +159,18 @@ regressions include:
 1. two sessions under one user cannot read each other;
 2. common identifiers such as email addresses produce safe partitions;
 3. a failed replacement write leaves the old episode current;
-4. failed remote deletion is surfaced and retained as retryable state;
-5. `clear_user` reports partial failure truthfully;
+4. failed remote deletion is surfaced, remains visible, and is retained as
+   retryable state;
+5. shared-edge deletion is refused or safely ordered, and `clear_user` reports
+   partial failure truthfully;
 6. concurrent ledger writers retain all updates;
 7. partial deletion of a multi-parent fact preserves remaining support;
 8. non-exclusive predicates remain independent;
 9. public LLM classifier injection works and missing injection fails fast;
 10. incompatible Graphiti versions fail with an installation hint;
-11. local and `qdrant-neo4j` behavior remains unchanged.
+11. public facade session scoping reaches the Graphiti backend;
+12. local and `qdrant-neo4j` behavior and defaults remain unchanged;
+13. pre-release JSON state fails closed with migration guidance.
 
 Verification proceeds from focused tests to the complete memory suite, pinned
 Ruff 0.9.4, targeted and ratcheted mypy, packaging metadata checks, secret and
