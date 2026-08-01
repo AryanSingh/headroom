@@ -316,6 +316,7 @@ class GraphitiBackend:
         *,
         idempotency_key: str | None = None,
         _activate: bool = True,
+        _lock: bool = True,
     ) -> Memory:
         """Persist a Cutctx Memory as a Graphiti episode."""
         await self._ensure_initialized()
@@ -391,7 +392,7 @@ class GraphitiBackend:
 
             ledger_path = self._config.ledger_path
             assert ledger_path is not None
-            async with PartitionOperationLock(ledger_path, partition_id, timeout=30):
+            async def write_and_activate() -> None:
                 await self._client.add_episode(**kwargs)
                 if _activate:
                     try:
@@ -400,6 +401,11 @@ class GraphitiBackend:
                         raise GraphitiWriteRecoveryRequired(
                             episode_uuid, partition_id, retry_key
                         ) from exc
+            if _lock:
+                async with PartitionOperationLock(ledger_path, partition_id, timeout=30):
+                    await write_and_activate()
+            else:
+                await write_and_activate()
 
         memory.id = episode_uuid
         if memory.provenance is None:
@@ -618,16 +624,21 @@ class GraphitiBackend:
         meta = dict(new_memory.metadata or {})
         meta["supersedes_episode_uuid"] = old_memory_id
         new_memory.metadata = meta
-        replacement = await self.save(new_memory, _activate=False)
-        try:
-            self._ledger.record_replacement(old_memory_id, replacement.id, when)
-        except Exception as exc:
-            raise GraphitiWriteRecoveryRequired(
-                replacement.id,
-                _scope_partition(new_memory.user_id or "", new_memory.session_id),
-                "supersede",
-            ) from exc
-        return replacement
+        partition_id = _scope_partition(new_memory.user_id or "", new_memory.session_id)
+        retry_key = hashlib.sha256(
+            f"cutctx.graphiti.supersede.v1\0{old_memory_id}\0{new_memory.id}\0{new_memory.content}".encode()
+        ).hexdigest()
+        async with self._partition_locks({partition_id}):
+            replacement = await self.save(
+                new_memory, idempotency_key=retry_key, _activate=False, _lock=False
+            )
+            try:
+                self._ledger.record_replacement(old_memory_id, replacement.id, when)
+            except Exception as exc:
+                raise GraphitiWriteRecoveryRequired(
+                    replacement.id, partition_id, retry_key
+                ) from exc
+            return replacement
 
     @asynccontextmanager
     async def _partition_locks(self, partition_ids: set[str]) -> Any:

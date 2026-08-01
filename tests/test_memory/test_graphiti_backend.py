@@ -354,6 +354,31 @@ class TestGraphitiSearchMapping:
 
 class TestGraphitiSupersedeAndLedger:
     @pytest.mark.asyncio
+    async def test_supersede_retry_reuses_reservation_after_finalization_failure(self, ledger_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiWriteRecoveryRequired
+
+        client = _mock_client()
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(Memory(id="old", content="old", user_id="alice"))
+        original = backend._ledger.record_replacement
+        calls = 0
+        def fail_once(*args: Any, **kwargs: Any) -> Any:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("finalize")
+            return original(*args, **kwargs)
+        monkeypatch.setattr(backend._ledger, "record_replacement", fail_once)
+        replacement = Memory(id="new", content="new", user_id="alice")
+        with pytest.raises(GraphitiWriteRecoveryRequired) as exc:
+            await backend.supersede("old", replacement)
+        assert exc.value.idempotency_key != "supersede"
+        assert backend._ledger.get("new").state == "write_pending"  # type: ignore[union-attr]
+        await backend.supersede("old", replacement)
+        assert backend._ledger.get("old").state == "superseded"  # type: ignore[union-attr]
+        assert backend._ledger.get("new").state == "active"  # type: ignore[union-attr]
+        assert client.add_episode.await_args_list[-1].kwargs["uuid"] == "new"
+    @pytest.mark.asyncio
     async def test_failed_replacement_keeps_old_episode_active(self, ledger_path: Path) -> None:
         from cutctx.memory.backends.graphiti import GraphitiBackend
 
