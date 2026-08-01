@@ -55,6 +55,7 @@ def test_adapter_uses_supported_awaited_call_shapes(tmp_path) -> None:
         add_episode=AsyncMock(),
         search=AsyncMock(return_value=[]),
         remove_episode=AsyncMock(),
+        get_nodes_and_edges_by_episode=AsyncMock(return_value=([], [])),
     )
     backend = GraphitiBackend(
         GraphitiConfig(neo4j_password="test", ledger_path=tmp_path / "ledger.json"),
@@ -82,6 +83,7 @@ def test_adapter_uses_supported_awaited_call_shapes(tmp_path) -> None:
         "group_ids": [_scope_partition("alice", "session")],
         "num_results": 30,
     }
+    client.get_nodes_and_edges_by_episode.assert_awaited_once_with(["episode"])
     client.remove_episode.assert_awaited_once_with("episode")
 
 
