@@ -75,6 +75,48 @@ class TestGraphitiImportGuard:
 
 class TestGraphitiSaveMapping:
     @pytest.mark.asyncio
+    async def test_save_recovery_reuses_only_the_matching_pending_write(
+        self, ledger_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from cutctx.memory.backends.graphiti import (
+            GraphitiBackend,
+            GraphitiIdempotencyConflict,
+            GraphitiWriteRecoveryRequired,
+        )
+
+        mock_client = _mock_client()
+        backend = GraphitiBackend(_cfg(ledger_path), client=mock_client)
+        memory = Memory(id="recover-me", content="durable", user_id="alice", session_id="s1")
+        monkeypatch.setattr(backend._ledger, "activate", lambda _: (_ for _ in ()).throw(ValueError()))
+
+        with pytest.raises(GraphitiWriteRecoveryRequired) as exc:
+            await backend.save(memory, idempotency_key="retry-1")
+        assert backend._ledger.get("recover-me").state == "write_pending"  # type: ignore[union-attr]
+
+        monkeypatch.undo()
+        assert (await backend.save(memory, idempotency_key=exc.value.idempotency_key)).id == "recover-me"
+        assert backend._ledger.get("recover-me").state == "active"  # type: ignore[union-attr]
+        with pytest.raises(GraphitiIdempotencyConflict):
+            await backend.save(
+                Memory(id="wrong-scope", content="durable", user_id="alice", session_id="s2"),
+                idempotency_key="retry-1",
+            )
+        with pytest.raises(GraphitiIdempotencyConflict):
+            await backend.save(
+                Memory(id="wrong-payload", content="changed", user_id="alice", session_id="s1"),
+                idempotency_key="retry-1",
+            )
+
+    @pytest.mark.asyncio
+    async def test_independent_identical_saves_get_distinct_episode_ids(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend
+
+        backend = GraphitiBackend(_cfg(ledger_path), client=_mock_client())
+        first = await backend.save_memory(content="same", user_id="alice", session_id="s1")
+        second = await backend.save_memory(content="same", user_id="alice", session_id="s1")
+        assert first.id != second.id
+
+    @pytest.mark.asyncio
     async def test_save_maps_memory_to_add_episode(self, ledger_path: Path) -> None:
         from cutctx.memory.backends.graphiti import GraphitiBackend, _scope_partition
 
@@ -120,8 +162,57 @@ class TestGraphitiSaveMapping:
 
 class TestGraphitiSearchMapping:
     @pytest.mark.asyncio
+    async def test_search_enforces_session_partition(self, ledger_path: Path) -> None:
+        """Search admits only episodes owned by the requested session."""
+        from cutctx.memory.backends.graphiti import (
+            GraphitiBackend,
+            _scope_partition,
+        )
+        from cutctx.memory.backends.graphiti_ledger import SQLiteEpisodeLedger
+
+        ledger = SQLiteEpisodeLedger(ledger_path)
+        s1_partition = _scope_partition("alice", "s1")
+        s2_partition = _scope_partition("alice", "s2")
+        for episode_id, session_id, partition in (
+            ("ep-s1", "s1", s1_partition),
+            ("ep-s2", "s2", s2_partition),
+        ):
+            ledger.reserve_write(
+                episode_id=episode_id,
+                user_key="alice",
+                session_key=session_id,
+                partition_id=partition,
+                idempotency_key=episode_id,
+                payload=episode_id,
+            )
+            ledger.activate(episode_id)
+
+        edges = [
+            SimpleNamespace(uuid="edge-s1", fact="s1 fact", episodes=["ep-s1"], score=0.9),
+            SimpleNamespace(uuid="edge-s2", fact="s2 fact", episodes=["ep-s2"], score=0.8),
+        ]
+        mock_client = _mock_client()
+        mock_client.search = AsyncMock(return_value=edges)
+        backend = GraphitiBackend(_cfg(ledger_path), client=mock_client)
+
+        results = await backend.search_memories(query="fact", user_id="alice", session_id="s1")
+
+        assert [result.memory.content for result in results] == ["s1 fact"]
+        assert mock_client.search.await_args.kwargs["group_ids"] == [s1_partition]
+
+    @pytest.mark.asyncio
     async def test_search_maps_entity_edges_to_memories(self, ledger_path: Path) -> None:
-        from cutctx.memory.backends.graphiti import GraphitiBackend
+        from cutctx.memory.backends.graphiti import GraphitiBackend, _scope_partition
+        from cutctx.memory.backends.graphiti_ledger import SQLiteEpisodeLedger
+
+        ledger = SQLiteEpisodeLedger(ledger_path)
+        for episode_id in ("ep-1", "ep-2"):
+            ledger.reserve_write(
+                episode_id=episode_id, user_key="alice", session_key=None,
+                partition_id=_scope_partition("alice", None), idempotency_key=episode_id,
+                payload=episode_id,
+            )
+            ledger.activate(episode_id)
 
         edge = SimpleNamespace(
             uuid="edge-1",
@@ -143,8 +234,80 @@ class TestGraphitiSearchMapping:
         assert results[0].score == pytest.approx(0.91)
 
     @pytest.mark.asyncio
-    async def test_rank_fallback_score_when_edge_has_no_score(self, ledger_path: Path) -> None:
+    async def test_search_user_wide_uses_only_recorded_user_partitions(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, _scope_partition
+        from cutctx.memory.backends.graphiti_ledger import SQLiteEpisodeLedger
+
+        ledger = SQLiteEpisodeLedger(ledger_path)
+        for episode_id, user_id, session_id in (("s1", "alice", "s1"), ("s2", "alice", "s2"), ("bob", "bob", "s1")):
+            ledger.reserve_write(
+                episode_id=episode_id, user_key=user_id, session_key=session_id,
+                partition_id=_scope_partition(user_id, session_id), idempotency_key=episode_id,
+                payload=episode_id,
+            )
+            ledger.activate(episode_id)
+        mock_client = _mock_client()
+        mock_client.search = AsyncMock(return_value=[
+            SimpleNamespace(uuid="e1", fact="one", episodes=["s1"]),
+            SimpleNamespace(uuid="e2", fact="two", episodes=["s2"]),
+            SimpleNamespace(uuid="e3", fact="three", episodes=["bob"]),
+        ])
+        backend = GraphitiBackend(_cfg(ledger_path), client=mock_client)
+
+        results = await backend.search_memories(query="q", user_id="alice")
+
+        assert [result.memory.content for result in results] == ["one", "two"]
+        assert set(mock_client.search.await_args.kwargs["group_ids"]) == {
+            _scope_partition("alice", "s1"), _scope_partition("alice", "s2")
+        }
+
+    @pytest.mark.asyncio
+    async def test_unknown_session_avoids_graphiti_search(self, ledger_path: Path) -> None:
         from cutctx.memory.backends.graphiti import GraphitiBackend
+
+        mock_client = _mock_client()
+        backend = GraphitiBackend(_cfg(ledger_path), client=mock_client)
+        assert await backend.search_memories(query="q", user_id="alice", session_id="missing") == []
+        mock_client.search.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_search_retains_only_active_parent_provenance(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, _scope_partition
+        from cutctx.memory.backends.graphiti_ledger import SQLiteEpisodeLedger
+
+        ledger = SQLiteEpisodeLedger(ledger_path)
+        partition = _scope_partition("alice", "s1")
+        for episode_id in ("closed", "active", "replacement"):
+            ledger.reserve_write(
+                episode_id=episode_id, user_key="alice", session_key="s1", partition_id=partition,
+                idempotency_key=episode_id, payload=episode_id,
+            )
+        ledger.activate("closed")
+        ledger.activate("active")
+        ledger.record_replacement("closed", "replacement")
+        mock_client = _mock_client()
+        mock_client.search = AsyncMock(return_value=[
+            SimpleNamespace(uuid="edge", fact="shared", episodes=["closed", "active"], score=1.0)
+        ])
+        backend = GraphitiBackend(_cfg(ledger_path), client=mock_client)
+
+        results = await backend.search_memories(query="shared", user_id="alice", session_id="s1")
+
+        assert results[0].memory.metadata["graphiti_episode_uuids"] == ["active"]
+
+    @pytest.mark.asyncio
+    async def test_rank_fallback_score_when_edge_has_no_score(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, _scope_partition
+        from cutctx.memory.backends.graphiti_ledger import SQLiteEpisodeLedger
+
+        ledger = SQLiteEpisodeLedger(ledger_path)
+        for episode_id in ("a", "b"):
+            ledger.reserve_write(
+                episode_id=episode_id, user_key="u", session_key=None,
+                partition_id=_scope_partition("u", None), idempotency_key=episode_id,
+                payload=episode_id,
+            )
+            ledger.activate(episode_id)
 
         edges = [
             SimpleNamespace(
@@ -186,6 +349,7 @@ class TestGraphitiSupersedeAndLedger:
         mock_client.search = AsyncMock(return_value=[edge])
 
         backend = GraphitiBackend(_cfg(ledger_path), client=mock_client)
+        await backend.save(Memory(id="ep-old", content="old", user_id="alice"))
         await backend.supersede(
             "ep-old",
             Memory(id="ep-new", content="Alice works on backend", user_id="alice"),
@@ -214,6 +378,8 @@ class TestGraphitiSupersedeAndLedger:
         mock_client = _mock_client()
         mock_client.search = AsyncMock(return_value=[edge])
         backend = GraphitiBackend(_cfg(ledger_path), client=mock_client)
+        await backend.save(Memory(id="chat", content="chat", user_id="alice"))
+        await backend.save(Memory(id="ehr", content="ehr", user_id="alice"))
         await backend.supersede(
             "chat",
             Memory(id="ep-new", content="updated", user_id="alice"),
@@ -245,6 +411,7 @@ class TestGraphitiSupersedeAndLedger:
         mock_client = _mock_client()
         mock_client.search = AsyncMock(return_value=[edge])
         backend = GraphitiBackend(_cfg(ledger_path), client=mock_client)
+        await backend.save(Memory(id="ep-del", content="secret", user_id="u"))
         assert await backend.delete_memory("ep-del") is True
         assert await backend.search_memories(query="secret", user_id="u") == []
 
@@ -293,7 +460,7 @@ class TestGraphitiEasyWiring:
                 memory = EasyMemory(backend="graphiti")
                 await memory._ensure_initialized()
                 await memory.save("prefers vim", user_id="carol")
-                assert await memory.delete("some-id") is True
+                assert await memory.delete("some-id") is False
 
         assert captured["uri"] == "bolt://db:7687"
         assert captured["user"] == "graph"

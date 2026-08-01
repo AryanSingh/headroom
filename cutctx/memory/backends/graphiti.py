@@ -34,7 +34,10 @@ from cutctx.memory.models import Memory, Provenance
 from cutctx.memory.ports import MemorySearchResult
 
 # Re-exported here so Graphiti callers have one stable migration-error import.
-from .graphiti_ledger import GraphitiLegacyMigrationRequired  # noqa: F401
+from .graphiti_ledger import (  # noqa: F401
+    GraphitiLegacyMigrationRequired,
+    SQLiteEpisodeLedger,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +46,20 @@ _GRAPHITI_INSTALL_HINT = (
     "Install with: pip install 'cutctx-ai[graphiti]'"
 )
 _GRAPHITI_VERSION_REQUIREMENT = "graphiti-core>=0.21,<0.23"
+
+
+class GraphitiIdempotencyConflict(ValueError):
+    """A retry key was reused for a different Graphiti write."""
+
+
+class GraphitiWriteRecoveryRequired(RuntimeError):
+    """Graphiti accepted a write but its ownership record was not activated."""
+
+    def __init__(self, episode_id: str, partition_id: str, idempotency_key: str) -> None:
+        self.episode_id = episode_id
+        self.partition_id = partition_id
+        self.idempotency_key = idempotency_key
+        super().__init__(f"Graphiti write recovery required for episode {episode_id}")
 
 
 def _scope_partition(user_id: str, session_id: str | None) -> str:
@@ -239,7 +256,7 @@ class GraphitiBackend:
         self._client = client
         self._episode_type: Any | None = None
         self._initialized = client is not None
-        self._ledger = _EpisodeLedger(self._config.ledger_path)
+        self._ledger = SQLiteEpisodeLedger(self._config.ledger_path)
 
     async def _ensure_initialized(self) -> None:
         if self._initialized and self._client is not None:
@@ -274,7 +291,13 @@ class GraphitiBackend:
             if hasattr(result, "__await__"):
                 await result
 
-    async def save(self, memory: Memory) -> Memory:
+    async def save(
+        self,
+        memory: Memory,
+        *,
+        idempotency_key: str | None = None,
+        _activate: bool = True,
+    ) -> Memory:
         """Persist a Cutctx Memory as a Graphiti episode."""
         await self._ensure_initialized()
         assert self._client is not None
@@ -287,30 +310,73 @@ class GraphitiBackend:
         reference_time = memory.valid_from or memory.created_at or _utcnow()
         if reference_time.tzinfo is None:
             reference_time = reference_time.replace(tzinfo=timezone.utc)
-        episode_uuid = memory.id or str(uuid.uuid4())
+        partition_id = _scope_partition(memory.user_id or "", memory.session_id)
+        retry_key = idempotency_key or str(uuid.uuid4())
 
         meta = dict(memory.metadata or {})
         if memory.session_id:
             meta.setdefault("session_id", memory.session_id)
         memory.metadata = meta
 
+        episode_candidate = memory.id or str(uuid.uuid4())
         kwargs: dict[str, Any] = {
-            "name": f"cutctx:{episode_uuid}",
+            "name": f"cutctx:{episode_candidate}",
             "episode_body": memory.content,
             "source_description": source_description,
             "reference_time": reference_time,
             "source": self._resolve_episode_source(),
-            "group_id": _scope_partition(memory.user_id or "", memory.session_id),
-            "uuid": episode_uuid,
+            "group_id": partition_id,
+            "uuid": episode_candidate,
         }
         if memory.supersedes:
             kwargs["previous_episode_uuids"] = [memory.supersedes]
 
-        await self._client.add_episode(**kwargs)
+        payload = json.dumps(
+            {
+                "episode_body": memory.content,
+                "source_description": source_description,
+                "reference_time": reference_time.isoformat(),
+                "episode_source": self._config.episode_source,
+                "previous_episode_uuids": kwargs.get("previous_episode_uuids", []),
+                "user_id": memory.user_id,
+                "session_id": memory.session_id,
+                "partition_id": partition_id,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        try:
+            reserved = self._ledger.reserve_write(
+                episode_id=episode_candidate,
+                user_key=memory.user_id or "",
+                session_key=memory.session_id,
+                partition_id=partition_id,
+                idempotency_key=retry_key,
+                payload=payload,
+            )
+        except ValueError as exc:
+            raise GraphitiIdempotencyConflict(str(exc)) from exc
+        episode_uuid = reserved.episode_id
+        kwargs["name"] = f"cutctx:{episode_uuid}"
+        kwargs["uuid"] = episode_uuid
+
+        if reserved.state == "write_pending":
+            # filelock is an optional transitive dependency of Graphiti's
+            # mutation path; searching a durable ledger must remain usable
+            # without importing it.
+            from .graphiti_lock import PartitionOperationLock
+
+            async with PartitionOperationLock(self._config.ledger_path, partition_id, timeout=30):
+                await self._client.add_episode(**kwargs)
+                if _activate:
+                    try:
+                        self._ledger.activate(episode_uuid)
+                    except Exception as exc:
+                        raise GraphitiWriteRecoveryRequired(
+                            episode_uuid, partition_id, retry_key
+                        ) from exc
 
         memory.id = episode_uuid
-        if memory.user_id:
-            self._ledger.track_episode(memory.user_id, episode_uuid)
         if memory.provenance is None:
             memory.provenance = Provenance(
                 created_by_session=memory.session_id,
@@ -335,6 +401,7 @@ class GraphitiBackend:
         facts: list[str] | None = None,
         extracted_entities: list[dict[str, str]] | None = None,
         extracted_relationships: list[dict[str, str]] | None = None,
+        idempotency_key: str | None = None,
         **_: Any,
     ) -> Memory:
         """Easy-API compatible save (matches LocalBackend / DirectMem0).
@@ -376,14 +443,11 @@ class GraphitiBackend:
                 created_at=now,
                 valid_from=now,
             )
-            created.append(await self.save(memory))
+            fact_key = f"{idempotency_key}:{i}" if idempotency_key and len(bodies) > 1 else idempotency_key
+            created.append(await self.save(memory, idempotency_key=fact_key))
         return created[0]
 
-    def _edge_to_memory(self, edge: Any, user_id: str) -> Memory:
-        episodes = getattr(edge, "episodes", None) or []
-        if not isinstance(episodes, list):
-            episodes = list(episodes) if episodes else []
-        episode_ids = [str(e) for e in episodes]
+    def _edge_to_memory(self, edge: Any, user_id: str, episode_ids: list[str]) -> Memory:
 
         valid_at = getattr(edge, "valid_at", None)
         if isinstance(valid_at, datetime) and valid_at.tzinfo is None:
@@ -396,27 +460,17 @@ class GraphitiBackend:
 
         memory_id = episode_ids[0] if episode_ids else edge_uuid
 
-        # Multi-parent semantics: hide only when ALL supporting episodes closed.
+        # Multi-parent semantics: hide only when ALL retained supporting episodes close.
         ledger_invalid = self._ledger.invalid_at_for(episode_ids or [memory_id])
         if ledger_invalid is not None:
             if invalid_at is None or ledger_invalid < invalid_at:
                 invalid_at = ledger_invalid
 
-        # Hard-deleted episodes: if primary id deleted, hide.
-        if memory_id in self._ledger.deleted or (
-            episode_ids and all(ep in self._ledger.deleted for ep in episode_ids)
-        ):
-            invalid_at = invalid_at or _utcnow()
-
-        session_id = None
-        # session_id is not on Graphiti edges; callers may filter via metadata
-        # only when we stored it on save (search cannot recover it from edges).
-
         return Memory(
             id=memory_id,
             content=fact,
             user_id=user_id,
-            session_id=session_id,
+            session_id=None,
             valid_from=valid_at or _utcnow(),
             valid_until=invalid_at,
             metadata={
@@ -454,11 +508,15 @@ class GraphitiBackend:
         await self._ensure_initialized()
         assert self._client is not None
 
-        # Over-fetch slightly so post-filters (superseded/deleted) still fill top_k.
+        allowed_partitions = self._ledger.partitions_for_scope(user_id, session_id)
+        if not allowed_partitions:
+            return []
+
+        # Over-fetch slightly so post-filters still fill top_k.
         fetch_n = max(top_k * 3, top_k)
         edges = await self._client.search(
             query=query,
-            group_ids=[_scope_partition(user_id, session_id)] if user_id else None,
+            group_ids=allowed_partitions,
             num_results=fetch_n,
         )
 
@@ -468,10 +526,21 @@ class GraphitiBackend:
         results: list[MemorySearchResult] = []
         edge_list = list(edges or [])
         for rank, edge in enumerate(edge_list):
-            memory = self._edge_to_memory(edge, user_id=user_id)
-            if not include_superseded and memory.valid_until is not None:
+            raw_episodes = getattr(edge, "episodes", None) or []
+            if not isinstance(raw_episodes, list):
+                raw_episodes = list(raw_episodes) if raw_episodes else []
+            episode_ids = [str(episode_id) for episode_id in raw_episodes]
+            owned_episode_ids = [
+                episode_id
+                for episode_id in episode_ids
+                if (record := self._ledger.get(episode_id)) is not None
+                and record.partition_id in allowed_partitions
+                and record.state == "active"
+            ]
+            if not owned_episode_ids:
                 continue
-            if memory.id in self._ledger.deleted and not include_superseded:
+            memory = self._edge_to_memory(edge, user_id=user_id, episode_ids=owned_episode_ids)
+            if not include_superseded and memory.valid_until is not None:
                 continue
             if valid_at is not None:
                 vf = memory.valid_from
@@ -485,11 +554,6 @@ class GraphitiBackend:
                 if vu is not None and vu <= valid_at:
                     continue
 
-            if session_id:
-                # Edges don't carry session; skip filter unless metadata present.
-                meta_session = (memory.metadata or {}).get("session_id")
-                if meta_session and meta_session != session_id:
-                    continue
             if entities:
                 content_l = memory.content.lower()
                 if not any(e.lower() in content_l for e in entities):
@@ -524,13 +588,21 @@ class GraphitiBackend:
         when = supersede_time or _utcnow()
         if when.tzinfo is None:
             when = when.replace(tzinfo=timezone.utc)
-        self._ledger.mark_superseded(old_memory_id, when)
         new_memory.supersedes = old_memory_id
         new_memory.valid_from = when
         meta = dict(new_memory.metadata or {})
         meta["supersedes_episode_uuid"] = old_memory_id
         new_memory.metadata = meta
-        return await self.save(new_memory)
+        replacement = await self.save(new_memory, _activate=False)
+        try:
+            self._ledger.record_replacement(old_memory_id, replacement.id, when)
+        except Exception as exc:
+            raise GraphitiWriteRecoveryRequired(
+                replacement.id,
+                _scope_partition(new_memory.user_id or "", new_memory.session_id),
+                "supersede",
+            ) from exc
+        return replacement
 
     async def delete_memory(self, memory_id: str) -> bool:
         """Delete (hide) an episode from CutCtx search via the ledger.
@@ -539,6 +611,12 @@ class GraphitiBackend:
         deletion in the persistent ledger so search stays consistent.
         """
         await self._ensure_initialized()
+        record = self._ledger.get(memory_id)
+        if record is None:
+            return False
+        if record.state in {"deleted", "delete_pending"}:
+            return False
+        self._ledger.mark_delete_pending(memory_id)
         removed = False
         if self._client is not None:
             for name in ("remove_episode", "delete_episode"):
@@ -552,13 +630,14 @@ class GraphitiBackend:
                         break
                     except Exception as exc:
                         logger.debug("Graphiti %s(%s) failed: %s", name, memory_id, exc)
-        self._ledger.mark_deleted(memory_id)
-        return True if removed or memory_id else False
+        if removed:
+            self._ledger.mark_deleted(memory_id)
+        return removed
 
     async def clear_user(self, user_id: str) -> int:
         """Clear tracked episodes for a user (ledger + best-effort remote delete)."""
         await self._ensure_initialized()
-        eps = self._ledger.clear_user(user_id)
+        eps = [record.episode_id for record in self._ledger.records_for_user(user_id)]
         for ep in eps:
             await self.delete_memory(ep)
         return len(eps)
