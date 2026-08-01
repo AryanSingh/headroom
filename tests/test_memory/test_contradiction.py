@@ -392,6 +392,7 @@ class TestEasyApiClassifier:
         from cutctx.memory.easy import Memory as EasyMemory
 
         calls: list[tuple[str, str, list[str]]] = []
+        created_systems: list[HierarchicalMemory] = []
 
         def classifier(old: str, new: str, shared: list[str]) -> ContradictionVerdict:
             calls.append((old, new, shared))
@@ -399,11 +400,13 @@ class TestEasyApiClassifier:
 
         async def create_with_stubbed_indexes(config: MemoryConfig) -> HierarchicalMemory:
             # Real LocalBackend owns the facade path; only heavy indexes are stubbed.
-            return _make_hm(tmp_path / "memory.db", **{
+            system = _make_hm(tmp_path / "memory.db", **{
                 "contradiction_detection": config.contradiction_detection,
                 "contradiction_classifier": config.contradiction_classifier,
                 "contradiction_classifier_callable": config.contradiction_classifier_callable,
             })
+            created_systems.append(system)
+            return system
 
         monkeypatch.setattr(
             HierarchicalMemory, "create", staticmethod(create_with_stubbed_indexes)
@@ -414,11 +417,18 @@ class TestEasyApiClassifier:
             contradiction_classifier="llm",
             contradiction_classifier_callable=classifier,
         )
-        await memory.save("Alice uses Python", user_id="alice", entities=["Alice"])
-        await memory.save("Alice uses Rust", user_id="alice", entities=["Alice"])
+        first_id = await memory.save(
+            "Alice uses Python", user_id="alice", entities=[{"entity": "Alice"}]
+        )
+        second_id = await memory.save(
+            "Alice uses Rust", user_id="alice", entities=[{"entity": "Alice"}]
+        )
 
-        assert calls == [("Alice uses Python", "Alice uses Rust", ["Alice"])]
-        assert not (await memory._backend._hierarchical_memory.get("missing"))
+        assert calls == [("Alice uses Python", "Alice uses Rust", ["alice"])]
+        first = await created_systems[0].get(first_id)
+        second = await created_systems[0].get(second_id)
+        assert first is not None and not first.is_current
+        assert second is not None and second.supersedes == first_id
 
     def test_easy_api_classifier_llm_requires_callable_before_initialization(
         self, tmp_path: Path
