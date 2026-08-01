@@ -312,6 +312,9 @@ class GraphitiBackend:
             reference_time = reference_time.replace(tzinfo=timezone.utc)
         partition_id = _scope_partition(memory.user_id or "", memory.session_id)
         retry_key = idempotency_key or str(uuid.uuid4())
+        existing = self._ledger.find_by_idempotency_key(retry_key) if idempotency_key else None
+        if existing is not None and existing.provider_reference_time is not None:
+            reference_time = existing.provider_reference_time
 
         meta = dict(memory.metadata or {})
         if memory.session_id:
@@ -353,6 +356,7 @@ class GraphitiBackend:
                 partition_id=partition_id,
                 idempotency_key=retry_key,
                 payload=payload,
+                provider_reference_time=reference_time,
             )
         except ValueError as exc:
             raise GraphitiIdempotencyConflict(str(exc)) from exc

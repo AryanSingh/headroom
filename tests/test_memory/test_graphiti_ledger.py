@@ -90,6 +90,21 @@ def test_persistence_reopens_exact_ownership_partition_and_state(tmp_path: Path)
     assert record.state == "active"
 
 
+def test_provider_reference_timestamp_persists_without_payload_disclosure(tmp_path: Path) -> None:
+    from datetime import datetime, timezone
+
+    ledger = SQLiteEpisodeLedger(tmp_path / "episodes.sqlite3")
+    stamp = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    ledger.reserve_write(
+        episode_id="episode", user_key="alice", session_key="s1",
+        partition_id=_scope_partition("alice", "s1"), idempotency_key="retry",
+        payload="secret provider body", provider_reference_time=stamp,
+    )
+    record = SQLiteEpisodeLedger(ledger.path).get("episode")
+    assert record is not None and record.provider_reference_time == stamp
+    assert "secret" not in repr(record)
+
+
 def test_scope_lookup_does_not_leak_another_session(tmp_path: Path) -> None:
     ledger = SQLiteEpisodeLedger(tmp_path / "episodes.sqlite3")
     for episode, session in (("one", "s1"), ("two", "s2")):

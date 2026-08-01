@@ -24,6 +24,7 @@ class EpisodeRecord:
     partition_id: str
     idempotency_key_hash: str
     payload_digest: str
+    provider_reference_time: datetime | None
     state: str
     superseded_at: datetime | None
     deleted_at: datetime | None
@@ -108,6 +109,7 @@ class SQLiteEpisodeLedger:
                     partition_id TEXT NOT NULL,
                     idempotency_key_hash TEXT NOT NULL,
                     payload_digest TEXT NOT NULL,
+                    provider_reference_time TEXT,
                     state TEXT NOT NULL,
                     superseded_at TEXT,
                     deleted_at TEXT,
@@ -116,6 +118,9 @@ class SQLiteEpisodeLedger:
                 )
                 """
             )
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(episodes)")}
+            if "provider_reference_time" not in columns:
+                connection.execute("ALTER TABLE episodes ADD COLUMN provider_reference_time TEXT")
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS episodes_scope_state "
                 "ON episodes(user_key, session_key, state)"
@@ -165,6 +170,7 @@ class SQLiteEpisodeLedger:
             partition_id=row["partition_id"],
             idempotency_key_hash=row["idempotency_key_hash"],
             payload_digest=row["payload_digest"],
+            provider_reference_time=_parse(row["provider_reference_time"]),
             state=row["state"],
             superseded_at=_parse(row["superseded_at"]),
             deleted_at=_parse(row["deleted_at"]),
@@ -181,6 +187,7 @@ class SQLiteEpisodeLedger:
         partition_id: str,
         idempotency_key: str,
         payload: str | bytes,
+        provider_reference_time: datetime | None = None,
     ) -> EpisodeRecord:
         user_hash, session_hash = (
             _hash(user_key),
@@ -205,8 +212,8 @@ class SQLiteEpisodeLedger:
                 return record
             try:
                 connection.execute(
-                    "INSERT INTO episodes VALUES (?, ?, ?, ?, ?, ?, 'write_pending', NULL, NULL, NULL, NULL)",
-                    (episode_id, user_hash, session_hash, partition_id, idem_hash, payload_hash),
+                    "INSERT INTO episodes (episode_id, user_key, session_key, partition_id, idempotency_key_hash, payload_digest, provider_reference_time, state) VALUES (?, ?, ?, ?, ?, ?, ?, 'write_pending')",
+                    (episode_id, user_hash, session_hash, partition_id, idem_hash, payload_hash, provider_reference_time.isoformat() if provider_reference_time else None),
                 )
             except sqlite3.IntegrityError:
                 raise ValueError(f"episode already reserved: {episode_id}") from None
