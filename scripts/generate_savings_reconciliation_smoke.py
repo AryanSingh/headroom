@@ -43,7 +43,9 @@ def _sum_history_source_usd(rows: list[dict[str, Any]], *, observed: bool) -> fl
     return round(total, 6)
 
 
-def _build_reconciliation_payload(snapshot: dict[str, Any], buyer_payload: dict[str, Any]) -> dict[str, Any]:
+def _build_reconciliation_payload(
+    snapshot: dict[str, Any], buyer_payload: dict[str, Any]
+) -> dict[str, Any]:
     history = list(snapshot["history"])
     lifetime = dict(snapshot["lifetime"])
     display_session = dict(snapshot["display_session"])
@@ -110,7 +112,9 @@ def _build_reconciliation_payload(snapshot: dict[str, Any], buyer_payload: dict[
         "lifetime_tokens_match_history": payload["lifetime"]["tokens_saved"] == history_tokens,
         "lifetime_tokens_match_buyer_report": payload["lifetime"]["tokens_saved"]
         == payload["buyer_report"]["tokens_saved"],
-        "lifetime_total_usd_matches_history": abs(payload["lifetime"]["total_savings_usd"] - history_usd)
+        "lifetime_total_usd_matches_history": abs(
+            payload["lifetime"]["total_savings_usd"] - history_usd
+        )
         < 1e-6,
         "lifetime_total_usd_matches_buyer_report": abs(
             payload["lifetime"]["total_savings_usd"] - payload["buyer_report"]["usd_saved"]
@@ -133,11 +137,13 @@ def _build_reconciliation_payload(snapshot: dict[str, Any], buyer_payload: dict[
         "display_session_matches_lifetime": payload["display_session"]["tokens_saved"]
         == payload["lifetime"]["tokens_saved"]
         and abs(
-            payload["display_session"]["total_savings_usd"] - payload["lifetime"]["total_savings_usd"]
+            payload["display_session"]["total_savings_usd"]
+            - payload["lifetime"]["total_savings_usd"]
         )
         < 1e-6,
         "buyer_created_usd_matches_lifetime": abs(
-            payload["buyer_report"]["created_savings_usd"] - payload["lifetime"]["created_savings_usd"]
+            payload["buyer_report"]["created_savings_usd"]
+            - payload["lifetime"]["created_savings_usd"]
         )
         < 1e-6,
         "buyer_observed_usd_matches_lifetime": abs(

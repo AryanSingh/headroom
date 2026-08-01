@@ -213,7 +213,15 @@ class SQLiteEpisodeLedger:
             try:
                 connection.execute(
                     "INSERT INTO episodes (episode_id, user_key, session_key, partition_id, idempotency_key_hash, payload_digest, provider_reference_time, state) VALUES (?, ?, ?, ?, ?, ?, ?, 'write_pending')",
-                    (episode_id, user_hash, session_hash, partition_id, idem_hash, payload_hash, provider_reference_time.isoformat() if provider_reference_time else None),
+                    (
+                        episode_id,
+                        user_hash,
+                        session_hash,
+                        partition_id,
+                        idem_hash,
+                        payload_hash,
+                        provider_reference_time.isoformat() if provider_reference_time else None,
+                    ),
                 )
             except sqlite3.IntegrityError:
                 raise ValueError(f"episode already reserved: {episode_id}") from None

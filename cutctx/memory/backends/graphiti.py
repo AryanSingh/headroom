@@ -404,6 +404,7 @@ class GraphitiBackend:
                         raise GraphitiWriteRecoveryRequired(
                             episode_uuid, partition_id, retry_key
                         ) from exc
+
             if _lock:
                 async with PartitionOperationLock(ledger_path, partition_id, timeout=30):
                     await write_and_activate()
@@ -477,12 +478,13 @@ class GraphitiBackend:
                 created_at=now,
                 valid_from=now,
             )
-            fact_key = f"{idempotency_key}:{i}" if idempotency_key and len(bodies) > 1 else idempotency_key
+            fact_key = (
+                f"{idempotency_key}:{i}" if idempotency_key and len(bodies) > 1 else idempotency_key
+            )
             created.append(await self.save(memory, idempotency_key=fact_key))
         return created[0]
 
     def _edge_to_memory(self, edge: Any, user_id: str, episode_ids: list[str]) -> Memory:
-
         valid_at = getattr(edge, "valid_at", None)
         if isinstance(valid_at, datetime) and valid_at.tzinfo is None:
             valid_at = valid_at.replace(tzinfo=timezone.utc)
@@ -673,7 +675,11 @@ class GraphitiBackend:
         if len(partition_ids) != 1:
             raise GraphitiUnsafeDeletionError("deletion set spans foreign scopes")
         result = await self._client.get_nodes_and_edges_by_episode(sorted(targets))
-        edges = result[1] if isinstance(result, tuple) and len(result) > 1 else getattr(result, "edges", [])
+        edges = (
+            result[1]
+            if isinstance(result, tuple) and len(result) > 1
+            else getattr(result, "edges", [])
+        )
         origins: set[str] = set()
         partition_id = next(iter(partition_ids))
         for edge in edges or []:
@@ -703,7 +709,11 @@ class GraphitiBackend:
         """
         assert self._client is not None
         result = await self._client.get_nodes_and_edges_by_episode(sorted(episode_ids))
-        edges = result[1] if isinstance(result, tuple) and len(result) > 1 else getattr(result, "edges", [])
+        edges = (
+            result[1]
+            if isinstance(result, tuple) and len(result) > 1
+            else getattr(result, "edges", [])
+        )
         origins = {
             str(getattr(edge, "episodes", [])[0])
             for edge in edges or []

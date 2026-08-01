@@ -96,9 +96,13 @@ def test_provider_reference_timestamp_persists_without_payload_disclosure(tmp_pa
     ledger = SQLiteEpisodeLedger(tmp_path / "episodes.sqlite3")
     stamp = datetime(2026, 8, 1, tzinfo=timezone.utc)
     ledger.reserve_write(
-        episode_id="episode", user_key="alice", session_key="s1",
-        partition_id=_scope_partition("alice", "s1"), idempotency_key="retry",
-        payload="secret provider body", provider_reference_time=stamp,
+        episode_id="episode",
+        user_key="alice",
+        session_key="s1",
+        partition_id=_scope_partition("alice", "s1"),
+        idempotency_key="retry",
+        payload="secret provider body",
+        provider_reference_time=stamp,
     )
     record = SQLiteEpisodeLedger(ledger.path).get("episode")
     assert record is not None and record.provider_reference_time == stamp
