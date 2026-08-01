@@ -192,6 +192,11 @@ class Memory:
                     "Install with: pip install 'cutctx-ai[memory-stack]'\n"
                     "And start Docker services: docker compose up -d qdrant neo4j"
                 ) from e
+
+        elif self._backend_type == "graphiti":
+            from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiConfig
+
+            self._backend = GraphitiBackend(GraphitiConfig.from_env())
         else:
             raise ValueError(f"Unknown backend: {self._backend_type}")
 
@@ -206,6 +211,8 @@ class Memory:
         entities: list[dict[str, str]] | None = None,
         relationships: list[dict[str, str]] | None = None,
         metadata: dict[str, Any] | None = None,
+        session_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> str:
         """Save a memory.
 
@@ -252,6 +259,8 @@ class Memory:
             extracted_entities=entities,
             extracted_relationships=relationships,
             metadata=metadata,
+            session_id=session_id,
+            idempotency_key=idempotency_key,
         )
 
         return str(result.id)
@@ -262,6 +271,7 @@ class Memory:
         user_id: str,
         top_k: int = 10,
         include_graph: bool = True,
+        session_id: str | None = None,
     ) -> list[MemoryResult]:
         """Search memories by semantic similarity.
 
@@ -289,6 +299,7 @@ class Memory:
             user_id=user_id,
             top_k=top_k,
             include_related=include_graph,
+            session_id=session_id,
         )
 
         return [MemoryResult.from_search_result(r) for r in results]
