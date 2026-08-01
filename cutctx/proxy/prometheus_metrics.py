@@ -242,6 +242,11 @@ class PrometheusMetrics:
         # sessions from long client-hold followed by client_disconnect.
         self.active_ws_sessions: int = 0
         self.active_relay_tasks: int = 0
+        self.ws_sessions_rejected_total: int = 0
+        self.compression_cache_active_sessions: int = 0
+        self.compression_cache_entries: int = 0
+        self.compression_cache_size_bytes: int = 0
+        self.compression_cache_oversize_skips: int = 0
         self.ws_session_duration_sum_ms: dict[str, float] = defaultdict(float)
         self.ws_session_duration_count: dict[str, int] = defaultdict(int)
         self.ws_session_duration_max_ms: dict[str, float] = defaultdict(float)
@@ -884,6 +889,24 @@ class PrometheusMetrics:
         """Decrement the live WS session gauge (called on deregister)."""
         self.active_ws_sessions = max(0, self.active_ws_sessions - 1)
 
+    def record_ws_session_rejected(self) -> None:
+        """Count a WebSocket rejected before any upstream connection."""
+        self.ws_sessions_rejected_total += 1
+
+    def set_compression_cache_stats(
+        self,
+        *,
+        active_sessions: int,
+        entries: int,
+        size_bytes: int,
+        oversize_skips: int,
+    ) -> None:
+        """Set scrape-time gauges aggregated across active session caches."""
+        self.compression_cache_active_sessions = max(0, int(active_sessions))
+        self.compression_cache_entries = max(0, int(entries))
+        self.compression_cache_size_bytes = max(0, int(size_bytes))
+        self.compression_cache_oversize_skips = max(0, int(oversize_skips))
+
     def inc_active_relay_tasks(self, n: int = 1) -> None:
         """Increment the live relay-task gauge (attach_tasks)."""
         self.active_relay_tasks += n
@@ -1233,6 +1256,26 @@ class PrometheusMetrics:
                     "# HELP cutctx_active_ws_sessions Active Codex WebSocket sessions",
                     "# TYPE cutctx_active_ws_sessions gauge",
                     f"cutctx_active_ws_sessions {self.active_ws_sessions}",
+                    "",
+                    "# HELP cutctx_ws_sessions_rejected_total Codex WebSocket sessions rejected at capacity",
+                    "# TYPE cutctx_ws_sessions_rejected_total counter",
+                    f"cutctx_ws_sessions_rejected_total {self.ws_sessions_rejected_total}",
+                    "",
+                    "# HELP cutctx_compression_cache_active_sessions Active token-mode compression cache sessions",
+                    "# TYPE cutctx_compression_cache_active_sessions gauge",
+                    f"cutctx_compression_cache_active_sessions {self.compression_cache_active_sessions}",
+                    "",
+                    "# HELP cutctx_compression_cache_entries Retained token-mode compression cache entries",
+                    "# TYPE cutctx_compression_cache_entries gauge",
+                    f"cutctx_compression_cache_entries {self.compression_cache_entries}",
+                    "",
+                    "# HELP cutctx_compression_cache_size_bytes Retained UTF-8 bytes in token-mode compression caches",
+                    "# TYPE cutctx_compression_cache_size_bytes gauge",
+                    f"cutctx_compression_cache_size_bytes {self.compression_cache_size_bytes}",
+                    "",
+                    "# HELP cutctx_compression_cache_oversize_skips Oversized compression entries skipped by active caches",
+                    "# TYPE cutctx_compression_cache_oversize_skips gauge",
+                    f"cutctx_compression_cache_oversize_skips {self.compression_cache_oversize_skips}",
                     "",
                     "# HELP cutctx_active_relay_tasks Active Codex WS relay tasks",
                     "# TYPE cutctx_active_relay_tasks gauge",

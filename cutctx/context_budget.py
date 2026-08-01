@@ -318,9 +318,9 @@ class ContextBudgetController:
             # All messages are protected
             return messages
 
-        cutoff = len(messages) - window_size
+        cutoff = self._align_cutoff_to_tool_units(messages, len(messages) - window_size)
         old_messages = messages[:cutoff]
-        recent_messages = messages[cutoff:]
+        recent_messages = self._drop_leading_orphan_tools(messages[cutoff:])
 
         # Compress old messages using cutctx's compress API
         try:
@@ -355,6 +355,40 @@ class ContextBudgetController:
             logger.warning("Compression failed (%s); returning messages unchanged", e)
             return messages
 
+    @staticmethod
+    def _align_cutoff_to_tool_units(messages: list[dict[str, Any]], cutoff: int) -> int:
+        """Move ``cutoff`` so it never splits an assistant/tool unit.
+
+        Providers such as OpenCode Console Go reject histories that begin (after
+        a summary) with ``role=tool`` messages whose matching ``assistant``
+        ``tool_calls`` were dropped. Prefer keeping the whole unit.
+        """
+        if cutoff <= 0 or cutoff >= len(messages):
+            return cutoff
+
+        try:
+            from cutctx.parser import find_tool_units
+        except ImportError:
+            return cutoff
+
+        aligned = cutoff
+        for asst_idx, tool_idxs in find_tool_units(messages):
+            if not tool_idxs:
+                continue
+            unit_end = max(tool_idxs)
+            # Cut falls inside the unit (assistant kept out, some tools kept).
+            if asst_idx < aligned <= unit_end:
+                aligned = asst_idx
+        return max(0, aligned)
+
+    @staticmethod
+    def _drop_leading_orphan_tools(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Drop leading ``role=tool`` messages with no preceding tool_calls."""
+        i = 0
+        while i < len(messages) and messages[i].get("role") == "tool":
+            i += 1
+        return messages[i:] if i else messages
+
     def _summarize_critical_zone(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Summarize oldest 20% of messages (emergency compression).
 
@@ -368,8 +402,9 @@ class ContextBudgetController:
             return messages
 
         cutoff = max(1, len(messages) // 5)  # Oldest 20%
+        cutoff = self._align_cutoff_to_tool_units(messages, cutoff)
         to_summarize = messages[:cutoff]
-        to_keep = messages[cutoff:]
+        to_keep = self._drop_leading_orphan_tools(messages[cutoff:])
 
         # Create a summary message from the oldest batch
         summary_text = f"[Context Summary] Compressed {len(to_summarize)} older messages due to budget constraints."

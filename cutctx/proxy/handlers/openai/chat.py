@@ -278,6 +278,41 @@ class OpenAIChatMixin:
 
         codex_responses_lite = _has_codex_responses_lite_hint(raw_request_headers)
 
+        # Per-request upstream override. Resolved from the *raw* inbound
+        # headers (before `_strip_internal_headers` drops `x-cutctx-*`) into a
+        # request-local value — never onto `self.OPENAI_API_URL`.
+        from cutctx.proxy.openai_upstream import (
+            TRANSLATED_BACKEND_REASON,
+            override_rejection_payload,
+            override_rejection_status_code,
+            reject_openai_base_url_override,
+            resolve_openai_base_url_override,
+        )
+
+        base_url_override = resolve_openai_base_url_override(
+            self,
+            request,
+            raw_request_headers,
+            is_chatgpt_auth=is_chatgpt_subscription,
+        )
+        if base_url_override.active and self.anthropic_backend is not None:
+            # Direct-path only: a translated backend builds its own upstream,
+            # so honouring the header here would silently drop it.
+            base_url_override = reject_openai_base_url_override(TRANSLATED_BACKEND_REASON)
+        if base_url_override.rejected:
+            return JSONResponse(
+                status_code=override_rejection_status_code(base_url_override),
+                content=override_rejection_payload(base_url_override),
+            )
+
+        # Resolved once and reused for both the cache key and the actual
+        # upstream request URL (built later) so the two can never disagree.
+        # D1 (Phase 4 cutover): the response cache used to key on
+        # (messages, model) only, so a response fetched via the override
+        # could be served to a later request with the same body that did
+        # NOT send the override header.
+        resolved_openai_upstream = base_url_override.base_url or self.OPENAI_API_URL
+
         model, request_savings_metadata = prepare_model_routing(
             self,
             model,
@@ -290,7 +325,10 @@ class OpenAIChatMixin:
             assignment_identity_source=_canary_identity.source,
             assignment_sticky=_canary_identity.sticky,
             transport_provider="openai",
-            implicit_downgrade_allowed=not (is_chatgpt_subscription or codex_responses_lite),
+            implicit_downgrade_allowed=not (
+                is_chatgpt_subscription or codex_responses_lite or base_url_override.active
+            ),
+            allow_transport_safe_targets=not base_url_override.active,
             required_capabilities=infer_request_capabilities(body),
         )
         body["model"] = model
@@ -415,7 +453,15 @@ class OpenAIChatMixin:
         headers = _strip_openai_internal_headers(headers)
         from cutctx.proxy.auth_keyring import inject_provider_authorization
 
-        if inject_provider_authorization(headers, "openai"):
+        if base_url_override.active:
+            # The client picked this upstream, so it supplies the credential.
+            # Injecting the operator's OPENAI_API_KEY here would send it to a
+            # host the operator never configured.
+            logger.debug(
+                "[%s] upstream override active; not injecting configured OpenAI credential",
+                request_id,
+            )
+        elif inject_provider_authorization(headers, "openai"):
             logger.debug(
                 "[%s] injected OpenAI Authorization from configured credentials", request_id
             )
@@ -493,7 +539,7 @@ class OpenAIChatMixin:
 
         # Check cache
         if self.cache:
-            cached = await self.cache.get(messages, model)
+            cached = await self.cache.get(messages, model, upstream=resolved_openai_upstream)
             if cached:
                 self.pipeline_extensions.emit(
                     PipelineStage.INPUT_CACHED,
@@ -1514,7 +1560,10 @@ class OpenAIChatMixin:
                 )
 
         # Direct OpenAI API (no backend configured)
-        url = build_copilot_upstream_url(self.OPENAI_API_URL, "/v1/chat/completions")
+        url = build_copilot_upstream_url(
+            resolved_openai_upstream,
+            "/v1/chat/completions",
+        )
 
         try:
             if stream:
@@ -1788,6 +1837,7 @@ class OpenAIChatMixin:
                         response.content,
                         dict(response.headers),
                         total_input_tokens,
+                        upstream=resolved_openai_upstream,
                     )
 
                 # Capture Codex rate-limit window data from response headers

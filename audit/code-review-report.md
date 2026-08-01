@@ -1,99 +1,55 @@
-# Fresh Main Integration Code Review — 2026-07-16
+<!-- markdownlint-disable MD013 -->
 
-## Scope
+# Verified Code Review Report
 
-Fresh review of the combined `main` integration at `20687eb3`, including the production/commercial audit remediation commit `c3f025c2`, the capability-routing safeguard commits `a24b35bf` and `8426019b`, and all source branches already contained by that history. The previous contents of this report were not used as evidence.
+**Date:** 2026-07-31
+**Final verification:** 2026-08-01
+**Method:** Source inspection, targeted tests, CI contract tests, Ruff 0.9.4, dashboard lint/build
 
-## Verdict
+## Outcome
 
-**Approved for merge and push.** No Critical or High correctness, security, compatibility, or release issue was found in the combined committed source history.
+The codebase is suitable for a controlled release. The generated report promoted maintainability observations to P1 defects and overstated silent exception handling. Verified reliability gaps were fixed.
 
-## Review findings
+## Actionable findings completed
 
-### Blocking findings
+| Finding | Resolution |
+| --- | --- |
+| Unbounded WebSocket lifecycle | Added pre-connect admission reservations, configured limit, cleanup, health fields, Prometheus counter, and alert. |
+| Entry-count-only compression cache | Added value-byte and per-entry budgets, LRU eviction, stats, proxy config, health aggregation, and Prometheus gauges. |
+| Stripe duplicate fulfillment | Added schema-enforced subscription identity plus a transactional delivery outbox with failed-hook retry. |
+| Starlette legacy TestClient backend | Added `httpx2` and a 3.10–3.14 compatibility smoke job. |
+| Missing visual regression contract | Added an inspected Playwright baseline for a stable dark overview shell. |
+| Dependency audit findings | Updated dashboard transitive overrides for fixed `brace-expansion` and `postcss`; `npm audit` reports zero vulnerabilities. |
 
-None after remediation and verification.
+## Findings reclassified
 
-### Resolved during integration
+| Generated finding | Verified disposition |
+| --- | --- |
+| `server.py` size | Maintainability backlog, not a release defect. Major route extraction already exists under `cutctx/proxy/routes/`; a large speculative split during an audit would increase regression risk. |
+| 37 silent `except Exception` blocks | Count was stale. Current instances primarily log, re-raise, or intentionally degrade optional components. Health capability probes that return unavailable are diagnostic fallbacks, not swallowed request failures. |
+| Savings tracker/model router size | Maintainability observations. No failing invariant or unsafe coupling was demonstrated. |
+| F-string SQL | Fixed identifiers and placeholder construction; no attacker-controlled SQL identifiers found. |
+| Missing per-request memory accounting | Body size is already bounded; retained cross-request cache memory was the actual gap and is now fixed. |
+| No persistent cache | Product/performance choice, not correctness. |
+| Dataclass/Pydantic split | Intentional boundary: internal runtime state versus request validation models. |
 
-1. `cutctx/proxy/handlers/openai/responses.py` conflicted between remote-compaction passthrough and capability-safe routing. The resolution preserves the remote-compaction bypass while passing inferred capabilities to normal routing.
-2. `cutctx/proxy/handlers/anthropic.py` contained an unsorted merged import block. It was reformatted and re-linted.
-3. The VS Code extension archive omitted its license. The Apache 2.0 license is now present in the VSIX.
-4. Two audit markdown files contained trailing blank-line defects. They were normalized before commit.
+## Remaining engineering backlog
 
-### Reviewed but intentionally not merged
+- Continue incremental extraction from `server.py` only when a feature change supplies a behavioral seam and dedicated tests.
+- Standardize control-plane error envelopes without rewriting provider passthrough payloads.
+- Add named diagnostic reason fields for optional health probes if operators need more detail than availability booleans.
+- Externalize mutable state before enabling multiple replicas.
 
-| State | Decision | Rationale |
-|---|---|---|
-| `origin/gh-pages` | Keep separate | Deployment artifact history has no merge base with source `main`; merging it would corrupt source history. |
-| Uncommitted `codex/capability-routing-overhaul` worktree draft | Preserve, do not merge | Contains unverified future model identifiers and deletes `cutctx_ee/watermark.py`; it is not committed branch history and is not release-safe. |
-| Four worktree-only `cutctx_ee/watermark.py` deletions | Preserve, do not merge | Would remove enterprise leak-traceability security functionality. |
-| Two detached red-test drafts | Preserve, do not merge | Superseded/duplicated by tests already committed on `main`; neither worktree has a branch or production implementation. |
+These are maintainability or platform-evolution items, not unremediated defects from this audit.
 
-## Code-quality assessment
+## Reproduction record
 
-- Error handling: new routing and security paths fail closed and retain deterministic error classification.
-- API compatibility: provider request bodies and compatibility routes retain existing defaults; capability checks only abstain from unsafe downgrades.
-- Performance: wrapped-session hot paths preserve the audited 4096-byte ML tool-output inference budget and remote-compaction passthrough.
-- Security: client auth, WebSocket origins, webhook SSRF, egress allowlisting, installer integrity, and release publication controls have regression coverage.
-- Maintainability: hierarchical codemaps cover 820 production files; merged routing behavior has focused documentation and tests.
-- Type safety: the critical changed security/performance/pricing/installer subset is mypy-clean. Repository-wide annotation debt remains a documented Medium risk.
+```bash
+rtk pytest
+rtk proxy uvx ruff@0.9.4 check .
+rtk proxy uvx ruff@0.9.4 format --check .
+rtk proxy .venv/bin/python scripts/mypy_ratchet.py
+rtk git diff --check
+```
 
-## Fresh verification evidence
-
-- Python: 8,649 passed, 454 skipped in 482.12 seconds.
-- Rust: 1,404 passed, 3 ignored across 51 suites.
-- Routing/integration focused suite after conflict resolution: 263 passed.
-- Release/installer focused suite: 64 passed.
-- Dashboard: 7 unit tests passed; ESLint and production build passed.
-- OpenCode plugin: 9 tests, typecheck, build, and high-severity npm audit passed.
-- VS Code extension: compile, VSIX packaging, license inclusion, and high-severity npm audit passed.
-- Python Ruff and secret-pattern scan: clean.
-- Wheel and sdist: built successfully for 0.31.0.
-- Diff whitespace check: clean.
-
-## Residual non-blocking risks
-
-- Repository-wide mypy debt remains substantial and should be reduced with a ratcheted baseline.
-- Dashboard JavaScript remains a 500.31 kB minified chunk (143.35 kB gzip); route-level code splitting is recommended.
-- PyO3 emits deprecation warnings during release builds.
-- Credentialed external-provider staging remains a release-operation gate rather than a locally verifiable code gate.
-
-## Final recommendation
-
-Push the reviewed `main` history. Keep `gh-pages` and the unsafe/uncommitted worktree drafts separate. Do not delete those worktrees without explicit confirmation from their owner.
-
----
-
-# Control Credential Handoff Review — 2026-07-30
-
-## Scope
-
-- Proxy bootstrap-token and browser-session exchange in `cutctx/proxy/server.py`
-- Native Control credential use and dashboard deep link in
-  `desktop/cutctx-control/src-tauri/src/`
-- Admin-auth regression tests and current audit/planning artifacts
-
-## Findings
-
-No blocking correctness, credential-exposure, or test-coverage issue was
-identified in the reviewed change set.
-
-- Control reads the saved license only in native code and sends it in an admin
-  header to mint a session; the browser receives an opaque, single-use token.
-- The token exchange is loopback-only and creates an `HttpOnly`,
-  `SameSite=Strict` session cookie. It does not place a credential in the URL,
-  browser storage, or returned dashboard payload.
-- The proxy token and session registries are intentionally process-local. This
-  is appropriate for the local Control-to-local-proxy handoff; a future
-  multi-process deployment would need shared session storage.
-- `.slim/worktrees.json` is stale, local orchestration metadata and is
-  intentionally excluded from the commit.
-
-## Verification
-
-- `pytest tests/test_runtime_app_admin_auth.py -q` — 10 passed
-- `uvx ruff@0.9.4 check cutctx/proxy/server.py tests/test_runtime_app_admin_auth.py` — passed
-- `cargo fmt --check` — passed
-- `cargo test` in `desktop/cutctx-control/src-tauri` — 46 passed
-- `git diff --check` — passed
+Pytest passed 9,919 tests and skipped 271. Ruff checked and format-checked 1,513 files. The mypy ratchet reported no errors beyond its recorded baseline, and the diff whitespace check passed.

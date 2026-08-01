@@ -39,7 +39,7 @@ class TestTierMapping:
         ],
     )
     def test_tier_mapping(self, tier: str, expected_plan: str):
-        """map_tier_to_plan(tier) returns the correct pitchtoship plan key."""
+        """map_tier_to_plan(tier) returns the correct CutCtx plan key."""
         assert map_tier_to_plan(tier) == expected_plan
 
     def test_tier_mapping_unknown_defaults_to_starter(self):
@@ -53,20 +53,20 @@ class TestTierMapping:
 
 
 class TestCheckoutURL:
-    def test_get_checkout_url_is_a_pitchtoship_billing_deep_link(self, monkeypatch):
-        """Checkout always opens the hosted PitchToShip Razorpay billing flow."""
-        monkeypatch.setattr(billing, "PITCHTOSHIP_BASE_URL", "https://billing.example")
+    def test_get_checkout_url_is_a_cutctx_pricing_deep_link(self, monkeypatch):
+        """Checkout opens the hosted CutCtx pricing flow."""
+        monkeypatch.setattr(billing, "CUTCTX_SITE_URL", "https://billing.example")
 
         assert get_checkout_url("starter", "buyer@example.com", "monthly") == (
-            "https://billing.example/billing?product=cutctx&plan=starter"
+            "https://billing.example/pricing/?product=cutctx&plan=starter"
             "&billing=monthly&email=buyer%40example.com"
         )
 
     def test_get_checkout_url_normalizes_unknown_values(self, monkeypatch):
-        monkeypatch.setattr(billing, "PITCHTOSHIP_BASE_URL", "https://billing.example")
+        monkeypatch.setattr(billing, "CUTCTX_SITE_URL", "https://billing.example")
 
         assert get_checkout_url("unknown", billing="weekly") == (
-            "https://billing.example/billing?product=cutctx&plan=starter&billing=annual"
+            "https://billing.example/pricing/?product=cutctx&plan=starter&billing=annual"
         )
 
 
@@ -76,11 +76,11 @@ class TestCheckoutURL:
 
 
 class TestPortalURL:
-    def test_get_portal_url_is_the_pitchtoship_account_portal(self, monkeypatch):
-        monkeypatch.setattr(billing, "PITCHTOSHIP_BASE_URL", "https://billing.example")
+    def test_get_portal_url_is_the_cutctx_license_portal(self, monkeypatch):
+        monkeypatch.setattr(billing, "CUTCTX_SITE_URL", "https://billing.example")
 
         assert get_portal_url("buyer@example.com") == (
-            "https://billing.example/account?email=buyer%40example.com"
+            "https://billing.example/licenses/?email=buyer%40example.com"
         )
 
 

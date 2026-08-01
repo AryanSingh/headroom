@@ -47,3 +47,16 @@ spec:
             summary: Cutctx proxy is accumulating request failures
             description: >
               More than 50 failed requests in a 15-minute window.
+        - alert: WebSocketCapacityRejections
+          expr: increase(cutctx_ws_sessions_rejected_total[5m]) > 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Cutctx WebSocket admission capacity is exhausted
+            runbook_url: https://github.com/cutctx/cutctx/blob/main/docs/runbooks/websocket-capacity.md
+            description: >
+              At least one Codex WebSocket session was rejected before an
+              upstream connection during the last 5 minutes. Inspect
+              /health runtime.websocket_sessions and either reduce load or
+              explicitly raise CUTCTX_MAX_WS_SESSIONS after capacity review.

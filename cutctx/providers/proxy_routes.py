@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from collections.abc import Callable
 from typing import Any, NoReturn, cast
 from urllib.parse import quote
 
@@ -232,6 +233,44 @@ def _api_target(proxy: Any, provider_name: str) -> str:
     }
     legacy_attr = legacy_attrs[provider_name]
     return cast(str, getattr(proxy, legacy_attr, proxy.provider_runtime.api_target(provider_name)))
+
+
+def _resolve_model_metadata_target(
+    proxy: Any,
+    request: Request,
+    provider_name: str,
+) -> tuple[str, Response | None]:
+    """Resolve the `/v1/models` upstream, honouring a per-request OpenAI override.
+
+    SDKs probe `/v1/models` before their first completion, so the override has
+    to apply here too or a client pointed at an alternate OpenAI-compatible
+    upstream sees the process-wide host's model list. Returns the base URL plus
+    an optional error response when the override is present but refused.
+    """
+    default_target = _api_target(proxy, provider_name)
+    if provider_name != "openai":
+        return default_target, None
+
+    from cutctx.proxy.openai_upstream import (
+        override_rejection_payload,
+        override_rejection_status_code,
+        resolve_openai_base_url_override,
+    )
+
+    headers = dict(request.headers)
+    _, is_chatgpt_auth = _resolve_codex_routing_headers(headers)
+    decision = resolve_openai_base_url_override(
+        proxy,
+        request,
+        headers,
+        is_chatgpt_auth=is_chatgpt_auth,
+    )
+    if decision.rejected:
+        return default_target, JSONResponse(
+            status_code=override_rejection_status_code(decision),
+            content=override_rejection_payload(decision),
+        )
+    return decision.base_url or default_target, None
 
 
 def _select_passthrough_base_url(proxy: Any, headers: dict[str, str]) -> str:
@@ -576,8 +615,13 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
             remint_local_seat_token,
             resolve_local_user_token,
         )
-        from cutctx_ee.billing.client import checkout_seat
         from cutctx_ee.user_tokens import UserTokenError, verify_user_token
+
+        checkout_seat: Callable[[str, str], bool] | None = getattr(proxy, "_checkout_seat", None)
+        if checkout_seat is None:
+            from cutctx_ee.billing.client import checkout_seat as default_checkout_seat
+
+            checkout_seat = default_checkout_seat
 
         def _trusted_loopback() -> bool:
             client = getattr(connection, "client", None)
@@ -1008,9 +1052,12 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
             return chatgpt_response
 
         provider_name = proxy.provider_runtime.model_metadata_provider(dict(request.headers))
+        base_url, override_error = _resolve_model_metadata_target(proxy, request, provider_name)
+        if override_error is not None:
+            return override_error
         return await proxy.handle_passthrough(
             request,
-            _api_target(proxy, provider_name),
+            base_url,
             "models",
             provider_name,
         )
@@ -1026,9 +1073,12 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
             return chatgpt_response
 
         provider_name = proxy.provider_runtime.model_metadata_provider(dict(request.headers))
+        base_url, override_error = _resolve_model_metadata_target(proxy, request, provider_name)
+        if override_error is not None:
+            return override_error
         return await proxy.handle_passthrough(
             request,
-            _api_target(proxy, provider_name),
+            base_url,
             "models",
             provider_name,
         )
@@ -1173,7 +1223,18 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
     async def passthrough(request: Request, path: str):
         custom_base = request.headers.get("x-cutctx-base-url")
         if custom_base:
-            return await proxy.handle_passthrough(request, custom_base.rstrip("/"))
+            from cutctx.proxy.openai_upstream import (
+                passthrough_rejection_payload,
+                validate_passthrough_base_url,
+            )
+
+            base_url, rejection = validate_passthrough_base_url(request, custom_base)
+            if rejection is not None:
+                return JSONResponse(
+                    status_code=400,
+                    content=passthrough_rejection_payload(rejection),
+                )
+            return await proxy.handle_passthrough(request, cast(str, base_url))
         return await proxy.handle_passthrough(
             request,
             _select_passthrough_base_url(proxy, dict(request.headers)),

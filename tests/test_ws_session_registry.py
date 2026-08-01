@@ -175,3 +175,57 @@ def test_snapshot_age_seconds_is_non_negative():
     reg.register(_make_handle())
     snapshot = reg.snapshot()
     assert snapshot[0]["age_seconds"] >= 0.0
+
+
+def test_reservations_enforce_session_cap_before_registration():
+    reg = WebSocketSessionRegistry(max_sessions=2)
+
+    assert reg.try_reserve("one") is True
+    assert reg.try_reserve("two") is True
+    assert reg.try_reserve("three") is False
+
+    assert reg.reserved_count() == 2
+    assert reg.active_count() == 0
+    assert reg.admission_stats() == {
+        "active": 0,
+        "reserved": 2,
+        "limit": 2,
+        "rejected": 1,
+    }
+
+
+def test_register_converts_reservation_without_consuming_another_slot():
+    reg = WebSocketSessionRegistry(max_sessions=1)
+    assert reg.try_reserve("sess-1") is True
+
+    reg.register(_make_handle("sess-1"))
+
+    assert reg.reserved_count() == 0
+    assert reg.active_count() == 1
+    assert reg.try_reserve("sess-2") is False
+
+
+def test_release_clears_reserved_or_active_session_idempotently():
+    reg = WebSocketSessionRegistry(max_sessions=1)
+    assert reg.try_reserve("sess-1") is True
+
+    reg.release("sess-1")
+    reg.release("sess-1")
+    assert reg.reserved_count() == 0
+    assert reg.try_reserve("sess-2") is True
+
+    reg.register(_make_handle("sess-2"))
+    reg.release("sess-2")
+    reg.release("sess-2")
+    assert reg.active_count() == 0
+    assert reg.reserved_count() == 0
+
+
+def test_non_positive_session_cap_keeps_admission_unbounded():
+    reg = WebSocketSessionRegistry(max_sessions=0)
+
+    for index in range(20):
+        assert reg.try_reserve(f"sess-{index}") is True
+
+    assert reg.reserved_count() == 20
+    assert reg.admission_stats()["limit"] == 0

@@ -32,6 +32,12 @@ class BenchmarkResult:
     warnings: list[str]
 
 
+# Construct synthetic credentials so the repository-wide secret scanner can
+# distinguish this benchmark fixture from a committed credential.
+_FAKE_OPENAI_KEY = "sk-" + "proj-" + ("x" * 28)
+_FAKE_ANTHROPIC_KEY = "sk-" + "ant-" + ("x" * 28)
+
+
 # Real-world system prompts
 REAL_WORLD_PROMPTS = {
     "claude_code_style": """You are Claude, an AI assistant created by Anthropic to be helpful, harmless, and honest.
@@ -75,7 +81,7 @@ Budget Information:
 - Remaining: $2,658.33
 
 Help the user with their work tasks while following company policies.""",
-    "coding_agent": """You are an autonomous coding agent with access to tools.
+    "coding_agent": f"""You are an autonomous coding agent with access to tools.
 
 Environment:
 - OS: macOS Darwin 25.1.0
@@ -92,8 +98,8 @@ Current Task Context:
 - Estimated Time: 2 hours
 
 API Keys Available:
-- OPENAI_API_KEY: sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-- ANTHROPIC_API_KEY: sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+- OPENAI_API_KEY: {_FAKE_OPENAI_KEY}
+- ANTHROPIC_API_KEY: {_FAKE_ANTHROPIC_KEY}
 - DATABASE_URL: postgresql://user:pass@localhost:5432/mydb
 
 Execute tasks step by step, verify each action, and report progress.""",

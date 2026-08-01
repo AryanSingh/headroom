@@ -1,55 +1,45 @@
-# CutCtx commercialization report
+<!-- markdownlint-disable MD013 -->
 
-**Date:** 2026-07-21
+# Commercialization Report: Verified Billing Risk
 
-## Recommendation
+**Date:** 2026-07-31
+**Final verification:** 2026-08-01
+**Method:** Stripe webhook and license-database inspection with sequential and concurrent replay tests.
 
-Use `cutctx.com` as the conversion surface and retain PitchToShip as the
-merchant of record, checkout authority, license issuer, and account portal.
-This is the shortest route to a focused product narrative without duplicating
-payments, tax handling, entitlement logic, or support-account infrastructure.
+## Verified outcome
 
-## Offer architecture
+The original report identified the wrong billing defect. `checkout.session.completed` is the correct fulfillment event for the implemented Stripe Checkout flow; adding a parallel `subscription.created` fulfillment path would risk issuing duplicate licenses.
 
-| Audience | Offer | Proof needed | Conversion route |
-| --- | --- | --- | --- |
-| Engineer/evaluator | Free Builder | Local install and savings visibility | Docs/install |
-| Engineering team | Team | Savings reporting and policy/budget controls | PitchToShip checkout |
-| Platform organization | Business | Multi-project reporting and deployment support | PitchToShip checkout or sales |
-| Regulated/procurement buyer | Enterprise | Local-first posture, identity/governance, review packet | Sales conversation |
+The real defects were replay safety and durable delivery-hook state. Duplicate or concurrent checkout events could issue multiple license records, while a post-commit hook failure could become permanently ineligible for retry. A partial unique index now protects nonempty Stripe subscription IDs. Fulfillment queues delivery-hook work in the same transaction, retries failed calls, and does not repeat a recorded success.
 
-The public price architecture remains Builder ($0), Team ($1,500/month or
-$18,000/year), Business ($3,500/month or $42,000/year), and Enterprise
-custom, subject to owner confirmation before publication. Annual contracts are
-the default for paid tiers; do not publish a monthly price that conflicts with
-the final PitchToShip catalogue.
+The current `_send_license_email` hook logs issuance and does not call an external mail provider. The outbox proves durable hook processing, not customer email delivery. Paid checkout must not rely on email delivery until an owner configures a real transport with a provider-side idempotency contract.
 
-## Value metric
+## Remaining commercial decisions
 
-The primary value metric is measurable token/context savings on customer
-traffic. Supporting value comes from effective-context utility, fewer retries,
-and governance/procurement controls. Sales and product copy should avoid a
-guaranteed percentage; direct buyers to their own CutCtx savings reports.
+These are legitimate business or product initiatives, not verified code bugs:
 
-## Immediate upsell and retention loop
+| Initiative | Decision needed |
+| --- | --- |
+| Direct payment-provider checkout fallback | Decide whether the hosted CutCtx checkout needs a second provider path and define failure ownership before adding one. |
+| Self-serve billing UI | Define plan changes, proration, cancellation, invoice access, and account-owner permissions. |
+| Professional-services SKU | Validate buyer demand, delivery capacity, scope boundaries, and margin targets. |
+| Pricing changes and trial policy | Validate with pipeline, conversion, retention, and willingness-to-pay evidence before changing published prices. |
 
-1. The user installs or wraps an existing coding-agent workflow.
-2. The product exposes savings telemetry and a report.
-3. A team upgrades for shared visibility, policies, and budget controls.
-4. A larger organization upgrades when reporting, identity, audit, retention,
-   fleet, and deployment requirements arise.
+## Controls to retain
 
-Optional paid services remain onboarding, deployment hardening, premium SLA,
-security review support, and custom integrations. These should be offered as
-explicit add-ons rather than folded into the base subscription.
+- Stripe signature verification before event processing.
+- Database-enforced replay protection for fulfillment.
+- Durable retry for failed delivery-hook calls and no replay after recorded success.
+- An external mail transport gate before paid checkout depends on email delivery.
+- Explicit operational alerting for webhook failures and rejected events.
 
-## Commercial risk controls
+## Reproduction record
 
-- Keep merchant identity, card descriptor, invoice identity, refund policy,
-  checkout, and legal pages mutually consistent.
-- Do not market formal security certifications or complete enterprise UI
-  coverage that does not exist.
-- Correct draft legal materials before publication and obtain qualified advice
-  for jurisdiction, tax, and enforceability questions.
-- Do not add third-party analytics that undermine the local-first privacy
-  positioning.
+```bash
+rtk pytest cutctx/tests/test_billing_integration.py cutctx_ee/tests/test_license_db.py tests/test_capability_extensions.py
+```
+
+The billing integration tests passed 15 cases. The database and webhook suites prove sequential and concurrent subscription replay returns one license key, failed hook calls retry, and recorded hook success does not replay.
+
+---
+*This report supersedes the unverified fresh-run commercialization audit.*

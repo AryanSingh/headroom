@@ -372,6 +372,40 @@ ANTHROPIC_BASE_URL=http://localhost:8787 claude
 OPENAI_BASE_URL=http://localhost:8787/v1 cursor
 ```
 
+### DeepSeek V4 Flash from any OpenAI-compatible harness
+
+Cutctx recognizes `deepseek-v4-flash` and `deepseek-v4-pro` and can route a
+single request to DeepSeek's official OpenAI-compatible endpoint without
+changing the proxy-wide OpenAI target. Point the harness at Cutctx, attach its
+own DeepSeek credential, and add the internal routing header:
+
+```text
+base_url: http://127.0.0.1:8787/v1
+Authorization: Bearer $DEEPSEEK_API_KEY
+x-cutctx-base-url: https://api.deepseek.com
+model: deepseek-v4-flash
+```
+
+The header is accepted only on a loopback-bound proxy from a loopback client,
+and the caller must provide the credential that will be sent to DeepSeek.
+Cutctx never forwards its process-wide OpenAI key to a request-selected host.
+The built-in host/path rules keep OpenCode restricted to `/zen/go` while
+allowing DeepSeek's root API prefix.
+
+If a harness cannot set custom headers, run a dedicated private Cutctx listener
+for it instead:
+
+```bash
+DEEPSEEK_API_KEY=... \
+OPENAI_API_KEY="$DEEPSEEK_API_KEY" \
+OPENAI_TARGET_API_URL=https://api.deepseek.com \
+cutctx proxy --host 127.0.0.1 --port 8791
+```
+
+Then configure that harness with `http://127.0.0.1:8791/v1` and
+`deepseek-v4-flash`. A dedicated listener also works for harnesses that expose
+only a base URL and model field.
+
 ## Cloud providers
 
 ```bash

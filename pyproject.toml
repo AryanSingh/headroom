@@ -309,6 +309,9 @@ dev = [
     "fastapi>=0.115.0",
     "uvicorn>=0.23.0,<1.0",
     "httpx[http2]>=0.24.0",
+    # Starlette 1.3+ uses httpx2 for TestClient. Keeping the legacy httpx
+    # fallback installed emits a deprecation warning in every test process.
+    "httpx2>=2.9.1",
     "websockets>=15.0",
     "playwright>=1.30.0",
     "opentelemetry-exporter-otlp-proto-http>=1.24.0",
@@ -484,6 +487,7 @@ compression-method = "stored"
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+exclude = [".slim/worktrees"]
 
 [tool.ruff.lint]
 select = [

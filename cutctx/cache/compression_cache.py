@@ -24,6 +24,7 @@ class _CacheEntry:
 
     compressed: str
     tokens_saved: int
+    size_bytes: int
 
 
 def _is_tool_result_message(msg: dict) -> bool:
@@ -81,8 +82,15 @@ class CompressionCache:
     when the cache exceeds max_entries.
     """
 
-    def __init__(self, max_entries: int = 10000) -> None:
+    def __init__(
+        self,
+        max_entries: int = 10000,
+        max_size_bytes: int = 64 * 1024 * 1024,
+        max_entry_size_bytes: int = 4 * 1024 * 1024,
+    ) -> None:
         self.max_entries = max_entries
+        self.max_size_bytes = max(0, int(max_size_bytes))
+        self.max_entry_size_bytes = max(0, int(max_entry_size_bytes))
         # Reentrant lock guarding all mutable state below. Required because
         # the proxy is async and dispatches multiple concurrent requests per
         # session (Claude Code background tools, parallel agents, etc.) into
@@ -112,6 +120,8 @@ class CompressionCache:
         self._hits: int = 0
         self._misses: int = 0
         self._total_tokens_saved: int = 0
+        self._size_bytes: int = 0
+        self._oversize_skips: int = 0
 
     def get_compressed(self, hash: str) -> str | None:
         """Retrieve compressed content by hash, refreshing LRU position on hit."""
@@ -131,18 +141,35 @@ class CompressionCache:
         end (most recently used). When the cache exceeds max_entries, the oldest
         entry is evicted.
         """
+        size_bytes = len(compressed.encode("utf-8"))
+        if (self.max_entry_size_bytes and size_bytes > self.max_entry_size_bytes) or (
+            self.max_size_bytes and size_bytes > self.max_size_bytes
+        ):
+            with self._lock:
+                self._oversize_skips += 1
+            return
+
         with self._lock:
             if hash in self._cache:
                 old_entry = self._cache[hash]
                 self._total_tokens_saved -= old_entry.tokens_saved
+                self._size_bytes -= old_entry.size_bytes
                 del self._cache[hash]
 
-            self._cache[hash] = _CacheEntry(compressed=compressed, tokens_saved=tokens_saved)
+            self._cache[hash] = _CacheEntry(
+                compressed=compressed,
+                tokens_saved=tokens_saved,
+                size_bytes=size_bytes,
+            )
             self._total_tokens_saved += tokens_saved
+            self._size_bytes += size_bytes
 
-            while len(self._cache) > self.max_entries:
+            while len(self._cache) > self.max_entries or (
+                self.max_size_bytes and self._size_bytes > self.max_size_bytes
+            ):
                 _, evicted = self._cache.popitem(last=False)
                 self._total_tokens_saved -= evicted.tokens_saved
+                self._size_bytes -= evicted.size_bytes
 
     def mark_stable(self, content_hash: str) -> None:
         """Mark a content hash as stable (unchanged, not compressed).
@@ -206,6 +233,10 @@ class CompressionCache:
                 "hits": self._hits,
                 "misses": self._misses,
                 "tokens_saved": self._total_tokens_saved,
+                "size_bytes": self._size_bytes,
+                "max_size_bytes": self.max_size_bytes,
+                "max_entry_size_bytes": self.max_entry_size_bytes,
+                "oversize_skips": self._oversize_skips,
             }
 
     @staticmethod

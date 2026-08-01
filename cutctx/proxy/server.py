@@ -158,6 +158,10 @@ from cutctx.proxy.modes import (
     is_token_mode,
     normalize_proxy_mode,
 )
+from cutctx.proxy.openai_upstream import CAPABILITY_FLAG as _OPENAI_BASE_URL_CAPABILITY
+from cutctx.proxy.openai_upstream import (
+    override_capability_enabled as _openai_base_url_override_enabled,
+)
 from cutctx.proxy.output_optimizer import OutputOptimizeConfig, OutputOptimizer
 from cutctx.proxy.probe_recorder import probe_recorder_from_env
 from cutctx.proxy.project_context import (
@@ -342,7 +346,12 @@ def _patch_getaddrinfo_for_intercept() -> None:
 
     try:
         bypass_ips: dict[str, str] = json.loads(_INTERCEPT_BYPASS_IPS_FILE.read_text())
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "Invalid intercept bypass state in %s; preserving standard DNS resolution (%s)",
+            _INTERCEPT_BYPASS_IPS_FILE,
+            type(exc).__name__,
+        )
         return
     if not bypass_ips:
         return
@@ -679,8 +688,11 @@ class CutctxProxy(
                     "Wired %d content type overrides from profile into router config",
                     len(_content_type_overrides),
                 )
-        except Exception:
-            pass  # Profile not available — no overrides, existing behaviour unchanged
+        except Exception as exc:
+            logger.warning(
+                "Compression profile load failed; using default router configuration (%s)",
+                type(exc).__name__,
+            )
         content_router = ContentRouter(router_config, observer=self.metrics)
         # Wire difftastic runtime flags so the router's _get_diff_compressor
         # can branch to DifftasticBackend when enabled.
@@ -778,7 +790,9 @@ class CutctxProxy(
         # Unit 3: live registry of Codex WS sessions. Populated by
         # ``handle_openai_responses_ws`` on accept; drained in its
         # outermost ``finally``. Consumed by ``/debug/ws-sessions``.
-        self.ws_sessions: WebSocketSessionRegistry = WebSocketSessionRegistry()
+        self.ws_sessions: WebSocketSessionRegistry = WebSocketSessionRegistry(
+            max_sessions=config.max_ws_sessions
+        )
 
         # Unit 4: bounded pre-upstream concurrency for the Anthropic HTTP
         # path. Caps how many ``handle_anthropic_messages`` calls may be
@@ -1471,8 +1485,37 @@ class CutctxProxy(
                         MAX_COMPRESSION_CACHE_SESSIONS,
                     )
 
-                self._compression_caches[session_id] = CompressionCache()
+                self._compression_caches[session_id] = CompressionCache(
+                    max_size_bytes=self.config.compression_cache_max_size_bytes,
+                    max_entry_size_bytes=(self.config.compression_cache_max_entry_size_bytes),
+                )
             return self._compression_caches[session_id]
+
+    def compression_cache_stats(self) -> dict[str, int]:
+        """Aggregate bounded token-mode cache state for health and metrics."""
+        with self._compression_caches_lock:
+            caches_snapshot = list(self._compression_caches.values())
+        totals = {
+            "active_sessions": len(caches_snapshot),
+            "entries": 0,
+            "hits": 0,
+            "misses": 0,
+            "tokens_saved": 0,
+            "size_bytes": 0,
+            "oversize_skips": 0,
+        }
+        for cache in caches_snapshot:
+            stats = cache.get_stats()
+            for key in (
+                "entries",
+                "hits",
+                "misses",
+                "tokens_saved",
+                "size_bytes",
+                "oversize_skips",
+            ):
+                totals[key] += int(stats.get(key, 0))
+        return totals
 
     def _setup_code_aware(self, config: ProxyConfig, transforms: list) -> str:
         """Set up code-aware compression if enabled.
@@ -2953,27 +2996,19 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
         compression_cache_stats: dict[str, Any] = {"mode": proxy.config.mode}
         if proxy.config.mode == PROXY_MODE_TOKEN and proxy._compression_caches:
-            with proxy._compression_caches_lock:
-                caches_snapshot = list(proxy._compression_caches.values())
-                active_sessions = len(proxy._compression_caches)
-            total_entries = 0
-            total_hits = 0
-            total_misses = 0
-            total_tokens_saved = 0
-            for cache in caches_snapshot:
-                cache_stats = cache.get_stats()
-                total_entries += cache_stats.get("entries", 0)
-                total_hits += cache_stats.get("hits", 0)
-                total_misses += cache_stats.get("misses", 0)
-                total_tokens_saved += cache_stats.get("total_tokens_saved", 0)
+            cache_totals = proxy.compression_cache_stats()
+            total_hits = cache_totals["hits"]
+            total_misses = cache_totals["misses"]
             compression_cache_stats = {
                 "mode": PROXY_MODE_TOKEN,
-                "active_sessions": active_sessions,
-                "total_entries": total_entries,
+                "active_sessions": cache_totals["active_sessions"],
+                "total_entries": cache_totals["entries"],
                 "total_hits": total_hits,
                 "total_misses": total_misses,
                 "hit_rate": round(total_hits / max(1, total_hits + total_misses) * 100, 1),
-                "total_tokens_saved": total_tokens_saved,
+                "total_tokens_saved": cache_totals["tokens_saved"],
+                "size_bytes": cache_totals["size_bytes"],
+                "oversize_skips": cache_totals["oversize_skips"],
             }
 
         persistent_savings = m.savings_tracker.stats_preview()
@@ -3428,6 +3463,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         ws_active_relay_tasks = (
             ws_registry.active_relay_task_count() if ws_registry is not None else 0
         )
+        ws_admission = (
+            ws_registry.admission_stats()
+            if ws_registry is not None
+            else {"active": 0, "reserved": 0, "limit": 0, "rejected": 0}
+        )
         with proxy._compression_metrics_lock:
             queued = proxy._compression_queued
             queued_max = proxy._compression_queued_max
@@ -3471,6 +3511,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "websocket_sessions": {
                 "active_sessions": ws_active_sessions,
                 "active_relay_tasks": ws_active_relay_tasks,
+                "reserved_sessions": ws_admission["reserved"],
+                "limit": ws_admission["limit"],
+                "rejected_total": ws_admission["rejected"],
             },
         }
 
@@ -3488,6 +3531,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "checks": checks,
             "runtime": _runtime_payload(),
             "rust_core": getattr(app.state, "rust_core_status", "missing"),
+            # Advertised so clients can choose the shared listener over a
+            # dedicated private port when per-request upstream overrides work.
+            # Reflects the runtime gate, not the presence of the code: a client
+            # that trusted a hardcoded `true` on a non-loopback bind would stay
+            # on the shared port and hard-fail on every refused override.
+            "capabilities": {_OPENAI_BASE_URL_CAPABILITY: _openai_base_url_override_enabled(proxy)},
         }
         rust_core_error = getattr(app.state, "rust_core_error", None)
         if rust_core_error:
@@ -5640,6 +5689,7 @@ if __name__ == "__main__":
         host=_get_env_str("CUTCTX_HOST", args.host),
         port=_get_env_int("CUTCTX_PORT", args.port),
         admin_auth_failures_per_minute=_get_env_int("CUTCTX_ADMIN_AUTH_FAILURES_PER_MINUTE", 10),
+        max_ws_sessions=_get_env_int("CUTCTX_MAX_WS_SESSIONS", 500),
         openai_api_url=_get_env_str("OPENAI_TARGET_API_URL", args.openai_api_url),
         anthropic_api_url=_get_env_str("ANTHROPIC_TARGET_API_URL", args.anthropic_api_url),
         vertex_api_url=_get_env_str("VERTEX_TARGET_API_URL", args.vertex_api_url),
@@ -5655,6 +5705,12 @@ if __name__ == "__main__":
         cache_enabled=cache_enabled,
         cache_ttl_seconds=_get_env_int("CUTCTX_CACHE_TTL", args.cache_ttl),
         cache_max_size_bytes=_get_env_int("CUTCTX_CACHE_MAX_SIZE_BYTES", 0) or None,
+        compression_cache_max_size_bytes=_get_env_int(
+            "CUTCTX_COMPRESSION_CACHE_MAX_SIZE_BYTES", 64 * 1024 * 1024
+        ),
+        compression_cache_max_entry_size_bytes=_get_env_int(
+            "CUTCTX_COMPRESSION_CACHE_MAX_ENTRY_SIZE_BYTES", 4 * 1024 * 1024
+        ),
         rate_limit_enabled=rate_limit_enabled,
         rate_limit_requests_per_minute=_get_env_int("CUTCTX_RPM", args.rpm),
         rate_limit_tokens_per_minute=_get_env_int("CUTCTX_TPM", args.tpm),

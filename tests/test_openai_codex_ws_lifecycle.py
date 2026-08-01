@@ -88,7 +88,7 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
         self.cost_tracker = None
         self.memory_handler = None
         self.session_tracker_store = SessionTrackerStore()
-        self.ws_sessions = ws_sessions or WebSocketSessionRegistry()
+        self.ws_sessions = ws_sessions if ws_sessions is not None else WebSocketSessionRegistry()
         self.compression_executor_calls = 0
         self.compression_executor_timeouts: list[float] = []
 
@@ -368,6 +368,32 @@ def _first_frame() -> str:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ws_admission_cap_rejects_before_upstream_connect():
+    registry = WebSocketSessionRegistry(max_sessions=1)
+    assert registry.try_reserve("already-admitted") is True
+    handler = _DummyOpenAIHandler(registry)
+    client_ws = _FakeWebSocket(frames=[_first_frame()])
+    call_log: list[str] = []
+    fake_ws_mod = _make_fake_websockets_module(
+        _FakeUpstream([]),
+        call_log=call_log,
+    )
+
+    with patch.dict(sys.modules, {"websockets": fake_ws_mod}):
+        await handler.handle_openai_responses_ws(client_ws)
+
+    assert client_ws.closed is True
+    assert client_ws.close_code == 1013
+    assert call_log == []
+    assert registry.admission_stats() == {
+        "active": 0,
+        "reserved": 1,
+        "limit": 1,
+        "rejected": 1,
+    }
 
 
 @pytest.mark.asyncio

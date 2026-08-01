@@ -166,6 +166,9 @@ class ProxyConfig:
     # Failed admin/SSO authentication attempts accepted per client IP each
     # minute. Set to 0 to disable the dedicated brute-force guard.
     admin_auth_failures_per_minute: int = 10
+    # Maximum simultaneously admitted Codex WebSocket sessions. Admission is
+    # reserved before opening the upstream socket. Set to 0 for unbounded.
+    max_ws_sessions: int = 500
 
     # Backend: "anthropic" (direct API), "litellm-*" (via LiteLLM), or "anyllm" (via any-llm)
     backend: str = "anthropic"
@@ -378,6 +381,9 @@ class ProxyConfig:
     # None keeps the backwards-compatible entry-count-only limit.
     cache_max_size_bytes: int | None = None
     cache_aligner_enabled: bool = False
+    # Per-session token-mode compression cache limits.
+    compression_cache_max_size_bytes: int = 64 * 1024 * 1024
+    compression_cache_max_entry_size_bytes: int = 4 * 1024 * 1024
 
     # Rate limiting
     rate_limit_enabled: bool = True

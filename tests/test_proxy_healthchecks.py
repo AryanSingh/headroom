@@ -62,6 +62,9 @@ def test_readyz_reports_core_subsystem_checks(client):
     assert runtime["anthropic_pre_upstream"]["codex_ws_gated"] is False
     assert runtime["websocket_sessions"]["active_sessions"] == 0
     assert runtime["websocket_sessions"]["active_relay_tasks"] == 0
+    assert runtime["websocket_sessions"]["reserved_sessions"] == 0
+    assert runtime["websocket_sessions"]["limit"] == 500
+    assert runtime["websocket_sessions"]["rejected_total"] == 0
 
 
 def test_health_does_not_leak_config_to_unauthenticated_callers(client):

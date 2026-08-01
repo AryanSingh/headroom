@@ -18,7 +18,7 @@ delivery or on-call acknowledgement was tested.
 
 | Source | Path | What it defines |
 |--------|------|-----------------|
-| PrometheusRule (deployed) | `k8s/prometheus-rules.yaml` | Three `cutctx.rules` alert expressions |
+| PrometheusRule (deployed) | `k8s/prometheus-rules.yaml` | Four `cutctx.rules` alert expressions |
 | Deployment scrape hints | `k8s/deployment.yaml` | `prometheus.io/scrape` pod annotations (`/metrics` on port 8787) |
 | Helm ServiceMonitor (optional) | `helm/cutctx/templates/servicemonitor.yaml`, `helm/cutctx/values.yaml` | Prometheus Operator scrape config; **disabled by default** (`serviceMonitor.enabled: false`) |
 | Recommended alerts (spec only) | `docs/spec/016-observability.md` | Four suggested alerts; example YAML uses obsolete metric `cutctx_errors_total` |
@@ -64,9 +64,11 @@ Resource: `PrometheusRule/cutctx-alerts` in namespace `cutctx`, group
 | `HighErrorRate` | `critical` | `rate(cutctx_requests_failed_total[5m]) / clamp_min(rate(cutctx_requests_total[5m]), 1e-9) > 0.05` (failed share > 5%) | 5m | **UNASSIGNED / BLOCKED — needs operations owner** | **UNASSIGNED / BLOCKED — needs operations owner** | **UNASSIGNED / BLOCKED — needs operations owner** | **None linked in rule annotations.** Closest recovery docs: `docs/pilot/incident-response.md` (§4 Recovery), `docs/runbooks/backup-restore.md` |
 | `HighLatency` | `warning` | `rate(cutctx_latency_ms_sum[5m]) / clamp_min(rate(cutctx_latency_ms_count[5m]), 1e-9) > 2000` (mean latency > 2000 ms) | 5m | **UNASSIGNED / BLOCKED — needs operations owner** | **UNASSIGNED / BLOCKED — needs operations owner** | **UNASSIGNED / BLOCKED — needs operations owner** | **None linked in rule annotations.** Closest: `docs/pilot/incident-response.md` |
 | `UpstreamFailureSpike` | `warning` | `increase(cutctx_requests_failed_total[15m]) > 50` (> 50 failures in 15m window) | 10m | **UNASSIGNED / BLOCKED — needs operations owner** | **UNASSIGNED / BLOCKED — needs operations owner** | **UNASSIGNED / BLOCKED — needs operations owner** | **None linked in rule annotations.** Closest: `docs/pilot/incident-response.md` (§3 Evidence, §4 Recovery) |
+| `WebSocketCapacityRejections` | `warning` | `increase(cutctx_ws_sessions_rejected_total[5m]) > 0` (one or more admission rejections) | 2m | **UNASSIGNED / BLOCKED — needs operations owner** | **UNASSIGNED / BLOCKED — needs operations owner** | **UNASSIGNED / BLOCKED — needs operations owner** | [`websocket-capacity.md`](websocket-capacity.md), linked by the rule's `runbook_url` annotation |
 
-**Annotation gaps:** None of the three rules set `runbook_url`, `dashboard_url`,
-or `owner` annotations. Summaries and descriptions are present only.
+**Annotation gaps:** `WebSocketCapacityRejections` sets `runbook_url`.
+The other three rules do not set `runbook_url`, `dashboard_url`, or `owner`
+annotations. No named owner is available in this repository.
 
 ---
 
@@ -81,7 +83,8 @@ Comparison against the production signals named in the remediation plan.
 | **Error / upstream failure spikes** | **Covered** by `HighErrorRate` and `UpstreamFailureSpike` | `cutctx_requests_failed_total`, `cutctx_requests_total` exported | None required for metric existence. Consider deduplication policy once routing exists (two alerts can fire together). |
 | **Storage / disk risk** | **Gap** | PVC `10Gi` ReadWriteOnce (`k8s/pvc.yaml`). No kubelet volume or node-exporter disk metrics referenced in repo. Backup CronJob (`k8s/backup-cronjob.yaml`) has no failure alert. | **Recommended gap.** Requires cluster-level metrics (`kubelet_volume_stats_*`, node filesystem) and operations-approved thresholds. Not implementable from application metrics alone. |
 | **Certificate expiry** | **Gap** | Ingress TLS placeholder (`k8s/ingress.yaml`); `cert-manager.io/cluster-issuer` annotation is commented out. No cert-manager metrics or Certificate resources in repo. | **Recommended gap.** Requires cert-manager (or ingress-controller) metrics in the monitoring stack. Do not fabricate receivers. |
-| **WebSocket / service saturation** | **Partial gap** | `cutctx_inbound_requests_active` gauge exported. Codex WebSocket counters (`codex_ws_*`) are tracked in-process and surfaced via `/stats`, **not** exported on `/metrics`. | **Recommended gap** for inbound saturation: draft `cutctx_inbound_requests_active > <T>` once operations defines `<T>`. WebSocket-specific saturation alert blocked until `codex_ws_*` metrics are added to the Prometheus scrape. |
+| **WebSocket admission pressure** | **Covered** by `WebSocketCapacityRejections` | `cutctx_ws_sessions_rejected_total` is exported on `/metrics`; `/health` reports configured capacity and active/reserved/rejected session state. | Review [`websocket-capacity.md`](websocket-capacity.md). Receiver, acknowledgement, and ownership remain blocked on operations. |
+| **Inbound service saturation** | **Partial gap** | `cutctx_inbound_requests_active` gauge exported. | **Recommended gap** for inbound saturation: draft `cutctx_inbound_requests_active > <T>` once operations defines `<T>`. |
 
 ### Draft alert candidates (metrics confirmed; deployment blocked on ops)
 

@@ -313,6 +313,10 @@ patch_*.py
 .playwright-mcp/
 .playwright-cli/
 .slim/deepwork/
+# BEGIN oh-my-opencode-slim worktrees
+.slim/worktrees/
+.slim/worktrees.json
+# END oh-my-opencode-slim worktrees
 .superpowers/sdd/
 *.db-shm
 *.db-wal

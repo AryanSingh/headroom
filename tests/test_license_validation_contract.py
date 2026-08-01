@@ -36,7 +36,7 @@ def _user_token(*, subject: str = "user-1") -> str:
     return f"{signed}.{hmac.new(b'user-secret', signed.encode(), hashlib.sha256).hexdigest()}"
 
 
-def _paid_app():
+def _paid_app(*, seat_available: bool = True):
     app = create_app(
         ProxyConfig(
             backend="mock",
@@ -49,6 +49,7 @@ def _paid_app():
             user_token_hmac_secret="user-secret",
         )
     )
+    app.state.proxy._checkout_seat = lambda *_args: seat_available
     _apply_validated_license(app.state.proxy, LicenseInfo(status="active", plan="business"))
     return app
 
@@ -84,12 +85,8 @@ def test_definitive_remote_invalid_license_does_not_fall_back_to_local_authority
         "cutctx_ee.billing.pitchtoship_client._get_cached_public_key",
         lambda: "cached-public-key",
     )
-    monkeypatch.setattr(
-        "cutctx_ee.billing.license_db.get_license_db",
-        lambda: local_db,
-    )
     app = FastAPI()
-    app.include_router(create_license_validation_router())
+    app.include_router(create_license_validation_router(get_license_db_factory=lambda: local_db))
 
     response = TestClient(app).post(
         "/v1/license/validate",
@@ -112,12 +109,8 @@ def test_remote_unavailability_preserves_local_fallback(monkeypatch) -> None:
         "cutctx_ee.billing.pitchtoship_client._get_cached_signed_token",
         lambda _license_key: None,
     )
-    monkeypatch.setattr(
-        "cutctx_ee.billing.license_db.get_license_db",
-        lambda: local_db,
-    )
     app = FastAPI()
-    app.include_router(create_license_validation_router())
+    app.include_router(create_license_validation_router(get_license_db_factory=lambda: local_db))
 
     response = TestClient(app).post(
         "/v1/license/validate",
@@ -209,7 +202,6 @@ def test_paid_provider_loopback_accepts_cutctx_user_token_env(monkeypatch) -> No
     Trusted loopback traffic may use a pre-provisioned CUTCTX_USER_TOKEN on
     the proxy process instead (minted by Control / wrap).
     """
-    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
     monkeypatch.setenv("CUTCTX_USER_TOKEN", _user_token(subject="loopback-user"))
     app = _paid_app()
 
@@ -230,7 +222,6 @@ def test_paid_provider_loopback_accepts_cutctx_user_token_env(monkeypatch) -> No
 
 
 def test_paid_provider_loopback_accepts_control_seat_json(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
     monkeypatch.delenv("CUTCTX_USER_TOKEN", raising=False)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     seat_dir = tmp_path / ".cutctx" / "control"
@@ -266,7 +257,6 @@ def test_paid_provider_loopback_accepts_control_seat_json(tmp_path, monkeypatch)
 def test_paid_provider_rejects_invalid_header_even_when_env_token_exists(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
     monkeypatch.setenv("CUTCTX_USER_TOKEN", _user_token(subject="loopback-user"))
     app = _paid_app()
 
@@ -284,7 +274,6 @@ def test_paid_provider_rejects_invalid_header_even_when_env_token_exists(
 
 
 def test_paid_provider_does_not_fallback_for_non_loopback_host(monkeypatch) -> None:
-    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
     monkeypatch.setenv("CUTCTX_USER_TOKEN", _user_token(subject="loopback-user"))
     app = _paid_app()
 
@@ -302,7 +291,6 @@ def test_paid_provider_does_not_fallback_for_non_loopback_host(monkeypatch) -> N
 
 def test_paid_provider_loopback_remints_expired_seat(tmp_path, monkeypatch) -> None:
     """Codex loopback remints seat.json when the local ctu1 token ages out."""
-    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
     monkeypatch.delenv("CUTCTX_USER_TOKEN", raising=False)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     expired = (
@@ -353,7 +341,6 @@ def test_paid_provider_loopback_remints_expired_seat(tmp_path, monkeypatch) -> N
 
 
 def test_paid_provider_loopback_remints_when_seat_missing(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
     monkeypatch.delenv("CUTCTX_USER_TOKEN", raising=False)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     app = _paid_app()
@@ -378,7 +365,6 @@ def test_paid_provider_loopback_remints_when_seat_missing(tmp_path, monkeypatch)
 
 
 def test_paid_provider_does_not_remint_over_bad_explicit_header(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
     monkeypatch.delenv("CUTCTX_USER_TOKEN", raising=False)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     app = _paid_app()
@@ -398,8 +384,7 @@ def test_paid_provider_does_not_remint_over_bad_explicit_header(tmp_path, monkey
 
 
 def test_paid_provider_request_denies_when_user_has_no_seat(monkeypatch) -> None:
-    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: False)
-    app = _paid_app()
+    app = _paid_app(seat_available=False)
 
     response = TestClient(app).post(
         "/v1/chat/completions",
@@ -411,7 +396,6 @@ def test_paid_provider_request_denies_when_user_has_no_seat(monkeypatch) -> None
 
 
 def test_paid_provider_request_with_valid_token_and_seat_reaches_backend(monkeypatch) -> None:
-    monkeypatch.setattr("cutctx_ee.billing.client.checkout_seat", lambda *_args: True)
     app = _paid_app()
 
     async def accepted(_request):
@@ -432,16 +416,14 @@ def test_paid_provider_request_with_valid_token_and_seat_reaches_backend(monkeyp
 
 @pytest.mark.parametrize("seat_available", [True, False])
 def test_paid_websocket_guard_returns_policy_close(monkeypatch, seat_available: bool) -> None:
-    monkeypatch.setattr(
-        "cutctx_ee.billing.client.checkout_seat",
-        lambda *_args: seat_available,
-    )
     headers = {"X-Cutctx-Proxy-Key": "proxy-key"}
     if not seat_available:
         headers["X-Cutctx-User-Token"] = _user_token()
 
     with pytest.raises(WebSocketDisconnect) as exc_info:
-        with TestClient(_paid_app()).websocket_connect("/v1/responses", headers=headers):
+        with TestClient(_paid_app(seat_available=seat_available)).websocket_connect(
+            "/v1/responses", headers=headers
+        ):
             pass
 
     assert exc_info.value.code == 1008

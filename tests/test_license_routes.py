@@ -18,7 +18,7 @@ class StartTrialRequest(BaseModel):
     duration: float = 14 * 86400.0
 
 
-async def test_checkout_seat_fails_when_no_seats_available(monkeypatch):
+async def test_checkout_seat_fails_when_no_seats_available():
     """Test that checkout-seat rejects requests when no seats are available."""
 
     # Mock the license_db to simulate "no seats available" condition
@@ -33,13 +33,10 @@ async def test_checkout_seat_fails_when_no_seats_available(monkeypatch):
     def mock_get_license_db():
         return MockLicenseDB()
 
-    # Patch the import in the license module at its source
-    monkeypatch.setattr("cutctx_ee.billing.license_db.get_license_db", mock_get_license_db)
-
     # Import and call the endpoint function directly
     from cutctx.proxy.routes.license import create_license_router
 
-    router = create_license_router()
+    router = create_license_router(get_license_db_factory=mock_get_license_db)
 
     # Get the endpoint function from the router
     checkout_seat_func = None
@@ -67,7 +64,7 @@ async def test_checkout_seat_fails_when_no_seats_available(monkeypatch):
     assert "No seats available" in message
 
 
-async def test_checkout_seat_succeeds_when_seats_available(monkeypatch):
+async def test_checkout_seat_succeeds_when_seats_available():
     """Test that checkout-seat succeeds when seats are available."""
 
     # Mock the license_db to simulate successful checkout
@@ -82,13 +79,10 @@ async def test_checkout_seat_succeeds_when_seats_available(monkeypatch):
     def mock_get_license_db():
         return MockLicenseDB()
 
-    # Patch the import in the license module at its source
-    monkeypatch.setattr("cutctx_ee.billing.license_db.get_license_db", mock_get_license_db)
-
     # Import and call the endpoint function directly
     from cutctx.proxy.routes.license import create_license_router
 
-    router = create_license_router()
+    router = create_license_router(get_license_db_factory=mock_get_license_db)
 
     # Get the endpoint function from the router
     checkout_seat_func = None
@@ -109,7 +103,7 @@ async def test_checkout_seat_succeeds_when_seats_available(monkeypatch):
     assert result == {"status": "seat_leased"}
 
 
-async def test_checkout_seat_rejected_when_license_revoked(monkeypatch):
+async def test_checkout_seat_rejected_when_license_revoked():
     """Test that checkout-seat is rejected when license is revoked."""
 
     class MockLicenseDB:
@@ -123,12 +117,10 @@ async def test_checkout_seat_rejected_when_license_revoked(monkeypatch):
     def mock_get_license_db():
         return MockLicenseDB()
 
-    monkeypatch.setattr("cutctx_ee.billing.license_db.get_license_db", mock_get_license_db)
-
     # Import and call the endpoint function directly
     from cutctx.proxy.routes.license import create_license_router
 
-    router = create_license_router()
+    router = create_license_router(get_license_db_factory=mock_get_license_db)
 
     # Get the endpoint function from the router
     checkout_seat_func = None
@@ -154,7 +146,7 @@ async def test_checkout_seat_rejected_when_license_revoked(monkeypatch):
     assert message == "License revoked"
 
 
-async def test_start_trial_fails_when_trial_token_already_used(monkeypatch):
+async def test_start_trial_fails_when_trial_token_already_used():
     """Test that start-trial rejects duplicate tokens instead of pretending success."""
 
     class MockLicenseDB:
@@ -164,11 +156,9 @@ async def test_start_trial_fails_when_trial_token_already_used(monkeypatch):
     def mock_get_license_db():
         return MockLicenseDB()
 
-    monkeypatch.setattr("cutctx_ee.billing.license_db.get_license_db", mock_get_license_db)
-
     from cutctx.proxy.routes.license import create_license_router
 
-    router = create_license_router()
+    router = create_license_router(get_license_db_factory=mock_get_license_db)
     start_trial_func = None
     for route in router.routes:
         if hasattr(route, "path") and "/start-trial" in route.path:

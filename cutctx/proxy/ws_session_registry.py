@@ -53,6 +53,7 @@ TerminationCause = Literal[
     "client_cancel",
     "response_completed",
     "client_timeout",
+    "capacity_rejected",
     "unknown",
 ]
 
@@ -109,8 +110,11 @@ class WebSocketSessionRegistry:
     :meth:`active_relay_task_count`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, max_sessions: int = 0) -> None:
+        self.max_sessions = max(0, int(max_sessions))
         self._sessions: dict[str, WSSessionHandle] = {}
+        self._reserved: set[str] = set()
+        self._rejected_total = 0
         # Tracked separately from ``sum(len(h.relay_tasks))`` so that
         # repeated snapshotting is O(1) rather than O(N * tasks).
         self._active_relay_tasks = 0
@@ -118,6 +122,25 @@ class WebSocketSessionRegistry:
     # ------------------------------------------------------------------
     # Core lifecycle
     # ------------------------------------------------------------------
+
+    def try_reserve(self, session_id: str) -> bool:
+        """Reserve admission before opening an upstream WebSocket.
+
+        Repeated reservations for the same session are idempotent. A
+        non-positive ``max_sessions`` keeps admission unbounded.
+        """
+        if session_id in self._reserved or session_id in self._sessions:
+            return True
+        if self.max_sessions and len(self._sessions) + len(self._reserved) >= self.max_sessions:
+            self._rejected_total += 1
+            return False
+        self._reserved.add(session_id)
+        return True
+
+    def release(self, session_id: str) -> None:
+        """Release a pending reservation or active session idempotently."""
+        self._reserved.discard(session_id)
+        self._deregister_internal(session_id, "unknown")
 
     def register(self, handle: WSSessionHandle) -> None:
         """Register a session. Idempotent by ``session_id``.
@@ -127,6 +150,7 @@ class WebSocketSessionRegistry:
         invariant that one ``session_id`` corresponds to at most one
         active session at a time.
         """
+        self._reserved.discard(handle.session_id)
         existing = self._sessions.get(handle.session_id)
         if existing is not None:
             # Re-registration: release any tasks we were tracking on the
@@ -208,6 +232,17 @@ class WebSocketSessionRegistry:
 
     def active_count(self) -> int:
         return len(self._sessions)
+
+    def reserved_count(self) -> int:
+        return len(self._reserved)
+
+    def admission_stats(self) -> dict[str, int]:
+        return {
+            "active": len(self._sessions),
+            "reserved": len(self._reserved),
+            "limit": self.max_sessions,
+            "rejected": self._rejected_total,
+        }
 
     def active_relay_task_count(self) -> int:
         return self._active_relay_tasks

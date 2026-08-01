@@ -113,6 +113,25 @@ def test_prometheus_metrics_export_includes_extended_fields() -> None:
     assert "cutctx_cache_bust_tokens_lost_total 11" in exported
 
 
+def test_prometheus_metrics_export_websocket_rejections_and_cache_bytes() -> None:
+    metrics = PrometheusMetrics()
+    metrics.record_ws_session_rejected()
+    metrics.set_compression_cache_stats(
+        active_sessions=2,
+        entries=7,
+        size_bytes=8192,
+        oversize_skips=3,
+    )
+
+    exported = asyncio.run(metrics.export())
+
+    assert "cutctx_ws_sessions_rejected_total 1" in exported
+    assert "cutctx_compression_cache_active_sessions 2" in exported
+    assert "cutctx_compression_cache_entries 7" in exported
+    assert "cutctx_compression_cache_size_bytes 8192" in exported
+    assert "cutctx_compression_cache_oversize_skips 3" in exported
+
+
 def test_streaming_parser_extracts_anthropic_ttl_bucket_usage() -> None:
     from cutctx.proxy.server import CutctxProxy, ProxyConfig
 

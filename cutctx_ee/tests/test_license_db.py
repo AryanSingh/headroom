@@ -3,13 +3,156 @@
 
 from __future__ import annotations
 
+import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 
 import pytest
 
-from cutctx_ee.billing.license_db import LicenseDB
+from cutctx_ee.billing.license_db import LICENSE_DELIVERY_STALE_SECONDS, LicenseDB
+
+
+def _checkout_record(license_key: str, subscription_id: str):
+    now = time.time()
+    return SimpleNamespace(
+        license_key=license_key,
+        tier="team",
+        customer_email="buyer@example.com",
+        seats=3,
+        stripe_customer_id="cus_1",
+        stripe_subscription_id=subscription_id,
+        created_at=now,
+        expires_at=now + 3600,
+        active=True,
+    )
+
+
+def test_fulfill_checkout_replay_returns_existing_license(tmp_path) -> None:
+    db = LicenseDB(tmp_path / "licenses.db")
+
+    first, first_created = db.fulfill_checkout(_checkout_record("license-a", "sub_same"))
+    replay, replay_created = db.fulfill_checkout(_checkout_record("license-b", "sub_same"))
+
+    assert first_created is True
+    assert replay_created is False
+    assert first.license_key == replay.license_key == "license-a"
+    assert db._conn.execute("SELECT count(*) FROM licenses").fetchone()[0] == 1
+
+
+def test_concurrent_checkout_fulfillment_issues_one_license(tmp_path) -> None:
+    db_path = tmp_path / "licenses.db"
+    LicenseDB(db_path).close()
+    barrier = threading.Barrier(2)
+
+    def fulfill(license_key: str):
+        connection = LicenseDB(db_path)
+        try:
+            barrier.wait()
+            return connection.fulfill_checkout(_checkout_record(license_key, "sub_concurrent"))
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(fulfill, ["license-a", "license-b"]))
+
+    returned_keys = {record.license_key for record, _created in results}
+    assert returned_keys in ({"license-a"}, {"license-b"})
+    assert sum(created for _record, created in results) == 1
+
+    verification_db = LicenseDB(db_path)
+    try:
+        rows = verification_db._conn.execute(
+            "SELECT license_key FROM licenses WHERE stripe_subscription_id = ?",
+            ("sub_concurrent",),
+        ).fetchall()
+    finally:
+        verification_db.close()
+    assert len(rows) == 1
+
+
+def test_direct_upsert_rejects_conflicting_subscription_association(tmp_path) -> None:
+    db = LicenseDB(tmp_path / "licenses.db")
+
+    db.upsert(_checkout_record("license-canonical", "sub_direct"))
+    with pytest.raises(sqlite3.IntegrityError):
+        db.upsert(_checkout_record("license-later", "sub_direct"))
+
+    rows = db._conn.execute(
+        "SELECT license_key, stripe_subscription_id FROM licenses ORDER BY license_key"
+    ).fetchall()
+    assert rows == [("license-canonical", "sub_direct")]
+
+
+def test_initialization_detaches_historical_duplicate_subscription_associations(tmp_path) -> None:
+    db_path = tmp_path / "licenses.db"
+    raw = LicenseDB(db_path)
+    raw._conn.execute("DROP INDEX IF EXISTS licenses_stripe_subscription_id_unique")
+    raw._conn.execute(
+        "INSERT INTO licenses VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("legacy-a", "team", "a@example.com", 1, "cus-a", "sub_legacy", 1.0, 10.0, 1),
+    )
+    raw._conn.execute(
+        "INSERT INTO licenses VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("legacy-b", "team", "b@example.com", 1, "cus-b", "sub_legacy", 2.0, 10.0, 1),
+    )
+    raw._conn.execute("PRAGMA user_version = 1")
+    raw._conn.commit()
+    raw.close()
+
+    migrated = LicenseDB(db_path)
+    rows = migrated._conn.execute(
+        "SELECT license_key, stripe_subscription_id FROM licenses ORDER BY license_key"
+    ).fetchall()
+    index = migrated._conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
+        ("licenses_stripe_subscription_id_unique",),
+    ).fetchone()
+
+    assert rows == [("legacy-a", "sub_legacy"), ("legacy-b", None)]
+    assert index is not None
+    assert "WHERE stripe_subscription_id IS NOT NULL" in index[0]
+    assert migrated.deactivate_subscription("sub_legacy") is True
+    assert migrated.validate("legacy-a") == {"valid": False, "reason": "subscription_cancelled"}
+    assert migrated.validate("legacy-b") == {"valid": False, "reason": "revoked"}
+    revocation = migrated._conn.execute(
+        "SELECT reason FROM revocations WHERE license_key = ?", ("legacy-b",)
+    ).fetchone()
+    assert "duplicate subscription" in revocation[0]
+    assert "migration" in revocation[0]
+
+
+def test_stale_delivery_claim_is_fenced_from_the_reclaiming_worker(tmp_path) -> None:
+    db = LicenseDB(tmp_path / "licenses.db")
+    record, created = db.fulfill_checkout(_checkout_record("license-fenced", "sub_fenced"))
+    assert created is True
+
+    claim_a = db.claim_license_delivery(record.license_key)
+    assert claim_a is not None
+    db._conn.execute(
+        "UPDATE license_deliveries SET claimed_at = ? WHERE license_key = ?",
+        (time.time() - LICENSE_DELIVERY_STALE_SECONDS - 1, record.license_key),
+    )
+    db._conn.commit()
+    claim_b = db.claim_license_delivery(record.license_key)
+    assert claim_b is not None
+    assert claim_b != claim_a
+
+    assert db.release_license_delivery(record.license_key, claim_a, RuntimeError("late")) is False
+    assert db.mark_license_delivery_delivered(record.license_key, claim_a) is False
+    owner = db._conn.execute(
+        "SELECT status, claim_token FROM license_deliveries WHERE license_key = ?",
+        (record.license_key,),
+    ).fetchone()
+    assert owner == ("sending", claim_b)
+
+    assert db.mark_license_delivery_delivered(record.license_key, claim_b) is True
+    final = db._conn.execute(
+        "SELECT status, claim_token, claimed_at FROM license_deliveries WHERE license_key = ?",
+        (record.license_key,),
+    ).fetchone()
+    assert final == ("delivered", None, None)
 
 
 def _db_with_one_seat_license(tmp_path) -> LicenseDB:
