@@ -241,6 +241,88 @@ config = MemoryConfig(
 )
 ```
 
+### Graphiti temporal knowledge-graph backend
+
+The optional Graphiti backend stores memory as temporal Graphiti episodes in
+Neo4j while preserving Cutctx's `Memory` API. Install the extra, which pins the
+supported upstream range:
+
+```bash
+pip install "cutctx-ai[graphiti]"  # graphiti-core>=0.21,<0.23
+export NEO4J_URI="bolt://localhost:7687"
+export NEO4J_USER="neo4j"
+export NEO4J_PASSWORD="replace-with-a-secret"
+# Optional: choose a durable SQLite lifecycle ledger explicitly.
+export CUTCTX_GRAPHITI_LEDGER="$HOME/.cutctx/graphiti_ledger.sqlite3"
+```
+
+`OPENAI_API_KEY` is not required for this adapter's Cutctx save, search, or
+cleanup operations. The backend connects to the configured Neo4j service and
+initializes Graphiti indices on first use. Any credentials required by a
+separately configured Graphiti extraction workflow remain that workflow's
+responsibility.
+
+```python
+from cutctx.memory.easy import Memory
+
+memory = Memory(
+    backend="graphiti",
+    graphiti_neo4j_uri="bolt://localhost:7687",
+    graphiti_neo4j_user="neo4j",
+    graphiti_neo4j_password="replace-with-a-secret",
+    graphiti_ledger_path="./graphiti_ledger.sqlite3",
+)
+
+await memory.save("Alice prefers Python", user_id="alice", session_id="onboarding")
+results = await memory.search("language preference", user_id="alice", session_id="onboarding")
+```
+
+#### Scope and privacy contract
+
+Each `(user_id, session_id)` scope is mapped to a deterministic, opaque partition
+(`group_id`) before it reaches Graphiti. Raw user and session IDs are
+not used as the Graphiti group ID. Searches are restricted to that partition;
+do not rely on this backend to query across users or sessions.
+
+The SQLite episode ledger records the ownership, idempotency key digest, and
+lifecycle of each episode. Keep it on durable storage and include it in the
+same backup and access-control plan as the Neo4j data. A retry with the same
+idempotency key must use the same payload. If a provider write succeeds but
+the ledger cannot be activated, the adapter raises `GraphitiWriteRecoveryRequired`;
+retry the original write with its original idempotency key after resolving the
+local ledger problem.
+
+#### Supersession and cleanup
+
+Superseding a fact writes the replacement and records the lifecycle transition
+in the ledger. Graphiti's `previous_episode_uuids` is provenance/extraction
+context, not Cutctx invalidation. A fact remains current while any retained
+supporting episode remains open.
+
+Deletion is deliberately fail-closed. Before removing an episode, Cutctx
+checks that its provenance is known, it belongs to one partition, and no active
+foreign supporter depends on its origin. It marks the record `delete_pending`,
+asks Graphiti to remove the episode, and marks it deleted only after Graphiti
+confirms removal. A failed remote deletion remains `delete_pending` and blocks
+unsafe dependent deletions; retry the same cleanup after investigating the
+underlying Neo4j/Graphiti error. `clear_user()` attempts every independently
+safe owned episode and raises `GraphitiClearError` with confirmed and failed
+counts for a partial cleanup. Call `await memory.close()` during application
+shutdown to close the Graphiti client.
+
+#### Migration and supported versions
+
+The ledger is SQLite, not a portable reconstruction of older JSON ledger
+state. If startup raises `GraphitiLegacyMigrationRequired`, preserve the legacy
+file and create a new ledger after deciding how its historical records map to
+the current user/session scopes; automatic migration is refused because opaque
+partition ownership cannot be reconstructed safely.
+
+This adapter supports Graphiti 0.21 and 0.22 only (`graphiti-core>=0.21,<0.23`).
+Graphiti 0.23+ database-per-scope support is not provided by this adapter.
+Upgrade Graphiti only after Cutctx publishes an adapter version that explicitly
+supports that upstream contract.
+
 ## Provider Compatibility
 
 Memory works with any OpenAI-compatible client:

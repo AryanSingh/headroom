@@ -159,6 +159,19 @@ def test_docs_site_documents_all_bundle_truthfully() -> None:
     assert "memory-stack" in install_text
 
 
+def test_docs_site_documents_graphiti_memory_contract() -> None:
+    text = (_PROJECT_ROOT / "docs/content/docs/memory.mdx").read_text()
+
+    for expected in (
+        "graphiti-core>=0.21,<0.23",
+        "OPENAI_API_KEY",
+        "opaque partition",
+        "delete_pending",
+        "Graphiti 0.23",
+    ):
+        assert expected in text
+
+
 def test_dashboard_docs_page_matches_runtime_configuration_terms() -> None:
     docs_text = (_PROJECT_ROOT / "dashboard/src/pages/Docs.jsx").read_text()
 

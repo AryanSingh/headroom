@@ -392,8 +392,11 @@ class GraphitiBackend:
 
             ledger_path = self._config.ledger_path
             assert ledger_path is not None
+            client = self._client
+            assert client is not None
+
             async def write_and_activate() -> None:
-                await self._client.add_episode(**kwargs)
+                await client.add_episode(**kwargs)
                 if _activate:
                     try:
                         self._ledger.activate(episode_uuid)
