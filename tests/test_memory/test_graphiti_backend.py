@@ -69,19 +69,8 @@ class TestGraphitiImportGuard:
         from cutctx.memory.backends import graphiti as graphiti_mod
 
         with patch.dict("sys.modules", {"graphiti_core": None, "graphiti_core.nodes": None}):
-            with patch(
-                "cutctx.memory.backends.graphiti._import_graphiti",
-                wraps=None,
-            ):
-                # Directly exercise the install-hint path used by the helper.
-                def boom() -> tuple[Any, Any]:
-                    try:
-                        raise ImportError("No module named 'graphiti_core'")
-                    except ImportError as exc:
-                        raise ImportError(graphiti_mod._GRAPHITI_INSTALL_HINT) from exc
-
-                with pytest.raises(ImportError, match="cutctx-ai\\[graphiti\\]"):
-                    boom()
+            with pytest.raises(ImportError, match="cutctx-ai\\[graphiti\\]"):
+                graphiti_mod._import_graphiti()
 
 
 class TestGraphitiSaveMapping:
