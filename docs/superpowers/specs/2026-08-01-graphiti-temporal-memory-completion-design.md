@@ -53,11 +53,13 @@ The ledger records:
 - replacement episode linkage;
 - last remote-deletion error where applicable.
 
-It also owns partition-scoped operation leases. Every Graphiti write and origin
-deletion acquires the relevant partition lease. Leases use an owner token,
-expiry, and heartbeat so they serialize cross-worker provenance changes without
-holding a SQLite transaction across a network call. A worker may recover an
-expired lease, but never an actively renewed one.
+It also owns partition-scoped operation locks. Every Graphiti write and origin
+deletion acquires a cross-process OS file lock for the opaque partition and
+holds it through remote mutation and ledger finalization. The lock has no
+expiry or steal path; the OS releases it if the holder exits. Lock acquisition
+runs off the event loop and times out without performing a mutation. This
+supports multiple workers sharing one local ledger/filesystem. Distributed
+hosts require an externally fenced backend and are outside this adapter.
 
 Schema creation is idempotent. The branch's pre-release JSON ledger does not
 contain session ownership or opaque partition identifiers, so it cannot be
@@ -72,7 +74,7 @@ Normal saves accept an optional idempotency key and first reserve the episode
 UUID, scope, partition, payload digest, and hashed idempotency key as a durable
 `write_pending` record. Calls without a supplied key generate a fresh key, so
 independent identical saves are never coalesced. They then acquire the partition
-lease, write the Graphiti episode, and promote the record to `active`. If
+lock, write the Graphiti episode, and promote the record to `active`. If
 promotion fails after a successful remote write, the pending record remains
 retryable with the same key and UUID and the operation raises a recovery
 exception carrying both. Reusing a key with a different scope or payload is
@@ -108,7 +110,7 @@ Deletion means confirmed remote erasure, not merely local hiding. Graphiti
 episode, so every deletion is preflighted against remote edge provenance.
 
 - A non-origin supporting episode may be deleted directly.
-- Preflight and remote removal run while holding the partition operation lease;
+- Preflight and remote removal run while holding the partition operation lock;
   writes cannot add a supporter to that partition between those steps.
 - An origin episode with active supporters outside the deletion set is refused
   with a safe-deletion error; the adapter never destroys their shared fact.
@@ -188,7 +190,8 @@ regressions include:
 11. public facade session scoping reaches the Graphiti backend;
 12. local and `qdrant-neo4j` behavior and defaults remain unchanged;
 13. pre-release JSON state fails closed with migration guidance;
-14. a two-worker write/delete race is serialized by the partition lease;
+14. a two-worker write/delete race is serialized by the partition lock, and a
+    terminated holder releases it without a stale-resume path;
 15. unknown or pending shared provenance blocks destructive deletion;
 16. independent identical saves do not share an idempotency record, while a
     retry using the recovery key reuses the reserved UUID.
