@@ -35,8 +35,8 @@ function newDraft() {
     role_aliases: ["implementation", "worker"],
     selectors: {},
     task_types: ["implementation"],
-    baseline_model: "anthropic:sonnet",
-    fallback_models: ["openai:gpt-5.4-mini"],
+    baseline_model: "openai:gpt-5.4-mini",
+    fallback_models: [],
     requirements: {
       required_capabilities: ["reasoning", "tool_calling"],
       allowed_providers: [],
@@ -274,6 +274,14 @@ export default function RoutingStudio() {
           {actionError}
         </div>
       ) : null}
+      <ol className="routing-lifecycle" aria-label="Contract lifecycle">
+        {["Draft", "Simulate", "Shadow", "Canary", "Active"].map((stage, index) => (
+          <li key={stage}>
+            <span>{index + 1}</span>
+            <strong>{stage}</strong>
+          </li>
+        ))}
+      </ol>
       <div
         className="routing-workspace-tabs"
         role="tablist"

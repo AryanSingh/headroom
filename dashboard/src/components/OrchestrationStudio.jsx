@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Boxes, KeyRound, Network, RefreshCw, Route, Save, Trash2, Users } from "lucide-react";
 
 import { getAdminAuthHeaders } from "../lib/admin-auth";
@@ -92,8 +92,10 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
   const [harnessManifestAvailable, setHarnessManifestAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState("clean");
   const [removingCredentialId, setRemovingCredentialId] = useState(null);
   const [error, setError] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [newRole, setNewRole] = useState("");
   const [modelSearch, setModelSearch] = useState("");
@@ -105,6 +107,28 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
     base_url: "",
     api_key: "",
   });
+  const tabRefs = useRef([]);
+
+  function selectTab(id, focus = false) {
+    setTab(id);
+    if (focus) {
+      const index = TABS.findIndex(([tabId]) => tabId === id);
+      window.requestAnimationFrame(() => tabRefs.current[index]?.focus());
+    }
+  }
+
+  function onTabKeyDown(event, index) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+      return;
+    }
+    event.preventDefault();
+    const next = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? TABS.length - 1
+        : (index + (event.key === "ArrowRight" ? 1 : -1) + TABS.length) % TABS.length;
+    selectTab(TABS[next][0], true);
+  }
 
   async function load() {
     setLoading(true);
@@ -135,8 +159,12 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       setHarnesses(Array.isArray(nextHarnesses?.harnesses) ? nextHarnesses.harnesses : []);
       setHarnessManifestAvailable(nextHarnesses !== null);
       setError(null);
+      setLoadError(null);
+      setSaveState("clean");
     } catch (err) {
-      setError(err?.message || "Orchestration platform is unavailable");
+      const message = err?.message || "Orchestration platform is unavailable";
+      setError(message);
+      setLoadError(message);
     } finally {
       setLoading(false);
     }
@@ -245,8 +273,14 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
     );
   }
 
+  function editConfig(next) {
+    setConfig(next);
+    setSaveState("dirty");
+    setNotice(null);
+  }
+
   function updateBinding(bindingId, patch) {
-    setConfig((current) => {
+    editConfig((current) => {
       const nextId = typeof patch.id === "string" ? patch.id.trim() : bindingId;
       if (Object.prototype.hasOwnProperty.call(patch, "id")) {
         if (!nextId) {
@@ -268,7 +302,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
   }
 
   function removeBinding(bindingId) {
-    setConfig((current) => ({
+    editConfig((current) => ({
       ...current,
       bindings: current.bindings.filter((binding) => binding.id !== bindingId),
     }));
@@ -285,7 +319,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       setError("Binding " + nextId + " already exists");
       return;
     }
-    setConfig((current) => ({
+    editConfig((current) => ({
       ...current,
       bindings: [
         ...current.bindings,
@@ -305,6 +339,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
 
   async function save(nextConfig = config, message = "Orchestration configuration saved") {
     setSaving(true);
+    setSaveState("saving");
     setError(null);
     try {
       const stored = await orchestrationApi("/config", {
@@ -312,6 +347,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
         body: JSON.stringify(nextConfig),
       });
       setConfig(stored);
+      setSaveState("saved");
       if (message) {
         setNotice(message);
         window.setTimeout(() => setNotice(null), 3000);
@@ -319,6 +355,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       return stored;
     } catch (err) {
       setError(err?.message || "Unable to save orchestration configuration");
+      setSaveState("failed");
       return null;
     } finally {
       setSaving(false);
@@ -343,7 +380,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
             enabled: true,
           },
         ];
-    setConfig({ ...config, bindings: nextBindings });
+    editConfig({ ...config, bindings: nextBindings });
   }
 
   function addRole() {
@@ -359,7 +396,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       setError(`Role ${name} already exists`);
       return;
     }
-    setConfig({
+    editConfig({
       ...config,
       roles: [
         ...config.roles,
@@ -403,10 +440,9 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
           body: JSON.stringify({ api_key: newProvider.api_key }),
         });
       } catch (err) {
-        setError(
-          `Account was added, but its credential was not stored: ${err?.message || "unknown error"}`,
-        );
+        const message = `Account was added, but its credential was not stored: ${err?.message || "unknown error"}`;
         await load();
+        setError(message);
         return;
       }
     }
@@ -473,12 +509,12 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
     return <section className="panel orchestration-studio">Loading orchestration platform…</section>;
   }
 
-  if (error && !config.roles.length && !providers.catalog.length) {
+  if (loadError) {
     return (
       <section className="panel orchestration-studio">
         <div className="eyebrow">Orchestration platform</div>
         <h2>Configuration API unavailable</h2>
-        <p className="text-secondary">{error}</p>
+        <p className="text-secondary">{loadError}</p>
       </section>
     );
   }
@@ -496,17 +532,29 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
         </button>
       </div>
 
+      <div className={`orchestration-save-state is-${saveState}`} role="status">
+        {saveState === "dirty" ? "Unsaved changes" : null}
+        {saveState === "saving" ? "Saving changes" : null}
+        {saveState === "saved" ? "Changes saved" : null}
+        {saveState === "failed" ? "Save failed · changes remain unsaved" : null}
+      </div>
+
       {error ? <div className="alert-card" role="alert">{error}</div> : null}
       {notice ? <div className="orchestration-notice" role="status">{notice}</div> : null}
 
       <div className="orchestration-tabs" role="tablist" aria-label="Orchestration configuration">
-        {TABS.map(([id, label, Icon]) => (
+        {TABS.map(([id, label, Icon], index) => (
           <button
+            aria-controls={`orchestration-panel-${id}`}
             key={id}
             className={tab === id ? "active" : ""}
-            onClick={() => setTab(id)}
+            id={`orchestration-tab-${id}`}
+            onClick={() => selectTab(id)}
+            onKeyDown={(event) => onTabKeyDown(event, index)}
+            ref={(node) => { tabRefs.current[index] = node; }}
             role="tab"
             aria-selected={tab === id}
+            tabIndex={tab === id ? 0 : -1}
             type="button"
           >
             <Icon size={15} /> {label}
@@ -515,7 +563,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       </div>
 
       {tab === "providers" ? (
-        <div className="orchestration-pane">
+        <div aria-labelledby="orchestration-tab-providers" className="orchestration-pane" id="orchestration-panel-providers" role="tabpanel">
           <div className="orchestration-card-grid">
             {filteredAccounts.length ? (
               filteredAccounts.map((account) => (
@@ -570,7 +618,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       ) : null}
 
       {tab === "models" ? (
-        <div className="orchestration-pane">
+        <div aria-labelledby="orchestration-tab-models" className="orchestration-pane" id="orchestration-panel-models" role="tabpanel">
           <input aria-label="Search models or capabilities" className="orchestration-search" placeholder="Search models or capabilities" value={modelSearch} onChange={(event) => setModelSearch(event.target.value)} />
           <div className="orchestration-model-list">
             {filteredModels.slice(0, 100).map((model) => (
@@ -593,7 +641,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       ) : null}
 
       {tab === "harnesses" ? (
-        <div className="orchestration-pane">
+        <div aria-labelledby="orchestration-tab-harnesses" className="orchestration-pane" id="orchestration-panel-harnesses" role="tabpanel">
           <div className="section-heading">
             <div>
               <h3>Harness compatibility</h3>
@@ -622,7 +670,7 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       ) : null}
 
       {tab === "roles" ? (
-        <div className="orchestration-pane">
+        <div aria-labelledby="orchestration-tab-roles" className="orchestration-pane" id="orchestration-panel-roles" role="tabpanel">
           <div className="orchestration-role-list">
             {filteredRoles.length === 0 ? (
               <div className="orchestration-empty-state">
@@ -687,12 +735,12 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       ) : null}
 
       {tab === "routing" ? (
-        <div className="orchestration-pane routing-settings-grid">
-          <label><span>Enforcement mode</span><select value={config.settings.mode} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, mode: event.target.value } })}><option value="strict">Strict — refuse unavailable assignments</option><option value="relaxed">Relaxed — use configured fallbacks</option></select></label>
-          <label><span>Routing policy</span><select value={config.settings.policy} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, policy: event.target.value } })}><option value="role_locked">Role locked</option><option value="manual">Manual</option><option value="fastest">Fastest</option><option value="cheapest">Cheapest</option><option value="highest_quality">Highest quality</option><option value="balanced">Balanced</option></select></label>
-          <label><span>Retries per model</span><input type="number" min="0" max="10" value={config.settings.retries} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, retries: Number(event.target.value) } })} /></label>
-          <label><span>Timeout (seconds)</span><input type="number" min="1" value={config.settings.timeout_seconds} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, timeout_seconds: Number(event.target.value) } })} /></label>
-          <label><span>Deployment cooldown (seconds)</span><input type="number" min="1" max="3600" value={config.settings.deployment_cooldown_seconds ?? 30} onChange={(event) => setConfig({ ...config, settings: { ...config.settings, deployment_cooldown_seconds: Number(event.target.value) } })} /></label>
+        <div aria-labelledby="orchestration-tab-routing" className="orchestration-pane routing-settings-grid" id="orchestration-panel-routing" role="tabpanel">
+          <label><span>Enforcement mode</span><select value={config.settings.mode} onChange={(event) => editConfig({ ...config, settings: { ...config.settings, mode: event.target.value } })}><option value="strict">Strict — refuse unavailable assignments</option><option value="relaxed">Relaxed — use configured fallbacks</option></select></label>
+          <label><span>Routing policy</span><select value={config.settings.policy} onChange={(event) => editConfig({ ...config, settings: { ...config.settings, policy: event.target.value } })}><option value="role_locked">Role locked</option><option value="manual">Manual</option><option value="fastest">Fastest</option><option value="cheapest">Cheapest</option><option value="highest_quality">Highest quality</option><option value="balanced">Balanced</option></select></label>
+          <label><span>Retries per model</span><input type="number" min="0" max="10" value={config.settings.retries} onChange={(event) => editConfig({ ...config, settings: { ...config.settings, retries: Number(event.target.value) } })} /></label>
+          <label><span>Timeout (seconds)</span><input type="number" min="1" value={config.settings.timeout_seconds} onChange={(event) => editConfig({ ...config, settings: { ...config.settings, timeout_seconds: Number(event.target.value) } })} /></label>
+          <label><span>Deployment cooldown (seconds)</span><input type="number" min="1" max="3600" value={config.settings.deployment_cooldown_seconds ?? 30} onChange={(event) => editConfig({ ...config, settings: { ...config.settings, deployment_cooldown_seconds: Number(event.target.value) } })} /></label>
           <div className="route-preview">
             <h3>Deterministic route preview</h3>
             <div className="orchestration-inline-form">
@@ -762,9 +810,12 @@ export default function OrchestrationStudio({ searchQuery = "" }) {
       ) : null}
 
       {tab === "activity" ? (
-        <div className="orchestration-pane orchestration-table-wrap">
-          <table className="orchestration-table"><thead><tr><th>Role</th><th>Assigned</th><th>Actual</th><th>Latency</th><th>Fallback</th><th>Result</th></tr></thead><tbody>{filteredExecutions.map((item) => <tr key={`${item.request_id}-${item.started_at}`}><td>{item.requested_role || "Manual"}</td><td>{item.assigned_model || "—"}</td><td>{item.provider}:{item.actual_model}</td><td>{Math.round(item.latency_ms || 0)} ms</td><td>{item.fallback_used ? item.fallback_trigger : "No"}</td><td>{item.error || "Success"}</td></tr>)}</tbody></table>
-          {!executions.length ? <p className="text-secondary">No orchestrated executions recorded yet.</p> : null}
+        <div aria-labelledby="orchestration-tab-activity" className="orchestration-pane" id="orchestration-panel-activity" role="tabpanel">
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard users must be able to scroll the table region */}
+          <div aria-label="Orchestration activity table" className="orchestration-table-wrap" role="region" tabIndex="0">
+            <table className="orchestration-table"><thead><tr><th>Role</th><th>Assigned</th><th>Actual</th><th>Latency</th><th>Fallback</th><th>Result</th></tr></thead><tbody>{filteredExecutions.map((item) => <tr key={`${item.request_id}-${item.started_at}`}><td>{item.requested_role || "Manual"}</td><td>{item.assigned_model || "—"}</td><td>{item.provider}:{item.actual_model}</td><td>{Math.round(item.latency_ms || 0)} ms</td><td>{item.fallback_used ? item.fallback_trigger : "No"}</td><td>{item.error || "Success"}</td></tr>)}</tbody></table>
+            {!executions.length ? <p className="text-secondary">No orchestrated executions recorded yet.</p> : null}
+          </div>
         </div>
       ) : null}
     </section>

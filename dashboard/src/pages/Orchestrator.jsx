@@ -11,8 +11,11 @@ import {
   useDashboardData,
 } from "../lib/use-dashboard-data";
 import OrchestrationStudio from "../components/OrchestrationStudio";
+import OrchestratorOperate from "../components/OrchestratorOperate";
+import OrchestratorWorkspaceTabs from "../components/OrchestratorWorkspaceTabs";
 import RoutingStudio from "../components/routing-studio/RoutingStudio";
 import SafeSavingsPanel from "../components/SafeSavingsPanel";
+import { getOrchestratorRecommendation } from "../lib/orchestrator-recommendation";
 
 const ROUTING_MODES = [
   {
@@ -118,6 +121,8 @@ export default function Orchestrator({ searchQuery = "" }) {
   const [safeSavingsLoading, setSafeSavingsLoading] = useState(true);
   const [safeSavingsDisabling, setSafeSavingsDisabling] = useState(false);
   const [safeSavingsDisableError, setSafeSavingsDisableError] = useState(null);
+  const [workspace, setWorkspace] = useState("operate");
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -406,6 +411,13 @@ export default function Orchestrator({ searchQuery = "" }) {
       : activeMode === "auto" || activeMode === "balanced"
         ? "Auto (codex-gpt54mini-high) works like Cursor Auto: send model=auto to pick fast/mid/strong from complexity, or keep a strong default and let clear low-risk turns use a cheaper certified model."
         : "Off disables routing while preserving locked role assignments.";
+  const recommendation = getOrchestratorRecommendation({
+    configAvailable: canToggle,
+    roleCount: Number(modelRouting.configured_routes || 0),
+    mode: activeMode,
+    evidenceStatus,
+    providers: providerStatus,
+  });
 
   useEffect(() => {
     if (
@@ -518,14 +530,18 @@ export default function Orchestrator({ searchQuery = "" }) {
         </div>
       ) : null}
 
-      <SafeSavingsPanel
-        status={safeSavingsStatus}
-        loading={safeSavingsLoading}
-        error={safeSavingsError}
-        disabling={safeSavingsDisabling}
-        disableError={safeSavingsDisableError}
-        onDisable={handleSafeSavingsDisable}
-      />
+      <OrchestratorWorkspaceTabs value={workspace} onChange={setWorkspace} />
+
+      <section
+        aria-label="Operate"
+        aria-labelledby="orchestrator-workspace-tab-operate"
+        className="orchestrator-workspace-panel"
+        hidden={workspace !== "operate"}
+        id="orchestrator-workspace-operate"
+        role="tabpanel"
+      >
+
+      <OrchestratorOperate recommendation={recommendation} onNavigate={setWorkspace} />
 
       <section className="panel orchestrator-mode-panel">
         <div className="section-heading">
@@ -693,6 +709,30 @@ export default function Orchestrator({ searchQuery = "" }) {
           ) : null}
       </section>
 
+      <section className="orchestrator-diagnostics">
+        <button
+          aria-controls="orchestrator-diagnostics-content"
+          aria-expanded={diagnosticsOpen}
+          className="orchestrator-diagnostics-trigger"
+          onClick={() => setDiagnosticsOpen((current) => !current)}
+          type="button"
+        >
+          Diagnostics and compatibility
+        </button>
+        <div
+          className="orchestrator-diagnostics-content"
+          hidden={!diagnosticsOpen}
+          id="orchestrator-diagnostics-content"
+        >
+      <SafeSavingsPanel
+        status={safeSavingsStatus}
+        loading={safeSavingsLoading}
+        error={safeSavingsError}
+        disabling={safeSavingsDisabling}
+        disableError={safeSavingsDisableError}
+        onDisable={handleSafeSavingsDisable}
+      />
+
       <section className="panel">
           <div className="section-heading">
             <div>
@@ -850,8 +890,31 @@ export default function Orchestrator({ searchQuery = "" }) {
           ) : null}
       </section>
 
-      <RoutingStudio />
-      <OrchestrationStudio searchQuery={normalizedQuery} />
+        </div>
+      </section>
+
+      </section>
+
+      <section
+        aria-label="Contracts"
+        aria-labelledby="orchestrator-workspace-tab-contracts"
+        className="orchestrator-workspace-panel"
+        hidden={workspace !== "contracts"}
+        id="orchestrator-workspace-contracts"
+        role="tabpanel"
+      >
+        <RoutingStudio />
+      </section>
+      <section
+        aria-label="Configuration"
+        aria-labelledby="orchestrator-workspace-tab-configuration"
+        className="orchestrator-workspace-panel"
+        hidden={workspace !== "configuration"}
+        id="orchestrator-workspace-configuration"
+        role="tabpanel"
+      >
+        <OrchestrationStudio searchQuery={normalizedQuery} />
+      </section>
     </div>
   );
 }

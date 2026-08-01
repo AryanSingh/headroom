@@ -19,13 +19,13 @@ function csvToList(value) {
 function selectorsToText(selectors) {
   return Object.entries(selectors || {})
     .map(([key, value]) => key + "=" + value)
-    .join("\\n");
+    .join("\n");
 }
 
 function textToSelectors(text) {
   const selectors = {};
   String(text || "")
-    .split("\\n")
+    .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
     .forEach((line) => {
