@@ -90,7 +90,16 @@ class Memory:
             to the ``CUTCTX_QDRANT_PORT`` env var or ``6333``.
         qdrant_api_key: API key for hosted Qdrant. Defaults to
             ``CUTCTX_QDRANT_API_KEY`` if unset.
-        neo4j_uri: Neo4j URI (for ``qdrant-neo4j`` or ``graphiti`` backends).
+        neo4j_uri: Neo4j URI for the ``qdrant-neo4j`` backend only.
+        neo4j_user: Neo4j username for the ``qdrant-neo4j`` backend only.
+        neo4j_password: Neo4j password for the ``qdrant-neo4j`` backend only.
+        graphiti_neo4j_uri: Graphiti Neo4j URI; overrides ``NEO4J_URI`` only
+            when ``backend="graphiti"``.
+        graphiti_neo4j_user: Graphiti Neo4j username; overrides ``NEO4J_USER``
+            only when ``backend="graphiti"``.
+        graphiti_neo4j_password: Graphiti Neo4j password; overrides
+            ``NEO4J_PASSWORD`` only when ``backend="graphiti"``.
+        graphiti_ledger_path: Optional Graphiti episode-ledger path.
 
     Examples:
         # Simplest usage - no config needed

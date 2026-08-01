@@ -400,17 +400,18 @@ class TestEasyApiClassifier:
 
         async def create_with_stubbed_indexes(config: MemoryConfig) -> HierarchicalMemory:
             # Real LocalBackend owns the facade path; only heavy indexes are stubbed.
-            system = _make_hm(tmp_path / "memory.db", **{
-                "contradiction_detection": config.contradiction_detection,
-                "contradiction_classifier": config.contradiction_classifier,
-                "contradiction_classifier_callable": config.contradiction_classifier_callable,
-            })
+            system = _make_hm(
+                tmp_path / "memory.db",
+                **{
+                    "contradiction_detection": config.contradiction_detection,
+                    "contradiction_classifier": config.contradiction_classifier,
+                    "contradiction_classifier_callable": config.contradiction_classifier_callable,
+                },
+            )
             created_systems.append(system)
             return system
 
-        monkeypatch.setattr(
-            HierarchicalMemory, "create", staticmethod(create_with_stubbed_indexes)
-        )
+        monkeypatch.setattr(HierarchicalMemory, "create", staticmethod(create_with_stubbed_indexes))
         memory = EasyMemory(
             db_path=tmp_path / "memory.db",
             contradiction_detection=True,
@@ -456,6 +457,25 @@ class TestEasyApiClassifier:
         assert memory._neo4j_user == "neo4j"
         assert memory._neo4j_password
         assert EasyMemory().backend_type == "local"
+
+    def test_qdrant_explicit_neo4j_options_override_conflicting_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from cutctx.memory.easy import Memory as EasyMemory
+
+        monkeypatch.setenv("NEO4J_URI", "bolt://environment:7687")
+        monkeypatch.setenv("NEO4J_USER", "environment-user")
+        monkeypatch.setenv("NEO4J_PASSWORD", "environment-password")
+        memory = EasyMemory(
+            backend="qdrant-neo4j",
+            neo4j_uri="neo4j://explicit:7687",
+            neo4j_user="explicit-user",
+            neo4j_password="explicit-password",
+        )
+
+        assert memory._neo4j_uri == "neo4j://explicit:7687"
+        assert memory._neo4j_user == "explicit-user"
+        assert memory._neo4j_password == "explicit-password"
 
     @pytest.mark.asyncio
     async def test_graphiti_options_override_environment_without_using_qdrant_options(
