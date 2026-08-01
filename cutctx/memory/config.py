@@ -14,8 +14,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from cutctx.models.config import ML_MODEL_DEFAULTS
+
+if TYPE_CHECKING:
+    from cutctx.memory.contradiction import ContradictionClassifier
 
 
 class StoreBackend(Enum):
@@ -132,8 +136,28 @@ class MemoryConfig:
     auto_bubble: bool = True
     bubble_threshold: float = 0.7  # Minimum importance for bubbling
 
+    # Contradiction detection (opt-in). When True, HierarchicalMemory.add
+    # supersedes active memories that contradict or refine the new fact.
+    contradiction_detection: bool = False
+    # "deterministic" (default) or "llm" (requires set_contradiction_classifier).
+    contradiction_classifier: str = "deterministic"
+    contradiction_classifier_callable: ContradictionClassifier | None = None
+
     def __post_init__(self) -> None:
         """Validate configuration after initialization."""
+        if self.contradiction_classifier not in {"deterministic", "llm"}:
+            raise ValueError("contradiction_classifier must be 'deterministic' or 'llm'")
+        if self.contradiction_classifier_callable is not None and not callable(
+            self.contradiction_classifier_callable
+        ):
+            raise ValueError("contradiction_classifier_callable must be callable")
+        if (
+            self.contradiction_classifier == "llm"
+            and self.contradiction_classifier_callable is None
+        ):
+            raise ValueError(
+                "contradiction_classifier='llm' requires contradiction_classifier_callable"
+            )
         if self.vector_dimension < 1:
             raise ValueError(f"vector_dimension must be positive, got {self.vector_dimension}")
 

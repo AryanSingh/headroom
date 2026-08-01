@@ -26,9 +26,14 @@ Usage:
     # For production (requires Docker: docker compose up -d qdrant neo4j)
     memory = Memory(backend="qdrant-neo4j")
 
+    # Temporal knowledge graph via Graphiti OSS (Neo4j + graphiti-core)
+    memory = Memory(backend="graphiti")
+
 Backends:
     - "local" (default): SQLite + HNSW + InMemoryGraph. No setup required.
     - "qdrant-neo4j": Qdrant + Neo4j. Requires Docker services.
+    - "graphiti": Graphiti temporal KG. Requires ``pip install 'cutctx-ai[graphiti]'``
+      and Neo4j (``NEO4J_URI`` / ``NEO4J_USER`` / ``NEO4J_PASSWORD``).
 """
 
 from __future__ import annotations
@@ -38,6 +43,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from cutctx.memory.contradiction import ContradictionClassifier
     from cutctx.memory.ports import MemorySearchResult
 
 
@@ -71,6 +77,7 @@ class Memory:
         backend: Which backend to use:
             - "local" (default): Embedded SQLite + HNSW. No Docker needed.
             - "qdrant-neo4j": External Qdrant + Neo4j. Requires Docker.
+            - "graphiti": Graphiti temporal knowledge graph (Neo4j + graphiti-core).
         db_path: Path for local database (only for "local" backend).
             Defaults to ~/.cutctx/memory.db
         qdrant_url: Full Qdrant URL (only for "qdrant-neo4j" backend). When set,
@@ -83,7 +90,7 @@ class Memory:
             to the ``CUTCTX_QDRANT_PORT`` env var or ``6333``.
         qdrant_api_key: API key for hosted Qdrant. Defaults to
             ``CUTCTX_QDRANT_API_KEY`` if unset.
-        neo4j_uri: Neo4j URI (only for "qdrant-neo4j" backend).
+        neo4j_uri: Neo4j URI (for ``qdrant-neo4j`` or ``graphiti`` backends).
 
     Examples:
         # Simplest usage - no config needed
@@ -116,8 +123,35 @@ class Memory:
         neo4j_uri: str = "neo4j://localhost:7687",
         neo4j_user: str = "neo4j",
         neo4j_password: str = "",
+        contradiction_detection: bool = False,
+        contradiction_classifier: str = "deterministic",
+        graphiti_neo4j_uri: str | None = None,
+        graphiti_neo4j_user: str | None = None,
+        graphiti_neo4j_password: str | None = None,
+        graphiti_ledger_path: str | Path | None = None,
+        contradiction_classifier_callable: ContradictionClassifier | None = None,
     ) -> None:
         from cutctx.memory import qdrant_env
+
+        if contradiction_classifier not in {"deterministic", "llm"}:
+            raise ValueError("contradiction_classifier must be 'deterministic' or 'llm'")
+        if contradiction_classifier_callable is not None and not callable(
+            contradiction_classifier_callable
+        ):
+            raise ValueError("contradiction_classifier_callable must be callable")
+        if contradiction_classifier == "llm" and contradiction_classifier_callable is None:
+            raise ValueError(
+                "contradiction_classifier='llm' requires contradiction_classifier_callable"
+            )
+        if backend == "graphiti" and (
+            contradiction_detection
+            or contradiction_classifier != "deterministic"
+            or contradiction_classifier_callable is not None
+        ):
+            raise ValueError(
+                "Contradiction options are local-backend-only; use Graphiti's temporal "
+                "extraction for graphiti memory."
+            )
 
         self._backend_type = backend
         self._backend: Any = None
@@ -146,16 +180,28 @@ class Memory:
         import logging as _logging
         import secrets as _secrets
 
+        # These are qdrant-neo4j options.  Their long-standing defaults must
+        # not be affected by Graphiti's NEO4J_* environment variables.
         self._neo4j_uri = neo4j_uri
         self._neo4j_user = neo4j_user
-        if not neo4j_password or neo4j_password == "password":
+        if neo4j_password:
+            self._neo4j_password = neo4j_password
+        elif backend == "qdrant-neo4j":
             self._neo4j_password = _secrets.token_urlsafe(16)
             _logging.getLogger(__name__).warning(
                 "No Neo4j password configured — using auto-generated password. "
                 "Set neo4j_password explicitly in config for reproducible setups."
             )
         else:
-            self._neo4j_password = neo4j_password
+            self._neo4j_password = ""
+
+        self._contradiction_detection = contradiction_detection
+        self._contradiction_classifier = contradiction_classifier
+        self._contradiction_classifier_callable = contradiction_classifier_callable
+        self._graphiti_neo4j_uri = graphiti_neo4j_uri
+        self._graphiti_neo4j_user = graphiti_neo4j_user
+        self._graphiti_neo4j_password = graphiti_neo4j_password
+        self._graphiti_ledger_path = graphiti_ledger_path
 
     async def _ensure_initialized(self) -> None:
         """Initialize the backend on first use."""
@@ -165,7 +211,12 @@ class Memory:
         if self._backend_type == "local":
             from cutctx.memory.backends.local import LocalBackend, LocalBackendConfig
 
-            config = LocalBackendConfig(db_path=str(self._db_path))
+            config = LocalBackendConfig(
+                db_path=str(self._db_path),
+                contradiction_detection=self._contradiction_detection,
+                contradiction_classifier=self._contradiction_classifier,
+                contradiction_classifier_callable=self._contradiction_classifier_callable,
+            )
             self._backend = LocalBackend(config)
 
         elif self._backend_type == "qdrant-neo4j":
@@ -196,7 +247,18 @@ class Memory:
         elif self._backend_type == "graphiti":
             from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiConfig
 
-            self._backend = GraphitiBackend(GraphitiConfig.from_env())
+            graphiti_overrides: dict[str, Any] = {}
+            if self._graphiti_neo4j_uri is not None:
+                graphiti_overrides["neo4j_uri"] = self._graphiti_neo4j_uri
+            if self._graphiti_neo4j_user is not None:
+                graphiti_overrides["neo4j_user"] = self._graphiti_neo4j_user
+            if self._graphiti_neo4j_password is not None:
+                graphiti_overrides["neo4j_password"] = self._graphiti_neo4j_password
+            if self._graphiti_ledger_path is not None:
+                graphiti_overrides["ledger_path"] = self._graphiti_ledger_path
+            graphiti_config = GraphitiConfig.from_env(**graphiti_overrides)
+            self._backend = GraphitiBackend(graphiti_config)
+
         else:
             raise ValueError(f"Unknown backend: {self._backend_type}")
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import inspect
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from cutctx.memory.config import MemoryConfig
@@ -19,6 +19,7 @@ from cutctx.memory.models import Memory, ScopeLevel
 from cutctx.memory.ports import MemoryFilter, TextFilter, VectorFilter
 
 if TYPE_CHECKING:
+    from cutctx.memory.contradiction import ContradictionClassifier
     from cutctx.memory.ports import (
         Embedder,
         MemoryCache,
@@ -99,6 +100,90 @@ class HierarchicalMemory:
         self._embedder = embedder
         self._cache = cache
         self._config = config or MemoryConfig()
+        self._contradiction_classifier = self._config.contradiction_classifier_callable
+
+    def set_contradiction_classifier(self, classifier: ContradictionClassifier) -> None:
+        """Inject a callable ``(old, new, shared_entities) -> ContradictionVerdict``."""
+        if not callable(classifier):
+            raise ValueError("contradiction classifier must be callable")
+        self._contradiction_classifier = classifier
+
+    def _resolve_contradiction_classifier(self) -> Any:
+        from cutctx.memory.contradiction import classify_pair
+
+        if self._contradiction_classifier is not None:
+            return self._contradiction_classifier
+        return classify_pair
+
+    async def _apply_contradiction_gate(self, memory: Memory) -> bool:
+        """Supersede the first contradicting/refining active memory if any.
+
+        Returns True when ``memory`` was saved via ``store.supersede``.
+        """
+        from cutctx.memory.contradiction import (
+            ContradictionVerdict,
+            find_contradiction_candidates,
+            shared_entity_names,
+        )
+
+        existing = await self._store.query(
+            MemoryFilter(user_id=memory.user_id, include_superseded=False)
+        )
+        candidates = find_contradiction_candidates(memory, existing)
+        if not candidates:
+            return False
+
+        classifier = self._resolve_contradiction_classifier()
+        matched: list[Memory] = []
+        for old in candidates:
+            shared = shared_entity_names(old, memory)
+            verdict = classifier(old.content, memory.content, shared)
+            if verdict in (
+                ContradictionVerdict.CONTRADICT,
+                ContradictionVerdict.REFINE,
+            ):
+                matched.append(old)
+
+        if not matched:
+            return False
+
+        # Close all conflicting currents; lineage points at the first match.
+        when = datetime.now(timezone.utc)
+        saved = await self._store.supersede(matched[0].id, memory, when)
+        if saved is not memory:
+            memory.supersedes = saved.supersedes
+            memory.valid_from = saved.valid_from
+            memory.metadata = saved.metadata
+            memory.id = saved.id
+        if self._cache is not None:
+            await self._cache.invalidate(matched[0].id)
+
+        for old in matched[1:]:
+            existing_old = await self._store.get(old.id)
+            if existing_old is None or not existing_old.is_current:
+                continue
+            # Align with SQLite store's naive-UTC convention when present.
+            stamp = saved.valid_from or when
+            if getattr(stamp, "tzinfo", None) is not None:
+                try:
+                    # Prefer naive UTC for sqlite adapters that strip tzinfo.
+                    stamp_naive = stamp.astimezone(timezone.utc).replace(tzinfo=None)
+                except Exception:
+                    stamp_naive = stamp
+            else:
+                stamp_naive = stamp
+            existing_old.valid_until = stamp_naive
+            existing_old.superseded_by = memory.id
+            await self._store.save(existing_old)
+            if self._cache is not None:
+                await self._cache.invalidate(old.id)
+
+        logger.debug(
+            "Contradiction gate superseded %s memor(y/ies) with %s",
+            len(matched),
+            memory.id,
+        )
+        return True
 
     @classmethod
     async def create(cls, config: MemoryConfig | None = None) -> HierarchicalMemory:
@@ -188,8 +273,14 @@ class HierarchicalMemory:
             embedding = await self._embedder.embed(content)
             memory.embedding = embedding
 
-        # Save to store
-        await self._store.save(memory)
+        # Opt-in contradiction gate: supersede conflicting current memories.
+        used_supersede = False
+        if self._config.contradiction_detection:
+            used_supersede = await self._apply_contradiction_gate(memory)
+
+        if not used_supersede:
+            # Save to store
+            await self._store.save(memory)
 
         # Index for vector search
         if memory.embedding is not None:
@@ -248,6 +339,27 @@ class HierarchicalMemory:
                 metadata=data.get("metadata", {}),
             )
             memories.append(memory)
+
+        # When contradiction detection is on, route through add() so the gate
+        # runs per item (batch save would silently accumulate conflicts).
+        if self._config.contradiction_detection:
+            created: list[Memory] = []
+            for mem in memories:
+                created.append(
+                    await self.add(
+                        content=mem.content,
+                        user_id=mem.user_id,
+                        session_id=mem.session_id,
+                        agent_id=mem.agent_id,
+                        turn_id=mem.turn_id,
+                        importance=mem.importance,
+                        entity_refs=mem.entity_refs,
+                        metadata=mem.metadata,
+                        auto_embed=auto_embed,
+                        auto_bubble=False,
+                    )
+                )
+            return created
 
         # Batch embed
         if auto_embed:

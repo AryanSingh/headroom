@@ -27,6 +27,7 @@ from cutctx.models.config import ML_MODEL_DEFAULTS
 if TYPE_CHECKING:
     from cutctx.memory.adapters.graph import InMemoryGraphStore
     from cutctx.memory.adapters.sqlite_graph import SQLiteGraphStore
+    from cutctx.memory.contradiction import ContradictionClassifier
     from cutctx.memory.core import HierarchicalMemory
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,10 @@ class LocalBackendConfig:
     graph_cache_size_kb: int = 8192  # 8MB default
     cache_enabled: bool = True
     cache_max_size: int = 1000
+    # Opt-in contradiction detection → supersede on LocalBackend saves.
+    contradiction_detection: bool = False
+    contradiction_classifier: str = "deterministic"
+    contradiction_classifier_callable: ContradictionClassifier | None = None
 
 
 class LocalBackend:
@@ -148,6 +153,9 @@ class LocalBackend:
                 ollama_base_url=self._config.ollama_base_url,
                 cache_enabled=self._config.cache_enabled,
                 cache_max_size=self._config.cache_max_size,
+                contradiction_detection=self._config.contradiction_detection,
+                contradiction_classifier=self._config.contradiction_classifier,
+                contradiction_classifier_callable=self._config.contradiction_classifier_callable,
             )
 
             self._hierarchical_memory = await HierarchicalMemory.create(mem_config)
