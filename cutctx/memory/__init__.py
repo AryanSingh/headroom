@@ -74,6 +74,7 @@ from cutctx.memory.config import (
     TextBackend,
     VectorBackend,
 )
+from cutctx.memory.contradiction import ContradictionClassifier, ContradictionVerdict
 
 # =============================================================================
 # Core orchestrator
@@ -154,11 +155,14 @@ _Mem0Backend = None
 _Mem0Config = None
 _DirectMem0Adapter = None
 _DirectMem0Config = None
+_GraphitiBackend = None
+_GraphitiConfig = None
 
 
 def __getattr__(name: str) -> type:
     """Lazy import for optional backend components."""
     global _Mem0Backend, _Mem0Config, _DirectMem0Adapter, _DirectMem0Config
+    global _GraphitiBackend, _GraphitiConfig
 
     if name == "Mem0Backend":
         if _Mem0Backend is None:
@@ -187,6 +191,20 @@ def __getattr__(name: str) -> type:
 
             _DirectMem0Config = DirectMem0Config
         return _DirectMem0Config
+
+    if name == "GraphitiBackend":
+        if _GraphitiBackend is None:
+            from cutctx.memory.backends.graphiti import GraphitiBackend
+
+            _GraphitiBackend = GraphitiBackend
+        return _GraphitiBackend
+
+    if name == "GraphitiConfig":
+        if _GraphitiConfig is None:
+            from cutctx.memory.backends.graphiti import GraphitiConfig
+
+            _GraphitiConfig = GraphitiConfig
+        return _GraphitiConfig
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
@@ -247,6 +265,8 @@ __all__ = [
     "MemoryConfig",
     "StoreBackend",
     "VectorBackend",
+    "ContradictionClassifier",
+    "ContradictionVerdict",
     "TextBackend",
     "EmbedderBackend",
     # =========================================================================
@@ -282,6 +302,9 @@ __all__ = [
     # Use with optimized=True in with_memory_tools() for best performance
     "DirectMem0Adapter",
     "DirectMem0Config",
+    # Graphiti OSS temporal KG backend (optional - lazy loaded)
+    "GraphitiBackend",
+    "GraphitiConfig",
     # =========================================================================
     # Memory Bridge (markdown <-> Cutctx bidirectional sync)
     # =========================================================================
