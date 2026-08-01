@@ -240,6 +240,42 @@ class TestGraphitiSearchMapping:
         )
 
     @pytest.mark.asyncio
+    async def test_historical_search_selects_old_parent_from_mixed_current_edge(
+        self, ledger_path: Path
+    ) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend
+
+        client = _mock_client()
+        client.search = AsyncMock(
+            return_value=[SimpleNamespace(uuid="edge", fact="fact", episodes=["old", "new"])]
+        )
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(
+            Memory(
+                id="old",
+                content="old",
+                user_id="alice",
+                valid_from=datetime(2020, 1, 1, tzinfo=timezone.utc),
+            )
+        )
+        await backend.supersede(
+            "old",
+            Memory(
+                id="new",
+                content="new",
+                user_id="alice",
+                valid_from=datetime(2022, 1, 1, tzinfo=timezone.utc),
+            ),
+            supersede_time=datetime(2022, 1, 1, tzinfo=timezone.utc),
+        )
+
+        results = await backend.search_memories(
+            "fact", "alice", valid_at=datetime(2021, 1, 1, tzinfo=timezone.utc)
+        )
+
+        assert results[0].memory.metadata["graphiti_episode_uuids"] == ["old"]
+
+    @pytest.mark.asyncio
     async def test_search_enforces_session_partition(self, ledger_path: Path) -> None:
         """Search admits only episodes owned by the requested session."""
         from cutctx.memory.backends.graphiti import (
@@ -1045,6 +1081,36 @@ class TestGraphitiLifecycleRaces:
         with pytest.raises(GraphitiUnsafeDeletionError):
             await deleting
         client.remove_episode.assert_not_awaited()
+
+
+class TestGraphitiClearProviderFailures:
+    @pytest.mark.asyncio
+    async def test_clear_aggregates_one_partition_preflight_failure_and_deletes_another(
+        self, ledger_path: Path
+    ) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiClearError
+
+        client = _mock_client()
+
+        async def provenance(episode_ids: list[str]) -> tuple[list[object], list[object]]:
+            if "broken" in episode_ids:
+                raise RuntimeError("provider unavailable")
+            return ([], [])
+
+        client.get_nodes_and_edges_by_episode.side_effect = provenance
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(Memory(id="broken", content="broken", user_id="alice", session_id="s1"))
+        await backend.save(
+            Memory(id="healthy", content="healthy", user_id="alice", session_id="s2")
+        )
+
+        with pytest.raises(GraphitiClearError) as exc:
+            await backend.clear_user("alice")
+
+        assert exc.value.confirmed == 1
+        assert exc.value.failed == 1
+        assert set(exc.value.failures) == {"broken"}
+        client.remove_episode.assert_awaited_once_with("healthy")
 
 
 class TestGraphitiEasyWiring:

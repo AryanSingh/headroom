@@ -480,23 +480,39 @@ class GraphitiBackend:
             if not isinstance(raw_episodes, list):
                 raw_episodes = list(raw_episodes) if raw_episodes else []
             episode_ids = [str(episode_id) for episode_id in raw_episodes]
-            owned_episode_ids = [
-                episode_id
+            owned_records = [
+                (episode_id, record)
                 for episode_id in episode_ids
                 if (record := self._ledger.get(episode_id)) is not None
                 and record.partition_id in allowed_partitions
-                and record.state in {"active", "delete_pending"}
             ]
-            historical_episode_ids = [
+            current_episode_ids = [
                 episode_id
-                for episode_id in episode_ids
-                if (record := self._ledger.get(episode_id)) is not None
-                and record.partition_id in allowed_partitions
-                and record.state == "superseded"
+                for episode_id, record in owned_records
+                if record.state in {"active", "delete_pending"}
             ]
-            visible_episode_ids = owned_episode_ids
-            if not visible_episode_ids and (include_superseded or valid_at is not None):
-                visible_episode_ids = historical_episode_ids
+            superseded_episode_ids = [
+                episode_id for episode_id, record in owned_records if record.state == "superseded"
+            ]
+            if valid_at is not None:
+                visible_episode_ids = [
+                    episode_id
+                    for episode_id, record in owned_records
+                    if record.state in {"active", "delete_pending", "superseded"}
+                    and (
+                        record.provider_reference_time is None
+                        or record.provider_reference_time <= valid_at
+                    )
+                    and (
+                        record.state != "superseded"
+                        or record.superseded_at is None
+                        or record.superseded_at > valid_at
+                    )
+                ]
+            elif include_superseded:
+                visible_episode_ids = current_episode_ids + superseded_episode_ids
+            else:
+                visible_episode_ids = current_episode_ids
             if not visible_episode_ids:
                 continue
             memory = self._edge_to_memory(edge, user_id=user_id, episode_ids=visible_episode_ids)

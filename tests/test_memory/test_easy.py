@@ -185,8 +185,20 @@ class TestMemorySave:
         mem = Memory(backend="qdrant-neo4j", db_path=temp_db_path)
 
         class QdrantBackend:
-            async def save_memory(self, *, session_id=None, **kwargs):
-                assert "idempotency_key" not in kwargs
+            async def save_memory(
+                self,
+                content,
+                user_id,
+                importance,
+                entities=None,
+                relationships=None,
+                session_id=None,
+                metadata=None,
+                facts=None,
+                extracted_entities=None,
+                extracted_relationships=None,
+                background=None,
+            ):
                 return SimpleNamespace(id="qdrant-1")
 
         backend = QdrantBackend()

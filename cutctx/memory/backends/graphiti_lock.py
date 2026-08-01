@@ -37,15 +37,10 @@ class PartitionOperationLock:
         try:
             await asyncio.shield(acquire)
         except asyncio.CancelledError:
-            # to_thread cannot be cancelled once scheduled.  Wait for it to
-            # finish and compensate if it won the race, otherwise a cancelled
-            # waiter can strand the partition lock in its worker thread.
-            try:
-                await asyncio.shield(acquire)
-            except Timeout:
-                pass
-            else:
-                await asyncio.shield(asyncio.to_thread(self._lock.release))
+            # A caller can cancel repeatedly, so compensation cannot live in
+            # this cancelling task.  This detached cleanup survives until the
+            # worker either times out or acquires and releases the file lock.
+            asyncio.create_task(self._release_if_late_acquire(acquire))
             raise
         except Timeout as exc:
             raise GraphitiOperationLockTimeout(
@@ -54,4 +49,11 @@ class PartitionOperationLock:
         return self
 
     async def __aexit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        await asyncio.shield(asyncio.to_thread(self._lock.release))
+
+    async def _release_if_late_acquire(self, acquire: asyncio.Task[object]) -> None:
+        try:
+            await asyncio.shield(acquire)
+        except Timeout:
+            return
         await asyncio.shield(asyncio.to_thread(self._lock.release))
