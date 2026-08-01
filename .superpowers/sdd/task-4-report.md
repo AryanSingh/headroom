@@ -101,3 +101,50 @@ PYTHONDONTWRITEBYTECODE=1 rtk pytest -p no:cacheprovider tests/test_memory/test_
 ```
 
 Result: `3 passed`.
+
+## Follow-up lifecycle-race coverage
+
+Added four focused regression tests without changing the already-correct Task 4
+implementation:
+
+- A two-worker supersede/clear race uses a per-partition async lock and blocks
+  the replacement write while `clear_user` waits for that same partition.  The
+  old record remains `active` and the replacement `write_pending` while the
+  lock is held; once released, the atomic replacement transition completes
+  before clear runs, ending `old=deleted`, `new=active`, with no fact-loss
+  window.
+- An untracked external supporter explicitly refuses origin deletion.
+- A direct deletion of a non-origin supporter succeeds and finalizes its
+  ledger record.
+- A concurrent add-first race blocks origin deletion behind the supporter
+  write.  After the supporter write completes, the deletion's fresh under-lock
+  preflight refuses and never calls `remove_episode(origin)`.
+
+These are coverage-only GREEN cases: they passed on the current follow-up
+commit without a production-code change, so no RED result is claimed.
+
+```text
+PYTHONDONTWRITEBYTECODE=1 rtk pytest -p no:cacheprovider tests/test_memory/test_graphiti_backend.py -k 'clear_cannot_interleave or unknown_external_supporter or non_origin_supporter_succeeds or concurrent_add_first' -q
+```
+
+Result: `4 passed`.
+
+```text
+PYTHONDONTWRITEBYTECODE=1 rtk pytest -p no:cacheprovider tests/test_memory/test_graphiti_backend.py -q
+rtk ruff check tests/test_memory/test_graphiti_backend.py cutctx/memory/backends/graphiti.py cutctx/memory/backends/graphiti_ledger.py
+rtk git diff --check
+```
+
+Results: `46 passed`; Ruff and diff check clean.
+
+The dedicated lock test command is blocked at collection in this local
+environment because the optional `filelock` package is not installed:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 rtk proxy pytest -p no:cacheprovider tests/test_memory/test_graphiti_lock.py -q
+```
+
+It reports `ModuleNotFoundError: No module named 'filelock'`.  The backend
+tests intentionally replace it with a real keyed `asyncio.Lock` implementation
+to exercise per-partition exclusion without treating the optional package as a
+backend semantic dependency.

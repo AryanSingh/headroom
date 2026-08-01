@@ -754,6 +754,115 @@ class TestGraphitiLifecycleRaces:
             await backend.delete_memory("origin")
         client.remove_episode.assert_not_awaited()
 
+    @pytest.mark.asyncio
+    async def test_clear_cannot_interleave_supersede_remote_write_and_ledger_transition(
+        self, ledger_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The replacement's partition lock covers its remote write and ledger transition."""
+        from cutctx.memory.backends.graphiti import GraphitiBackend
+
+        entered, release = self._blocking_lock(monkeypatch)
+        client = _mock_client()
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(Memory(id="old", content="old", user_id="alice"))
+        entered.clear()
+        replacement_write_started, allow_replacement_write = asyncio.Event(), asyncio.Event()
+
+        async def add_episode(**kwargs: Any) -> Any:
+            if kwargs["uuid"] == "new":
+                replacement_write_started.set()
+                await allow_replacement_write.wait()
+            return SimpleNamespace(episode=SimpleNamespace(uuid=kwargs["uuid"]))
+
+        client.add_episode.side_effect = add_episode
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], []))
+        superseding = asyncio.create_task(
+            backend.supersede("old", Memory(id="new", content="new", user_id="alice"))
+        )
+        await replacement_write_started.wait()
+        clearing = asyncio.create_task(backend.clear_user("alice"))
+        await asyncio.sleep(0)
+        assert not clearing.done()
+        # While Graphiti has accepted no transition yet, the old fact stays visible.
+        assert backend._ledger.get("old").state == "active"  # type: ignore[union-attr]
+        assert backend._ledger.get("new").state == "write_pending"  # type: ignore[union-attr]
+
+        allow_replacement_write.set()
+        assert (await superseding).id == "new"
+        assert await clearing == 1
+        assert backend._ledger.get("old").state == "deleted"  # type: ignore[union-attr]
+        assert backend._ledger.get("new").state == "active"  # type: ignore[union-attr]
+
+    @pytest.mark.asyncio
+    async def test_delete_refuses_unknown_external_supporter(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiUnsafeDeletionError
+
+        client = _mock_client()
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], [
+            SimpleNamespace(episodes=["origin", "untracked-supporter"]),
+        ]))
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(Memory(id="origin", content="origin", user_id="alice"))
+
+        with pytest.raises(GraphitiUnsafeDeletionError, match="unknown or foreign"):
+            await backend.delete_memory("origin")
+        client.remove_episode.assert_not_awaited()
+        assert backend._ledger.get("origin").state == "active"  # type: ignore[union-attr]
+
+    @pytest.mark.asyncio
+    async def test_delete_non_origin_supporter_succeeds(self, ledger_path: Path) -> None:
+        from cutctx.memory.backends.graphiti import GraphitiBackend
+
+        client = _mock_client()
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], [
+            SimpleNamespace(episodes=["origin", "supporter"]),
+        ]))
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(Memory(id="origin", content="origin", user_id="alice"))
+        await backend.save(Memory(id="supporter", content="supporter", user_id="alice"))
+
+        assert await backend.delete_memory("supporter") is True
+        client.remove_episode.assert_awaited_once_with("supporter")
+        assert backend._ledger.get("supporter").state == "deleted"  # type: ignore[union-attr]
+
+    @pytest.mark.asyncio
+    async def test_concurrent_add_first_rechecks_origin_under_partition_lock(
+        self, ledger_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An origin deletion waits for the supporter write, then refuses on fresh provenance."""
+        from cutctx.memory.backends.graphiti import GraphitiBackend, GraphitiUnsafeDeletionError
+
+        entered, _ = self._blocking_lock(monkeypatch)
+        client = _mock_client()
+        backend = GraphitiBackend(_cfg(ledger_path), client=client)
+        await backend.save(Memory(id="origin", content="origin", user_id="alice"))
+        entered.clear()
+        supporter_write_started, allow_supporter_write = asyncio.Event(), asyncio.Event()
+
+        async def add_episode(**kwargs: Any) -> Any:
+            if kwargs["uuid"] == "supporter":
+                supporter_write_started.set()
+                await allow_supporter_write.wait()
+            return SimpleNamespace(episode=SimpleNamespace(uuid=kwargs["uuid"]))
+
+        client.add_episode.side_effect = add_episode
+        client.get_nodes_and_edges_by_episode = AsyncMock(return_value=([], [
+            SimpleNamespace(episodes=["origin", "supporter"]),
+        ]))
+        adding = asyncio.create_task(
+            backend.save(Memory(id="supporter", content="supporter", user_id="alice"))
+        )
+        await supporter_write_started.wait()
+        deleting = asyncio.create_task(backend.delete_memory("origin"))
+        await asyncio.sleep(0)
+        assert not deleting.done()
+
+        allow_supporter_write.set()
+        assert (await adding).id == "supporter"
+        with pytest.raises(GraphitiUnsafeDeletionError):
+            await deleting
+        client.remove_episode.assert_not_awaited()
+
 
 class TestGraphitiEasyWiring:
     @pytest.mark.asyncio
