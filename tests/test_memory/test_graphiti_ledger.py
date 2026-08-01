@@ -49,6 +49,31 @@ def _episode_in_state(ledger: SQLiteEpisodeLedger, state: str) -> str:
     return "episode"
 
 
+_ALLOWED_TRANSITIONS = {
+    ("write_pending", "activate"),
+    ("active", "record_replacement"),
+    ("active", "mark_delete_pending"),
+    ("superseded", "mark_delete_pending"),
+    ("delete_pending", "mark_delete_pending"),
+    ("delete_pending", "mark_deleted"),
+    ("delete_pending", "mark_delete_failed"),
+}
+_LIFECYCLE_STATES = ("write_pending", "active", "superseded", "delete_pending", "deleted")
+_LIFECYCLE_METHODS = (
+    "activate",
+    "record_replacement",
+    "mark_delete_pending",
+    "mark_deleted",
+    "mark_delete_failed",
+)
+_INVALID_TRANSITIONS = [
+    (state, method)
+    for state in _LIFECYCLE_STATES
+    for method in _LIFECYCLE_METHODS
+    if (state, method) not in _ALLOWED_TRANSITIONS
+]
+
+
 def test_persistence_reopens_exact_ownership_partition_and_state(tmp_path: Path) -> None:
     path = tmp_path / "episodes.sqlite3"
     first = SQLiteEpisodeLedger(path)
@@ -168,6 +193,29 @@ def test_invalid_lifecycle_transitions_leave_the_record_unchanged(
             getattr(ledger, operation)(episode)
 
     assert ledger.get(episode) == before
+
+
+@pytest.mark.parametrize(("state", "method"), _INVALID_TRANSITIONS)
+def test_every_disallowed_public_lifecycle_transition_is_atomic(
+    tmp_path: Path, state: str, method: str
+) -> None:
+    ledger = SQLiteEpisodeLedger(tmp_path / "episodes.sqlite3")
+    episode = _episode_in_state(ledger, state)
+    before = {episode: ledger.get(episode)}
+
+    if method == "record_replacement":
+        _reserve(ledger, "counterpart", "alice", "s1")
+        before["counterpart"] = ledger.get("counterpart")
+
+    with pytest.raises(ValueError):
+        if method == "record_replacement":
+            ledger.record_replacement(episode, "counterpart")
+        elif method == "mark_delete_failed":
+            ledger.mark_delete_failed(episode, "remote failure")
+        else:
+            getattr(ledger, method)(episode)
+
+    assert {episode_id: ledger.get(episode_id) for episode_id in before} == before
 
 
 def test_write_pending_is_not_current_and_delete_pending_remains_current(tmp_path: Path) -> None:
