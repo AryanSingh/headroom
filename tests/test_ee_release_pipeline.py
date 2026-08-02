@@ -66,6 +66,25 @@ def test_wheel_builder_uses_the_supported_setuptools_backend() -> None:
     assert "setuptools.backends._legacy" not in source
 
 
+def test_wheel_builder_includes_the_signed_manifest_as_package_data(
+    monkeypatch, tmp_path: Path
+) -> None:
+    build_dir = tmp_path / "build"
+    package_dir = build_dir / "cutctx_ee"
+    package_dir.mkdir(parents=True)
+    monkeypatch.setattr(compile_ee.subprocess, "check_call", lambda *args, **kwargs: None)
+
+    compile_ee.build_ee_wheel(build_dir, tmp_path / "dist", "1.2.3")
+
+    pyproject = (build_dir / "pyproject.toml").read_text()
+    assert "[tool.setuptools.package-data]" in pyproject
+    assert '"MANIFEST.sha256.json"' in pyproject
+    assert '"*.so"' in pyproject
+    assert '"**/*.so"' in pyproject
+    assert '"*.pyd"' in pyproject
+    assert '"**/*.pyd"' in pyproject
+
+
 def test_compile_module_ignores_previous_outputs_when_nuitka_creates_none(
     monkeypatch, tmp_path: Path
 ) -> None:

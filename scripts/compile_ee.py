@@ -285,6 +285,15 @@ def build_ee_wheel(build_dir: Path, output_dir: Path, version: str) -> Path | No
 
         [tool.setuptools.packages.find]
         include = ["cutctx_ee*"]
+
+        [tool.setuptools.package-data]
+        cutctx_ee = [
+            "MANIFEST.sha256.json",
+            "*.so",
+            "**/*.so",
+            "*.pyd",
+            "**/*.pyd",
+        ]
     ''')
     (build_dir / "pyproject.toml").write_text(pyproject_content)
 
