@@ -40,16 +40,22 @@ jobs:
           pip install nuitka ordered-set zstandard build setuptools
 
       - name: Compile EE modules
+        env:
+          CUTCTX_LICENSE_HMAC_SECRET: ${{ secrets.CUTCTX_LICENSE_HMAC_SECRET }}
         run: |
           python scripts/compile_ee.py \
             --output-dir dist-ee-compiled \
             --version ${{ inputs.version }}
 
-      - name: Verify no source in compiled wheel (V-7)
+      - name: Verify signed compiled wheel (V-7)
+        env:
+          CUTCTX_LICENSE_HMAC_SECRET: ${{ secrets.CUTCTX_LICENSE_HMAC_SECRET }}
         run: |
-          python scripts/compile_ee.py \
-            --verify-only \
-            --output-dir dist-ee-compiled
+          EE_WHEEL=$(find dist-ee-compiled -maxdepth 1 -name '*.whl' -print -quit)
+          test -n "$EE_WHEEL"
+          python scripts/verify_ee_wheel.py \
+            --wheel "$EE_WHEEL" \
+            --evidence dist-ee-compiled/wheel-verification.json
 
       - name: Scan for secrets (V-12)
         run: |
@@ -59,7 +65,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cutctx-ee-compiled-wheel
-          path: dist-ee-compiled/*.whl
+          path: |
+            dist-ee-compiled/*.whl
+            dist-ee-compiled/wheel-verification.json
 
       - name: Upload compiled extensions
         uses: actions/upload-artifact@v4

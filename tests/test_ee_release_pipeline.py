@@ -44,6 +44,14 @@ def test_publish_workflow_builds_and_verifies_a_compiled_release_candidate() -> 
     assert "uv build" not in workflow
 
 
+def test_manual_compile_workflow_uses_the_same_signing_and_verification_gates() -> None:
+    workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/compile-ee.yml").read_text()
+
+    assert "CUTCTX_LICENSE_HMAC_SECRET" in workflow
+    assert "scripts/verify_ee_wheel.py" in workflow
+    assert "wheel-verification.json" in workflow
+
+
 def test_nuitka_module_command_uses_supported_runtime_module_naming(tmp_path: Path) -> None:
     module = tmp_path / "cutctx_ee" / "billing" / "license_db.py"
     module.parent.mkdir(parents=True)
