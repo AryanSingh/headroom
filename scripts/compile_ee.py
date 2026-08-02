@@ -81,7 +81,7 @@ def nuitka_module_command(module_path: Path, output_dir: Path, *, dev: bool = Fa
         "--module-name-choice=runtime",
         f"--output-dir={output_dir}",
         "--assume-yes-for-downloads",
-        "--strip-docstrings",
+        "--python-flag=no_docstrings",
         "--remove-output",
     ]
     if not dev:
@@ -90,7 +90,6 @@ def nuitka_module_command(module_path: Path, output_dir: Path, *, dev: bool = Fa
                 "--nofollow-import-to=unittest",
                 "--nofollow-import-to=pytest",
                 "--nofollow-import-to=typing_extensions",
-                "--no-pgo",
             ]
         )
     else:
@@ -220,9 +219,20 @@ def strip_debug_symbols(module_path: Path):
 
 def prepare_ee_package(compile_dir: Path, version: str) -> Path:
     """Stage compiled EE modules in the exact package directory to be signed."""
-    so_files = list(compile_dir.rglob("*.so"))
-    pyd_files = list(compile_dir.rglob("*.pyd"))
     build_dir = compile_dir / "_build_root"
+
+    def is_final_native_module(path: Path) -> bool:
+        """Exclude artifacts from a previous staging or Nuitka temporary build."""
+        return build_dir not in path.parents and not any(
+            parent.name.endswith(".build") for parent in path.parents
+        )
+
+    so_files = [
+        path for path in compile_dir.rglob("*.so") if is_final_native_module(path)
+    ]
+    pyd_files = [
+        path for path in compile_dir.rglob("*.pyd") if is_final_native_module(path)
+    ]
     if build_dir.exists():
         shutil.rmtree(build_dir)
     pkg_dir = build_dir / "cutctx_ee"
