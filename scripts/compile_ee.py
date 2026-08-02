@@ -183,7 +183,11 @@ def verify_no_source_in_wheel(wheel_dir: Path) -> bool:
     ok = True
     for whl in wheel_dir.glob("*.whl"):
         with zipfile.ZipFile(whl) as z:
-            py_files = [n for n in z.namelist() if n.endswith(".py")]
+            py_files = [
+                name
+                for name in z.namelist()
+                if name.endswith(".py") and name != "cutctx_ee/__init__.py"
+            ]
             pyc_files = [n for n in z.namelist() if n.endswith(".pyc")]
 
             if py_files:

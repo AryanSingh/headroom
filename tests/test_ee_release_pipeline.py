@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+from zipfile import ZipFile
 
 from scripts import compile_ee
 
@@ -129,3 +130,12 @@ def test_compile_all_fails_closed_when_any_module_does_not_compile(
     )
 
     assert compile_ee.compile_all_ee(tmp_path / "output") == {}
+
+
+def test_source_leak_check_allows_only_the_generated_package_initializer(tmp_path: Path) -> None:
+    wheel = tmp_path / "cutctx_ee-1.2.3-py3-none-any.whl"
+    with ZipFile(wheel, "w") as archive:
+        archive.writestr("cutctx_ee/__init__.py", "__version__ = '1.2.3'\n")
+        archive.writestr("cutctx_ee/billing/license_db.abi3.so", b"native")
+
+    assert compile_ee.verify_no_source_in_wheel(tmp_path)
