@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from scripts import compile_ee
 
@@ -56,3 +57,48 @@ def test_nuitka_module_command_uses_supported_runtime_module_naming(tmp_path: Pa
     assert "--python-flag=no_docstrings" in command
     assert "--strip-docstrings" not in command
     assert "--no-pgo" not in command
+
+
+def test_wheel_builder_uses_the_supported_setuptools_backend() -> None:
+    source = Path(compile_ee.__file__).read_text()
+
+    assert 'build-backend = "setuptools.build_meta"' in source
+    assert "setuptools.backends._legacy" not in source
+
+
+def test_compile_module_ignores_previous_outputs_when_nuitka_creates_none(
+    monkeypatch, tmp_path: Path
+) -> None:
+    module = tmp_path / "billing" / "license_token.py"
+    output_dir = tmp_path / "output"
+    module.parent.mkdir(parents=True)
+    output_dir.mkdir()
+    module.write_text("value = 1\n")
+    (output_dir / "other.cpython-312-darwin.so").write_bytes(b"old native output")
+    monkeypatch.setattr(
+        compile_ee.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0, stderr=""),
+    )
+
+    assert compile_ee.compile_ee_module(module, output_dir) == []
+
+
+def test_compile_all_fails_closed_when_any_module_does_not_compile(
+    monkeypatch, tmp_path: Path
+) -> None:
+    ee_source = tmp_path / "cutctx_ee"
+    for name in ("first.py", "second.py"):
+        (ee_source / name).parent.mkdir(parents=True, exist_ok=True)
+        (ee_source / name).write_text("value = 1\n")
+    monkeypatch.setattr(compile_ee, "ROOT", tmp_path)
+    monkeypatch.setattr(compile_ee, "EE_SOURCE", ee_source)
+    monkeypatch.setattr(
+        compile_ee,
+        "compile_ee_module",
+        lambda module, output_dir, dev: [output_dir / "first.so"]
+        if module.name == "first.py"
+        else [],
+    )
+
+    assert compile_ee.compile_all_ee(tmp_path / "output") == {}

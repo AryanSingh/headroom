@@ -128,10 +128,11 @@ def compile_ee_module(
         print(f"  WARNING: Nuitka timed out for {module_name}")
         return []
 
-    # Find output .so files
+    # Nuitka writes the extension beside this module's output directory. Do
+    # not recursively accept artifacts from a previous or neighboring build.
     outputs = []
-    for ext in ("*.so", "*.pyd", "*.pyi"):
-        outputs.extend(output_dir.rglob(ext))
+    for ext in ("so", "pyd", "pyi"):
+        outputs.extend(output_dir.glob(f"{module_name}*.{ext}"))
     return outputs
 
 
@@ -169,6 +170,9 @@ def compile_all_ee(
             failed += 1
 
     print(f"\nCompilation complete: {success} succeeded, {failed} failed")
+    if failed:
+        print("ERROR: One or more EE modules failed to compile")
+        return {}
     return results
 
 
@@ -270,7 +274,7 @@ def build_ee_wheel(build_dir: Path, output_dir: Path, version: str) -> Path | No
     pyproject_content = textwrap.dedent(f'''\
         [build-system]
         requires = ["setuptools>=68.0"]
-        build-backend = "setuptools.backends._legacy:_Backend"
+        build-backend = "setuptools.build_meta"
 
         [project]
         name = "cutctx-ee"
