@@ -224,24 +224,23 @@ def strip_debug_symbols(module_path: Path):
             pass  # strip not available on all platforms
 
 
-def build_ee_wheel(
-    compile_dir: Path,
-    output_dir: Path,
-    version: str,
-) -> Path | None:
-    """Build a wheel from compiled extensions only (no .py source)."""
-    # Create a temporary package structure with only .so/.pyd files
+def prepare_ee_package(compile_dir: Path, version: str) -> Path:
+    """Stage compiled EE modules in the exact package directory to be signed."""
+    so_files = list(compile_dir.rglob("*.so"))
+    pyd_files = list(compile_dir.rglob("*.pyd"))
     build_dir = compile_dir / "_build_root"
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
     pkg_dir = build_dir / "cutctx_ee"
     pkg_dir.mkdir(parents=True, exist_ok=True)
 
     # Copy only compiled extensions
-    for so_file in compile_dir.rglob("*.so"):
+    for so_file in so_files:
         dest = pkg_dir / so_file.name
         shutil.copy2(so_file, dest)
         strip_debug_symbols(dest)
 
-    for pyd_file in compile_dir.rglob("*.pyd"):
+    for pyd_file in pyd_files:
         dest = pkg_dir / pyd_file.name
         shutil.copy2(pyd_file, dest)
 
@@ -254,6 +253,12 @@ def build_ee_wheel(
         __version__ = "{version}"
     ''')
     (pkg_dir / "__init__.py").write_text(init_content)
+
+    return pkg_dir
+
+
+def build_ee_wheel(build_dir: Path, output_dir: Path, version: str) -> Path | None:
+    """Build a wheel from a prepared EE package directory."""
 
     # Create pyproject.toml for the compiled wheel
     pyproject_content = textwrap.dedent(f'''\
@@ -330,20 +335,7 @@ def main():
         print("ERROR: No modules compiled successfully")
         sys.exit(1)
 
-    # Build wheel from compiled extensions
-    wheel = build_ee_wheel(compile_dir, output_dir, args.version)
-    if wheel:
-        print(f"\nBuilt compiled EE wheel: {wheel}")
-    else:
-        print("ERROR: Wheel build failed")
-        sys.exit(1)
-
-    # Verify no source
-    if verify_no_source_in_wheel(output_dir):
-        print("\nSP-3 verification PASSED: no .py source in wheel")
-    else:
-        print("\nSP-3 verification FAILED: source detected in wheel")
-        sys.exit(1)
+    pkg_dir_in_wheel = prepare_ee_package(compile_dir, args.version)
 
     # Build signed integrity manifest from the compiled .so files.
     # The manifest is written into the EE package dir so it ships inside
@@ -351,9 +343,8 @@ def main():
     if not args.dev:
         print("\nBuilding signed EE integrity manifest…")
         manifest_script = ROOT / "scripts" / "build_ee_manifest.py"
-        # Point at the compiled .so directory (not the source tree) so we
-        # hash exactly what goes into the wheel.
-        pkg_dir_in_wheel = compile_dir / "_build_root" / "cutctx_ee"
+        # Hash the prepared package directory so the manifest covers exactly
+        # the native modules that will be added to the wheel.
         manifest_result = subprocess.run(
             [
                 sys.executable,
@@ -367,11 +358,25 @@ def main():
             cwd=str(ROOT),
         )
         if manifest_result.returncode != 0:
-            print("WARNING: manifest build failed — wheel ships without integrity manifest")
+            print("ERROR: manifest build failed — refusing to ship an unverifiable EE wheel")
+            sys.exit(1)
         else:
             print("Integrity manifest built and included in wheel.")
     else:
         print("\nDev build — skipping signed manifest (use --unsigned for local testing)")
+
+    wheel = build_ee_wheel(pkg_dir_in_wheel.parent, output_dir, args.version)
+    if wheel:
+        print(f"\nBuilt compiled EE wheel: {wheel}")
+    else:
+        print("ERROR: Wheel build failed")
+        sys.exit(1)
+
+    if verify_no_source_in_wheel(output_dir):
+        print("\nSP-3 verification PASSED: no source in wheel")
+    else:
+        print("\nSP-3 verification FAILED: source detected in wheel")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
