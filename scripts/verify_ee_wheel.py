@@ -75,7 +75,10 @@ def verify_wheel(wheel_path: Path, secret: str) -> dict[str, object]:
         manifest_files = manifest.get("files")
         if not isinstance(manifest_files, dict) or not manifest_files:
             raise WheelVerificationError("MANIFEST has no native file entries")
-        if any(not isinstance(name, str) or not isinstance(value, str) for name, value in manifest_files.items()):
+        if any(
+            not isinstance(name, str) or not isinstance(value, str)
+            for name, value in manifest_files.items()
+        ):
             raise WheelVerificationError("MANIFEST file entries are invalid")
 
         native_names = sorted(

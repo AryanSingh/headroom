@@ -123,6 +123,70 @@ def test_proxy_retrieve_uses_client_not_admin_header() -> None:
     assert "x-cutctx-admin-key" not in request.kwargs["headers"]
 
 
+def test_mcp_resolves_origin_scoped_client_credential_when_env_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A directly configured OpenCode MCP server must use the protected
+    origin-scoped credential instead of silently issuing an anonymous request.
+    """
+    pytest.importorskip("mcp", reason="MCP SDK required")
+    monkeypatch.delenv("CUTCTX_API_KEY", raising=False)
+    credential = SimpleNamespace(value="keyring-client-secret")
+    monkeypatch.setattr(
+        mcp_server,
+        "resolve_client_credential",
+        lambda proxy_url: credential,
+        raising=False,
+    )
+
+    server = mcp_server.CutctxMCPServer(proxy_url="http://127.0.0.1:8787")
+
+    assert server._agent_headers() == {"Authorization": "Bearer keyring-client-secret"}
+
+
+def test_mcp_reports_proxy_authentication_failure_instead_of_cache_miss() -> None:
+    """A direct MCP retrieval must preserve a proxy 401 so an OpenCode agent
+    can repair its client credential instead of repeatedly retrying a miss.
+    """
+    pytest.importorskip("mcp", reason="MCP SDK required")
+    response = mcp_server.httpx.Response(
+        401,
+        json={
+            "error": {
+                "type": "client_authentication_error",
+                "code": "invalid_or_expired_client_key",
+                "remediation": "Run `cutctx auth login --proxy-url <origin>`.",
+            }
+        },
+        request=mcp_server.httpx.Request("POST", "http://127.0.0.1:8787/v1/retrieve"),
+    )
+    server = mcp_server.CutctxMCPServer(proxy_url="http://127.0.0.1:8787")
+    server._http_client = SimpleNamespace(post=AsyncMock(return_value=response))
+
+    result = asyncio.run(server._retrieve_content("abc", query=None))
+
+    assert result == {
+        "error": "Proxy client authentication failed.",
+        "hash": "abc",
+        "remediation": "Run `cutctx auth login --proxy-url <origin>`.",
+    }
+
+
+def test_mcp_keeps_proxy_not_found_as_a_regular_cache_miss() -> None:
+    """Only authorization failures are actionable setup errors; a genuinely
+    missing proxy entry retains the established cache-miss response.
+    """
+    pytest.importorskip("mcp", reason="MCP SDK required")
+    response = SimpleNamespace(status_code=404)
+    server = mcp_server.CutctxMCPServer(proxy_url="http://127.0.0.1:8787")
+    server._http_client = SimpleNamespace(post=AsyncMock(return_value=response))
+
+    result = asyncio.run(server._retrieve_content("missing", query=None))
+
+    assert result["hash"] == "missing"
+    assert result["error"] == "Content not found. It may have expired or the hash may be incorrect."
+
+
 def test_proxy_stats_uses_agent_scoped_endpoint_and_header() -> None:
     pytest.importorskip("mcp", reason="MCP SDK required")
     response = SimpleNamespace(

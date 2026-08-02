@@ -4,6 +4,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from zipfile import ZipFile
 
+import tomllib
+
 from scripts import compile_ee
 
 
@@ -35,18 +37,36 @@ def test_prepare_package_ignores_a_previous_staging_directory(tmp_path: Path) ->
 
 
 def test_publish_workflow_builds_and_verifies_a_compiled_release_candidate() -> None:
-    workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/publish-ee.yml").read_text()
+    workflow = (
+        Path(__file__).resolve().parents[1] / ".github/workflows/publish-ee.yml"
+    ).read_text()
 
     assert "scripts/compile_ee.py" in workflow
     assert "scripts/verify_ee_wheel.py" in workflow
     assert "scripts/ee_release_evidence.py" in workflow
     assert "CUTCTX_LICENSE_HMAC_SECRET" in workflow
     assert "python -I -c" in workflow
+    assert "python -m twine upload" in workflow
+    assert "secrets.PRIVATE_PYPI_URL" in workflow
+    assert "secrets.PRIVATE_PYPI_TOKEN" in workflow
+    assert "Configure PRIVATE_PYPI_URL" not in workflow
     assert "uv build" not in workflow
 
 
+def test_editable_ee_package_version_matches_the_release_version() -> None:
+    root = Path(__file__).resolve().parents[1]
+    with (root / "pyproject.toml").open("rb") as handle:
+        core_version = tomllib.load(handle)["project"]["version"]
+    with (root / "packaging/cutctx-ee/pyproject.toml").open("rb") as handle:
+        ee_version = tomllib.load(handle)["project"]["version"]
+
+    assert ee_version == core_version
+
+
 def test_manual_compile_workflow_uses_the_same_signing_and_verification_gates() -> None:
-    workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/compile-ee.yml").read_text()
+    workflow = (
+        Path(__file__).resolve().parents[1] / ".github/workflows/compile-ee.yml"
+    ).read_text()
 
     assert "CUTCTX_LICENSE_HMAC_SECRET" in workflow
     assert "scripts/verify_ee_wheel.py" in workflow
@@ -73,6 +93,35 @@ def test_wheel_builder_uses_the_supported_setuptools_backend() -> None:
 
     assert 'build-backend = "setuptools.build_meta"' in source
     assert "setuptools.backends._legacy" not in source
+
+
+def test_native_wheel_tag_is_interpreter_and_platform_specific() -> None:
+    python_tag, abi_tag, platform_tag = compile_ee.native_wheel_tag()
+
+    assert python_tag.startswith("cp")
+    assert abi_tag.startswith("cp")
+    assert platform_tag != "any"
+
+
+def test_wheel_builder_retags_the_native_artifact(monkeypatch, tmp_path: Path) -> None:
+    build_dir = tmp_path / "build"
+    package_dir = build_dir / "cutctx_ee"
+    package_dir.mkdir(parents=True)
+    output_dir = tmp_path / "dist"
+    output_dir.mkdir()
+    generic_wheel = output_dir / "cutctx_ee-1.2.3-py3-none-any.whl"
+    generic_wheel.write_bytes(b"wheel")
+    monkeypatch.setattr(compile_ee.subprocess, "check_call", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        compile_ee,
+        "retag_native_wheel",
+        lambda wheel: wheel.with_name("cutctx_ee-1.2.3-cp312-cp312-test_platform.whl"),
+    )
+
+    wheel = compile_ee.build_ee_wheel(build_dir, output_dir, "1.2.3")
+
+    assert wheel is not None
+    assert "none-any" not in wheel.name
 
 
 def test_wheel_builder_includes_the_signed_manifest_as_package_data(

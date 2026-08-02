@@ -297,6 +297,11 @@ class CompressionStore:
         Returns:
             Hash key for retrieving this content.
         """
+        # CCR originals are retrievable later, often by a different process.
+        # Preserve the surrounding context while ensuring credentials from a
+        # tool result never become retrievable plaintext.
+        original = _redact_retrieval_log_payload(original)
+
         # Generate hash from original content. Default: SHA-256[:24] of the
         # original. When the caller provides `explicit_hash`, use it
         # verbatim — required when the hash that ends up in the prompt

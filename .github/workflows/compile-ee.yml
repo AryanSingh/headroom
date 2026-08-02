@@ -37,7 +37,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          pip install nuitka ordered-set zstandard build setuptools
+          pip install nuitka ordered-set zstandard build setuptools wheel
 
       - name: Compile EE modules
         env:

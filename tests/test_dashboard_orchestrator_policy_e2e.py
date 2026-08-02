@@ -468,6 +468,7 @@ def test_orchestrator_renders_provider_policy_status() -> None:
             expect(page.get_by_text("0.0%", exact=True)).to_be_visible()
             expect(page.get_by_text("$4.200", exact=True)).to_be_visible()
             expect(page.get_by_text("0.85", exact=True)).to_be_visible()
+            page.get_by_role("button", name="Diagnostics and compatibility").click()
             expect(page.get_by_text("Fallback and selection posture", exact=True)).to_be_visible()
             expect(
                 page.get_by_text("Compatibility-provider health and overrides", exact=True)
@@ -498,6 +499,7 @@ def test_orchestrator_renders_opt_in_safe_savings_status() -> None:
 
             page.goto("http://cutctx.local/dashboard/orchestrator")
             page.wait_for_load_state("networkidle")
+            page.get_by_role("button", name="Diagnostics and compatibility").click()
 
             expect(page.get_by_text("Guided Safe Savings", exact=True)).to_be_visible()
             expect(page.get_by_text("gpt-5.6-sol → gpt-5.4-mini", exact=True)).to_be_visible()
@@ -559,6 +561,7 @@ def test_orchestrator_turns_safe_savings_off_through_confirmed_config_path() -> 
 
             page.goto("http://cutctx.local/dashboard/orchestrator")
             page.wait_for_load_state("networkidle")
+            page.get_by_role("button", name="Diagnostics and compatibility").click()
             panel = page.get_by_role("region", name="Guided Safe Savings")
 
             panel.get_by_role("button", name="Turn Safe Savings off").click()
@@ -592,6 +595,7 @@ def test_orchestrator_keeps_safe_savings_enabled_when_off_update_fails() -> None
 
             page.goto("http://cutctx.local/dashboard/orchestrator")
             page.wait_for_load_state("networkidle")
+            page.get_by_role("button", name="Diagnostics and compatibility").click()
             panel = page.get_by_role("region", name="Guided Safe Savings")
 
             panel.get_by_role("button", name="Turn Safe Savings off").click()
@@ -638,6 +642,7 @@ def test_orchestrator_search_expands_and_filters_tabs() -> None:
             assert after_focus_width > before_width
 
             search_input.fill("anthropic")
+            page.get_by_role("tab", name="Configuration", exact=True).click()
             page.get_by_role("tab", name="Providers").click()
             expect(page.get_by_text("Anthropic Main", exact=True)).to_be_visible()
             expect(page.get_by_text("OpenAI Main", exact=True)).to_have_count(0)
@@ -664,6 +669,7 @@ def test_orchestrator_models_tab_search_filters_without_error() -> None:
 
             page.goto("http://cutctx.local/dashboard/orchestrator")
             page.wait_for_load_state("networkidle")
+            page.get_by_role("tab", name="Configuration", exact=True).click()
             page.get_by_role("tab", name="Models").click()
 
             search = page.get_by_label("Search models or capabilities")
@@ -689,6 +695,7 @@ def test_orchestrator_roles_expose_advanced_binding_editor() -> None:
 
             page.goto("http://cutctx.local/dashboard/orchestrator")
             page.wait_for_load_state("networkidle")
+            page.get_by_role("tab", name="Configuration", exact=True).click()
             page.get_by_role("tab", name="Roles").click()
 
             expect(page.get_by_label("Model for Worker", exact=True)).to_have_value(

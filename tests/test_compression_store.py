@@ -103,6 +103,24 @@ def test_retrieve_log_redacts_secret_payload_values():
     assert "Authorization: [REDACTED]" in events[0]["payload_preview"]
 
 
+def test_store_redacts_credentials_before_retrieval() -> None:
+    """CCR entries are reversible for context, but never for the credential
+    values embedded in a tool result.
+    """
+    secret = "sk-proj-secret1234567890"
+    store = CompressionStore(enable_feedback=False)
+
+    hash_key = store.store(
+        original=f'{{"provider": {{"apiKey": "{secret}"}}}}',
+        compressed='{"provider": {}}',
+    )
+    entry = store.retrieve(hash_key)
+
+    assert entry is not None
+    assert secret not in entry.original_content
+    assert "[REDACTED]" in entry.original_content
+
+
 def test_search_logs_retrieved_payload_preview():
     store = CompressionStore(enable_feedback=False)
     items = [

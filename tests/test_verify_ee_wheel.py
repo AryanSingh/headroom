@@ -15,10 +15,16 @@ def _signed_manifest(files: dict[str, bytes], secret: str) -> dict[str, object]:
     payload: dict[str, object] = {
         "version": "1",
         "algorithm": "sha256",
-        "files": {name.removeprefix("cutctx_ee/"): hashlib.sha256(data).hexdigest() for name, data in files.items()},
+        "files": {
+            name.removeprefix("cutctx_ee/"): hashlib.sha256(data).hexdigest()
+            for name, data in files.items()
+        },
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    return {**payload, "signature": hmac.new(secret.encode(), canonical, hashlib.sha256).hexdigest()}
+    return {
+        **payload,
+        "signature": hmac.new(secret.encode(), canonical, hashlib.sha256).hexdigest(),
+    }
 
 
 def _write_wheel(

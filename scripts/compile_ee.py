@@ -21,6 +21,8 @@ import sys
 import textwrap
 from pathlib import Path
 
+from packaging.tags import sys_tags
+
 try:
     import tomllib
 except ImportError:  # pragma: no cover - Python 3.10 fallback
@@ -225,6 +227,36 @@ def strip_debug_symbols(module_path: Path):
             pass  # strip not available on all platforms
 
 
+def native_wheel_tag() -> tuple[str, str, str]:
+    """Return the most specific supported tag for this build interpreter."""
+    tag = next(sys_tags())
+    return tag.interpreter, tag.abi, tag.platform
+
+
+def retag_native_wheel(wheel: Path) -> Path:
+    """Replace a misleading pure-Python tag with the native build target."""
+    python_tag, abi_tag, platform_tag = native_wheel_tag()
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "wheel",
+            "tags",
+            "--remove",
+            f"--python-tag={python_tag}",
+            f"--abi-tag={abi_tag}",
+            f"--platform-tag={platform_tag}",
+            str(wheel),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+    output_name = result.stdout.strip().splitlines()[-1]
+    return wheel.with_name(output_name)
+
+
 def prepare_ee_package(compile_dir: Path, version: str) -> Path:
     """Stage compiled EE modules in the exact package directory to be signed."""
     build_dir = compile_dir / "_build_root"
@@ -235,12 +267,8 @@ def prepare_ee_package(compile_dir: Path, version: str) -> Path:
             parent.name.endswith(".build") for parent in path.parents
         )
 
-    so_files = [
-        path for path in compile_dir.rglob("*.so") if is_final_native_module(path)
-    ]
-    pyd_files = [
-        path for path in compile_dir.rglob("*.pyd") if is_final_native_module(path)
-    ]
+    so_files = [path for path in compile_dir.rglob("*.so") if is_final_native_module(path)]
+    pyd_files = [path for path in compile_dir.rglob("*.pyd") if is_final_native_module(path)]
     if build_dir.exists():
         shutil.rmtree(build_dir)
     pkg_dir = build_dir / "cutctx_ee"
@@ -310,7 +338,7 @@ def build_ee_wheel(build_dir: Path, output_dir: Path, version: str) -> Path | No
 
     # Find and return the built wheel
     wheels = list(output_dir.glob("*.whl"))
-    return wheels[0] if wheels else None
+    return retag_native_wheel(wheels[0]) if wheels else None
 
 
 def main():
