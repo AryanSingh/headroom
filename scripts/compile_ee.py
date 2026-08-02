@@ -71,6 +71,34 @@ def install_nuitka():
     print("Nuitka installed.")
 
 
+def nuitka_module_command(module_path: Path, output_dir: Path, *, dev: bool = False) -> list[str]:
+    """Return the supported Nuitka command for one importable EE module."""
+    command = [
+        sys.executable,
+        "-m",
+        "nuitka",
+        "--module",
+        "--module-name-choice=runtime",
+        f"--output-dir={output_dir}",
+        "--assume-yes-for-downloads",
+        "--strip-docstrings",
+        "--remove-output",
+    ]
+    if not dev:
+        command.extend(
+            [
+                "--nofollow-import-to=unittest",
+                "--nofollow-import-to=pytest",
+                "--nofollow-import-to=typing_extensions",
+                "--no-pgo",
+            ]
+        )
+    else:
+        command.extend(["--debug", "--unstripped"])
+    command.append(str(module_path))
+    return command
+
+
 def compile_ee_module(
     module_path: Path,
     output_dir: Path,
@@ -83,42 +111,7 @@ def compile_ee_module(
     module_name = module_path.stem
     print(f"  Compiling {module_path.name}...")
 
-    cmd = [
-        sys.executable,
-        "-m",
-        "nuitka",
-        "--module",  # Produce .so extension module, not standalone
-        "--module-name",
-        f"cutctx_ee.{module_name}",
-        f"--output-dir={output_dir}",
-        "--assume-yes-for-downloads",
-        # Strip docstrings and assertions in release
-        "--strip-docstrings",
-        "--remove-output",  # Remove .c source after compilation
-    ]
-
-    if not dev:
-        cmd.extend(
-            [
-                "--nofollow-import-to",
-                "unittest",
-                "--nofollow-import-to",
-                "pytest",
-                "--nofollow-import-to",
-                "typing_extensions",
-                # Remove source code from output
-                "--no-pgo",
-            ]
-        )
-    else:
-        cmd.extend(
-            [
-                "--debug",
-                "--unstripped",
-            ]
-        )
-
-    cmd.append(str(module_path))
+    cmd = nuitka_module_command(module_path, output_dir, dev=dev)
 
     try:
         result = subprocess.run(
@@ -168,7 +161,8 @@ def compile_all_ee(
 
     for py_file in py_files:
         rel = py_file.relative_to(ROOT)
-        outputs = compile_ee_module(py_file, output_dir, dev=dev)
+        module_output_dir = output_dir / py_file.relative_to(EE_SOURCE).parent
+        outputs = compile_ee_module(py_file, module_output_dir, dev=dev)
         if outputs:
             results[str(rel)] = outputs
             success += 1
@@ -236,12 +230,14 @@ def prepare_ee_package(compile_dir: Path, version: str) -> Path:
 
     # Copy only compiled extensions
     for so_file in so_files:
-        dest = pkg_dir / so_file.name
+        dest = pkg_dir / so_file.relative_to(compile_dir)
+        dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(so_file, dest)
         strip_debug_symbols(dest)
 
     for pyd_file in pyd_files:
-        dest = pkg_dir / pyd_file.name
+        dest = pkg_dir / pyd_file.relative_to(compile_dir)
+        dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(pyd_file, dest)
 
     # Create minimal __init__.py that imports from compiled extensions
