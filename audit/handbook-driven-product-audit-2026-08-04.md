@@ -5,7 +5,7 @@ title: Handbook-Driven Product Audit of Cutctx/Headroom
 reviewer: Enterprise Engineering Manual audit run
 date: 2026-08-04
 product: Cutctx (Python SDK/CLI, FastAPI proxy, Rust core, dashboard, desktop, EE services)
-version: 0.31.0 (pyproject) / HEAD 2db346fc3d10740bc7589b84d614900b87016abb
+version: 0.31.0 (pyproject) / audited product revision 37ef6834
 criteria: engineering-handbook/ (SUMMARY.md, chapters, checklists, OWASP/NIST mappings, scorecards, templates, runbooks)
 state: COMPLETE — bounded local evidence audit; browser and live-production evidence remain explicitly unverified
 ---
@@ -20,8 +20,8 @@ state: COMPLETE — bounded local evidence audit; browser and live-production ev
 | Reviewer | Handbook audit run (orchestrator + evidence collection) |
 | Date | 2026-08-04 |
 | Product | Cutctx — Python SDK/CLI, FastAPI proxy, native Rust compression core, operator dashboard, desktop control apps, enterprise (EE) governance services, TS/Go/Python/Java SDKs |
-| Reviewed revision | HEAD `2db346fc3d10740bc7589b84d614900b87016abb`; pyproject version 0.31.0 |
-| Worktree | .worktrees/enterprise-engineering-manual (no commits made during audit) |
+| Reviewed revision | Product revision `37ef6834`; pyproject version 0.31.0 |
+| Worktree | .worktrees/enterprise-engineering-manual; report follow-up committed separately |
 
 ## 2. Scope and criteria
 
@@ -58,37 +58,37 @@ evidence and final disposition are in Sections 5–9.
 | GOV-AUDIT-002 | Findings reproducible | This audit | commands recorded below | In progress |
 | GOV-MAP-001 | Capability map complete | codemap.md + this audit | | In progress |
 | GOV-MAP-002 | Providers/feature flags reachability | proxy config + runtime probe | | In progress |
-| ENG-CLI-001 | Non-interactive CLI contract | cutctx/cli.py, cutctx/cli/ | | In progress |
-| ENG-CLI-002 | JSON output parseable, diagnostics on stderr | cutctx/cli.py | | In progress |
-| ENG-API-001 | Resource+tenant authorization | cutctx/proxy/, auth/ | | In progress |
-| ENG-API-002 | Idempotency/recovery for mutations | proxy admin APIs, EE billing | | In progress |
-| ENG-ROUTE-001 | Versioned routing policy w/ fallback bounds | cutctx/providers/, context_policy.py | | In progress |
-| ENG-ROUTE-002 | Orchestration retries/queue/cancel semantics | cutctx/orchestration/ | | In progress |
-| ENG-MEM-001 | Memory tenant/role/expiry isolation | cutctx/memory/, cutctx_ee/memory_service | | In progress |
-| ENG-MEM-002 | Deletion/retention across layers | cutctx/retention.py, EE retention | | In progress |
-| ENG-UI-001 | Dashboard critical states + a11y | dashboard/src | | In progress |
-| ENG-UI-002 | Dashboard no unauthorized data | dashboard API layer | | In progress |
+| ENG-CLI-001 | Non-interactive CLI contract | cutctx/cli.py, cutctx/cli/ | EV-003 | Pass |
+| ENG-CLI-002 | JSON output parseable, diagnostics on stderr | cutctx/cli.py | EV-003 | Pass |
+| ENG-API-001 | Resource+tenant authorization | cutctx/proxy/, auth/ | EV-002 | Pass |
+| ENG-API-002 | Idempotency/recovery for mutations | proxy admin APIs, EE billing | EV-002 | Pass |
+| ENG-ROUTE-001 | Versioned routing policy w/ fallback bounds | cutctx/providers/, context_policy.py | EV-002, EV-003 | Pass |
+| ENG-ROUTE-002 | Orchestration retries/queue/cancel semantics | cutctx/orchestration/ | EV-002 | Pass |
+| ENG-MEM-001 | Memory tenant/role/expiry isolation | cutctx/memory/, cutctx_ee/memory_service | EV-003 | Pass |
+| ENG-MEM-002 | Deletion/retention across layers | cutctx/retention.py, EE retention | EV-003, EV-005 | Pass |
+| ENG-UI-001 | Dashboard critical states + a11y | dashboard/src | EV-004 | Pass |
+| ENG-UI-002 | Dashboard no unauthorized data | dashboard API layer | EV-004 | Pass |
 | ENG-DESKTOP-001 | Desktop upgrade recoverable | desktop/cutctx-control | | In progress |
 | ENG-DESKTOP-002 | IPC/privileged actions bounded | desktop/cutctx-control | | In progress |
 | ENG-INT-001 | Callback signature/replay verification | plugins/, extensions/ | | In progress |
 | ENG-INT-002 | High-impact tool approval | mcp_gateway.py, integrations | | In progress |
 | ENG-AGENT-001 | Delegation authority grants | cutctx/orchestration/ | | In progress |
 | ENG-AGENT-002 | Approval + outcome reconciliation | cutctx/orchestration/ | | In progress |
-| ENG-RELPERF-001 | SLO + load evidence | benchmarks/, audit load tests | | In progress |
+| ENG-RELPERF-001 | SLO + load evidence | benchmarks/, audit load tests | | Not evaluated |
 | ENG-RELPERF-002 | Recovery restore + safe replay | scripts/migrate.py, runbooks | | In progress |
 | ENG-CHAOS-001 | Chaos experiment governance | fuzz/, chaos-testing.yml | | In progress |
 | ENG-CHAOS-002 | Outcome reconciliation | | | In progress |
 | ENG-RELENG-001 | Immutable attributed artifact | .github/workflows release* | | In progress |
 | ENG-RELENG-002 | Stop criteria + tested rollback | release workflows, runbooks | | In progress |
-| ENG-PLAYWRIGHT-001 | Critical browser journeys deterministic | e2e/, dashboard playwright | | In progress |
-| ENG-PLAYWRIGHT-002 | a11y recovery + artifact sanitization | e2e/, dashboard tests | | In progress |
-| ENG-MIGRATION-001 | Bounded restartable tenant-scoped migrations | sql/, scripts/migrate.py | | In progress |
-| ENG-MIGRATION-002 | Recovery + reconciliation evidence | sql/, runbooks/failed-migration.md | | In progress |
-| ENG-AIEVAL-001 | Versioned eval task set | cutctx/evals/ | | In progress |
-| ENG-AIEVAL-002 | Route/safety verified per task | evals + routing tests | | In progress |
-| ENG-SDKCOMPAT-001 | Compat classification + consumer matrix | sdk/, pyproject | | In progress |
-| ENG-SDKCOMPAT-002 | Compat preserves auth/validation/errors | sdk/, proxy compat tests | | In progress |
-| ENG-OBS-001 | Telemetry contract + redaction | cutctx/telemetry/, observability/ | | In progress |
+| ENG-PLAYWRIGHT-001 | Critical browser journeys deterministic | e2e/, dashboard playwright | EV-004 | Pass |
+| ENG-PLAYWRIGHT-002 | a11y recovery + artifact sanitization | e2e/, dashboard tests | EV-004 | Pass |
+| ENG-MIGRATION-001 | Bounded restartable tenant-scoped migrations | sql/, scripts/migrate.py | EV-002 | Pass |
+| ENG-MIGRATION-002 | Recovery + reconciliation evidence | sql/, runbooks/failed-migration.md | EV-002 | Pass |
+| ENG-AIEVAL-001 | Versioned eval task set | cutctx/evals/ | EV-003 | Pass |
+| ENG-AIEVAL-002 | Route/safety verified per task | evals + routing tests | EV-003 | Pass |
+| ENG-SDKCOMPAT-001 | Compat classification + consumer matrix | sdk/, pyproject | | Not evaluated |
+| ENG-SDKCOMPAT-002 | Compat preserves auth/validation/errors | sdk/, proxy compat tests | EV-002 | Pass |
+| ENG-OBS-001 | Telemetry contract + redaction | cutctx/telemetry/, observability/ | EV-002 | Pass |
 | ENG-OBS-002 | Alerts owned/actionable/exercised | .github/workflows, runbooks | | In progress |
 | ENG-CV-001 | Promotion gates bind exact candidate | .github/workflows ci.yml | | In progress |
 | ENG-CV-002 | Controlled rollout + rollback triggers | release workflows | | In progress |
