@@ -160,6 +160,23 @@
   - [Opus release assurance prompt](prompts/opus/ch20-release-assurance-synthesis.md)
   - [Sonnet gate evidence prompt](prompts/sonnet/ch20-gate-evidence-review.md)
   - [Haiku verification inventory prompt](prompts/haiku/ch20-verification-inventory.md)
+- Operational runbooks
+  - [Production release](runbooks/production-release.md)
+  - [Rollback](runbooks/rollback.md)
+  - [Emergency hotfix](runbooks/hotfix.md)
+  - [Service incident response](runbooks/incident-response.md)
+  - [Security incident response](runbooks/security-incident.md)
+  - [External provider outage](runbooks/provider-outage.md)
+  - [Failed database migration](runbooks/failed-migration.md)
+  - [Data recovery](runbooks/data-recovery.md)
+- Reference appendices
+  - [Control catalog and traceability](appendices/control-catalog.md)
+  - [KPI decision catalog](appendices/kpi-catalog.md)
+  - [OWASP mapping](appendices/owasp-mapping.md)
+  - [NIST mapping](appendices/nist-mapping.md)
+  - [Competitive benchmarking](appendices/competitive-benchmarking.md)
+  - [Engineering audit glossary](appendices/glossary.md)
+  - [Cutctx reference implementation map](appendices/cutctx-reference-implementation.md)
 - Reusable templates
   - [Audit report](templates/audit-report.md)
   - [Evidence register](templates/evidence-register.md)
