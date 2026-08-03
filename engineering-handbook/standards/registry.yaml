@@ -1,0 +1,162 @@
+schema_version: 1
+registry_version: "2026.1"
+manual_edition: "2026.1"
+owner: Engineering Enablement
+last_verified: "2026-08-03"
+sources:
+  - id: OWASP-ASVS-5.0.0
+    publisher: OWASP Foundation
+    title: OWASP Application Security Verification Standard
+    version: 5.0.0
+    publication_date: "2025-05-30"
+    official_url: https://owasp.org/www-project-application-security-verification-standard/
+    immutable_url: https://github.com/OWASP/ASVS/releases/tag/v5.0.0_release
+    retrieved: "2026-08-03"
+    scope: Verifiable application security requirements and assurance levels.
+    status: normative
+    control_families: [architecture, authentication, session, authorization, validation, cryptography, logging]
+    copyright_note: Paraphrase and cite requirement identifiers; do not reproduce the standard wholesale.
+    refresh_policy: Review annually and when OWASP publishes a stable ASVS release.
+  - id: OWASP-TOP10-2025
+    publisher: OWASP Foundation
+    title: OWASP Top 10:2025
+    version: "2025"
+    publication_date: "2025-11-06"
+    official_url: https://owasp.org/Top10/2025/
+    immutable_url: null
+    retrieved: "2026-08-03"
+    scope: Awareness taxonomy for prevalent web application security risks.
+    status: informative
+    control_families: [application-security, threat-modeling, verification]
+    copyright_note: Paraphrase risk descriptions and cite the official category page.
+    refresh_policy: Review on each OWASP Top 10 edition and annually for errata.
+  - id: OWASP-API-TOP10-2023
+    publisher: OWASP Foundation
+    title: OWASP API Security Top 10
+    version: "2023"
+    publication_date: "2023-07-03"
+    official_url: https://owasp.org/API-Security/editions/2023/en/0x00-header/
+    immutable_url: https://github.com/OWASP/API-Security/tree/master/editions/2023/en
+    retrieved: "2026-08-03"
+    scope: API-specific security risk taxonomy and mitigations.
+    status: informative
+    control_families: [api-security, authorization, resource-management, inventory]
+    copyright_note: Paraphrase risk and mitigation guidance with category attribution.
+    refresh_policy: Review annually and when OWASP publishes a new API Security edition.
+  - id: OWASP-WSTG-4.2
+    publisher: OWASP Foundation
+    title: OWASP Web Security Testing Guide
+    version: 4.2
+    publication_date: "2020-12-03"
+    official_url: https://owasp.org/www-project-web-security-testing-guide/v42/
+    immutable_url: https://github.com/OWASP/wstg/releases/tag/v4.2
+    retrieved: "2026-08-03"
+    scope: Reproducible web application security testing procedures.
+    status: informative
+    control_families: [security-testing, configuration, identity, session, input-validation]
+    copyright_note: Paraphrase test procedures and retain WSTG test identifiers in citations.
+    refresh_policy: Review annually and when a stable WSTG release supersedes 4.2.
+  - id: OWASP-SAMM-2.1
+    publisher: OWASP Foundation
+    title: OWASP Software Assurance Maturity Model
+    version: 2.1
+    publication_date: "2023-05-12"
+    official_url: https://owaspsamm.org/model/
+    immutable_url: null
+    retrieved: "2026-08-03"
+    scope: Software assurance maturity practices across governance, design, implementation, verification, and operations.
+    status: informative
+    control_families: [governance, design, implementation, verification, operations]
+    copyright_note: Paraphrase maturity practices and cite the model practice.
+    refresh_policy: Review annually and when the SAMM model publishes a stable revision.
+  - id: NIST-SSDF-1.1
+    publisher: National Institute of Standards and Technology
+    title: Secure Software Development Framework (SSDF) Version 1.1
+    version: NIST SP 800-218
+    publication_date: "2022-02-03"
+    official_url: https://csrc.nist.gov/pubs/sp/800/218/final
+    immutable_url: https://doi.org/10.6028/NIST.SP.800-218
+    retrieved: "2026-08-03"
+    scope: Outcome-based secure software development practices.
+    status: normative
+    control_families: [governance, development-environment, provenance, vulnerability-response]
+    copyright_note: Paraphrase practices and tasks with NIST citation.
+    refresh_policy: Review annually and on NIST revision or errata.
+  - id: NIST-IR-800-61R3
+    publisher: National Institute of Standards and Technology
+    title: Incident Response Recommendations and Considerations for Cybersecurity Risk Management
+    version: NIST SP 800-61 Revision 3
+    publication_date: "2025-04-03"
+    official_url: https://csrc.nist.gov/pubs/sp/800/61/r3/final
+    immutable_url: https://doi.org/10.6028/NIST.SP.800-61r3
+    retrieved: "2026-08-03"
+    scope: Integration of incident response into cybersecurity risk management.
+    status: normative
+    control_families: [incident-response, communication, containment, recovery, lessons-learned]
+    copyright_note: Paraphrase recommendations and cite the publication section.
+    refresh_policy: Review annually and on NIST revision or errata.
+  - id: W3C-WCAG-2.2
+    publisher: World Wide Web Consortium
+    title: Web Content Accessibility Guidelines (WCAG) 2.2
+    version: W3C Recommendation 2.2
+    publication_date: "2023-10-05"
+    official_url: https://www.w3.org/TR/WCAG22/
+    immutable_url: https://www.w3.org/TR/2023/REC-WCAG22-20231005/
+    retrieved: "2026-08-03"
+    scope: Testable accessibility success criteria for web content.
+    status: normative
+    control_families: [accessibility, user-interface, content, testing]
+    copyright_note: Cite success criteria and paraphrase supporting guidance.
+    refresh_policy: Review annually and when W3C publishes a superseding Recommendation or errata.
+  - id: OTEL-SEMCONV-1.43.0
+    publisher: Cloud Native Computing Foundation / OpenTelemetry
+    title: OpenTelemetry Semantic Conventions
+    version: 1.43.0
+    publication_date: "2026-07-03"
+    official_url: https://opentelemetry.io/docs/specs/semconv/
+    immutable_url: https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.43.0
+    retrieved: "2026-08-03"
+    scope: Names and meanings for telemetry attributes, metrics, spans, logs, and entities.
+    status: normative
+    control_families: [observability, telemetry, logging, metrics, tracing]
+    copyright_note: Cite convention names and versions; avoid copying extensive specification text.
+    refresh_policy: Review quarterly because semantic conventions release frequently.
+  - id: NIST-AI-RMF-1.0
+    publisher: National Institute of Standards and Technology
+    title: Artificial Intelligence Risk Management Framework (AI RMF 1.0)
+    version: NIST AI 100-1
+    publication_date: "2023-01-26"
+    official_url: https://www.nist.gov/itl/ai-risk-management-framework
+    immutable_url: https://doi.org/10.6028/NIST.AI.100-1
+    retrieved: "2026-08-03"
+    scope: Voluntary framework for governing, mapping, measuring, and managing AI risk.
+    status: normative
+    control_families: [ai-governance, risk, measurement, monitoring]
+    copyright_note: Paraphrase framework outcomes and cite functions and categories.
+    refresh_policy: Review annually and on NIST framework revision.
+  - id: NIST-AI-600-1
+    publisher: National Institute of Standards and Technology
+    title: Artificial Intelligence Risk Management Framework Generative Artificial Intelligence Profile
+    version: NIST AI 600-1
+    publication_date: "2024-07-26"
+    official_url: https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence
+    immutable_url: https://doi.org/10.6028/NIST.AI.600-1
+    retrieved: "2026-08-03"
+    scope: Generative-AI risks and risk-management actions extending the AI RMF.
+    status: informative
+    control_families: [generative-ai, evaluation, safety, provenance, incident-response]
+    copyright_note: Paraphrase risks and actions with publication citations.
+    refresh_policy: Review annually and on NIST profile revision.
+  - id: OWASP-LLM-TOP10-2025
+    publisher: OWASP Foundation
+    title: OWASP Top 10 for Large Language Model Applications
+    version: "2025"
+    publication_date: "2024-11-18"
+    official_url: https://genai.owasp.org/llm-top-10/
+    immutable_url: https://github.com/OWASP/www-project-top-10-for-large-language-model-applications/releases/tag/2024
+    retrieved: "2026-08-03"
+    scope: Security risk taxonomy for LLM and generative-AI applications.
+    status: informative
+    control_families: [llm-security, prompt-injection, supply-chain, data, agency, output-handling]
+    copyright_note: Paraphrase vulnerability descriptions and mitigations with category attribution.
+    refresh_policy: Review annually and when OWASP GenAI publishes a new stable edition.
