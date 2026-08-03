@@ -1,0 +1,1 @@
+SDK_COMPATIBILITY_FIXTURE_PASS additive-safe tenant-bound breaking-change-blocked

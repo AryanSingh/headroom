@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH20-CONTINUOUS-VERIFICATION
+title: Product Atlas deterministic verification and release-gate fixture
+command: [python3, verification_fixture.py]
+timeout_seconds: 10
+cleanup: []
+dependencies: [Python 3 standard library]
+fixtures: [verification_fixture.py, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}
