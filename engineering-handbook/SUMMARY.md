@@ -2,6 +2,11 @@
 
 - [Source and validation guide](README.md)
 - Governance
+  - [Handbook charter](governance/handbook-charter.md)
+  - [Roles and accountability](governance/roles-and-accountability.md)
+  - [Evidence standard](governance/evidence-standard.md)
+  - [Risk and severity model](governance/risk-severity-model.md)
+  - [Exception management](governance/exception-management.md)
   - [Control schema](governance/control-schema.md)
   - [KPI schema](governance/kpi-schema.md)
 - Standards
@@ -14,3 +19,23 @@
   - [Haiku prompt family](prompts/haiku/README.md)
 - Publication verification fixture
   - [DOCX/PDF publication spike](examples/publication-spike/pilot.md)
+- Volume I: Governance and audit operations
+  - [Operating manual for engineering audits](chapters/01-operating-manual.md)
+  - [API release audit worked example](examples/audit-release/README.md)
+  - [Audit execution checklist](checklists/audit-execution.md)
+  - [Audit operations KPI catalog](scorecards/audit-operations-kpis.md)
+  - [Opus audit strategy prompt](prompts/opus/ch01-audit-architecture.md)
+  - [Sonnet evidence review prompt](prompts/sonnet/ch01-evidence-review.md)
+  - [Haiku evidence normalization prompt](prompts/haiku/ch01-evidence-normalization.md)
+- Reusable templates
+  - [Audit report](templates/audit-report.md)
+  - [Evidence register](templates/evidence-register.md)
+  - [Finding record](templates/finding.md)
+  - [Release decision](templates/release-decision.md)
+  - [Incident review](templates/incident-review.md)
+  - [Threat model](templates/threat-model.md)
+  - [Migration plan](templates/migration-plan.md)
+  - [Benchmark report](templates/benchmark-report.md)
+  - [AI evaluation report](templates/ai-evaluation-report.md)
+  - [Verification plan](templates/verification-plan.md)
+  - [Executive summary](templates/executive-summary.md)
