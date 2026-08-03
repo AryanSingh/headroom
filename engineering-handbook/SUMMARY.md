@@ -104,6 +104,13 @@
   - [Opus release risk prompt](prompts/opus/ch12-release-risk-synthesis.md)
   - [Sonnet release evidence prompt](prompts/sonnet/ch12-release-evidence-review.md)
   - [Haiku release inventory prompt](prompts/haiku/ch12-release-inventory.md)
+  - [Agent orchestration engineering audit](chapters/13-agent-orchestration.md)
+  - [Agent orchestration worked example](examples/agent-orchestration/README.md)
+  - [Agent orchestration checklist](checklists/agent-orchestration.md)
+  - [Agent orchestration KPI catalog](scorecards/agent-orchestration-kpis.md)
+  - [Opus orchestration risk prompt](prompts/opus/ch13-orchestration-risk-synthesis.md)
+  - [Sonnet delegation evidence prompt](prompts/sonnet/ch13-delegation-evidence-review.md)
+  - [Haiku agent/tool inventory prompt](prompts/haiku/ch13-agent-tool-inventory.md)
 - Reusable templates
   - [Audit report](templates/audit-report.md)
   - [Evidence register](templates/evidence-register.md)
