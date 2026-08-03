@@ -24,6 +24,9 @@ def test_publication_spike_builds_docx_pdf_and_visual_ledger(tmp_path: Path) -> 
 def test_full_publication_writes_resolved_contents_and_render_ledger(tmp_path: Path) -> None:
     root = Path(__file__).resolve().parents[2]
     destination = tmp_path / "dist"
+    stale = destination / "visual-qa" / "final" / "page-999.png"
+    stale.parent.mkdir(parents=True)
+    stale.write_bytes(b"stale")
 
     artifacts = build_full_publication(root, destination)
 
@@ -33,3 +36,4 @@ def test_full_publication_writes_resolved_contents_and_render_ledger(tmp_path: P
     assert ledger["status"] == "rendered"
     assert ledger["pages"] >= 100
     assert all(page > 2 for page in ledger["toc_pages"].values())
+    assert not stale.exists()

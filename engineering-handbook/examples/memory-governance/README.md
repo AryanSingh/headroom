@@ -26,3 +26,28 @@ Atlas stores `mem-a-17`, a tenant-a renewal preference, with purpose `support-as
 | Subject deletion | no primary/index/cache hit | deletion job and three layer checks |
 
 Atlas records IDs and hashes, not the preference text, in its evidence register. The deletion run remains open until the index and cache both acknowledge removal.
+
+## Executable fixture
+
+Run the deterministic memory governance fixture with the handbook example
+runner (`python3 automation/check_examples.py engineering-handbook`) or
+directly from this directory:
+
+```shell
+python3 memory_governance_fixture.py
+```
+
+The fixture classifies an ingested record, checks tenant-a and tenant-b
+retrieval across the primary, index, and cache layers, verifies an expired
+record is excluded, and deletes a subject with an all-layer verification.
+Expected output on stdout, exactly:
+
+```text
+MEMORY_GOVERNANCE_FIXTURE_PASS tenant-isolated expiry-enforced deletion-complete
+```
+
+The fixture is pure standard library with in-memory layers; it makes no network
+calls. Failure interpretation: a non-zero exit means another tenant retrieved
+the record, an expired record remained ranked, or any layer returned a deleted
+subject. Cleanup: the fixture creates no files or external resources, so no
+cleanup step is required.

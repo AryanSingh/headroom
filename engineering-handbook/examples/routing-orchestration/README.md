@@ -26,3 +26,28 @@ Atlas classifies invoice extraction as `restricted-eu`, permits `eu-fast-v2` and
 | EU capacity absent | queue, reason `eu-approved-capacity-unavailable` | denied-provider list excludes US route |
 
 The release evidence includes a route decision record per fixture and a rollback proof that disables `eu-fast-v2` without changing the allowlist.
+
+## Executable fixture
+
+Run the deterministic routing policy fixture with the handbook example runner
+(`python3 automation/check_examples.py engineering-handbook`) or directly from
+this directory:
+
+```shell
+python3 routing_orchestration_fixture.py
+```
+
+The fixture resolves a restricted-EU job under policy revision `2026.08.1`
+across four scenarios: preferred provider available, preferred provider timed
+out with an in-bound fallback, fallback over the cost budget, and no approved
+capacity at all. Expected output on stdout, exactly:
+
+```text
+ROUTING_FIXTURE_PASS policy-match latency-bounded-fallback budget-held-fail-closed
+```
+
+The fixture is pure standard library with deterministic in-memory providers; it
+makes no network calls. Failure interpretation: a non-zero exit means a fallback
+selected a disallowed region, a route exceeded its cost or latency bound, or a
+job executed instead of queueing when no approved provider fit. Cleanup: the
+fixture creates no files or external resources, so no cleanup step is required.

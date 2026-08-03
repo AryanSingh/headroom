@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH08-ROUTING-ORCHESTRATION-RUN
+title: Product Atlas routing fallback policy fixture
+command: [python3, routing_orchestration_fixture.py]
+timeout_seconds: 15
+cleanup: []
+dependencies: [Python 3 standard library]
+fixtures: [routing_orchestration_fixture.py, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}

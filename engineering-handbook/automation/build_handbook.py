@@ -339,6 +339,10 @@ def _heading_pages(pdf: Path, headings: Iterable[str]) -> dict[str, int]:
 
 def _render_pdf(pdf: Path, destination: Path) -> list[Path]:
     destination.mkdir(parents=True, exist_ok=True)
+    # Rebuilds may have fewer pages than the preceding publication. Remove only
+    # this renderer's deterministic page artifacts before counting fresh output.
+    for image in destination.glob("page-*.png"):
+        image.unlink()
     prefix = destination / "page"
     completed = subprocess.run([PDFTOPPM, "-png", "-r", "110", str(pdf), str(prefix)], capture_output=True, text=True, check=False)
     pages = sorted(destination.glob("page-*.png"))
@@ -395,11 +399,17 @@ def build_full_publication(root: Path, destination: Path) -> dict[str, Path]:
     missing = sorted(set(headings) - set(pages))
     if missing:
         raise RuntimeError(f"Manual headings missing from provisional PDF: {', '.join(missing)}")
-    docx = build_docx(root, destination / "Enterprise_Engineering_Manual.docx", pages)
-    pdf = build_pdf(docx, destination / "Enterprise_Engineering_Manual.pdf")
-    final_pages = _heading_pages(pdf, headings)
-    if any(final_pages.get(item) != page for item, page in pages.items()):
-        raise RuntimeError("Static contents page references changed after the final manual DOCX build")
+    docx = destination / "Enterprise_Engineering_Manual.docx"
+    pdf = destination / "Enterprise_Engineering_Manual.pdf"
+    for _ in range(3):
+        build_docx(root, docx, pages)
+        build_pdf(docx, pdf)
+        final_pages = _heading_pages(pdf, headings)
+        if all(final_pages.get(item) == page for item, page in pages.items()):
+            break
+        pages = final_pages
+    else:
+        raise RuntimeError("Static contents page references did not stabilize after three manual DOCX builds")
     pngs = _render_pdf(pdf, destination / "visual-qa/final")
     ledger = destination / "visual-qa/final-ledger.json"
     ledger.write_text(json.dumps({"status": "rendered", "pages": len(pngs), "reviewed_pages": [{"page": index + 1, "image": image.name, "status": "pending", "findings": [], "correction_cycle": 0} for index, image in enumerate(pngs)], "toc_pages": pages}, indent=2) + "\n", encoding="utf-8")

@@ -1,0 +1,1 @@
+AGENT_INTEGRATION_FIXTURE_PASS hmac-verified altered-rejected replay-rejected authority-boundary-enforced

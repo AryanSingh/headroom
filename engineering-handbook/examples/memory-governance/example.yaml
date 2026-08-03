@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH09-MEMORY-GOVERNANCE-RUN
+title: Product Atlas memory governance fixture
+command: [python3, memory_governance_fixture.py]
+timeout_seconds: 15
+cleanup: []
+dependencies: [Python 3 standard library]
+fixtures: [memory_governance_fixture.py, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}

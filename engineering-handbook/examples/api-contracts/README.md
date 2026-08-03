@@ -31,3 +31,26 @@ the idempotency key with tenant, principal, request hash, and transfer result.
 The evidence record stores status, schema version, trace ID, redacted principal,
 and ledger count. It deliberately excludes authorization headers and account
 numbers. A successful happy path alone is insufficient evidence.
+
+## Executable fixture
+
+Run the deterministic contract fixture with the handbook example runner
+(`python3 automation/check_examples.py engineering-handbook`) or directly from
+this directory:
+
+```shell
+python3 api_contracts_fixture.py
+```
+
+Expected output on stdout, exactly:
+
+```text
+API_CONTRACTS_FIXTURE_PASS tenant-scoped idempotent-conflict malformed-rejected
+```
+
+The fixture uses only the Python standard library with in-memory state and
+makes no network calls. Failure interpretation: a non-zero exit or assertion
+failure means a contract case regressed — cross-tenant access, a duplicate
+mutation, an accepted malformed request, or a silently changed idempotency
+conflict. Cleanup: the fixture creates no files, credentials, or external
+resources, so no cleanup step is required.

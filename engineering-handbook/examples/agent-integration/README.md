@@ -21,3 +21,27 @@ callback prepares a CSV preview; it cannot deliver funds or export until finance
 approves a named preview. The evidence packet records provider environment,
 tenant, event ID, signature verdict, tool schema version, approval ID, and
 correlation ID without storing tokens or raw expense payloads.
+
+## Executable fixture
+
+Run the deterministic integration fixture with the handbook example runner
+(`python3 automation/check_examples.py engineering-handbook`) or directly from
+this directory:
+
+```shell
+python3 agent_integration_fixture.py
+```
+
+The fixture recomputes the tenant HMAC over the canonical JSON body, replays a
+processed event, mutates the body, and attempts an execution without an
+approval token. Expected output on stdout, exactly:
+
+```text
+AGENT_INTEGRATION_FIXTURE_PASS hmac-verified altered-rejected replay-rejected authority-boundary-enforced
+```
+
+The fixture is pure standard library with in-memory secrets and a replay ledger;
+it makes no network calls. Failure interpretation: a non-zero exit means an
+altered body passed verification, a replayed event caused a second delivery, or
+an agent executed an export without the finance approval token. Cleanup: the
+fixture creates no files or external resources, so no cleanup step is required.
