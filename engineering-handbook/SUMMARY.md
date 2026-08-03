@@ -55,6 +55,13 @@
   - [Opus UI journey prompt](prompts/opus/ch05-ui-journey.md)
   - [Sonnet UI state-review prompt](prompts/sonnet/ch05-state-review.md)
   - [Haiku UI inventory prompt](prompts/haiku/ch05-ui-inventory.md)
+  - [API and backend engineering audit](chapters/06-api-backend.md)
+  - [Product Atlas API contract evidence](examples/api-contracts/README.md)
+  - [API/backend release checklist](checklists/api-backend.md)
+  - [API KPI catalog](scorecards/api-kpis.md)
+  - [Opus API contract-analysis prompt](prompts/opus/ch06-api-contract-analysis.md)
+  - [Sonnet API authorization-evidence prompt](prompts/sonnet/ch06-api-authorz-review.md)
+  - [Haiku API inventory prompt](prompts/haiku/ch06-api-inventory.md)
 - Reusable templates
   - [Audit report](templates/audit-report.md)
   - [Evidence register](templates/evidence-register.md)
