@@ -1,0 +1,21 @@
+preset: compact_reference_guide
+page:
+  size: Letter
+  margins_in: 0.8
+  header_footer_in: 0.35
+typography:
+  body_font: Calibri
+  body_size_pt: 10.5
+  code_font: Courier New
+paragraph:
+  after_pt: 5
+  line_spacing: 1.15
+tables:
+  usable_width_dxa: 9936
+  header_fill: E8EEF5
+  repeated_headers: true
+  rows_may_split: false
+accessibility:
+  tagged_pdf: out-of-scope-first-edition
+  source_headings: required
+  meaningful_link_text: required

@@ -12,3 +12,5 @@
   - [Opus prompt family](prompts/opus/README.md)
   - [Sonnet prompt family](prompts/sonnet/README.md)
   - [Haiku prompt family](prompts/haiku/README.md)
+- Publication verification fixture
+  - [DOCX/PDF publication spike](examples/publication-spike/pilot.md)

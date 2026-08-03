@@ -1,0 +1,19 @@
+version: 1
+policy: source-only
+artifacts:
+  - id: assembled-markdown
+    path: dist/Enterprise_Engineering_Manual.md
+    media_type: text/markdown
+    checksum: sha256
+  - id: authoritative-docx
+    path: dist/Enterprise_Engineering_Manual.docx
+    media_type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    checksum: sha256
+  - id: derived-pdf
+    path: dist/Enterprise_Engineering_Manual.pdf
+    media_type: application/pdf
+    checksum: sha256
+  - id: visual-qa-ledger
+    path: dist/visual-qa/final-ledger.json
+    media_type: application/json
+    checksum: sha256
