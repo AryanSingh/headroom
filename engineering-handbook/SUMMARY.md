@@ -62,6 +62,13 @@
   - [Opus API contract-analysis prompt](prompts/opus/ch06-api-contract-analysis.md)
   - [Sonnet API authorization-evidence prompt](prompts/sonnet/ch06-api-authorz-review.md)
   - [Haiku API inventory prompt](prompts/haiku/ch06-api-inventory.md)
+  - [Agent and integration engineering audit](chapters/07-agent-integrations.md)
+  - [Product Atlas agent integration evidence](examples/agent-integration/README.md)
+  - [Agent and integration release checklist](checklists/agent-integrations.md)
+  - [Integration KPI catalog](scorecards/integration-kpis.md)
+  - [Opus integration authority-map prompt](prompts/opus/ch07-integration-authority-map.md)
+  - [Sonnet webhook evidence-review prompt](prompts/sonnet/ch07-webhook-evidence-review.md)
+  - [Haiku integration inventory prompt](prompts/haiku/ch07-integration-inventory.md)
 - Reusable templates
   - [Audit report](templates/audit-report.md)
   - [Evidence register](templates/evidence-register.md)
