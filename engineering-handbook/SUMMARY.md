@@ -27,6 +27,13 @@
   - [Opus audit strategy prompt](prompts/opus/ch01-audit-architecture.md)
   - [Sonnet evidence review prompt](prompts/sonnet/ch01-evidence-review.md)
   - [Haiku evidence normalization prompt](prompts/haiku/ch01-evidence-normalization.md)
+  - [Product discovery and capability mapping](chapters/02-product-discovery.md)
+  - [Atlas Subscription capability-map example](examples/capability-map/README.md)
+  - [Master capability-discovery checklist](checklists/master-checklist.md)
+  - [Discovery KPI catalog](scorecards/discovery-kpis.md)
+  - [Opus system-map prompt](prompts/opus/ch02-system-map.md)
+  - [Sonnet capability-row review prompt](prompts/sonnet/ch02-capability-review.md)
+  - [Haiku inventory-normalization prompt](prompts/haiku/ch02-inventory-normalization.md)
 - Reusable templates
   - [Audit report](templates/audit-report.md)
   - [Evidence register](templates/evidence-register.md)
