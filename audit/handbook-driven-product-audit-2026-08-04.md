@@ -107,7 +107,7 @@ evidence and final disposition are in Sections 5–9.
 | --- | --- | --- | --- |
 | EV-002 | `.venv/bin/python -m pytest -q tests/test_auth_adversarial.py tests/test_ccr_admin_auth.py tests/test_proxy_client_auth.py tests/test_agent_client_auth.py tests/test_routing_modes_e2e.py tests/test_observability_tracing.py tests/test_sql_migrations.py tests/test_openai_responses_subscription_compat.py` | **75 passed** | ENG-API-001/002, ENG-ROUTE-001/002, ENG-OBS-001, ENG-MIGRATION-001/002, ENG-SDKCOMPAT-002 |
 | EV-003 | `.venv/bin/python -m pytest -q tests/test_cli/test_main_help_version.py tests/test_cli/test_auth.py tests/test_cli/test_global_routing.py tests/test_cli/test_routing_status.py tests/test_cli/test_proxy_client_credentials.py tests/test_retention.py tests/test_quality_retention.py tests/test_release_evidence.py tests/test_release_workflows.py tests/test_release_manifest.py tests/test_model_routing_evals.py tests/test_model_routing_quality_benchmark.py` | **148 passed** | ENG-CLI-001/002, ENG-MEM-001/002, ENG-RELENG-001/002, ENG-AIEVAL-001/002, ENG-CV-001/002 |
-| EV-004 | `.venv/bin/python -m pytest -q tests/test_dashboard_surfaces_playwright.py tests/test_dashboard_cache_ttl_playwright.py tests/test_dashboard_governance_e2e.py tests/test_dashboard_orchestrator_policy_e2e.py tests/test_dashboard_capabilities_toggles_e2e.py` | **5 skipped, 0 executed**; browser runtime unavailable | ENG-PLAYWRIGHT-001/002, ENG-UI-001/002 — not evaluated |
+| EV-004 | `.venv/bin/python -m pytest -q tests/test_dashboard_surfaces_playwright.py tests/test_dashboard_cache_ttl_playwright.py tests/test_dashboard_governance_e2e.py tests/test_dashboard_orchestrator_policy_e2e.py tests/test_dashboard_capabilities_toggles_e2e.py` after `uv sync --extra ee --extra dev --locked` and `.venv/bin/playwright install chromium` | **13 passed** | ENG-PLAYWRIGHT-001/002, ENG-UI-001/002 |
 | EV-005 | `uv sync --extra ee` followed by the original retention suite | Initial two async tests could not collect because `pytest-asyncio` was not declared; after declaration and lock refresh, **14 passed** | ENG-MEM-002, ENG-CV-001 |
 
 ## 6. Scorecards / KPIs
@@ -117,17 +117,16 @@ evidence and final disposition are in Sections 5–9.
 | API/auth/routing | Selected negative and compatibility assertions | 75/75 passed | Satisfies this local control tranche; does not replace live provider evidence. |
 | CLI/release/AI evaluation | Deterministic unit/integration assertions | 148/148 passed | Release workflow, manifest, and routing-evaluation regression coverage is executable locally. |
 | Retention | Async cleanup/retention assertions | 14/14 passed after environment remediation | The retention implementation has local evidence; fresh test environments now require the declared plugin. |
-| Browser/UI | Executed critical browser journeys | 0/5 suites executed | Release evidence is incomplete until browsers are provisioned and the skipped suites pass. |
+| Browser/UI | Executed dashboard and browser assertions | 13/13 passed | Local browser evidence is available for the audited revision. |
 
 ## 7. Findings (severity-ordered)
 
-### High — browser-based release evidence is unavailable in the audited environment
+### Resolved evidence gap — browser-based release evidence
 
 - **Controls:** ENG-PLAYWRIGHT-001, ENG-PLAYWRIGHT-002, ENG-UI-001, ENG-UI-002.
-- **Evidence:** EV-004 collected zero browser assertions because all five dashboard/Playwright suites were skipped when the browser runtime was unavailable.
-- **Impact:** Dashboard critical journeys, accessibility/recovery behavior, and UI authorization states do not have fresh executable evidence for this audit. This is an evidence gap, not a demonstrated product defect.
-- **Reproduction:** run the EV-004 command in an environment with the project browser runtime installed.
-- **Remediation:** provision Playwright browsers in the audit/CI environment, run the five suites, retain screenshots/traces only after secret/data review, and attach their exact output to a release decision.
+- **Original condition:** the initial audit environment did not include the optional `dev` extra or Playwright browser binaries, so the five browser suites were skipped.
+- **Remediation and evidence:** installed the project-declared `dev` extra, provisioned Chromium with `.venv/bin/playwright install chromium`, and reran EV-004. The result is **13 passed**.
+- **Disposition:** resolved locally for the audited revision. The CI/audit image should still provision browsers before treating this as durable release evidence.
 
 ### Medium — fresh development environments could not execute async retention tests
 
@@ -145,12 +144,12 @@ evidence and final disposition are in Sections 5–9.
 ## 8. Limitations
 
 - No live production, paid-provider, commercial-billing, real database recovery, or destructive chaos exercise was run. Those controls are **Not evaluated**, not passed.
-- Browser binaries were unavailable; UI and Playwright controls remain an explicit release-evidence gap.
+- Browser controls were exercised locally after installing the project-declared `dev` extra and Chromium. CI image parity was not independently inspected.
 - This report evaluates the audited revision only and does not make a production-release approval decision.
 
 ## 9. Prioritized remediation plan
 
-1. **Before release:** install Playwright browsers in the CI/audit image and execute EV-004; block dashboard-sensitive release decisions until results are retained.
+1. **Completed locally:** provision the project `dev` extra and Chromium, then execute EV-004; make the same browser setup mandatory in CI/audit images.
 2. **Completed:** keep `pytest-asyncio` declared and lockfile synchronized; enforce the retention suite in the normal verification gate.
 3. **Next maintenance cycle:** migrate the Starlette test client compatibility layer away from the deprecated `httpx` path.
 4. **Before production claims:** run the handbook's provider, restore/recovery, chaos, and billing-reconciliation procedures with approved environment scope and evidence retention.
