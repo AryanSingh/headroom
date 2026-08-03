@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Atlas transfer review</title>
+  </head>
+  <body>
+    <main>
+      <h1>Atlas transfer review</h1>
+      <p id="state">Evidence is ready for review.</p>
+      <button type="button" id="simulate">Simulate unavailable evidence</button>
+      <section id="recovery" hidden aria-live="assertive" role="alert">
+        <p>Evidence service is temporarily unavailable. No transfer decision was made.</p>
+        <button type="button" id="retry">Retry evidence check</button>
+      </section>
+    </main>
+    <script src="fixture.js"></script>
+  </body>
+</html>

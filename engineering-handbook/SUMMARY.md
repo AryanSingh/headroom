@@ -111,6 +111,13 @@
   - [Opus orchestration risk prompt](prompts/opus/ch13-orchestration-risk-synthesis.md)
   - [Sonnet delegation evidence prompt](prompts/sonnet/ch13-delegation-evidence-review.md)
   - [Haiku agent/tool inventory prompt](prompts/haiku/ch13-agent-tool-inventory.md)
+  - [Playwright and visual testing](chapters/14-playwright-testing.md)
+  - [Local Playwright fixture](examples/playwright/README.md)
+  - [Playwright workflow checklist](checklists/playwright-testing.md)
+  - [Playwright KPI catalog](scorecards/playwright-kpis.md)
+  - [Opus journey risk prompt](prompts/opus/ch14-journey-risk-synthesis.md)
+  - [Sonnet browser evidence prompt](prompts/sonnet/ch14-browser-evidence-review.md)
+  - [Haiku UI test inventory prompt](prompts/haiku/ch14-ui-test-inventory.md)
 - Reusable templates
   - [Audit report](templates/audit-report.md)
   - [Evidence register](templates/evidence-register.md)
