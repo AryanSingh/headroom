@@ -34,6 +34,13 @@
   - [Opus system-map prompt](prompts/opus/ch02-system-map.md)
   - [Sonnet capability-row review prompt](prompts/sonnet/ch02-capability-review.md)
   - [Haiku inventory-normalization prompt](prompts/haiku/ch02-inventory-normalization.md)
+  - [CLI engineering and audit](chapters/03-cli-engineering.md)
+  - [Atlas Deploy CLI contract fixture](examples/cli-contract/README.md)
+  - [CLI engineering release checklist](checklists/cli-engineering.md)
+  - [CLI KPI catalog](scorecards/cli-kpis.md)
+  - [Opus CLI contract prompt](prompts/opus/ch03-cli-contract.md)
+  - [Sonnet CLI reproduction prompt](prompts/sonnet/ch03-cli-reproduction.md)
+  - [Haiku CLI inventory prompt](prompts/haiku/ch03-cli-inventory.md)
 - Reusable templates
   - [Audit report](templates/audit-report.md)
   - [Evidence register](templates/evidence-register.md)

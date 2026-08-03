@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+format="text"
+profile="${ATLAS_PROFILE:-development}"
+command="${1:-}"
+shift || true
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --format) format="$2"; shift 2 ;;
+    --profile) profile="$2"; shift 2 ;;
+    --help) echo "usage: atlasctl deploy status [--format text|json] [--profile NAME]"; exit 0 ;;
+    *) echo "error: unknown argument $1" >&2; exit 64 ;;
+  esac
+done
+
+if [ "$command" != "deploy" ]; then
+  echo "error: expected deploy command" >&2
+  exit 64
+fi
+
+if [ "$profile" = "production" ] && [ -z "${ATLAS_TOKEN:-}" ]; then
+  echo "error: ATLAS_TOKEN is required for production; set it explicitly" >&2
+  exit 77
+fi
+
+if [ "$format" = "json" ]; then
+  printf '{"command":"deploy status","profile":"%s","status":"ready"}\n' "$profile"
+else
+  printf 'deploy status: ready (%s)\n' "$profile"
+fi
