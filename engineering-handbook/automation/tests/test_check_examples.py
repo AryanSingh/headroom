@@ -85,7 +85,28 @@ def test_blocks_credentials_and_mutable_network_commands(handbook: Path) -> None
 
     assert {result.status for result in results} == {"configuration-error"}
     assert any("credential" in result.message.lower() for result in results)
-    assert any("mutable network" in result.message.lower() for result in results)
+    assert any("network" in result.message.lower() for result in results)
+
+
+def test_strips_inherited_credentials_and_blocks_runtime_network(handbook: Path, monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "parent-secret")
+    script = (
+        "import os, socket\n"
+        "assert 'OPENAI_API_KEY' not in os.environ\n"
+        "try:\n"
+        "    socket.create_connection(('example.com', 443), timeout=0.1)\n"
+        "except OSError:\n"
+        "    print('blocked')\n"
+        "else:\n"
+        "    raise SystemExit('network allowed')\n"
+    )
+    package = write_example(handbook, valid_manifest(), script)
+    (package / "expected.txt").write_text("blocked\n", encoding="utf-8")
+
+    result = run_examples(handbook)[0]
+
+    assert result.stdout == "blocked\n"
+    assert result.status == "passed", result.to_dict()
 
 
 def test_missing_manifest_fields_are_configuration_errors(handbook: Path) -> None:

@@ -20,6 +20,7 @@ CREDENTIAL = re.compile(r"(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|PRIVAT
 NETWORK_TOOLS = {"curl", "wget", "http", "https", "nc", "netcat"}
 MUTATING_FLAGS = {"-x", "--request", "-d", "--data", "--data-raw", "--upload-file", "-f", "--form"}
 MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+OFFLINE_RUNNERS = {"python", "python3", "node"}
 
 
 def discover_examples(root: Path) -> list[Path]:
@@ -61,10 +62,55 @@ def _unsafe_network(command: list[str]) -> str | None:
     if not command:
         return "command cannot be empty"
     tool = Path(command[0]).name.lower()
+    if tool not in OFFLINE_RUNNERS:
+        return "network-safe offline examples may only use python or node runners"
     upper = {part.upper() for part in command}
-    if tool in NETWORK_TOOLS and (upper & MUTATING_METHODS or set(command) & MUTATING_FLAGS):
-        return "mutable network command is prohibited"
+    if tool in NETWORK_TOOLS or upper & MUTATING_METHODS or set(command) & MUTATING_FLAGS:
+        return "network command is prohibited"
     return None
+
+
+def _offline_environment(workdir: Path, manifest_environment: dict[str, Any]) -> dict[str, str]:
+    guard_dir = workdir / ".offline-guard"
+    guard_dir.mkdir()
+    (guard_dir / "sitecustomize.py").write_text(
+        "import socket\n"
+        "def _blocked(*args, **kwargs):\n"
+        "    raise OSError('network disabled by handbook example runner')\n"
+        "_socket_type = socket.socket\n"
+        "class _OfflineSocket(_socket_type):\n"
+        "    def connect(self, *args, **kwargs):\n"
+        "        _blocked(*args, **kwargs)\n"
+        "    def connect_ex(self, *args, **kwargs):\n"
+        "        _blocked(*args, **kwargs)\n"
+        "socket.socket = _OfflineSocket\n"
+        "socket.create_connection = _blocked\n"
+        ,
+        encoding="utf-8",
+    )
+    node_guard = guard_dir / "node-offline-guard.cjs"
+    node_guard.write_text(
+        "const blocked = () => { throw new Error('network disabled by handbook example runner'); };\n"
+        "for (const name of ['net', 'tls', 'http', 'https', 'http2', 'dgram']) {\n"
+        "  const mod = require(name);\n"
+        "  for (const key of ['connect', 'request', 'get', 'createConnection', 'createServer']) {\n"
+        "    if (typeof mod[key] === 'function') mod[key] = blocked;\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    environment = {
+        "PATH": os.defpath,
+        "HOME": str(workdir / ".home"),
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONPATH": str(guard_dir),
+        "NODE_OPTIONS": f"--require {node_guard}",
+        "HANDBOOK_EXAMPLE_OFFLINE": "1",
+    }
+    environment.update({str(key): str(value) for key, value in manifest_environment.items()})
+    return environment
 
 
 def _configuration_error(path: Path, example_id: str, message: str) -> ExampleResult:
@@ -97,9 +143,7 @@ def _run_one(root: Path, manifest_path: Path) -> ExampleResult:
     with tempfile.TemporaryDirectory(prefix=f"handbook-example-{example_id}-") as temp:
         workdir = Path(temp) / package.name
         shutil.copytree(package, workdir)
-        environment = os.environ.copy()
-        environment.update({str(key): str(value) for key, value in manifest["environment"].items()})
-        environment["HANDBOOK_EXAMPLE_OFFLINE"] = "1"
+        environment = _offline_environment(workdir, manifest["environment"])
         try:
             completed = subprocess.run(
                 manifest["command"],
@@ -120,6 +164,9 @@ def _run_one(root: Path, manifest_path: Path) -> ExampleResult:
                 if not isinstance(cleanup, list) or not all(
                     isinstance(part, str) for part in cleanup
                 ):
+                    cleanup_codes.append(3)
+                    continue
+                if _unsafe_network(cleanup):
                     cleanup_codes.append(3)
                     continue
                 try:

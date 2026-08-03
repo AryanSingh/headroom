@@ -45,6 +45,10 @@ def handbook(tmp_path: Path) -> Path:
         yaml.safe_dump(
             {
                 "schema_version": 1,
+                "registry_version": "2026.1",
+                "manual_edition": "2026.1",
+                "owner": "Engineering Enablement",
+                "last_verified": "2026-08-03",
                 "sources": [
                     {
                         "id": "NIST-SSDF-1.1",

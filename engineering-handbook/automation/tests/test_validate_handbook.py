@@ -167,6 +167,7 @@ def test_linked_split_assets_satisfy_chapter_contract(handbook: Path, write_md) 
         {
             "id": "EX-01",
             "kind": "worked-example",
+            "chapter": "CH-01",
             "preconditions": ["fixture repository"],
             "placement": "temporary checkout",
             "dependencies": ["Python 3.12"],
@@ -182,6 +183,38 @@ def test_linked_split_assets_satisfy_chapter_contract(handbook: Path, write_md) 
     add_manifest(handbook, ["chapters/01.md", "examples/complete.md"])
 
     assert "WORKED_EXAMPLE_FIELD_MISSING" not in codes(validate_handbook(handbook))
+
+
+def test_unrelated_linked_chapter_cannot_satisfy_contract(handbook: Path, write_md) -> None:
+    write_md(handbook, "chapters/01.md", CHAPTER_META, "# Thin chapter\n\nSee [other](02.md).")
+    other_meta = dict(CHAPTER_META, id="CH-02", title="Other chapter")
+    write_md(handbook, "chapters/02.md", other_meta, COMPLETE_CHAPTER)
+    (handbook / "standards" / "README.md").write_text("# Standards\n\n## NIST SSDF {#nist-ssdf}\n")
+    add_manifest(handbook, ["chapters/01.md", "chapters/02.md"])
+
+    found = codes(validate_handbook(handbook))
+
+    assert "CHAPTER_SOP_MISSING" in found
+    assert "CHAPTER_OPUS_PROMPT_MISSING" in found
+
+
+def test_linked_prompt_must_belong_to_the_chapter(handbook: Path, write_md) -> None:
+    chapter = COMPLETE_CHAPTER.replace("### Opus prompt", "### Removed prompt", 1)
+    chapter = chapter.replace("## Audit prompts", "## Audit prompts\n[Opus](../prompts/opus.md)")
+    write_md(handbook, "chapters/01.md", CHAPTER_META, chapter)
+    prompt = {
+        "id": "PROMPT-OTHER-OPUS-01", "kind": "prompt", "chapter": "CH-02",
+        "model_family": "opus", "workload_type": "architecture review",
+        "objective": "Review architecture", "inputs": ["evidence"],
+        "boundaries": ["local files"], "evidence": ["paths"],
+        "output_schema": {"type": "report"}, "uncertainty": "Mark unknowns.",
+        "stop_conditions": ["missing evidence"], "escalation": "Ask the owner.",
+    }
+    write_md(handbook, "prompts/opus.md", prompt, "# Opus")
+    (handbook / "standards" / "README.md").write_text("# Standards\n\n## NIST SSDF {#nist-ssdf}\n")
+    add_manifest(handbook, ["chapters/01.md", "prompts/opus.md"])
+
+    assert "CHAPTER_OPUS_PROMPT_MISSING" in codes(validate_handbook(handbook))
 
 
 def test_duplicate_control_and_kpi_ids_are_reported_once_each(handbook: Path, write_md) -> None:
@@ -230,6 +263,21 @@ def test_network_standard_link_check_reports_unreachable_urls(handbook: Path, mo
     findings = validator.check_standard_links(handbook)
 
     assert {finding.code for finding in findings} == {"STANDARD_URL_UNREACHABLE"}
+
+
+def test_control_standard_references_must_exist_in_registry(handbook: Path, write_md) -> None:
+    control = {field: "value" for field in validator.CONTROL_FIELDS}
+    control["id"] = "SEC-AUTH-001"
+    control["standards"] = ["UNKNOWN-STD"]
+    write_md(
+        handbook,
+        "checklists/controls.md",
+        {"id": "CL-01", "kind": "checklist", "controls": [control]},
+        "# Controls",
+    )
+    add_manifest(handbook, ["checklists/controls.md"])
+
+    assert "STANDARD_REFERENCE_UNKNOWN" in codes(validate_handbook(handbook))
 
 
 def test_code_fences_do_not_create_duplicate_ids_or_placeholders(handbook: Path, write_md) -> None:
@@ -332,6 +380,40 @@ def test_prompt_metadata_and_family_distinctness(handbook: Path, write_md) -> No
     assert "PROMPT_FIELD_MISSING" not in found
 
 
+@pytest.mark.parametrize("field", ["workload_type", "output_schema"])
+def test_prompt_family_rejects_duplicate_workload_or_output_declaration(
+    handbook: Path, write_md, field: str
+) -> None:
+    base = {
+        "kind": "prompt", "chapter": "CH-01", "objective": "Review evidence",
+        "inputs": ["evidence"], "boundaries": ["local files only"],
+        "evidence": ["file paths"], "output_schema": {"type": "finding-list"},
+        "uncertainty": "mark unknowns", "stop_conditions": ["missing inputs"],
+        "escalation": "ask the owner",
+    }
+    entries = []
+    for index, family in enumerate(("opus", "sonnet", "haiku")):
+        meta = dict(base, id=f"PROMPT-{family.upper()}-01", model_family=family)
+        meta["workload_type"] = "same workload" if field == "workload_type" else f"workload-{index}"
+        meta["output_schema"] = {"type": "same"} if field == "output_schema" else {"type": f"output-{index}"}
+        relative = f"prompts/{family}/01.md"
+        write_md(handbook, relative, meta, f"# {family.title()} prompt")
+        entries.append(relative)
+    add_manifest(handbook, entries)
+
+    assert "PROMPT_FAMILIES_NOT_DISTINCT" in codes(validate_handbook(handbook))
+
+
+def test_registry_requires_versioned_header(handbook: Path) -> None:
+    registry_path = handbook / "standards" / "registry.yaml"
+    registry = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    registry.pop("schema_version")
+    registry_path.write_text(yaml.safe_dump(registry), encoding="utf-8")
+    add_manifest(handbook, [])
+
+    assert "STANDARDS_REGISTRY_INVALID" in codes(validate_handbook(handbook))
+
+
 def test_standards_references_and_uncited_normative_claims(handbook: Path, write_md) -> None:
     write_md(
         handbook,
@@ -406,3 +488,18 @@ def test_mermaid_compilation_failure_is_reported(handbook: Path, write_md, monke
     monkeypatch.setenv("HANDBOOK_MERMAID_COMMAND", "false")
 
     assert "MERMAID_COMPILE_FAILED" in codes(validate_handbook(handbook))
+
+
+def test_mermaid_default_compiler_validates_a_valid_diagram(handbook: Path, write_md) -> None:
+    write_md(
+        handbook,
+        "chapters/diagram.md",
+        {"id": "REF-01", "kind": "reference"},
+        "# Diagram\n\n```mermaid\ngraph TD\nA --> B\n```",
+    )
+    add_manifest(handbook, ["chapters/diagram.md"])
+
+    found = codes(validate_handbook(handbook))
+
+    assert "MERMAID_COMPILER_UNAVAILABLE" not in found
+    assert "MERMAID_COMPILE_FAILED" not in found

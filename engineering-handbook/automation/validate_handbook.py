@@ -40,6 +40,7 @@ PLACEHOLDER = re.compile(r"\b(?:TODO|TBD|FIXME|XXX)\b|\[INSERT[^\]]*\]|<placehol
 NORMATIVE = re.compile(r"\b(?:must|shall|required|prohibited|may not)\b", re.I)
 EXTERNAL_SCHEMES = {"http", "https", "mailto", "tel", "data"}
 PROMPT_FAMILIES = ("opus", "sonnet", "haiku")
+REGISTRY_FIELDS = ("schema_version", "registry_version", "manual_edition", "owner", "last_verified")
 
 
 def _markdown() -> MarkdownIt:
@@ -191,6 +192,16 @@ def _validate_registry(root: Path, findings: list[Finding]) -> set[str]:
             _finding("STANDARDS_REGISTRY_INVALID", Path("standards/registry.yaml"), str(exc))
         )
         return set()
+    missing_header = _missing_fields(registry, REGISTRY_FIELDS)
+    if registry.get("schema_version") != 1 or missing_header:
+        requirements = ", ".join(field for field in missing_header if field != "schema_version")
+        findings.append(
+            _finding(
+                "STANDARDS_REGISTRY_INVALID",
+                Path("standards/registry.yaml"),
+                f"Registry requires schema_version 1 and non-empty fields: {requirements or 'schema_version'}.",
+            )
+        )
     sources = registry.get("sources")
     if not isinstance(sources, list):
         findings.append(
@@ -287,12 +298,12 @@ def _resolve_link(source: Path, href: str) -> tuple[Path | None, str]:
 
 def _linked_documents(
     relative: Path, documents: dict[Path, dict[str, Any]]
-) -> list[dict[str, Any]]:
-    linked: list[dict[str, Any]] = []
+) -> list[tuple[Path, dict[str, Any]]]:
+    linked: list[tuple[Path, dict[str, Any]]] = []
     for href in documents[relative]["links"]:
         target, _ = _resolve_link(relative, href)
         if target in documents:
-            linked.append(documents[target])
+            linked.append((target, documents[target]))
     return linked
 
 
@@ -312,10 +323,19 @@ def _validate_chapter(
                 f"Chapter metadata is missing: {', '.join(missing_metadata)}.",
             )
         )
+    chapter_id = metadata.get("id")
     linked = _linked_documents(relative, documents)
+    linked_assets = [
+        item
+        for _, item in linked
+        if item["metadata"].get("chapter") == chapter_id
+        and item["metadata"].get("kind")
+        in {"chapter-asset", "worked-example", "prompt", "checklist", "runbook", "kpi-catalog", "template"}
+    ]
     headings = set(document["headings"])
-    for item in linked:
-        headings.update(item["headings"])
+    for item in linked_assets:
+        if item["metadata"].get("kind") == "chapter-asset":
+            headings.update(item["headings"])
     for code, aliases in CHAPTER_SECTIONS.items():
         if not any(_slug(alias) in headings for alias in aliases):
             findings.append(
@@ -325,7 +345,7 @@ def _validate_chapter(
         if _slug(f"{family} prompt") not in headings and not any(
             item["metadata"].get("kind") == "prompt"
             and item["metadata"].get("model_family") == family
-            for item in linked
+            for item in linked_assets
         ):
             findings.append(
                 _finding(
@@ -335,7 +355,9 @@ def _validate_chapter(
                 )
             )
     example_records = [
-        item["metadata"] for item in linked if item["metadata"].get("kind") == "worked-example"
+        item["metadata"]
+        for item in linked_assets
+        if item["metadata"].get("kind") == "worked-example"
     ]
     inline_fields = {
         field for field in WORKED_EXAMPLE_FIELDS if _slug(field.replace("_", " ")) in headings
@@ -363,7 +385,7 @@ def _validate_chapter(
 
 
 def _validate_asset_contract(
-    relative: Path, metadata: dict[str, Any], findings: list[Finding]
+    relative: Path, metadata: dict[str, Any], findings: list[Finding], standards: set[str]
 ) -> None:
     kind = metadata.get("kind")
     if kind == "prompt":
@@ -415,6 +437,17 @@ def _validate_asset_contract(
                             f"Control is missing: {', '.join(missing)}.",
                         )
                     )
+                references = control.get("standards") if isinstance(control, dict) else None
+                if isinstance(references, list):
+                    for reference in references:
+                        if reference not in standards:
+                            findings.append(
+                                _finding(
+                                    "STANDARD_REFERENCE_UNKNOWN",
+                                    relative,
+                                    f"Unknown standards registry ID: {reference}.",
+                                )
+                            )
     elif kind == "kpi-catalog":
         kpis = metadata.get("kpis")
         if not isinstance(kpis, list) or not kpis:
@@ -455,10 +488,9 @@ def _validate_prompts(documents: dict[Path, dict[str, Any]], findings: list[Find
         )
     for chapter, families in grouped.items():
         if all(family in families for family in PROMPT_FAMILIES):
-            declarations = [
-                (families[family][0], families[family][1]) for family in PROMPT_FAMILIES
-            ]
-            if len(set(declarations)) != len(declarations):
+            workloads = [families[family][0] for family in PROMPT_FAMILIES]
+            outputs = [families[family][1] for family in PROMPT_FAMILIES]
+            if len(set(workloads)) != len(workloads) or len(set(outputs)) != len(outputs):
                 findings.append(
                     _finding(
                         "PROMPT_FAMILIES_NOT_DISTINCT",
@@ -476,16 +508,10 @@ def _validate_mermaid(relative: Path, document: dict[str, Any], findings: list[F
     ]
     if not blocks:
         return
-    command = os.environ.get("HANDBOOK_MERMAID_COMMAND")
-    if not command:
-        findings.append(
-            _finding(
-                "MERMAID_COMPILER_UNAVAILABLE",
-                relative,
-                "Mermaid source exists but HANDBOOK_MERMAID_COMMAND is not configured.",
-            )
-        )
-        return
+    command = os.environ.get("HANDBOOK_MERMAID_COMMAND") or (
+        f"{shlex.quote(sys.executable)} {shlex.quote(str(Path(__file__).with_name('mermaid_check.py')))} "
+        "{input} {output}"
+    )
     for block in blocks:
         with tempfile.TemporaryDirectory(prefix="handbook-mermaid-") as temp:
             source = Path(temp) / "diagram.mmd"
@@ -497,10 +523,16 @@ def _validate_mermaid(relative: Path, document: dict[str, Any], findings: list[F
             ]
             if "{input}" not in command:
                 args.append(str(source))
-            completed = subprocess.run(
-                args, capture_output=True, text=True, timeout=30, check=False
-            )
-            if completed.returncode != 0:
+            try:
+                completed = subprocess.run(
+                    args, capture_output=True, text=True, timeout=30, check=False
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                findings.append(
+                    _finding("MERMAID_COMPILE_FAILED", relative, f"Mermaid compilation failed: {exc}.")
+                )
+                continue
+            if completed.returncode != 0 or not output.is_file():
                 findings.append(
                     _finding(
                         "MERMAID_COMPILE_FAILED",
@@ -637,7 +669,7 @@ def validate_handbook(root: Path) -> list[Finding]:
         if document["error"]:
             findings.append(_finding("MARKDOWN_METADATA_INVALID", relative, document["error"]))
         metadata_record = document["metadata"]
-        _validate_asset_contract(relative, metadata_record, findings)
+        _validate_asset_contract(relative, metadata_record, findings, standards)
         for control in metadata_record.get("controls", []):
             if isinstance(control, dict) and isinstance(control.get("id"), str):
                 control_counts[control["id"]] += 1

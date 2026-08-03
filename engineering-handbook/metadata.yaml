@@ -10,9 +10,14 @@ handbook:
   publication_authority: docx
   generated_artifact_policy: source-only
 canonical_roots:
+  - chapters
+  - examples
   - governance
+  - runbooks
+  - checklists
   - standards
   - prompts
+  - templates
 validation:
   orphan_severity: error
   unsupported_html: error
