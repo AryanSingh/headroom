@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+(?=[A-Z`])")
 _WORD = re.compile(r"[A-Za-z0-9_./:-]+")
@@ -46,6 +49,65 @@ class ProseCompressionResult:
     original_sentences: int
     retained_sentences: int
     compression_ratio: float
+    cache_key: str | None = None
+
+
+def _store_in_ccr(original: str, compressed: str) -> str | None:
+    """Persist the original so the emitted marker is actually retrievable.
+
+    Mirrors the log route's CCR write (``LogCompressor._store_in_ccr``): the
+    shared ``CompressionStore`` keys the entry by the same hash the marker
+    embeds, so ``cutctx_retrieve`` resolves it.
+    """
+
+    try:
+        from ..cache.compression_store import get_compression_store
+    except ImportError as exc:  # pragma: no cover - optional dependency path
+        logger.warning("CCR store import failed; prose original not retrievable: %s", exc)
+        return None
+    try:
+        key = get_compression_store().store(
+            original,
+            compressed,
+            original_tokens=len(original.split()),
+            compressed_tokens=len(compressed.split()),
+            compression_strategy="prose",
+        )
+        return str(key) if key else None
+    except Exception as exc:
+        logger.warning("CCR store write failed; prose original not retrievable: %s", exc)
+        return None
+
+
+def _disclose(
+    original: str,
+    compressed: str,
+    original_units: int,
+    retained_units: int,
+    unit: str,
+) -> tuple[str, str | None]:
+    """Attach the omission notice and CCR handle to a lossy prose result.
+
+    The text route used to drop up to 99.9% of a payload with no notice at
+    all, which made the compression silently irreversible. It now carries the
+    same disclosure contract the log route has: how much was dropped, plus a
+    marker registered in ``cutctx.ccr.markers`` so the retrieval tool is
+    injected and the original can be fetched back. The counts are folded into
+    the one marker line — this route is selection-based, so a short payload
+    cannot afford the log route's separate notice line and still be a saving.
+    """
+
+    omitted = original_units - retained_units
+    if omitted <= 0:
+        return compressed, None
+
+    notice = f"[{omitted} of {original_units} {unit} omitted"
+    cache_key = _store_in_ccr(original, compressed)
+    if cache_key is None:
+        # No handle means no reversibility, but the loss is still disclosed —
+        # never return a silently truncated payload.
+        return f"{compressed}\n{notice}]", None
+    return f"{compressed}\n{notice}. Retrieve more: hash={cache_key}]", cache_key
 
 
 def _terms(text: str) -> set[str]:
@@ -140,15 +202,26 @@ class QueryAwareProseCompressor:
 
         selected = [unit for index, (unit, _) in enumerate(units) if index in keep]
         compressed = "\n\n".join(selected)
+        if len(compressed) / max(len(content), 1) >= 0.90:
+            return self._unchanged(content, sentence_count)
+
+        retained = sum(not units[index][1] for index in keep)
+        compressed, cache_key = _disclose(
+            content, compressed, sentence_count, retained, "sentences"
+        )
         ratio = len(compressed) / max(len(content), 1)
-        if ratio >= 0.90:
+        if ratio >= 1.0:
+            # Disclosure is mandatory, so its fixed cost is part of the result.
+            # On a short document that cost can exceed the saving; emitting the
+            # original verbatim is then both smaller and lossless.
             return self._unchanged(content, sentence_count)
         return ProseCompressionResult(
             compressed=compressed,
             original=content,
             original_sentences=sentence_count,
-            retained_sentences=sum(not units[index][1] for index in keep),
+            retained_sentences=retained,
             compression_ratio=ratio,
+            cache_key=cache_key,
         )
 
     def _compress_git_log(
@@ -180,8 +253,12 @@ class QueryAwareProseCompressor:
             return self._unchanged(content, len(commits))
 
         compressed = commits[best_index]
+        if len(compressed) / max(len(content), 1) >= 0.90:
+            return self._unchanged(content, len(commits))
+
+        compressed, cache_key = _disclose(content, compressed, len(commits), 1, "commits")
         ratio = len(compressed) / max(len(content), 1)
-        if ratio >= 0.90:
+        if ratio >= 1.0:
             return self._unchanged(content, len(commits))
         return ProseCompressionResult(
             compressed=compressed,
@@ -189,6 +266,7 @@ class QueryAwareProseCompressor:
             original_sentences=len(commits),
             retained_sentences=1,
             compression_ratio=ratio,
+            cache_key=cache_key,
         )
 
     @staticmethod

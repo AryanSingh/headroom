@@ -16,13 +16,36 @@ from typing import Any
 CCR_TOOL_NAME = "cutctx_retrieve"
 DEDUP_REF_MARKER = "[cutctx:ref:{hash}]"
 
+#: Canonical length (hex chars) of a CCR content address. Every producer that
+#: embeds a hash in a marker MUST truncate to this length — see
+#: ``cutctx/ccr/store.py`` and the Rust transforms. Import it instead of
+#: hard-coding a slice; the parsers below are built from the same constant so
+#: producer and parser cannot drift apart. They did, and that was the bug: the
+#: store emitted 24 chars while every regex demanded exactly 16, so no marker
+#: could ever match and CCR retrieval was dead end-to-end.
+CCR_HASH_LENGTH = 24
+#: Shorter addresses still in circulation from an older producer
+#: (``cutctx.cache.compression_store`` still defaults to 16). Parsers accept
+#: them; new producers must truncate to ``CCR_HASH_LENGTH``.
+CCR_LEGACY_HASH_MIN_LENGTH = 16
+#: Regex fragment matching any accepted CCR hash. Built from the constants
+#: above so widening/narrowing the address happens in exactly one place.
+CCR_HASH_PATTERN = rf"[a-f0-9]{{{CCR_LEGACY_HASH_MIN_LENGTH},{CCR_HASH_LENGTH}}}"
+
 STANDARD_COMPRESSED_MARKER_RE = re.compile(
-    r"\[(\d+) \w+ compressed to (\d+)\. Retrieve more: hash=([a-f0-9]{16})\]"
+    rf"\[(\d+) \w+ compressed to (\d+)\. Retrieve more: hash=({CCR_HASH_PATTERN})\]"
 )
-LEGACY_COMPRESSED_MARKER_RE = re.compile(r"\[(\d+) \w+ compressed\. hash=([a-f0-9]{16})\]")
-OPAQUE_CCR_MARKER_RE = re.compile(r"<<ccr:([a-f0-9]{16})(?:,\w+,\d+(?:\.\d+)?[A-Z]+)?>>")
+LEGACY_COMPRESSED_MARKER_RE = re.compile(rf"\[(\d+) \w+ compressed\. hash=({CCR_HASH_PATTERN})\]")
+OPAQUE_CCR_MARKER_RE = re.compile(rf"<<ccr:({CCR_HASH_PATTERN})(?:,\w+,\d+(?:\.\d+)?[A-Z]+)?>>")
+#: Selection-based routes (prose) drop whole units rather than rewriting them,
+#: so they disclose the dropped count directly instead of the retained count.
+#: One line keeps the footer small enough to still be a saving on short
+#: payloads, which a two-line log-style notice is not.
+OMITTED_WITH_RETRIEVAL_MARKER_RE = re.compile(
+    rf"\[(\d+) of (\d+) \w+ omitted\. Retrieve more: hash=({CCR_HASH_PATTERN})\]"
+)
 GENERIC_COMPRESSED_HASH_RE = re.compile(
-    r"\[.*?compressed.*?hash=([a-f0-9]{16})\]",
+    rf"\[.*?compressed.*?hash=({CCR_HASH_PATTERN})\]",
     re.IGNORECASE,
 )
 
@@ -30,6 +53,7 @@ MARKER_PATTERNS: tuple[re.Pattern[str], ...] = (
     STANDARD_COMPRESSED_MARKER_RE,
     LEGACY_COMPRESSED_MARKER_RE,
     OPAQUE_CCR_MARKER_RE,
+    OMITTED_WITH_RETRIEVAL_MARKER_RE,
     GENERIC_COMPRESSED_HASH_RE,
 )
 
@@ -89,11 +113,15 @@ def extract_marker_hashes_from_payload(value: Any) -> list[str]:
 
 
 __all__ = [
+    "CCR_HASH_LENGTH",
+    "CCR_HASH_PATTERN",
+    "CCR_LEGACY_HASH_MIN_LENGTH",
     "CCR_TOOL_NAME",
     "DEDUP_REF_MARKER",
     "GENERIC_COMPRESSED_HASH_RE",
     "LEGACY_COMPRESSED_MARKER_RE",
     "MARKER_PATTERNS",
+    "OMITTED_WITH_RETRIEVAL_MARKER_RE",
     "OPAQUE_CCR_MARKER_RE",
     "STANDARD_COMPRESSED_MARKER_RE",
     "extract_marker_hashes",
