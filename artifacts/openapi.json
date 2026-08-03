@@ -399,11 +399,20 @@
         "title": "PolicyCreate",
         "type": "object"
       },
+      "ReviewAction": {
+        "description": "The only review verbs ``POST /v1/memory/review`` accepts.",
+        "enum": [
+          "APPROVE",
+          "DEPRECATE",
+          "PROPOSE"
+        ],
+        "title": "ReviewAction",
+        "type": "string"
+      },
       "ReviewRequest": {
         "properties": {
           "action": {
-            "title": "Action",
-            "type": "string"
+            "$ref": "#/components/schemas/ReviewAction"
           },
           "memory_id": {
             "title": "Memory Id",
@@ -5194,11 +5203,37 @@
           },
           {
             "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "include_deprecated",
             "required": false,
             "schema": {
               "default": false,
               "title": "Include Deprecated",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "all_orgs",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "All Orgs",
               "type": "boolean"
             }
           }
@@ -5322,11 +5357,37 @@
           },
           {
             "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "include_deprecated",
             "required": false,
             "schema": {
               "default": false,
               "title": "Include Deprecated",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "all_orgs",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "All Orgs",
               "type": "boolean"
             }
           }

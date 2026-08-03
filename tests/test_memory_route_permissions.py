@@ -14,7 +14,17 @@ def _allow_admin_auth() -> None:
     return None
 
 
-def test_memory_query_uses_read_permission(tmp_path, monkeypatch) -> None:
+def test_memory_query_uses_read_permission_and_refuses_unscoped_reads(
+    tmp_path, monkeypatch
+) -> None:
+    """Audit C4: this test previously asserted 200 for an unscoped query.
+
+    That encoded the cross-tenant leak as acceptable — ``org_id`` was an
+    optional filter, so omitting it returned every tenant's rows. The
+    permission assertion (the point of the test) is unchanged; the status
+    assertion is corrected to 400, because a principal with no tenant binding
+    must now name the org it wants.
+    """
     store = MemoryStore(f"sqlite:///{tmp_path / 'memory.db'}")
     monkeypatch.setattr(memory_api, "_store", store, raising=False)
 
@@ -39,11 +49,13 @@ def test_memory_query_uses_read_permission(tmp_path, monkeypatch) -> None:
     with TestClient(app) as client:
         response = client.get("/v1/memory/query")
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 400, response.text
+    assert "items" not in response.json()
     assert seen == ["memory.read"]
 
 
 def test_memory_search_alias_uses_read_permission(tmp_path, monkeypatch) -> None:
+    """The /search alias refuses an unscoped read for the same reason (C4)."""
     store = MemoryStore(f"sqlite:///{tmp_path / 'memory.db'}")
     monkeypatch.setattr(memory_api, "_store", store, raising=False)
 
@@ -68,7 +80,8 @@ def test_memory_search_alias_uses_read_permission(tmp_path, monkeypatch) -> None
     with TestClient(app) as client:
         response = client.get("/v1/memory/search")
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 400, response.text
+    assert "items" not in response.json()
     assert seen == ["memory.read"]
 
 
@@ -141,5 +154,5 @@ def test_memory_query_supports_zero_arg_rbac_dependencies(tmp_path, monkeypatch)
 
     response = client.get("/v1/memory/query")
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 400, response.text
     assert seen == ["memory.read"]

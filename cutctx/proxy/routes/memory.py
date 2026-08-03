@@ -17,6 +17,66 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 logger = logging.getLogger(__name__)
 
+# Claim names that carry the tenant a federated principal belongs to.
+_ORG_CLAIM_NAMES = ("org_id", "organization_id", "tenant_id", "tid")
+
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def resolve_principal_org(request: Request) -> str | None:
+    """Resolve the org the authenticated principal is bound to.
+
+    Audit C4: ``/v1/memory/query`` took its tenant scope from a
+    caller-supplied ``org_id`` query parameter, so omitting the parameter
+    returned every tenant's rows and passing another tenant's id returned
+    theirs. Tenant scope must be derived from the principal, never from the
+    request. Only server-set state is trusted here:
+
+      1. ``request.state.cutctx_org_id`` — set by tenant-aware auth layers.
+      2. The SSO claim set validated in ``server.py``
+         (``request.state.cutctx_sso_claims``); the first of
+         ``org_id`` / ``organization_id`` / ``tenant_id`` / ``tid`` wins.
+
+    Returns ``None`` when the principal carries no tenant binding (e.g. the
+    root admin key). Callers must read that as "no implicit scope" — never
+    as "every tenant".
+    """
+    state_org = getattr(request.state, "cutctx_org_id", None)
+    if state_org:
+        return str(state_org)
+
+    claims = getattr(request.state, "cutctx_sso_claims", None)
+    raw_claims = getattr(claims, "raw_claims", None)
+    if isinstance(raw_claims, dict):
+        for name in _ORG_CLAIM_NAMES:
+            value = raw_claims.get(name)
+            if value:
+                return str(value)
+    return None
+
+
+def required_memory_permission(request: Request) -> str:
+    """Pick the RBAC permission a memory request needs.
+
+    Safe reads stay on ``memory.read``. A read that names a tenant other than
+    the principal's own — or asks for every tenant via ``all_orgs`` — is a
+    cross-tenant read and needs the distinct ``memory.read.cross_org``
+    permission. That permission is deliberately absent from the EE
+    ``PERMISSION_MAP``, so it falls through to the ADMIN default; cross-org
+    reads are therefore explicitly authorised rather than being what happens
+    when a caller omits a parameter.
+    """
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        return "memory.write"
+
+    params = request.query_params
+    if str(params.get("all_orgs", "")).strip().lower() in _TRUTHY:
+        return "memory.read.cross_org"
+    requested_org = str(params.get("org_id", "")).strip()
+    if requested_org and requested_org != resolve_principal_org(request):
+        return "memory.read.cross_org"
+    return "memory.read"
+
 
 def _get_ee_router() -> APIRouter:
     try:
@@ -78,9 +138,7 @@ def _build_memory_permission_dependency(
         return dependency(request) if accepts_request else dependency()
 
     async def _check(request: Request) -> None:
-        permission = (
-            "memory.read" if request.method in {"GET", "HEAD", "OPTIONS"} else "memory.write"
-        )
+        permission = required_memory_permission(request)
         dependency = require_rbac_permission(permission)
         result = _invoke_dependency(dependency, request)
         if inspect.isawaitable(result):
@@ -120,4 +178,4 @@ def create_memory_router(
     return router
 
 
-__all__ = ["create_memory_router"]
+__all__ = ["create_memory_router", "required_memory_permission", "resolve_principal_org"]

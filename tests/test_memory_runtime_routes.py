@@ -70,7 +70,9 @@ def test_runtime_memory_routes_sync_query_and_review(tmp_path) -> None:
         review_payload = review.json()
         assert review_payload["status"] == "success"
         assert review_payload["memory_id"] == "mem-1"
-        assert review_payload["state"] == "APPROVE"
+        # Audit H18: was "APPROVE" (the raw verb). Verbs now map onto the
+        # documented review states so DEPRECATE actually deprecates.
+        assert review_payload["state"] == "APPROVED"
         assert review_payload["actor"].startswith("key:")
 
         reviewed = client.get(
