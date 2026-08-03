@@ -42,6 +42,17 @@ def manifest_paths(root: Path) -> list[Path]:
     return [Path(value) for value in LINK.findall((root / "SUMMARY.md").read_text(encoding="utf-8"))]
 
 
+def manifest_headings(root: Path, paths: Iterable[Path] | None = None) -> list[Node]:
+    """Return one navigation heading per manifest document, in publication order."""
+    headings: list[Node] = []
+    for relative in list(paths or manifest_paths(root)):
+        nodes = parse_document((root / relative).read_text(encoding="utf-8"))
+        heading = next((node for node in nodes if node.kind == "heading"), None)
+        if heading is not None:
+            headings.append(heading)
+    return headings
+
+
 def strip_front_matter(content: str) -> str:
     if content.startswith("---\n"):
         return content.split("---\n", 2)[2]
@@ -248,7 +259,9 @@ def build_docx(root: Path, output: Path, toc_page_numbers: dict[str, int] | None
     all_nodes: list[Node] = []
     for relative in list(paths or manifest_paths(root)):
         all_nodes.extend(parse_document((root / relative).read_text(encoding="utf-8")))
-    toc_rows = [node for node in all_nodes if node.kind == "heading" and node.level <= 3]
+    # Use one heading per manifest document, rather than Markdown heading
+    # level: legacy chapters intentionally use flat headings for compact prose.
+    toc_rows = manifest_headings(root, paths)
     contents = document.add_table(rows=0, cols=2)
     contents.style = "Light Shading Accent 1"
     contents.autofit = False
@@ -316,7 +329,10 @@ def _heading_pages(pdf: Path, headings: Iterable[str]) -> dict[str, int]:
     for page_number, page in enumerate(pages, 1):
         content = page.extract_text() or ""
         for heading in headings:
-            if heading not in result and heading in content:
+            if heading in content:
+                # The contents page lists every heading before the body does.
+                # Retaining the last match selects the actual body location for
+                # the unique manifest-document navigation entries.
                 result[heading] = page_number
     return result
 
@@ -368,6 +384,28 @@ def build_publication_spike(root: Path, destination: Path) -> dict[str, Path]:
     return {"markdown": markdown, "docx": docx, "pdf": pdf, "ledger": ledger}
 
 
+def build_full_publication(root: Path, destination: Path) -> dict[str, Path]:
+    """Build the authoritative manual with verified static contents references."""
+    root, destination = root.resolve(), destination.resolve()
+    headings = [node.text for node in manifest_headings(root)]
+    markdown = build_markdown(root, destination / "Enterprise_Engineering_Manual.md")
+    provisional = build_docx(root, destination / "Enterprise_Engineering_Manual.provisional.docx")
+    provisional_pdf = build_pdf(provisional, destination / "Enterprise_Engineering_Manual.provisional.pdf")
+    pages = _heading_pages(provisional_pdf, headings)
+    missing = sorted(set(headings) - set(pages))
+    if missing:
+        raise RuntimeError(f"Manual headings missing from provisional PDF: {', '.join(missing)}")
+    docx = build_docx(root, destination / "Enterprise_Engineering_Manual.docx", pages)
+    pdf = build_pdf(docx, destination / "Enterprise_Engineering_Manual.pdf")
+    final_pages = _heading_pages(pdf, headings)
+    if any(final_pages.get(item) != page for item, page in pages.items()):
+        raise RuntimeError("Static contents page references changed after the final manual DOCX build")
+    pngs = _render_pdf(pdf, destination / "visual-qa/final")
+    ledger = destination / "visual-qa/final-ledger.json"
+    ledger.write_text(json.dumps({"status": "rendered", "pages": len(pngs), "reviewed_pages": [{"page": index + 1, "image": image.name, "status": "pending", "findings": [], "correction_cycle": 0} for index, image in enumerate(pngs)], "toc_pages": pages}, indent=2) + "\n", encoding="utf-8")
+    return {"markdown": markdown, "docx": docx, "pdf": pdf, "ledger": ledger}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
@@ -384,10 +422,7 @@ def main() -> int:
     elif args.pilot:
         build_publication_spike(args.root, args.output_dir)
     else:
-        markdown = build_markdown(args.root, args.output_dir / "Enterprise_Engineering_Manual.md")
-        docx = build_docx(args.root, args.output_dir / "Enterprise_Engineering_Manual.docx")
-        build_pdf(docx, args.output_dir / "Enterprise_Engineering_Manual.pdf")
-        print(markdown)
+        print(build_full_publication(args.root, args.output_dir)["markdown"])
     return 0
 
 
