@@ -83,6 +83,13 @@
   - [Opus memory risk-assessment prompt](prompts/opus/ch09-memory-risk-assessment.md)
   - [Sonnet deletion evidence-review prompt](prompts/sonnet/ch09-deletion-evidence-review.md)
   - [Haiku memory inventory prompt](prompts/haiku/ch09-memory-inventory.md)
+  - [Reliability, performance, and scale](chapters/10-reliability-performance.md)
+  - [Product Atlas load and recovery example](examples/reliability-performance/README.md)
+  - [Reliability release checklist](checklists/reliability-performance.md)
+  - [Reliability KPI catalog](scorecards/reliability-kpis.md)
+  - [Opus resilience risk-assessment prompt](prompts/opus/ch10-resilience-risk-assessment.md)
+  - [Sonnet service-objective evidence-review prompt](prompts/sonnet/ch10-slo-evidence-review.md)
+  - [Haiku reliability inventory prompt](prompts/haiku/ch10-service-inventory.md)
 - Reusable templates
   - [Audit report](templates/audit-report.md)
   - [Evidence register](templates/evidence-register.md)
