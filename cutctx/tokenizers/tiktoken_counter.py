@@ -14,6 +14,7 @@ from functools import lru_cache
 from typing import Any
 
 from .base import BaseTokenizer
+from .bpe_guard import iter_bpe_safe_chunks
 
 # Model to encoding mapping
 MODEL_TO_ENCODING = {
@@ -163,7 +164,12 @@ class TiktokenCounter(BaseTokenizer):
         """
         if not text:
             return 0
-        return len(self.encoding.encode(text))
+        # H16: tiktoken's BPE merge loop is quadratic in the length of a
+        # single pre-token, so one unbroken 100 KB run of non-whitespace
+        # characters costs seconds of CPU. Slicing over-long runs keeps this
+        # linear; ordinary text is not sliced at all.
+        encoding = self.encoding
+        return sum(len(encoding.encode(chunk)) for chunk in iter_bpe_safe_chunks(text))
 
     def count_messages(self, messages: list[dict[str, Any]]) -> int:
         """Count tokens in messages using OpenAI's exact formula.

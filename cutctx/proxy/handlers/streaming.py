@@ -56,6 +56,32 @@ def _parse_completion_tokens_from_sse_chunk(chunk_bytes: bytes) -> int | None:
     return None
 
 
+def _streaming_deadline_exceeded(total_budget: float, request_id: str) -> Exception:
+    """Build the 504 raised when upstream headers miss the total deadline.
+
+    H15: distinct from httpx's inter-byte read timeout, which upstream can
+    reset forever by trickling bytes (and which is not retried in the
+    streaming connect loop at all).
+    """
+    from fastapi import HTTPException
+
+    logger.warning(
+        "[%s] Upstream did not send streaming response headers within the "
+        "total request deadline of %.1fs; returning 504",
+        request_id,
+        total_budget,
+    )
+    return HTTPException(
+        status_code=504,
+        detail=(
+            f"Upstream did not send response headers within the total request "
+            f"deadline of {total_budget:.0f}s. Increase "
+            f"CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS if this provider is "
+            f"legitimately slower."
+        ),
+    )
+
+
 def _iter_openai_sse_json_events(chunk_bytes: bytes) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     try:
@@ -1058,12 +1084,42 @@ class StreamingMixin:
             upstream_response = None
             last_connect_error = None
 
+            # H15: bound the "connection accepted, headers never arrive"
+            # window with a total wall-clock deadline across all connect
+            # retries. httpx's read timeout is inter-byte and is not retried
+            # here, so without this the client can wait
+            # ``retry_attempts x connect_timeout + read_timeout`` with zero
+            # bytes delivered.
+            _total_budget = float(getattr(self.config, "request_total_timeout_seconds", 0) or 0)
+            _connect_deadline = (time.monotonic() + _total_budget) if _total_budget > 0 else None
+
+            def _connect_remaining() -> float | None:
+                if _connect_deadline is None:
+                    return None
+                return _connect_deadline - time.monotonic()
+
             for attempt in range(retry_attempts):
                 try:
                     _upstream_req = self.http_client.build_request(
                         "POST", url, content=outbound_bytes, headers=outbound_headers
                     )
-                    upstream_response = await self.http_client.send(_upstream_req, stream=True)
+                    _remaining = _connect_remaining()
+                    if _remaining is None:
+                        upstream_response = await self.http_client.send(
+                            _upstream_req, stream=True
+                        )
+                    elif _remaining <= 0:
+                        raise _streaming_deadline_exceeded(_total_budget, request_id)
+                    else:
+                        try:
+                            upstream_response = await asyncio.wait_for(
+                                self.http_client.send(_upstream_req, stream=True),
+                                timeout=_remaining,
+                            )
+                        except asyncio.TimeoutError:
+                            raise _streaming_deadline_exceeded(
+                                _total_budget, request_id
+                            ) from None
                     if _codex_wire_debug:
                         capture_codex_wire_debug(
                             "http_stream_upstream_response_headers",

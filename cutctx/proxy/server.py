@@ -2202,21 +2202,68 @@ class CutctxProxy(
                 ),
             )
 
+        # H15: total wall-clock deadline for the whole exchange, retries and
+        # backoff included. ``config.request_timeout_seconds`` is httpx's
+        # per-read timeout, which httpx resets on every byte received — it
+        # bounds neither "upstream accepted the connection and went silent
+        # across N retries" nor "upstream trickles one byte per second".
+        # Only a monotonic deadline does. 0 disables.
+        total_budget = float(getattr(self.config, "request_total_timeout_seconds", 0) or 0)
+        deadline = (time.monotonic() + total_budget) if total_budget > 0 else None
+
+        def _remaining_budget() -> float | None:
+            """Seconds left before the total deadline, or None if disabled."""
+            if deadline is None:
+                return None
+            return deadline - time.monotonic()
+
+        def _deadline_exceeded() -> Exception:
+            from fastapi import HTTPException
+
+            logger.warning(
+                "Upstream exchange exceeded total deadline of %.1fs "
+                "(url=%s request_id=%s provider=%s); returning 504",
+                total_budget,
+                url,
+                request_id,
+                circuit_provider,
+            )
+            _set_telemetry_tag("upstream_total_deadline_exceeded", True)
+            return HTTPException(
+                status_code=504,
+                detail=(
+                    f"Upstream did not complete within the total request deadline of "
+                    f"{total_budget:.0f}s. Increase CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS "
+                    f"if this provider is legitimately slower."
+                ),
+            )
+
+        async def _post_within_deadline() -> httpx.Response:
+            """POST upstream, bounded by whatever is left of the total budget."""
+            remaining = _remaining_budget()
+            if remaining is not None and remaining <= 0:
+                raise _deadline_exceeded()
+            coro = self.http_client.post(  # type: ignore[union-attr]
+                url, content=outbound_bytes, headers=outbound_headers
+            )
+            if remaining is None:
+                return await coro
+            try:
+                return await asyncio.wait_for(coro, timeout=remaining)
+            except asyncio.TimeoutError:
+                raise _deadline_exceeded() from None
+
         for attempt in range(self.config.retry_max_attempts):
             try:
                 if stream:
                     # For streaming, we return early - retry happens at higher level
-                    stream_response = await self.http_client.post(  # type: ignore[union-attr]
-                        url, content=outbound_bytes, headers=outbound_headers
-                    )
+                    stream_response = await _post_within_deadline()
                     circuit_breaker.record_success()
                     _record_failover_result(success=True)
                     _record_circuit_snapshot()
                     return stream_response
                 else:
-                    response = await self.http_client.post(  # type: ignore[union-attr]
-                        url, content=outbound_bytes, headers=outbound_headers
-                    )
+                    response = await _post_within_deadline()
 
                     # Don't retry client errors (4xx) - the provider responded,
                     # so it's reachable; this is a caller error, not an outage.
@@ -2257,6 +2304,13 @@ class CutctxProxy(
                     self.config.retry_max_delay_ms,
                     attempt,
                 )
+
+                # H15: never sleep past the total deadline — a backoff that
+                # outlives the budget just delays the 504 the client is
+                # already owed.
+                remaining = _remaining_budget()
+                if remaining is not None and remaining <= delay_with_jitter / 1000:
+                    raise _deadline_exceeded() from e
 
                 logger.warning(
                     f"Request failed (attempt {attempt + 1}), retrying in {delay_with_jitter:.0f}ms: {e}"
@@ -2893,6 +2947,52 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         "base-uri 'self'; "
         "form-action 'self'"
     )
+
+    # H16: aggregate in-flight body budget. MAX_REQUEST_BODY_SIZE caps one
+    # body; without this nothing capped their sum, so concurrent large bodies
+    # multiplied the ~40x compression-pipeline amplification without limit.
+    from cutctx.proxy.helpers import InFlightBodyBudget, get_max_inflight_body_bytes
+
+    _inflight_body_budget = InFlightBodyBudget(get_max_inflight_body_bytes())
+    proxy.inflight_body_budget = _inflight_body_budget
+
+    @app.middleware("http")
+    async def _inflight_body_budget_middleware(request: Request, call_next):
+        """Reserve declared body bytes for the lifetime of the request."""
+        reserved = 0
+        raw_length = request.headers.get("content-length")
+        if raw_length:
+            try:
+                reserved = max(0, int(raw_length))
+            except ValueError:
+                reserved = 0
+        if reserved and not _inflight_body_budget.try_reserve(reserved):
+            logger.warning(
+                "In-flight body budget exhausted (%d bytes reserved of %d, "
+                "request wanted %d); shedding with 503",
+                _inflight_body_budget.reserved_bytes,
+                _inflight_body_budget.limit_bytes,
+                reserved,
+            )
+            return JSONResponse(
+                status_code=503,
+                headers={"Retry-After": "1"},
+                content={
+                    "type": "error",
+                    "error": {
+                        "type": "service_unavailable",
+                        "message": (
+                            "Server is at its in-flight request memory limit. "
+                            "Please retry shortly."
+                        ),
+                    },
+                },
+            )
+        try:
+            return await call_next(request)
+        finally:
+            if reserved:
+                _inflight_body_budget.release(reserved)
 
     @app.middleware("http")
     async def _runtime_request_id_middleware(request: Request, call_next):
@@ -5135,34 +5235,76 @@ def run_server(
     )
 
 
+from cutctx.proxy.helpers import (  # noqa: E402
+    _ENV_FALSY_VALUES as _ENV_FALSE_VALUES,
+)
+from cutctx.proxy.helpers import (  # noqa: E402
+    _ENV_TRUTHY_VALUES as _ENV_TRUE_VALUES,
+)
+
+
 def _get_env_bool(name: str, default: bool) -> bool:
-    """Get boolean from environment variable."""
+    """Get boolean from environment variable, failing fast on garbage.
+
+    This used to coerce anything unrecognised to ``False``. That fails OPEN
+    for security-relevant settings: ``CUTCTX_STATELESS="True "`` (one
+    trailing space) silently disabled stateless mode while looking enabled to
+    whoever set it. A misconfiguration must be loud, not quietly permissive.
+
+    Raises:
+        ValueError: if the variable is set to an unrecognised value.
+    """
     val = os.environ.get(name)
     if val is None:
         return default
-    return val.lower() in ("true", "1", "yes", "on")
+    normalized = val.strip().lower()
+    if normalized == "":
+        return default
+    if normalized in _ENV_TRUE_VALUES:
+        return True
+    if normalized in _ENV_FALSE_VALUES:
+        return False
+    raise ValueError(
+        f"Invalid value for environment variable {name}: {val!r}. "
+        f"Expected one of {sorted(_ENV_TRUE_VALUES | _ENV_FALSE_VALUES)}."
+    )
 
 
 def _get_env_int(name: str, default: int) -> int:
-    """Get integer from environment variable."""
+    """Get integer from environment variable, failing fast on garbage.
+
+    Previously a bad int was swallowed and the default silently applied, so a
+    typo'd limit looked configured while the old value stayed in force.
+
+    Raises:
+        ValueError: if the variable is set to a non-integer value.
+    """
     val = os.environ.get(name)
-    if val is None:
+    if val is None or val.strip() == "":
         return default
     try:
-        return int(val)
+        return int(val.strip())
     except ValueError:
-        return default
+        raise ValueError(
+            f"Invalid value for environment variable {name}: {val!r} is not an integer."
+        ) from None
 
 
 def _get_env_float(name: str, default: float) -> float:
-    """Get float from environment variable."""
+    """Get float from environment variable, failing fast on garbage.
+
+    Raises:
+        ValueError: if the variable is set to a non-numeric value.
+    """
     val = os.environ.get(name)
-    if val is None:
+    if val is None or val.strip() == "":
         return default
     try:
-        return float(val)
+        return float(val.strip())
     except ValueError:
-        return default
+        raise ValueError(
+            f"Invalid value for environment variable {name}: {val!r} is not a number."
+        ) from None
 
 
 def _get_env_str(name: str, default: str) -> str:

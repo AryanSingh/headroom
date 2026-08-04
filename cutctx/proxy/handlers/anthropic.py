@@ -2970,6 +2970,32 @@ class AnthropicHandlerMixin:
                             f"[{request_id}] Failed to parse response JSON for CCR handling: {e}"
                         )
 
+                    # An unparseable 2xx is an upstream fault like any other.
+                    # Relaying it verbatim handed the client a "200 OK" whose
+                    # body no SDK can decode, while every other upstream fault
+                    # correctly became a 502.
+                    if resp_json is None and 200 <= response.status_code < 300:
+                        logger.error(
+                            "[%s] Upstream returned %d with a body that is not valid JSON "
+                            "(%d bytes); surfacing as 502",
+                            request_id,
+                            response.status_code,
+                            len(response.content or b""),
+                        )
+                        await self.metrics.record_failed(provider=provider_name)
+                        return JSONResponse(
+                            status_code=502,
+                            content={
+                                "type": "error",
+                                "error": {
+                                    "type": "api_error",
+                                    "message": (
+                                        "Upstream returned a malformed (non-JSON) response body."
+                                    ),
+                                },
+                            },
+                        )
+
                     # CCR Response Handling: Handle cutctx_retrieve tool calls automatically
                     if (
                         self.ccr_response_handler

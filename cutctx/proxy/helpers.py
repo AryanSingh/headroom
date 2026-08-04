@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import random
+import re
 import subprocess
 import threading
 import time
@@ -796,8 +797,28 @@ def parse_sse_events_from_byte_buffer(
     return events
 
 
+# Aggregate in-flight request-body budget (H16). ``MAX_REQUEST_BODY_SIZE``
+# caps a *single* body; nothing capped the sum, so N concurrent large bodies
+# multiplied freely. Compression, deep-copies and canonical re-serialization
+# amplify a body roughly 40x in RSS (measured: one 10 MB body -> 399 MB), so
+# this budget is expressed in raw client-body bytes and the amplification
+# factor is what an operator must reason about when sizing it.
+# Env: CUTCTX_MAX_INFLIGHT_BODY_BYTES (0 disables).
+MAX_INFLIGHT_BODY_BYTES_DEFAULT = 64 * 1024 * 1024
+OBSERVED_BODY_MEMORY_AMPLIFICATION = 40
+
 # Maximum message array length (prevents DoS from deeply nested payloads)
 MAX_MESSAGE_ARRAY_LENGTH = 10000
+
+# Maximum JSON container nesting depth accepted from a client. CPython's
+# ``json`` decoder recurses once per nested container, so a payload like
+# ``[[[[...]]]]`` blows the interpreter stack with a ``RecursionError``.
+# ``RecursionError`` derives from ``Exception``, not ``ValueError``, so it
+# escapes the ``except (json.JSONDecodeError, ValueError)`` guard that every
+# handler wraps its body read in — the request then 500s. Rejecting over-deep
+# payloads *before* handing them to ``json.loads`` keeps the guard total.
+# No real provider request nests anywhere near this deep.
+MAX_JSON_NESTING_DEPTH = 100
 
 # Compression pipeline timeout in seconds
 COMPRESSION_TIMEOUT_SECONDS = 30
@@ -968,6 +989,12 @@ def _get_image_compressor():
 # Resolved lazily so CUTCTX_WORKSPACE_DIR env-var changes are honored.
 
 
+# Recognised boolean spellings for cutctx env vars. Anything else is a
+# configuration error, not a silent False (see ``is_stateless``).
+_ENV_TRUTHY_VALUES = frozenset({"true", "1", "yes", "on"})
+_ENV_FALSY_VALUES = frozenset({"false", "0", "no", "off"})
+
+
 def is_stateless() -> bool:
     """Return True when stateless mode is active (no filesystem writes).
 
@@ -977,12 +1004,25 @@ def is_stateless() -> bool:
 
     Callers that do have access to ``config.stateless`` should also check that
     field for consistency.
+
+    Fails fast rather than open: this used to coerce anything unrecognised to
+    False, so ``CUTCTX_STATELESS="True "`` (one trailing space) silently
+    disabled stateless mode while looking enabled to whoever set it.
+
+    Raises:
+        ValueError: if ``CUTCTX_STATELESS`` is set to an unrecognised value.
     """
-    return os.environ.get("CUTCTX_STATELESS", "").lower() in (
-        "true",
-        "1",
-        "yes",
-        "on",
+    raw = os.environ.get("CUTCTX_STATELESS", "")
+    normalized = raw.strip().lower()
+    if normalized == "":
+        return False
+    if normalized in _ENV_TRUTHY_VALUES:
+        return True
+    if normalized in _ENV_FALSY_VALUES:
+        return False
+    raise ValueError(
+        f"Invalid value for environment variable CUTCTX_STATELESS: {raw!r}. "
+        f"Expected one of {sorted(_ENV_TRUTHY_VALUES | _ENV_FALSY_VALUES)}."
     )
 
 
@@ -3238,6 +3278,175 @@ async def _read_request_body_bytes(request: Request) -> bytes:
     return cast(bytes, raw)
 
 
+class InFlightBodyBudget:
+    """Aggregate cap on concurrently held request-body bytes (H16).
+
+    ``MAX_REQUEST_BODY_SIZE`` bounds one body; this bounds their sum, so a
+    handful of concurrent large uploads cannot exhaust host memory via the
+    ~40x amplification the compression pipeline applies to each one.
+
+    Reservations are taken before the body is buffered and released when the
+    request finishes. Over-budget requests are rejected with 503 rather than
+    queued: queueing here would just move the memory pressure into the
+    waiting bodies.
+    """
+
+    def __init__(self, limit_bytes: int) -> None:
+        self.limit_bytes = max(0, int(limit_bytes))
+        self._lock = threading.Lock()
+        self._reserved = 0
+        self.peak_reserved = 0
+        self.rejections = 0
+
+    @property
+    def reserved_bytes(self) -> int:
+        with self._lock:
+            return self._reserved
+
+    def try_reserve(self, nbytes: int) -> bool:
+        """Reserve ``nbytes``; False if that would exceed the budget."""
+        if self.limit_bytes <= 0:
+            return True
+        nbytes = max(0, int(nbytes))
+        with self._lock:
+            if self._reserved + nbytes > self.limit_bytes:
+                self.rejections += 1
+                return False
+            self._reserved += nbytes
+            self.peak_reserved = max(self.peak_reserved, self._reserved)
+            return True
+
+    def release(self, nbytes: int) -> None:
+        if self.limit_bytes <= 0:
+            return
+        nbytes = max(0, int(nbytes))
+        with self._lock:
+            self._reserved = max(0, self._reserved - nbytes)
+
+
+def get_max_inflight_body_bytes() -> int:
+    """Aggregate in-flight body budget, read from the environment.
+
+    Raises:
+        ValueError: if ``CUTCTX_MAX_INFLIGHT_BODY_BYTES`` is not an int >= 0.
+    """
+    raw = os.environ.get("CUTCTX_MAX_INFLIGHT_BODY_BYTES")
+    if raw is None or raw.strip() == "":
+        return MAX_INFLIGHT_BODY_BYTES_DEFAULT
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        raise ValueError(
+            "Invalid value for environment variable CUTCTX_MAX_INFLIGHT_BODY_BYTES: "
+            f"{raw!r} is not an integer."
+        ) from None
+    if value < 0:
+        raise ValueError(
+            "Invalid value for environment variable CUTCTX_MAX_INFLIGHT_BODY_BYTES: "
+            f"{raw!r} must be >= 0."
+        )
+    return value
+
+
+_JSON_STRING_LITERAL_RE = re.compile(r'"(?:[^"\\]|\\.)*"', re.DOTALL)
+_JSON_BRACKET_RE = re.compile(r"[\[\]{}]")
+
+
+def check_json_nesting_depth(text: str, *, limit: int = MAX_JSON_NESTING_DEPTH) -> None:
+    """Reject payloads nested deeper than ``limit`` containers.
+
+    Runs *before* ``json.loads``. Without it a ``[[[[...]]]]`` bomb raises
+    ``RecursionError`` from inside the decoder, which is not a ``ValueError``
+    and therefore escapes every caller's parse guard as an unhandled 500.
+
+    String literals are removed first (C-speed regex) so the Python-level
+    loop only walks structural brackets — a per-character pass over a 50 MB
+    body would itself be a DoS vector.
+
+    Raises:
+        ValueError: if nesting exceeds ``limit``.
+    """
+    depth = 0
+    for bracket in _JSON_BRACKET_RE.findall(_JSON_STRING_LITERAL_RE.sub("", text)):
+        if bracket in "[{":
+            depth += 1
+            if depth > limit:
+                raise ValueError(
+                    f"Request body JSON is nested too deeply (exceeds {limit} levels). "
+                    "Flatten the payload and retry."
+                )
+        else:
+            depth -= 1
+
+
+# Top-level request fields whose JSON type is identical across every provider
+# dialect the proxy speaks (Anthropic, OpenAI chat/responses, Gemini, Vertex).
+# Anything absent from this table is passed through untouched — this is a
+# shape guard at the trust boundary, not a full provider schema.
+_REQUEST_FIELD_TYPES: dict[str, tuple[tuple[type, ...], str]] = {
+    "model": ((str,), "a string"),
+    "messages": ((list,), "an array"),
+    "contents": ((list,), "an array"),
+    "tools": ((list,), "an array"),
+    "stream": ((bool,), "a boolean"),
+}
+
+# Fields that must contain JSON objects if they contain anything. Downstream
+# tokenizers and transforms call ``.get()`` on each element unconditionally.
+_REQUEST_OBJECT_ARRAY_FIELDS = ("messages", "contents")
+
+
+def validate_request_body_shape(body: dict[str, Any]) -> None:
+    """Type-check the well-known top-level fields of a client request body.
+
+    Every handler funnels its body through ``_read_request_json`` /
+    ``read_request_json_with_bytes``, so validating here fixes the whole
+    surface at once instead of scattering ``isinstance`` checks across the
+    tokenizer, the compressors and each provider handler. Errors name the
+    offending field so the caller can act on the 400.
+
+    Raises:
+        ValueError: if a known field carries the wrong JSON type.
+    """
+    for field, (allowed, described) in _REQUEST_FIELD_TYPES.items():
+        if field not in body:
+            continue
+        value = body[field]
+        if value is None:
+            raise ValueError(f"Field {field!r} must be {described}, got null.")
+        # bool is a subclass of int; no int-typed field here, but keep the
+        # check order explicit for future entries.
+        if not isinstance(value, allowed):
+            raise ValueError(
+                f"Field {field!r} must be {described}, got {type(value).__name__}."
+            )
+
+    for field in _REQUEST_OBJECT_ARRAY_FIELDS:
+        items = body.get(field)
+        if not isinstance(items, list):
+            continue
+        for index, item in enumerate(items):
+            if not isinstance(item, dict):
+                raise ValueError(
+                    f"Field '{field}[{index}]' must be a JSON object, "
+                    f"got {type(item).__name__}."
+                )
+
+
+def _parse_request_json_text(text: str) -> dict[str, Any]:
+    """Depth-check, decode and shape-validate a request body.
+
+    Single choke point shared by both public readers so the OpenAI, Gemini,
+    Vertex, batch and Anthropic handlers all get the same boundary guarantees.
+    """
+    check_json_nesting_depth(text)
+    result = json.loads(text)
+    if not isinstance(result, dict):
+        raise ValueError("Request body must be a JSON object, not " + type(result).__name__)
+    validate_request_body_shape(result)
+    return result
+
+
 async def _read_request_json(request: Request) -> dict[str, Any]:
     """Read and parse JSON from a request, handling compressed bodies.
 
@@ -3257,10 +3466,7 @@ async def _read_request_json(request: Request) -> dict[str, Any]:
     except UnicodeDecodeError as exc:
         raise ValueError(f"Request body is not valid UTF-8 (possibly compressed?): {exc}") from exc
 
-    result = json.loads(text)
-    if not isinstance(result, dict):
-        raise ValueError("Request body must be a JSON object, not " + type(result).__name__)
-    return result
+    return _parse_request_json_text(text)
 
 
 async def read_request_json_with_bytes(request: Request) -> tuple[dict[str, Any], bytes]:
@@ -3278,10 +3484,7 @@ async def read_request_json_with_bytes(request: Request) -> tuple[dict[str, Any]
     except UnicodeDecodeError as exc:
         raise ValueError(f"Request body is not valid UTF-8 (possibly compressed?): {exc}") from exc
 
-    result = json.loads(text)
-    if not isinstance(result, dict):
-        raise ValueError("Request body must be a JSON object, not " + type(result).__name__)
-    return result, raw
+    return _parse_request_json_text(text), raw
 
 
 def _strip_per_call_annotations(obj: Any) -> Any:
