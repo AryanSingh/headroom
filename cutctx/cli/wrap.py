@@ -5085,23 +5085,27 @@ def opencode(
             "`cutctx wrap opencode --port <other-port>` for a private proxy."
         )
 
-    _launch_tool(
-        binary=opencode_bin,
-        args=opencode_args,
-        env=env,
-        port=port,
-        no_proxy=no_proxy,
-        tool_label="OPENCODE",
-        env_vars_display=env_vars_display,
-        learn=learn,
-        memory=memory,
-        agent_type="opencode",
-        backend=backend,
-        openai_api_url=openai_api_url,
-        client_credential_origin=f"http://127.0.0.1:{requested_port}",
-        reuse_only=share_proxy_port,
-        post_proxy_check=_confirm_shared_upstream_capability if share_proxy_port else None,
-    )
+    try:
+        _launch_tool(
+            binary=opencode_bin,
+            args=opencode_args,
+            env=env,
+            port=port,
+            no_proxy=no_proxy,
+            tool_label="OPENCODE",
+            env_vars_display=env_vars_display,
+            learn=learn,
+            memory=memory,
+            agent_type="opencode",
+            backend=backend,
+            openai_api_url=openai_api_url,
+            client_credential_origin=f"http://127.0.0.1:{requested_port}",
+            reuse_only=share_proxy_port,
+            post_proxy_check=_confirm_shared_upstream_capability if share_proxy_port else None,
+        )
+    finally:
+        if route_opencode_go:
+            override_path.unlink(missing_ok=True)
 
 
 # =============================================================================
