@@ -10,7 +10,9 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import os
+import queue
 import secrets
+import threading
 from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
@@ -20,6 +22,7 @@ import httpx
 
 _SERVICE_NAME = "cutctx"
 _CLIENT_ENV = "CUTCTX_API_KEY"
+_DEFAULT_KEYRING_TIMEOUT_SECONDS = 5.0
 _INSECURE_BACKEND_MARKERS = (
     "keyring.backends.fail",
     "keyring.backends.null",
@@ -131,17 +134,61 @@ def _default_keyring_backend() -> object:
 class KeyringClientCredentialStore:
     """Store credentials in the platform's protected credential manager."""
 
-    def __init__(self, *, keyring_backend: object | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        keyring_backend: object | None = None,
+        timeout_seconds: float = _DEFAULT_KEYRING_TIMEOUT_SECONDS,
+    ) -> None:
+        if timeout_seconds <= 0:
+            raise ValueError("Keyring timeout must be greater than zero.")
         self._backend = keyring_backend or _default_keyring_backend()
+        self._timeout_seconds = timeout_seconds
+
+    def _call(self, method_name: str, *args: str) -> object:
+        """Run a potentially interactive keyring call with a hard caller deadline.
+
+        Some platform backends can wait indefinitely for a locked keychain or a
+        desktop prompt. A daemon thread lets the CLI fail closed without keeping
+        the process alive when the backend does not return.
+        """
+
+        result: queue.Queue[tuple[bool, object]] = queue.Queue(maxsize=1)
+
+        def invoke() -> None:
+            try:
+                method = getattr(self._backend, method_name)
+                result.put((True, method(*args)))
+            except BaseException as exc:
+                result.put((False, exc))
+
+        worker = threading.Thread(
+            target=invoke,
+            name=f"cutctx-keyring-{method_name}",
+            daemon=True,
+        )
+        worker.start()
+        try:
+            succeeded, value = result.get(timeout=self._timeout_seconds)
+        except queue.Empty:
+            raise ClientCredentialStoreError(
+                "The OS credential store did not respond before the safety deadline."
+            ) from None
+        if not succeeded:
+            raise ClientCredentialStoreError(
+                "The OS credential store operation failed."
+            ) from None
+        return value
 
     def get(self, proxy_origin: str) -> str | None:
         origin = normalize_proxy_origin(proxy_origin)
         try:
-            value = self._backend.get_password(  # type: ignore[attr-defined]
+            value = self._call(
+                "get_password",
                 _SERVICE_NAME,
                 _account_name(origin),
             )
-        except Exception:
+        except ClientCredentialStoreError:
             raise ClientCredentialStoreError(
                 "Unable to read the Cutctx client credential from the OS credential store."
             ) from None
@@ -152,12 +199,13 @@ class KeyringClientCredentialStore:
         if not value or not value.strip():
             raise ClientCredentialConfigError("Client credential must not be empty.")
         try:
-            self._backend.set_password(  # type: ignore[attr-defined]
+            self._call(
+                "set_password",
                 _SERVICE_NAME,
                 _account_name(origin),
                 value,
             )
-        except Exception:
+        except ClientCredentialStoreError:
             raise ClientCredentialStoreError(
                 "Unable to save the Cutctx client credential in the OS credential store."
             ) from None
@@ -166,17 +214,19 @@ class KeyringClientCredentialStore:
         origin = normalize_proxy_origin(proxy_origin)
         account = _account_name(origin)
         try:
-            existing = self._backend.get_password(  # type: ignore[attr-defined]
+            existing = self._call(
+                "get_password",
                 _SERVICE_NAME,
                 account,
             )
             if not existing:
                 return False
-            self._backend.delete_password(  # type: ignore[attr-defined]
+            self._call(
+                "delete_password",
                 _SERVICE_NAME,
                 account,
             )
-        except Exception:
+        except ClientCredentialStoreError:
             raise ClientCredentialStoreError(
                 "Unable to remove the Cutctx client credential from the OS credential store."
             ) from None

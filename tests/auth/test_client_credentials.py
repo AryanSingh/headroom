@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import base64
+import threading
+import time
 from dataclasses import dataclass, field
 
 import httpx
@@ -94,6 +96,42 @@ def test_keyring_errors_are_redacted() -> None:
 
     assert "client-secret" not in str(exc_info.value)
     assert "backend payload" not in str(exc_info.value)
+
+
+@pytest.mark.parametrize("operation", ["get", "set", "delete"])
+def test_keyring_operations_fail_closed_on_backend_hang(operation: str) -> None:
+    release = threading.Event()
+
+    class HangingKeyring(FakeKeyring):
+        def get_password(self, service: str, account: str) -> str | None:
+            if operation in {"get", "delete"}:
+                release.wait()
+            return "stored-secret" if operation == "delete" else None
+
+        def set_password(self, service: str, account: str, value: str) -> None:
+            if operation == "set":
+                release.wait()
+
+        def delete_password(self, service: str, account: str) -> None:
+            if operation == "delete":
+                release.wait()
+
+    store = KeyringClientCredentialStore(
+        keyring_backend=HangingKeyring(),
+        timeout_seconds=0.05,
+    )
+    started = time.monotonic()
+    try:
+        with pytest.raises(ClientCredentialStoreError):
+            if operation == "get":
+                store.get("https://proxy.example")
+            elif operation == "set":
+                store.set("https://proxy.example", "client-secret")
+            else:
+                store.delete("https://proxy.example")
+        assert time.monotonic() - started < 0.5
+    finally:
+        release.set()
 
 
 def test_environment_wins_without_persisting() -> None:
