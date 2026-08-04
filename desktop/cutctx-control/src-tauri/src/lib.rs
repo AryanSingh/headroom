@@ -144,24 +144,6 @@ fn get_catalog(state: State<'_, AppState>) -> Result<Vec<CatalogEntry>, String> 
 }
 
 #[tauri::command]
-fn get_status(state: State<'_, AppState>) -> Result<ProxyStatus, String> {
-    let health = state.health.lock().map_err(|e| e.to_string())?;
-    Ok(health.status.clone())
-}
-
-#[tauri::command]
-fn get_profile(state: State<'_, AppState>) -> Result<ProxyProfile, String> {
-    let profile = state.profile.lock().map_err(|e| e.to_string())?;
-    Ok(profile.clone())
-}
-
-#[tauri::command]
-fn preview_argv(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    let profile = state.profile.lock().map_err(|e| e.to_string())?;
-    Ok(argv::build_proxy_argv(&profile))
-}
-
-#[tauri::command]
 fn set_feature(
     state: State<'_, AppState>,
     key: String,
@@ -744,9 +726,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_catalog,
-            get_status,
-            get_profile,
-            preview_argv,
             set_feature,
             load_named_profile,
             save_named_profile,
