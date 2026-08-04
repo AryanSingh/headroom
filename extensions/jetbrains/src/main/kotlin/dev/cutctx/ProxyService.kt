@@ -1,5 +1,6 @@
 package dev.cutctx
 
+import com.google.gson.JsonParser
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.util.net.HttpConfigurable
@@ -12,6 +13,29 @@ data class CutCtxStats(
     val dollarsSaved: Double,
     val requestsCompressed: Int
 )
+
+internal fun parseCutctxStats(json: String): CutCtxStats {
+    return try {
+        val root = JsonParser.parseString(json).asJsonObject
+
+        fun number(section: String, key: String): Double {
+            val value = root.getAsJsonObject(section)?.get(key) ?: return 0.0
+            return if (value.isJsonPrimitive && value.asJsonPrimitive.isNumber) {
+                value.asDouble
+            } else {
+                0.0
+            }
+        }
+
+        CutCtxStats(
+            tokensSaved = number("summary", "saved").toLong(),
+            dollarsSaved = number("cost", "savings_usd"),
+            requestsCompressed = number("requests", "total").toInt()
+        )
+    } catch (_: Exception) {
+        CutCtxStats(tokensSaved = 0, dollarsSaved = 0.0, requestsCompressed = 0)
+    }
+}
 
 @Service(Service.Level.APP)
 class ProxyService {
@@ -69,7 +93,7 @@ class ProxyService {
             conn.readTimeout = 3000
             if (conn.responseCode == 200) {
                 val body = conn.inputStream.bufferedReader().readText()
-                parseStats(body).also { latestStats = it }
+                parseCutctxStats(body).also { latestStats = it }
             } else null
         } catch (e: Exception) { null }
     }
@@ -95,16 +119,4 @@ class ProxyService {
         throw RuntimeException("CutCtx proxy did not become ready within ${timeoutSeconds}s")
     }
 
-    private fun parseStats(json: String): CutCtxStats {
-        // Simple regex-based parsing to avoid adding a JSON dependency
-        fun extractLong(key: String): Long =
-            Regex(""""$key"\s*:\s*(\d+)""").find(json)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
-        fun extractDouble(key: String): Double =
-            Regex(""""$key"\s*:\s*([\d.]+)""").find(json)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-        return CutCtxStats(
-            tokensSaved = extractLong("total_tokens_removed"),
-            dollarsSaved = extractDouble("total_saved_usd"),
-            requestsCompressed = extractLong("requests_compressed").toInt()
-        )
-    }
 }

@@ -17,6 +17,8 @@ repositories {
 }
 
 dependencies {
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testRuntimeOnly("junit:junit:4.13.2")
     intellijPlatform {
         create(providers.gradleProperty("platformType"), providers.gradleProperty("platformVersion"))
         bundledPlugins("com.intellij.java")
@@ -25,6 +27,10 @@ dependencies {
         instrumentationTools()
         testFramework(TestFrameworkType.Platform)
     }
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 intellijPlatform {
