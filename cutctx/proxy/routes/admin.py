@@ -21,6 +21,32 @@ from pydantic import BaseModel, Field, field_validator
 logger = logging.getLogger("cutctx.proxy.routes.admin")
 
 
+class AuditVerificationVerdict(BaseModel):
+    """Stable response shape for a completed audit verification."""
+
+    ok: bool
+    status: Literal["valid", "tampered"]
+    valid: bool
+    tenant_id: str | None
+    event_id: str | None
+    reason: str | None
+    broken_at: dict[str, Any] | None
+    lightweight: dict[str, Any]
+    hash_chain: dict[str, bool] | None
+
+
+class AuditVerificationFailure(BaseModel):
+    """Stable response shape for a verifier failure."""
+
+    detail: Literal["Audit verification failed"]
+
+
+class AuditLoggingUnavailable(BaseModel):
+    """Stable response shape when audit logging is unavailable."""
+
+    detail: Literal["Audit logging not available"]
+
+
 def set_live_reversible_code(proxy: Any, enabled: bool) -> int:
     """Apply reversible-code policy to existing routers without replacing them.
 
@@ -546,6 +572,17 @@ def create_admin_router(
 
     @router.get(
         "/audit/verify",
+        response_model=AuditVerificationVerdict,
+        responses={
+            500: {
+                "model": AuditVerificationFailure,
+                "description": "Audit verification failed",
+            },
+            503: {
+                "model": AuditLoggingUnavailable,
+                "description": "Audit logging not available",
+            },
+        },
         dependencies=[
             _Dep(require_admin_auth),
             _Dep(require_rbac_permission("audit.read")),
@@ -560,32 +597,73 @@ def create_admin_router(
         endpoint exposes a monotonicity + schema check via
         ``AuditLogger.verify_chain`` (lightweight) and also tries
         the hash-chain store's ``verify_chain`` for full
-        cryptographic integrity when one is configured. Returns
-        200 if the lightweight check passes; returns 503 if no
-        audit log is configured; returns 500 if the lightweight
-        check fails (so the operator's monitoring catches it).
+        cryptographic integrity when one is configured.
+
+        H8 follow-up: a detected tamper is a *verdict*, not a server
+        fault. This used to raise ``HTTPException(500, detail={...})``,
+        which FastAPI renders as ``{"detail": "{'lightweight': {...}}"}``
+        — a stringified Python dict under a ``server_error`` shape. That
+        made "the chain is broken" indistinguishable from "the verifier
+        crashed" for both monitoring and machine clients.
+
+        Now: 200 with a structured body in every case where the check
+        actually ran. ``ok`` carries the verdict, ``event_id`` names the
+        offending entry when one was found. 503 still means no audit log
+        is configured, and a genuine 5xx once again means only that the
+        verifier itself failed. Callers alert on ``ok is false``.
         """
         if not _proxy.audit_logger:
             raise HTTPException(status_code=503, detail="Audit logging not available")
-        light = _proxy.audit_logger.verify_chain(tenant_id=tenant_id)
+
+        try:
+            light = _proxy.audit_logger.verify_chain(tenant_id=tenant_id)
+        except Exception:  # noqa: BLE001
+            logger.exception("Audit verification failed")
+            return JSONResponse(
+                status_code=500,
+                content=AuditVerificationFailure(detail="Audit verification failed").model_dump(),
+            )
+        if not isinstance(light, dict) or not isinstance(light.get("ok"), bool):
+            logger.error("Audit verification returned a malformed lightweight result")
+            return JSONResponse(
+                status_code=500,
+                content=AuditVerificationFailure(detail="Audit verification failed").model_dump(),
+            )
+
         # Best-effort: if a hash-chain store is configured, run it too.
         chain_result: dict[str, Any] | None = None
         try:
             chain_store = getattr(_proxy, "audit_chain_store", None)
             if chain_store is not None and hasattr(chain_store, "verify_chain"):
                 chain_ok = chain_store.verify_chain(tenant_id or "default")
+                if not isinstance(chain_ok, bool):
+                    raise TypeError("malformed hash-chain verification result")
                 chain_result = {"ok": chain_ok}
         except Exception:  # noqa: BLE001
-            chain_result = {"ok": False, "error": "Health check failed"}
-        if not light.get("ok", False):
-            raise HTTPException(
+            logger.exception("Audit hash-chain verification failed")
+            return JSONResponse(
                 status_code=500,
-                detail={
-                    "lightweight": light,
-                    "hash_chain": chain_result,
-                },
+                content=AuditVerificationFailure(detail="Audit verification failed").model_dump(),
             )
-        return {"ok": True, "lightweight": light, "hash_chain": chain_result}
+
+        broken_at = light.get("broken_at") if isinstance(light, dict) else None
+        light_ok = bool(light.get("ok", False)) if isinstance(light, dict) else False
+        chain_ok_flag = True if chain_result is None else bool(chain_result.get("ok", False))
+        verdict_ok = light_ok and chain_ok_flag
+        verdict = AuditVerificationVerdict(
+            ok=verdict_ok,
+            status="valid" if verdict_ok else "tampered",
+            valid=verdict_ok,
+            tenant_id=tenant_id,
+            # Top-level so alerting does not have to reach into the
+            # lightweight sub-object to name the offending entry.
+            event_id=(broken_at or {}).get("event_id") if isinstance(broken_at, dict) else None,
+            reason=(broken_at or {}).get("reason") if isinstance(broken_at, dict) else None,
+            broken_at=broken_at,
+            lightweight=light,
+            hash_chain=chain_result,
+        )
+        return verdict
 
     @router.get(
         "/audit/stats",
