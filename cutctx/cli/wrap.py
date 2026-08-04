@@ -33,6 +33,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 # Fix Windows cp1252 encoding — box-drawing characters require UTF-8
@@ -1158,27 +1159,9 @@ def _apply_user_token_header(env: dict[str, str], *, verbose: bool = False) -> b
 
 def _resolve_license_key() -> str | None:
     """Find the active licence key the same way the proxy does."""
-    from_env = os.environ.get("CUTCTX_LICENSE_KEY")
-    if from_env and from_env.strip():
-        return from_env.strip()
-    key_file = Path.home() / ".cutctx" / "license_key.txt"
-    if key_file.exists():
-        try:
-            value = key_file.read_text(encoding="utf-8").strip()
-            if value:
-                return value
-        except OSError:
-            pass
-    try:
-        import json as _json
+    from cutctx.proxy.deployment_security import effective_license_key
 
-        from cutctx import paths as _p
-
-        payload = _json.loads(_p.license_cache_path().read_text(encoding="utf-8"))
-        key = (payload.get("payload") or {}).get("license_key")
-        return str(key).strip() or None if key else None
-    except Exception:
-        return None
+    return effective_license_key(SimpleNamespace(license_key=None))
 
 
 def _inject_codex_provider_config(port: int) -> None:

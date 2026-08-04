@@ -165,6 +165,12 @@ mod tests {
             .iter()
             .any(|arg| arg == "--proxy-arg=--enable-reversible-code"));
         assert!(!plan.iter().any(|arg| arg == "--replace-existing"));
+        assert!(!plan.iter().any(|arg| {
+            let normalized = arg.to_ascii_lowercase();
+            normalized.contains("license")
+                || normalized.contains("cutctx_test_secret")
+                || normalized.contains("cutctx_7409")
+        }));
     }
 
     #[test]
@@ -201,12 +207,13 @@ mod tests {
             return;
         }
         let bin = std::env::var("CUTCTX_BIN").unwrap_or_else(|_| "cutctx".into());
-        let Ok(license) = std::fs::read_to_string(
-            dirs::home_dir()
-                .unwrap_or_default()
-                .join(".cutctx/license_key.txt"),
-        ) else {
-            eprintln!("skip: no license_key.txt");
+        let license = std::env::var("CUTCTX_LIVE_LICENSE_KEY").ok().or_else(|| {
+            use crate::credentials::{PlatformSecretStore, SecretStore, CUTCTX_LICENSE_KEY};
+
+            PlatformSecretStore.get(CUTCTX_LICENSE_KEY).ok().flatten()
+        });
+        let Some(license) = license else {
+            eprintln!("skip: no live license in env or OS credential store");
             return;
         };
         let license = license.trim().to_string();
