@@ -400,11 +400,14 @@ function AppFrame() {
                   <Route path="/" element={<Overview searchQuery={searchQuery} />} />
                   <Route path="/savings" element={<Savings />} />
                   <Route path="/orchestrator" element={<Orchestrator searchQuery={searchQuery} />} />
-                  <Route path="/capabilities" element={<Capabilities />} />
+                  <Route path="/capabilities" element={<Capabilities searchQuery={searchQuery} />} />
                   <Route path="/governance" element={<Governance searchQuery={searchQuery.toLowerCase()} />} />
                   <Route path="/firewall" element={<Firewall searchQuery={searchQuery.toLowerCase()} />} />
                   <Route path="/memory" element={<Memory searchQuery={searchQuery.toLowerCase()} />} />
-                  <Route path="/replay" element={<Replay />} />
+                  <Route
+                    path="/replay"
+                    element={<Replay searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}
+                  />
                   <Route path="/playground" element={<Playground />} />
                   <Route path="/docs" element={<Docs />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
