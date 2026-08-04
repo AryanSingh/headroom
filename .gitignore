@@ -52,6 +52,7 @@ scripts/*
 !scripts/assert_oss_wheel_clean.py
 !scripts/generate_openapi.py
 !scripts/build_ee_manifest.py
+!scripts/check_ee_freshness.py
 !scripts/sign_artifacts.py
 !scripts/license_keygen.py
 !scripts/generate_license.py
@@ -85,6 +86,13 @@ __pycache__/
 
 # C extensions
 *.so
+
+# EE integrity manifest — generated from the *shipped* .so artifacts at
+# packaging time (scripts/build_ee_manifest.py, called by scripts/compile_ee.py).
+# Audit-2026-08-03 H1: while this was git-tracked and the .so above were not,
+# the manifest could never match a local build, so the resulting permanent
+# "integrity check failed" warning masked genuinely stale binaries.
+cutctx_ee/MANIFEST.sha256.json
 
 # Distribution / packaging
 .Python

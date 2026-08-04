@@ -5042,6 +5042,18 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         pass
 
     register_provider_routes(app, proxy)
+
+    # Audit-2026-08-03 C3.3: enforce entitlements centrally, after every router
+    # is mounted, instead of relying on each route module remembering a
+    # `Depends(require_entitlement(...))`. Enterprise routes with no registered
+    # feature are denied rather than exposed.
+    try:
+        from cutctx.proxy.routes.entitlement_gate import install_entitlement_gate
+
+        install_entitlement_gate(app, proxy)
+    except ImportError:  # pragma: no cover - gate module always ships with routes
+        logger.error("Entitlement gate unavailable — enterprise routes are NOT tier-gated")
+
     return app
 
 

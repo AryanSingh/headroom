@@ -45,6 +45,14 @@ jobs:
             --output-dir dist-ee-compiled \
             --version ${{ inputs.version }}
 
+      # Audit-2026-08-03 H1: a .so older than its .py silently ships superseded
+      # code, because the .so shadows the source at import time. Five modules
+      # had drifted (including the entitlement fail-closed fixes in
+      # billing/client.py and trial.py) before this gate existed.
+      - name: Fail on stale EE extensions (H1)
+        run: |
+          python scripts/check_ee_freshness.py
+
       - name: Verify no source in compiled wheel (V-7)
         run: |
           python scripts/compile_ee.py \

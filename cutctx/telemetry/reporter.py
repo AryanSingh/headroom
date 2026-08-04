@@ -73,6 +73,46 @@ _USAGE_REPORTING_MODE: UsageReportResult = "unavailable"
 _USAGE_UNAVAILABLE_WARNING_INTERVAL_SECONDS = 3600
 
 
+#: Clock skew tolerated on a cached ``validated_at`` before the cache is
+#: treated as forged. A cache stamped in the future would otherwise have a
+#: negative age, which is always ``< GRACE_PERIOD_SECONDS`` — an eternal
+#: grace period (Audit-2026-08-03 C3.2).
+_MAX_CACHE_CLOCK_SKEW_SECONDS = 300
+
+
+def _authoritative_plan(
+    claimed_plan: str | None,
+    license_key: str | None,
+    api_url: str | None,
+    response: dict[str, Any] | None = None,
+) -> str | None:
+    """Clamp a licence-API plan claim to what a local signature can prove.
+
+    Audit-2026-08-03 C3.1: ``CUTCTX_LICENSE_API_URL`` points validation at an
+    arbitrary host, so a bare ``{"valid": true, "tier": "enterprise"}`` body
+    is not evidence. ``cutctx_ee.billing.license_token.authoritative_tier``
+    grants a paid plan only for a signed ``hrk1`` token / signed licence key,
+    or an unsigned answer from a pinned vendor origin. Anything else — and any
+    install without the commercial package, which has no paid features anyway
+    — resolves to the free tier.
+    """
+    if not claimed_plan:
+        return None
+    try:
+        from cutctx_ee.billing.license_token import authoritative_tier
+    except ImportError:
+        return None
+    granted = authoritative_tier(claimed_plan, license_key, api_url, response)
+    if granted is None and claimed_plan:
+        logger.warning(
+            "License response claimed plan=%s but carries no verifiable signature and "
+            "did not come from a pinned licence origin (%s) — refusing to apply it.",
+            claimed_plan,
+            api_url,
+        )
+    return granted
+
+
 def _classify_usage_response(response: httpx.Response) -> UsageReportResult:
     """Map a usage-report HTTP response to a typed result.
 
@@ -266,7 +306,13 @@ class UsageReporter:
                     status=status,
                     org_id=data.get("org_id"),
                     org_name=data.get("org_name"),
-                    plan=data.get("plan") or data.get("tier"),
+                    # C3.1: never take the tier straight off the wire.
+                    plan=_authoritative_plan(
+                        data.get("plan") or data.get("tier"),
+                        self._license_key,
+                        self._license_api_url(),
+                        data,
+                    ),
                     quota_tokens=data.get("quota_tokens"),
                     trial_expires_at=trial_expires_at,
                     validated_at=datetime.now(timezone.utc),
@@ -465,19 +511,30 @@ class UsageReporter:
         self._last_report_time = datetime.now(timezone.utc)
 
     def _save_cache(self) -> None:
-        """Save license info to local cache file."""
+        """Save license info to local cache file, HMAC-signed.
+
+        C3.2: this used to write plain JSON, which is precisely the document
+        an attacker forges. Writing through ``write_hmac_json`` means the
+        reader can tell our cache from a hand-written one.
+        """
         if self._license_info is None:
             return
         try:
-            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
-            self._cache_path.write_text(
-                json.dumps(self._license_info.to_dict(), indent=2), encoding="utf-8"
-            )
+            from cutctx.security.state_crypto import write_hmac_json
+
+            write_hmac_json(self._cache_path, self._license_info.to_dict())
         except OSError:
             logger.warning("Could not save license cache to %s", self._cache_path)
 
     def _load_cache_or_default(self) -> LicenseInfo:
-        """Load cached license info, or return a default if expired/missing."""
+        """Load cached license info, or return a default if expired/missing.
+
+        Audit-2026-08-03 C3.2: the cache is only honoured when it carries a
+        valid HMAC signature (no unsigned fallback), its ``validated_at`` is
+        not in the future, a ``trial`` status is backed by a future
+        ``trial_expires_at``, and its plan still clears the C3.1 signature
+        check.
+        """
         try:
             if self._cache_path.exists():
                 data: dict[str, Any] | None = None
@@ -489,14 +546,22 @@ class UsageReporter:
                         data = hmac_payload
                 except Exception:
                     data = None
-                if data is None:
-                    raw = json.loads(self._cache_path.read_text(encoding="utf-8"))
-                    if isinstance(raw, dict):
-                        data = raw
                 if not isinstance(data, dict):
-                    raise ValueError("license cache is not an object")
+                    raise ValueError("license cache is missing or not signed by this install")
                 cached = LicenseInfo.from_dict(data)
+                cached.plan = _authoritative_plan(
+                    cached.plan, self._license_key, self._license_api_url()
+                )
                 age = (datetime.now(timezone.utc) - cached.validated_at).total_seconds()
+                if age < -_MAX_CACHE_CLOCK_SKEW_SECONDS:
+                    raise ValueError(
+                        f"license cache is stamped {-age:.0f}s in the future — rejecting"
+                    )
+                if cached.status == "trial" and not (
+                    cached.trial_expires_at is not None
+                    and cached.trial_expires_at > datetime.now(timezone.utc)
+                ):
+                    raise ValueError("cached trial has no valid future expiry — rejecting")
                 if age < GRACE_PERIOD_SECONDS and cached.status in ("active", "trial"):
                     logger.info(
                         "Using cached license (age=%.1fh, status=%s, plan=%s)",

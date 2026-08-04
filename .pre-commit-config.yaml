@@ -19,6 +19,12 @@ repos:
         language: system
         pass_filenames: true
         types_or: [python, markdown, yaml, toml, json]
+      - id: ee-extension-freshness
+        name: EE compiled extensions not stale (H1)
+        entry: python3 scripts/check_ee_freshness.py
+        language: system
+        pass_filenames: false
+        files: ^cutctx_ee/.*\.py$
       - id: forbid-openai-project-keys
         name: Reject OpenAI project keys
         entry: python3 scripts/check_secret_patterns.py

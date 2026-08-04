@@ -16,6 +16,7 @@ from cutctx.proxy.server import ProxyConfig, create_app
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """Builder-tier client (no licence): only the auth gates apply."""
     monkeypatch.setenv("CUTCTX_ADMIN_API_KEY", "test-dsr-key-1234")
     config = ProxyConfig(
         cache_enabled=False,
@@ -25,8 +26,36 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     return TestClient(create_app(config))
 
 
+@pytest.fixture
+def entitled_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """Enterprise-tier client.
+
+    Audit-2026-08-03 C3.3: ``/v1/dsr/*`` had no entitlement check, so the
+    behavioural tests below ran (and passed) at builder tier. They now run
+    against an entitled proxy; ``test_dsr_requires_entitlement`` covers the
+    builder-tier denial.
+    """
+    monkeypatch.setenv("CUTCTX_ADMIN_API_KEY", "test-dsr-key-1234")
+    from cutctx.proxy.server import _load_entitlement_checker
+
+    app = create_app(ProxyConfig(cache_enabled=False, rate_limit_enabled=False, log_requests=False))
+    app.state.proxy.entitlement_checker = _load_entitlement_checker("enterprise")
+    return TestClient(app)
+
+
 def _auth_headers() -> dict[str, str]:
     return {"authorization": "Bearer test-dsr-key-1234"}
+
+
+def test_dsr_requires_entitlement(client: TestClient) -> None:
+    """C3.3: DSR export/delete is an ENTERPRISE compliance capability."""
+    assert client.get("/v1/dsr/export?user_id=alice", headers=_auth_headers()).status_code == 403
+    assert (
+        client.post(
+            "/v1/dsr/delete", json={"user_id": "alice"}, headers=_auth_headers()
+        ).status_code
+        == 403
+    )
 
 
 def test_dsr_export_unauthenticated_rejected(client: TestClient) -> None:
@@ -41,14 +70,14 @@ def test_dsr_delete_unauthenticated_rejected(client: TestClient) -> None:
     assert r.status_code == 401, r.text
 
 
-def test_dsr_export_no_user_id_returns_400(client: TestClient) -> None:
+def test_dsr_export_no_user_id_returns_400(entitled_client: TestClient) -> None:
     """Authenticated but no user_id → 400 (no silent empty target)."""
-    r = client.get("/v1/dsr/export", headers=_auth_headers())
+    r = entitled_client.get("/v1/dsr/export", headers=_auth_headers())
     assert r.status_code == 400
     assert "user_id" in r.json()["detail"]
 
 
-def test_dsr_delete_no_user_id_returns_400(client: TestClient) -> None:
+def test_dsr_delete_no_user_id_returns_400(entitled_client: TestClient) -> None:
     """Authenticated but no user_id → 400 (no silent empty target).
 
     The endpoint accepts a Pydantic body so a missing ``user_id``
@@ -57,7 +86,7 @@ def test_dsr_delete_no_user_id_returns_400(client: TestClient) -> None:
     Both responses are acceptable; the contract is that the system
     does not silently target an empty user_id.
     """
-    r = client.post("/v1/dsr/delete", json={}, headers=_auth_headers())
+    r = entitled_client.post("/v1/dsr/delete", json={}, headers=_auth_headers())
     assert r.status_code in (400, 422)
     if r.status_code == 400:
         detail = r.json().get("detail", r.json().get("error", {}))
@@ -70,9 +99,9 @@ def test_dsr_delete_no_user_id_returns_400(client: TestClient) -> None:
         assert "user_id" in str(r.json())
 
 
-def test_dsr_export_query_param_user_id(client: TestClient) -> None:
+def test_dsr_export_query_param_user_id(entitled_client: TestClient) -> None:
     """Authenticated with ?user_id=... in query string returns a structured payload."""
-    r = client.get("/v1/dsr/export?user_id=alice", headers=_auth_headers())
+    r = entitled_client.get("/v1/dsr/export?user_id=alice", headers=_auth_headers())
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["user_id"] == "alice"
@@ -94,7 +123,7 @@ def test_dsr_export_query_param_user_id(client: TestClient) -> None:
         assert "note" in body["stores"]["spend_ledger"]
 
 
-def test_dsr_delete_body_user_id(client: TestClient) -> None:
+def test_dsr_delete_body_user_id(entitled_client: TestClient) -> None:
     """Authenticated with body user_id returns a structured payload.
 
     The cascade now actually deletes audit rows (via the new
@@ -102,7 +131,7 @@ def test_dsr_delete_body_user_id(client: TestClient) -> None:
     spend_ledger as a no-op (SpendEvent has no user_id column),
     and reports memory as not configured.
     """
-    r = client.post("/v1/dsr/delete", json={"user_id": "alice"}, headers=_auth_headers())
+    r = entitled_client.post("/v1/dsr/delete", json={"user_id": "alice"}, headers=_auth_headers())
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["user_id"] == "alice"
