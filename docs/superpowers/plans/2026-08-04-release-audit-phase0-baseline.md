@@ -16,6 +16,8 @@
 - Do not stage `uv.lock`, `AUDIT_INDEPENDENT_2026-08-03.md`, `.env.example`, `cutctx/proxy/models.py`, `cutctx/proxy/routes/admin.py`, or `cutctx_ee/retention.py` in Phase 0.
 - The scheduler records command output and commit IDs in `.slim/deepwork/release-audit-closeout.md`.
 - A Terra oracle must approve this plan before execution.
+- Every commit task starts with an empty Git index. If `rtk git diff --cached --name-only` prints a path, stop and reconcile ownership.
+- Before each commit, compare the staged path list against the task's exact allowlist. Whitespace checks alone do not establish staging scope.
 
 ---
 
@@ -27,57 +29,153 @@
 - `audit/code-review-report.md`: records the review decision for held and committable changes.
 - `.slim/deepwork/release-audit-closeout.md`: local execution evidence and agent ownership ledger.
 
+### Task 0: Establish the canonical source-loaded audit baseline
+
+**Files:**
+- Modify locally only: `.slim/deepwork/release-audit-closeout.md`
+
+**Interfaces:**
+- Consumes: `AUDIT_INDEPENDENT_2026-08-03.md`, `docs/handoff-2026-07-28.md`, commits `4a37ad9f..88093e7a`, current working-tree changes, and preserved audit evidence.
+- Produces: the Phase 0 issue matrix, fixture plan, blocker-to-lane map, import-resolution proof, and the identified or explicitly unresolved “18 of 19” item.
+
+- [ ] **Step 1: Prove Python imports resolve from this worktree**
+
+Run:
+
+```bash
+rtk proxy uv run --frozen python -c 'import pathlib, cutctx, cutctx_ee, cutctx_ee.memory_service.api, cutctx_ee.retention; roots=[pathlib.Path(cutctx.__file__).resolve(), pathlib.Path(cutctx_ee.__file__).resolve(), pathlib.Path(cutctx_ee.memory_service.api.__file__).resolve(), pathlib.Path(cutctx_ee.retention.__file__).resolve()]; print("\n".join(str(path) for path in roots)); assert all(str(path).startswith(str(pathlib.Path.cwd().resolve())) for path in roots); assert all(path.suffix == ".py" or path.name == "__init__.py" for path in roots)'
+```
+
+Expected: every printed path is under the current worktree and no inspected enterprise module resolves to `.so`.
+
+- [ ] **Step 2: Inspect `cutctx_ai.pth` overlays**
+
+Run:
+
+```bash
+rtk proxy uv run --frozen python -c 'import pathlib, site; roots=[pathlib.Path(path) for path in site.getsitepackages()+[site.getusersitepackages()]]; matches=[path for root in roots for path in root.glob("cutctx_ai.pth")]; print("\n".join(f"{path}: {path.read_text().strip()}" for path in matches) or "no cutctx_ai.pth"); cwd=pathlib.Path.cwd().resolve(); assert all(not path.read_text().strip() or pathlib.Path(path.read_text().strip()).resolve() == cwd for path in matches)'
+```
+
+Expected: no overlay, or an overlay that resolves to this worktree. A different worktree is a blocker, not a warning.
+
+- [ ] **Step 3: Record the fixture and environment isolation plan**
+
+Add a Phase 0 section to `.slim/deepwork/release-audit-closeout.md` that records:
+
+- temporary homes for CLI, registrar, desktop, and agent configuration tests;
+- temporary SQLite databases for audit, spend, memory, and replay tests;
+- local capture servers for provider and firewall assertions;
+- disposable containers for deployment checks;
+- which live canaries remain blocked on credentials or external services.
+
+- [ ] **Step 4: Build the canonical issue matrix**
+
+Add one row for each C1-C7, H1-H19, Medium/Low item, section 8 area, and material section 9 defect. Every row must contain:
+
+```text
+ID | claim | current commit/code path | decisive command or missing evidence | status | blocker | bounded owner/phase
+```
+
+Use only these closure states: `Verified`, `Fixed`, `Unsupported by design`, `Blocked`, or `Unresolved`. Record skips as missing or limited evidence. Mark the inferred “18 of 19” item as inference unless repository evidence identifies it directly.
+
+- [ ] **Step 5: Map blockers to bounded lanes**
+
+Assign each `Unresolved` or `Blocked` row to one phase and one non-overlapping file or verification owner. Record external prerequisites without converting them to implementation work.
+
+- [ ] **Step 6: Ask the Terra oracle to review the baseline**
+
+Provide the source paths, overlay result, fixture plan, matrix, and lane map. Expected: `APPROVED` or actionable changes before Task 1.
+
 ### Task 1: Commit the MCP registry regression correction
 
 **Files:**
 - Modify: `tests/test_mcp_registry/test_install.py`
+- Modify: `tests/test_mcp_registry/test_codex_registrar.py`
 
 **Interfaces:**
-- Consumes: `cutctx.mcp_registry.install.build_cutctx_spec(proxy_url: str = DEFAULT_PROXY_URL) -> MCPServerSpec`
-- Produces: regression coverage that requires `CUTCTX_PROXY_URL` for default and custom non-empty URLs while preserving the empty-string opt-out.
+- Consumes: `cutctx.mcp_registry.install.build_cutctx_spec(proxy_url: str = DEFAULT_PROXY_URL) -> ServerSpec` and registrar read/write boundaries.
+- Produces: backfilled regression coverage for the in-memory spec plus boundary evidence that a default-port re-registration preserves the default `CUTCTX_PROXY_URL` in a temporary Codex configuration.
 
-- [ ] **Step 1: Inspect the isolated diff**
+- [ ] **Step 1: Require an empty Git index**
 
 Run:
 
 ```bash
-rtk git diff -- tests/test_mcp_registry/test_install.py
+rtk git diff --cached --name-only
 ```
 
-Expected: three test changes only; no production file appears.
+Expected: no output. If paths are present, stop and reconcile ownership.
 
-- [ ] **Step 2: Run the focused tests**
+- [ ] **Step 2: Add the registrar-boundary regression test**
 
-Run:
+Modify `tests/test_mcp_registry/test_codex_registrar.py` to import `DEFAULT_PROXY_URL` and `build_cutctx_spec`, then add:
 
-```bash
-rtk proxy uv run --frozen python -m pytest -q tests/test_mcp_registry/test_install.py
+```python
+def test_force_reregister_default_preserves_proxy_env(tmp_path: Path) -> None:
+    reg = _make_registrar(tmp_path)
+    reg.register_server(
+        build_cutctx_spec("http://127.0.0.1:9999"),
+    )
+
+    result = reg.register_server(build_cutctx_spec(), force=True)
+
+    assert result.status == RegisterStatus.REGISTERED
+    parsed = tomllib.loads(_config_path(tmp_path).read_text())
+    assert parsed["mcp_servers"]["cutctx"]["env"] == {
+        "CUTCTX_PROXY_URL": DEFAULT_PROXY_URL,
+    }
 ```
 
-Expected: `12 passed`.
+This test validates the reported write, rewrite, and parse lifecycle. It is backfilled verification for production behavior committed before this plan; do not label it a witnessed RED fix.
 
-- [ ] **Step 3: Run the pinned linter**
+- [ ] **Step 3: Inspect the isolated diff**
 
 Run:
 
 ```bash
-rtk proxy uvx ruff@0.9.4 check tests/test_mcp_registry/test_install.py
+rtk git diff -- tests/test_mcp_registry/test_install.py tests/test_mcp_registry/test_codex_registrar.py
+```
+
+Expected: `test_install.py` corrections plus the Codex registrar-boundary test; no production file appears.
+
+- [ ] **Step 4: Run the complete MCP registry suite**
+
+Run:
+
+```bash
+rtk proxy uv run --frozen python -m pytest -q tests/test_mcp_registry
+```
+
+Expected: no failures. Record the exact pass and skip counts.
+
+- [ ] **Step 5: Run the pinned linter**
+
+Run:
+
+```bash
+rtk proxy uvx ruff@0.9.4 check tests/test_mcp_registry/test_install.py tests/test_mcp_registry/test_codex_registrar.py
 ```
 
 Expected: `All checks passed!`
 
-- [ ] **Step 4: Stage only the regression file**
+- [ ] **Step 6: Stage only the regression files**
 
 Run:
 
 ```bash
-GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git add tests/test_mcp_registry/test_install.py
+GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git add tests/test_mcp_registry/test_install.py tests/test_mcp_registry/test_codex_registrar.py
 GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git diff --cached --check
+GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git diff --cached --name-only
 ```
 
-Expected: no whitespace errors and no other staged path.
+Expected path allowlist, exactly:
 
-- [ ] **Step 5: Commit**
+```text
+tests/test_mcp_registry/test_codex_registrar.py
+tests/test_mcp_registry/test_install.py
+```
+
+- [ ] **Step 7: Commit**
 
 Run:
 
@@ -85,7 +183,7 @@ Run:
 GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git commit -m "test(mcp): preserve default proxy binding"
 ```
 
-Expected: one-file commit.
+Expected: two-test-file commit.
 
 ### Task 2: Commit the packaged dashboard build
 
@@ -93,12 +191,63 @@ Expected: one-file commit.
 - Modify: `cutctx/dashboard/index.html`
 - Delete: old hashed files under `cutctx/dashboard/assets/`
 - Create: new hashed files under `cutctx/dashboard/assets/`
+- Modify: `tests/test_proxy_dashboard_html_auth_bypass.py`
 
 **Interfaces:**
 - Consumes: Vite build output from `dashboard/dist/`.
-- Produces: package assets loaded by the Python dashboard server and browser fixtures.
+- Produces: package assets with source-build equality and an HTTP runtime test that follows the packaged entry and lazy JavaScript chunks.
 
-- [ ] **Step 1: Run dashboard unit and bundle tests**
+- [ ] **Step 1: Require an empty Git index**
+
+Run:
+
+```bash
+rtk git diff --cached --name-only
+```
+
+Expected: no output. If paths are present, stop and reconcile ownership.
+
+- [ ] **Step 2: Add the packaged-runtime asset traversal test**
+
+Add these imports to `tests/test_proxy_dashboard_html_auth_bypass.py`:
+
+```python
+import re
+from collections import deque
+```
+
+Add this test:
+
+```python
+def test_dashboard_runtime_serves_entry_and_imported_chunks(client):
+    html_response = client.get("/dashboard")
+    assert html_response.status_code == 200
+
+    asset_urls = set(
+        re.findall(r'(?:src|href)="(/assets/[^"]+\.(?:js|css))"', html_response.text)
+    )
+    assert asset_urls
+
+    pending = deque(sorted(url for url in asset_urls if url.endswith(".js")))
+    visited: set[str] = set()
+    while pending:
+        asset_url = pending.popleft()
+        if asset_url in visited:
+            continue
+        visited.add(asset_url)
+        response = client.get(asset_url)
+        assert response.status_code == 200, asset_url
+        for chunk in re.findall(r'(?:from|import\()\s*["\']\./([^"\']+\.js)', response.text):
+            pending.append(f"/assets/{chunk}")
+
+    for asset_url in sorted(asset_urls - visited):
+        response = client.get(asset_url)
+        assert response.status_code == 200, asset_url
+```
+
+This test runs against the Python proxy's package-serving boundary and follows JavaScript imports without a live provider.
+
+- [ ] **Step 3: Run dashboard unit and bundle tests**
 
 Run:
 
@@ -110,7 +259,7 @@ Working directory: `dashboard/`.
 
 Expected: `31` tests pass and the production bundle budget test passes.
 
-- [ ] **Step 2: Build the dashboard**
+- [ ] **Step 4: Build the dashboard**
 
 Run:
 
@@ -122,7 +271,7 @@ Working directory: `dashboard/`.
 
 Expected: Vite completes and emits `index-hSP-yi6y.js` plus `index-C-C-76c9.css`.
 
-- [ ] **Step 3: Compare generated and packaged web files**
+- [ ] **Step 5: Compare generated and packaged web files**
 
 Run:
 
@@ -131,30 +280,31 @@ rtk proxy diff -qr dashboard/dist/assets cutctx/dashboard/assets
 rtk proxy diff -q dashboard/dist/index.html cutctx/dashboard/index.html
 ```
 
-Expected: both commands produce no differences.
+Expected: both commands produce no differences after the Vite build. Python-only files live outside `cutctx/dashboard/assets` and do not affect this comparison.
 
-- [ ] **Step 4: Verify package asset references**
+- [ ] **Step 6: Run packaged dashboard tests**
 
 Run:
 
 ```bash
-rtk grep -n 'index-hSP-yi6y.js\|index-C-C-76c9.css' cutctx/dashboard/index.html
+rtk proxy uv run --frozen python -m pytest -q tests/test_dashboard_embedded_build.py tests/test_dashboard_asset_sync.py tests/test_dashboard_regression.py tests/test_proxy_dashboard_html_auth_bypass.py
 ```
 
-Expected: one JavaScript reference and one CSS reference.
+Expected: no failures; the HTTP runtime test fetches the entry assets and each imported JavaScript chunk.
 
-- [ ] **Step 5: Stage only the packaged dashboard**
+- [ ] **Step 7: Stage only the packaged dashboard and runtime test**
 
 Run:
 
 ```bash
-GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git add -A cutctx/dashboard/index.html cutctx/dashboard/assets
+GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git add -A cutctx/dashboard/index.html cutctx/dashboard/assets tests/test_proxy_dashboard_html_auth_bypass.py
 GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git diff --cached --check
+GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git diff --cached --name-only
 ```
 
-Expected: the staged diff contains the package index and hashed asset replacements only.
+Expected: only `cutctx/dashboard/index.html`, paths under `cutctx/dashboard/assets/`, and `tests/test_proxy_dashboard_html_auth_bypass.py`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 Run:
 
@@ -162,48 +312,41 @@ Run:
 GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git commit -m "build(dashboard): refresh packaged audit assets"
 ```
 
-Expected: one generated-artifact commit.
+Expected: one generated-artifact and package-runtime regression commit.
 
-### Task 3: Commit the working-tree review record
+### Task 3: Validate the committed working-tree review record
 
 **Files:**
-- Create: `audit/code-review-report.md`
+- Read: `audit/code-review-report.md`
 
 **Interfaces:**
 - Consumes: focused pytest, Ruff, dashboard test/build, package comparison, and Git diff evidence.
-- Produces: a review record that defines which Claude changes Phase 1 must address.
+- Produces: confirmation that commit `30fc32d` records each held change and that the canonical matrix carries the same dispositions.
 
 - [ ] **Step 1: Verify the report contains each held file**
 
 Run:
 
 ```bash
-rtk grep -n 'retention.py\|routes/admin.py\|proxy/models.py\|uv.lock\|AUDIT_INDEPENDENT' audit/code-review-report.md
+rtk grep -n '\.env.example\|retention.py\|routes/admin.py\|proxy/models.py\|uv.lock\|AUDIT_INDEPENDENT' audit/code-review-report.md
 ```
 
 Expected: the report names every held change group and explains why it remains uncommitted.
 
-- [ ] **Step 2: Check the report diff**
+- [ ] **Step 2: Confirm the report is committed and clean**
 
 Run:
 
 ```bash
-rtk git diff --check -- audit/code-review-report.md
+rtk git log -1 --oneline -- audit/code-review-report.md
 rtk git diff -- audit/code-review-report.md
 ```
 
-Expected: no whitespace error; the report contains no secret values.
+Expected: the latest commit is `30fc32d` or a later deliberate report update, and the working-tree diff is empty.
 
-- [ ] **Step 3: Stage and commit the report**
+- [ ] **Step 3: Reconcile the report with the canonical matrix**
 
-Run:
-
-```bash
-GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git add audit/code-review-report.md
-GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true PAGER=cat rtk git commit -m "docs: review Claude audit working tree"
-```
-
-Expected: one documentation-file commit.
+Confirm that `.env.example`, `cutctx/proxy/models.py`, `cutctx/proxy/routes/admin.py`, `cutctx_ee/retention.py`, `uv.lock`, and `AUDIT_INDEPENDENT_2026-08-03.md` each have a canonical-matrix row with the review report's hold reason and required Phase 1 decision or evidence path.
 
 ### Task 4: Establish the Phase 0 verification baseline
 

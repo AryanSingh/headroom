@@ -6,7 +6,7 @@
 
 ## Summary
 
-The working tree contains several independent changes. The packaged dashboard assets and MCP registry regression tests are ready for isolated commits. The retention, audit-verification response, and timeout-default changes need more evidence or corrective work. `uv.lock` contains a broad local resolver rewrite and should stay out of these commits.
+The working tree contains several independent changes. The MCP registry test corrections are useful backfilled coverage but need a registrar write/rewrite/read-back test before they verify the reported boundary failure. The packaged dashboard assets match a local build but need a package-server runtime traversal test before commit. The retention, audit-verification response, and timeout-default changes need more evidence or corrective work. `uv.lock` contains a broad local resolver rewrite and should stay out of these commits.
 
 Focused verification completed:
 
@@ -50,17 +50,17 @@ The total deadline feature and validation already have regression coverage. The 
 
 Keep the configuration knob. Commit the default change only after a product decision defines the supported request-duration envelope and a test pins it.
 
-### [P2] MCP registry test correction is valid
+### [P2] MCP registry test correction is valid backfilled unit coverage
 
 **File:** `tests/test_mcp_registry/test_install.py`
 
-The production implementation already emits `CUTCTX_PROXY_URL` for the default URL. The updated tests match that behavior and guard against registrar rewrites dropping the environment table. All twelve tests pass. This file can be committed independently.
+The production implementation already emits `CUTCTX_PROXY_URL` for the default URL. The updated tests match the in-memory `ServerSpec` behavior. All twelve focused tests pass, but they do not execute a registrar write, default-port rewrite, and parsed read-back. Add that boundary test before classifying the historical registrar failure as verified. The existing assertions cannot provide a witnessed RED result for production code committed before this review.
 
-### [P2] Packaged dashboard assets match the current source build
+### [P2] Packaged dashboard assets match the current source build but need runtime provenance
 
 **Files:** `cutctx/dashboard/index.html`, `cutctx/dashboard/assets/*`
 
-The new hashed assets match a fresh Vite build from `dashboard/`. The package index references the generated JavaScript and CSS entry chunks. Dashboard tests and bundle-size checks pass. Commit the index, asset deletions, and asset additions as one generated-artifact change.
+The new hashed assets match a fresh Vite build from `dashboard/`. The package index references the generated JavaScript and CSS entry chunks. Dashboard tests and bundle-size checks pass. Before commit, run an isolated HTTP test against the Python package server that fetches the packaged index, entry assets, and each imported JavaScript chunk. Commit the runtime test, index, asset deletions, and asset additions as one generated-artifact change.
 
 ### [P3] `uv.lock` is unrelated resolver churn
 
@@ -76,9 +76,9 @@ The report is useful release evidence but contains detailed security findings, l
 
 ## Commit Recommendation
 
-Create two verified commits now when the Deepwork oracle gate becomes available:
+Create two commits after the Deepwork oracle accepts the added boundary evidence:
 
-1. MCP registry regression tests only.
-2. Packaged dashboard build artifacts only.
+1. MCP registry backfilled unit tests plus registrar write/rewrite/read-back coverage.
+2. Packaged dashboard build artifacts plus package-server runtime traversal coverage.
 
 Hold the timeout, audit endpoint, retention, lockfile, and independent audit report for separate TDD or publication decisions.
