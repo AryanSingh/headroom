@@ -167,6 +167,7 @@ def test_wrap_copilot_auto_detects_running_proxy_backend(
 ) -> None:
     _wrap_cli, main = wrap_modules
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy")
+    monkeypatch.delenv("CUTCTX_BACKEND", raising=False)
     captured: dict[str, object] = {}
 
     def fake_launch_tool(**kwargs):  # noqa: ANN003

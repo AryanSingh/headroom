@@ -14,6 +14,18 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def isolate_webhook_environment(monkeypatch: pytest.MonkeyPatch):
+    """Keep webhook persistence tests independent of suite-wide env state."""
+    for name in (
+        "CUTCTX_SECRETS_KEY",
+        "CUTCTX_WEBHOOKS_IN_MEMORY",
+        "CUTCTX_WEBHOOK_DB_PATH",
+        "CUTCTX_WEBHOOK_DLQ_DB_PATH",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture
 def tmp_sub_store(tmp_path: Path):
     from cutctx.proxy.webhook_stores import WebhookSubscriptionStore
