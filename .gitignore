@@ -246,7 +246,6 @@ node_modules/
 extensions/vscode/node_modules/
 extensions/vscode/out/
 extensions/vscode/dist/
-extensions/vscode/package-lock.json
 extensions/vscode/*.vsix
 extensions/jetbrains/build/
 extensions/jetbrains/.gradle/
