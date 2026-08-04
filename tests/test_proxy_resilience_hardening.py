@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from pathlib import Path
 
 import anyio
 import httpx
@@ -36,8 +37,8 @@ from cutctx.tokenizers.bpe_guard import MAX_BPE_RUN_CHARS, iter_bpe_safe_chunks
 from cutctx.tokenizers.estimator import EstimatingTokenCounter
 from cutctx.tokenizers.registry import TokenizerRegistry
 from tests.test_anthropic_pre_upstream_backpressure import (
-    _DummyAnthropicHandler,
     _build_request,
+    _DummyAnthropicHandler,
     _tokenizer_patch,
 )
 
@@ -104,10 +105,7 @@ def test_h14_malformed_body_returns_400_naming_the_field(body, expected_fragment
 def test_h14_deeply_nested_json_returns_400_not_recursionerror():
     """``RecursionError`` is not a ``ValueError`` — it escaped the parse guard."""
     payload = (
-        '{"model":"claude-3-5-sonnet-latest","messages":'
-        + "[" * 10_000
-        + "]" * 10_000
-        + "}"
+        '{"model":"claude-3-5-sonnet-latest","messages":' + "[" * 10_000 + "]" * 10_000 + "}"
     ).encode()
     response = _run_handler(_raw_request(payload))
     assert response.status_code == 400, response.status_code
@@ -233,9 +231,7 @@ def test_h15_silent_upstream_hits_total_deadline_as_504():
 def test_h15_slow_upstream_deadline_is_enforced_across_retries():
     """Per-attempt failures that individually fit the budget must still be
     bounded in aggregate — the deadline spans retries and backoff."""
-    proxy = _proxy_with_fake_upstream(
-        total_timeout=1, per_attempt_delay=0.4, read_timeout_exc=True
-    )
+    proxy = _proxy_with_fake_upstream(total_timeout=1, per_attempt_delay=0.4, read_timeout_exc=True)
 
     async def _run():
         started = time.monotonic()
@@ -265,6 +261,28 @@ def test_h15_read_and_total_timeouts_are_separate_knobs():
     assert config.request_total_timeout_seconds > 0
     custom = ProxyConfig(request_timeout_seconds=17, request_total_timeout_seconds=23)
     assert (custom.request_timeout_seconds, custom.request_total_timeout_seconds) == (17, 23)
+
+
+def test_h15_default_timeout_contract_is_300_seconds(monkeypatch):
+    monkeypatch.delenv("CUTCTX_UPSTREAM_READ_TIMEOUT_SECONDS", raising=False)
+    monkeypatch.delenv("CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS", raising=False)
+
+    config = ProxyConfig()
+
+    assert config.request_timeout_seconds == 300
+    assert config.request_total_timeout_seconds == 300
+
+
+def test_h15_env_example_documents_actual_timeout_scopes():
+    env_example = (Path(__file__).parents[1] / ".env.example").read_text()
+
+    assert "CUTCTX_UPSTREAM_READ_TIMEOUT_SECONDS=300" in env_example
+    assert "CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS=300" in env_example
+    assert "inter-byte" in env_example
+    assert "non-streaming" in env_example
+    assert "response-header acquisition" in env_example
+    assert "streamed body" in env_example
+    assert "0 disables" in env_example
 
 
 # --------------------------------------------------------------------------- #

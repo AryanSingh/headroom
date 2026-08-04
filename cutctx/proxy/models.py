@@ -38,9 +38,7 @@ def _env_positive_int(name: str, default: int) -> int:
             f"Invalid value for environment variable {name}: {raw!r} is not an integer."
         ) from None
     if value < 0:
-        raise ValueError(
-            f"Invalid value for environment variable {name}: {raw!r} must be >= 0."
-        )
+        raise ValueError(f"Invalid value for environment variable {name}: {raw!r} must be >= 0.")
     return value
 
 
@@ -448,18 +446,18 @@ class ProxyConfig:
     fallback_provider: str | None = None
 
     # Timeouts
-    # Per-read / inter-byte upstream timeout handed to httpx. httpx RESETS
-    # this on every byte received, so on its own it cannot bound an upstream
-    # that trickles one byte per second (slow loris) — that is what
-    # ``request_total_timeout_seconds`` below is for.
+    # Per-read / inter-byte upstream timeout handed to httpx. httpx resets
+    # this on every byte received, so it does not impose an absolute lifetime
+    # on a streamed response body that keeps making progress.
     # Env: CUTCTX_UPSTREAM_READ_TIMEOUT_SECONDS.
     request_timeout_seconds: int = field(
         default_factory=lambda: _env_positive_int("CUTCTX_UPSTREAM_READ_TIMEOUT_SECONDS", 300)
     )
-    # Total wall-clock budget for one upstream exchange, INCLUDING every
-    # retry attempt and the backoff sleeps between them. Enforced in
-    # ``CutctxProxy._retry_request``; exceeding it surfaces as a clean 504
-    # instead of the client hanging for retries x inter-byte-timeout.
+    # Total wall-clock budget for the non-streaming upstream exchange,
+    # including every retry attempt and backoff sleep. The streaming path
+    # applies this budget to response-header acquisition; after headers, the
+    # streamed body remains governed by the inter-byte timeout above.
+    # Exceeding the applicable budget surfaces as a clean 504.
     # 0 disables the deadline. Env: CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS.
     request_total_timeout_seconds: int = field(
         default_factory=lambda: _env_positive_int("CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS", 300)

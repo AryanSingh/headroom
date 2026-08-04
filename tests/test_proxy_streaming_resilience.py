@@ -14,6 +14,40 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
+
+@pytest.mark.asyncio
+async def test_stream_body_continues_past_total_budget_when_chunks_arrive_before_read_timeout():
+    """Characterize the current post-header streaming deadline boundary.
+
+    The total request budget wraps response-header acquisition. Once headers
+    arrive, the body iterator remains governed by the inter-byte read timeout,
+    so a healthy stream may complete after the nominal total budget.
+    """
+
+    class ImmediateHeadersResponse:
+        async def aiter_bytes(self):
+            for chunk in (b"one", b"two", b"three"):
+                await asyncio.sleep(0.01)
+                yield chunk
+
+    class ImmediateHeadersClient:
+        async def send(self, _request, *, stream):
+            assert stream is True
+            return ImmediateHeadersResponse()
+
+    total_budget = 0.015
+    started = time.monotonic()
+    response = await asyncio.wait_for(
+        ImmediateHeadersClient().send(object(), stream=True),
+        timeout=total_budget,
+    )
+    chunks = [chunk async for chunk in response.aiter_bytes()]
+    elapsed = time.monotonic() - started
+
+    assert chunks == [b"one", b"two", b"three"]
+    assert elapsed > total_budget
+
+
 # ---------------------------------------------------------------------------
 # CostTracker model resolution caching
 # ---------------------------------------------------------------------------
