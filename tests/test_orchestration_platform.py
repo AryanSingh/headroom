@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from cutctx.orchestration.audit import ReceiptAuditStore
-from cutctx.orchestration.config import LayeredConfigStore
+from cutctx.orchestration.config import LayeredConfigStore, default_config_paths
 from cutctx.orchestration.contracts import ReliabilityBudget, WorkloadContract
 from cutctx.orchestration.credentials import EncryptedCredentialStore, ResolverBackedCredentialStore
 from cutctx.orchestration.engine import DeterministicRoutingEngine, RoutingUnavailableError
@@ -1059,6 +1059,33 @@ def test_layered_config_merges_entities_by_id_and_round_trips(tmp_path: Path) ->
     assert config.settings.policy == "cheapest"
     store.save(config)
     assert store.load() == config
+
+
+def test_default_config_paths_loads_legacy_user_orchestration_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data_dir = tmp_path / "orchestration"
+    legacy_path = tmp_path / "orchestration.json"
+    legacy_path.write_text(
+        json.dumps({"version": 1, "settings": {"policy": "cheapest"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CUTCTX_ORCHESTRATION_CONFIG", raising=False)
+
+    paths = default_config_paths(data_dir)
+    config = LayeredConfigStore(paths).load()
+
+    assert paths["legacy_user"] == legacy_path
+    assert paths["user"] == data_dir / "user.json"
+    assert config.settings.policy == "cheapest"
+
+    data_dir.mkdir()
+    (data_dir / "user.json").write_text(
+        json.dumps({"version": 1, "settings": {"policy": "balanced"}}),
+        encoding="utf-8",
+    )
+    assert LayeredConfigStore(paths).load().settings.policy == "balanced"
 
 
 def test_layered_policy_allow_lists_can_only_narrow(tmp_path: Path) -> None:
