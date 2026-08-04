@@ -644,7 +644,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["cutctx"]
+source = ["cutctx", "cutctx_ee"]
 branch = true
 omit = [
     "cutctx/cli.py",
