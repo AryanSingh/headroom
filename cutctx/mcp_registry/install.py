@@ -41,8 +41,14 @@ def build_cutctx_spec(proxy_url: str = DEFAULT_PROXY_URL) -> ServerSpec:
     The spec is identical across agents — every JSON/TOML registrar
     serializes the same shape into its own format.
     """
+    # Always pin the proxy URL. Omitting it for the default port made a wrap
+    # run at the default port *delete* the `[mcp_servers.cutctx.env]`
+    # sub-table a previous run had written for another port (the registrar
+    # rewrites the whole marker block), leaving `cutctx_retrieve` with no
+    # proxy binding at all. Writing it unconditionally is also self-documenting
+    # in the agent's config file.
     env: dict[str, str] = {}
-    if proxy_url and proxy_url != DEFAULT_PROXY_URL:
+    if proxy_url:
         env["CUTCTX_PROXY_URL"] = proxy_url
     return ServerSpec(
         name="cutctx",

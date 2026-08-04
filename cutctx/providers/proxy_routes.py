@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from collections.abc import Callable
 from typing import Any, NoReturn, cast
 from urllib.parse import quote
@@ -221,6 +222,361 @@ async def _enforce_context_policy(
             )
 
     return None
+
+
+# ---------------------------------------------------------------------------
+# LLM firewall — inline, pre-egress enforcement (Audit-2026-08-03 C6)
+# ---------------------------------------------------------------------------
+#
+# `FirewallScanner` was only ever reachable through the admin `/firewall/scan`
+# endpoint, so a request carrying an SSN or an AWS key was correctly *detected*
+# there while the very same payload sailed through `POST /v1/messages` to the
+# provider. Enforcement has to sit on the request path, and it has to sit on
+# *every* provider handler — not just Anthropic — so it is attached as a
+# router-level dependency below, after the auth dependencies and before any
+# endpoint (and therefore before any egress) runs.
+
+#: Scanning is a synchronous regex sweep. Anything below this stays on the
+#: event loop (microseconds); larger payloads are offloaded so a multi-hundred-
+#: KB context cannot stall other in-flight requests.
+_FIREWALL_INLINE_SCAN_MAX_CHARS = 64 * 1024
+
+
+def _extract_firewall_messages(body: dict[str, Any]) -> list[dict[str, Any]]:
+    """Normalise any provider request body into scannable ``{role, content}``.
+
+    Covers the Anthropic Messages shape (``messages`` + top-level ``system``),
+    the OpenAI Chat/Responses shapes (``messages`` / ``input`` /
+    ``instructions``) and the Gemini shape (``contents[].parts[].text`` +
+    ``systemInstruction``). Unknown shapes yield no messages and are therefore
+    not blocked — the firewall never guesses.
+    """
+    messages = _extract_context_policy_messages(body)
+
+    # Anthropic puts the system prompt outside `messages`; OpenAI Responses
+    # uses `instructions`. Both are attacker-reachable on a proxy.
+    for key in ("system", "instructions"):
+        value = body.get(key)
+        if isinstance(value, str) and value:
+            messages.append({"role": "system", "content": value})
+        elif isinstance(value, list):
+            text_parts = [
+                part.get("text")
+                for part in value
+                if isinstance(part, dict) and isinstance(part.get("text"), str)
+            ]
+            if text_parts:
+                messages.append({"role": "system", "content": "\n".join(text_parts)})
+
+    # Gemini `generateContent` / `streamGenerateContent`.
+    contents = body.get("contents")
+    if isinstance(contents, dict):
+        contents = [contents]
+    if isinstance(contents, list):
+        for item in contents:
+            if not isinstance(item, dict):
+                continue
+            parts = item.get("parts")
+            if isinstance(parts, dict):
+                parts = [parts]
+            if not isinstance(parts, list):
+                continue
+            text_parts = [
+                part.get("text")
+                for part in parts
+                if isinstance(part, dict) and isinstance(part.get("text"), str)
+            ]
+            if text_parts:
+                messages.append(
+                    {"role": item.get("role", "user"), "content": "\n".join(text_parts)}
+                )
+    system_instruction = body.get("systemInstruction") or body.get("system_instruction")
+    if isinstance(system_instruction, dict):
+        parts = system_instruction.get("parts")
+        if isinstance(parts, dict):
+            parts = [parts]
+        if isinstance(parts, list):
+            text_parts = [
+                part.get("text")
+                for part in parts
+                if isinstance(part, dict) and isinstance(part.get("text"), str)
+            ]
+            if text_parts:
+                messages.append({"role": "system", "content": "\n".join(text_parts)})
+
+    return messages
+
+
+def _firewall_block_payload(violations: list[Any]) -> dict[str, Any]:
+    """Anthropic/OpenAI-shaped error naming every violation kind detected."""
+    kinds: list[str] = []
+    for violation in violations:
+        kind = getattr(violation.kind, "value", violation.kind)
+        if kind not in kinds:
+            kinds.append(str(kind))
+    return {
+        "error": {
+            "type": "firewall_blocked",
+            "message": (
+                "Request refused locally by the Cutctx LLM firewall "
+                f"({', '.join(kinds)}); it was not sent to the provider."
+            ),
+            "violations": [
+                {
+                    "kind": str(getattr(v.kind, "value", v.kind)),
+                    "description": v.description,
+                    "confidence": v.confidence,
+                }
+                for v in violations
+            ],
+        }
+    }
+
+
+async def _enforce_firewall(proxy: Any, connection: HTTPConnection) -> None:
+    """Scan an inbound provider request and refuse it before any egress.
+
+    Raises ``HTTPException(403)`` when the request must be refused; returns
+    normally when it may proceed. Honours the operator's existing
+    ``firewall_enabled`` / ``block_pii`` / ``block_injection`` /
+    ``block_jailbreak`` switches — all of those live on
+    :class:`~cutctx.security.firewall.FirewallConfig` and are already consulted
+    inside ``scan_messages``; no new knobs are introduced.
+    """
+    scanner = getattr(proxy, "_firewall_scanner", None)
+    if scanner is None or not getattr(scanner, "enabled", False):
+        return
+    if connection.scope.get("type") != "http" or not isinstance(connection, Request):
+        return
+    if connection.method not in {"POST", "PUT", "PATCH"}:
+        return
+    content_type = connection.headers.get("content-type", "")
+    if "json" not in content_type.lower():
+        return
+
+    started = time.perf_counter()
+    try:
+        # Starlette caches the decoded body on the Request instance, and
+        # FastAPI hands the *same* instance to the endpoint, so this read is
+        # not an extra parse for the handler that follows.
+        body = await connection.json()
+    except Exception:
+        return
+    if not isinstance(body, dict):
+        return
+
+    messages = _extract_firewall_messages(body)
+    if not messages:
+        return
+
+    scan_chars = sum(len(str(m.get("content", ""))) for m in messages)
+    if scan_chars > _FIREWALL_INLINE_SCAN_MAX_CHARS:
+        violations = await run_in_threadpool(scanner.scan_messages, messages)
+    else:
+        violations = scanner.scan_messages(messages)
+
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    connection.state.cutctx_firewall_scan_ms = elapsed_ms
+
+    if not violations or not scanner.should_block(violations):
+        logger.debug(
+            "firewall: clean path=%s chars=%d scan_ms=%.2f",
+            connection.url.path,
+            scan_chars,
+            elapsed_ms,
+        )
+        return
+
+    payload = _firewall_block_payload(violations)
+    logger.warning(
+        "event=firewall_blocked path=%s kinds=%s violations=%d scan_ms=%.2f "
+        "request_id=%s — refused locally, nothing egressed",
+        connection.url.path,
+        ",".join(sorted({v["kind"] for v in payload["error"]["violations"]})),
+        len(violations),
+        elapsed_ms,
+        connection.headers.get("x-request-id") or "",
+    )
+    try:
+        from cutctx.proxy.session_replay import get_replay_store
+
+        replay_store = get_replay_store()
+        if replay_store is not None:
+            replay_store.record(
+                session_id=_request_session_id(connection, body),
+                event_type="firewall_blocked",
+                surface=connection.url.path,
+                request_id=connection.headers.get("x-request-id"),
+                detail={"violations": payload["error"]["violations"]},
+            )
+    except Exception:  # pragma: no cover - replay is best-effort telemetry
+        logger.debug("firewall: replay record failed", exc_info=True)
+
+    raise HTTPException(
+        status_code=403,
+        detail=payload["error"],
+        headers={
+            "x-cutctx-firewall": "blocked",
+            "x-cutctx-firewall-scan-ms": f"{elapsed_ms:.2f}",
+            "x-should-retry": "false",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Upstream auth-failure guard (Audit-2026-08-03 C5b)
+# ---------------------------------------------------------------------------
+#
+# A persistent upstream 401/403 is not transient. Left unmarked it drives
+# OAuth-authenticated CLIs (Claude Code in particular) into an unbounded
+# refresh-and-retry ladder that never prints anything, so the operator sees a
+# hang rather than "your provider credential is rejected". The guard bounds
+# that: every non-retryable upstream auth failure is tagged
+# ``x-should-retry: false``, and after a small number of *consecutive*
+# failures the proxy stops dialling the provider at all and answers
+# immediately with a message that names the cause and the fix.
+
+#: Statuses that are never worth retrying and are therefore tagged as such.
+_NON_RETRYABLE_STATUSES = frozenset({401, 403})
+#: Only 401 feeds the breaker. A returned 403 on this router is more often
+#: local policy (context policy, provider-override refusal) than an upstream
+#: credential rejection, and local refusals must not trip a provider breaker.
+_AUTH_FAILURE_STATUSES = frozenset({401})
+_AUTH_FAILURE_THRESHOLD = 3
+_AUTH_FAILURE_COOLDOWN_S = 30.0
+
+
+class _UpstreamAuthGuard:
+    """Consecutive-failure counter with a half-open probe after cooldown."""
+
+    def __init__(
+        self,
+        *,
+        threshold: int = _AUTH_FAILURE_THRESHOLD,
+        cooldown_s: float = _AUTH_FAILURE_COOLDOWN_S,
+    ) -> None:
+        self.threshold = threshold
+        self.cooldown_s = cooldown_s
+        self._failures: dict[str, int] = {}
+        self._tripped_at: dict[str, float] = {}
+
+    def record_failure(self, provider: str) -> int:
+        count = self._failures.get(provider, 0) + 1
+        self._failures[provider] = count
+        if count >= self.threshold:
+            self._tripped_at[provider] = time.monotonic()
+        return count
+
+    def record_success(self, provider: str) -> None:
+        self._failures.pop(provider, None)
+        self._tripped_at.pop(provider, None)
+
+    def short_circuit(self, provider: str) -> int | None:
+        """Return the failure count when the request must not be sent."""
+        tripped_at = self._tripped_at.get(provider)
+        if tripped_at is None:
+            return None
+        if time.monotonic() - tripped_at >= self.cooldown_s:
+            # Half-open: let exactly one request through to re-probe.
+            self._tripped_at.pop(provider, None)
+            self._failures[provider] = self.threshold - 1
+            return None
+        return self._failures.get(provider, self.threshold)
+
+
+def _upstream_auth_guard(proxy: Any) -> _UpstreamAuthGuard:
+    guard = getattr(proxy, "_upstream_auth_guard", None)
+    if guard is None:
+        guard = _UpstreamAuthGuard()
+        proxy._upstream_auth_guard = guard
+    return guard
+
+
+def _guard_provider_for_path(path: str) -> str:
+    if path.startswith("/v1beta") or "v1internal" in path:
+        return "gemini"
+    if path.startswith("/v1/messages"):
+        return "anthropic"
+    if path.startswith("/v1/projects") or "/publishers/" in path:
+        return "vertex"
+    return "openai"
+
+
+def _auth_failure_remediation(provider: str) -> str:
+    env_hint = {
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "gemini": "GOOGLE_API_KEY",
+        "vertex": "GOOGLE_APPLICATION_CREDENTIALS",
+    }.get(provider, "the provider API key")
+    return (
+        f"The {provider} upstream rejected the credential on this request "
+        f"({_AUTH_FAILURE_THRESHOLD} consecutive auth failures). This is not a "
+        "transient error and retrying will not clear it. Either sign the client "
+        f"in again, or configure {env_hint} for the Cutctx proxy so it can "
+        "authenticate upstream on the client's behalf, then retry."
+    )
+
+
+def _install_upstream_auth_guard(router: APIRouter, proxy: Any) -> None:
+    """Wrap every HTTP provider route with the auth-failure guard."""
+    from fastapi.routing import APIRoute
+
+    class _GuardedRoute(APIRoute):
+        def get_route_handler(self) -> Any:
+            original_handler = super().get_route_handler()
+
+            async def guarded(request: Request) -> Response:
+                provider = _guard_provider_for_path(request.url.path)
+                guard = _upstream_auth_guard(proxy)
+                tripped = guard.short_circuit(provider)
+                if tripped is not None:
+                    message = _auth_failure_remediation(provider)
+                    logger.error(
+                        "event=upstream_auth_short_circuit provider=%s failures=%d path=%s — %s",
+                        provider,
+                        tripped,
+                        request.url.path,
+                        message,
+                    )
+                    return JSONResponse(
+                        status_code=401,
+                        content={
+                            "type": "error",
+                            "error": {
+                                "type": "authentication_error",
+                                "message": message,
+                            },
+                        },
+                        headers={
+                            "x-should-retry": "false",
+                            "x-cutctx-upstream-auth-failures": str(tripped),
+                        },
+                    )
+
+                response = await original_handler(request)
+                status = response.status_code
+                if status in _NON_RETRYABLE_STATUSES:
+                    response.headers["x-should-retry"] = "false"
+                if status in _AUTH_FAILURE_STATUSES:
+                    count = guard.record_failure(provider)
+                    response.headers["x-cutctx-upstream-auth-failures"] = str(count)
+                    logger.error(
+                        "event=upstream_auth_failure provider=%s status=%d failures=%d "
+                        "path=%s — %s",
+                        provider,
+                        status,
+                        count,
+                        request.url.path,
+                        _auth_failure_remediation(provider),
+                    )
+                elif status < 400:
+                    guard.record_success(provider)
+                return response
+
+            return guarded
+
+    router.route_class = _GuardedRoute
 
 
 def _api_target(proxy: Any, provider_name: str) -> str:
@@ -656,10 +1012,22 @@ def register_provider_routes(app: FastAPI, proxy: Any) -> None:
             deny(403, "No licensed seat is available for this user.")
         connection.state.cutctx_user_id = user_id
 
+    async def _require_firewall_clearance(connection: HTTPConnection) -> None:
+        """Refuse flagged payloads locally, before any provider handler runs."""
+        await _enforce_firewall(proxy, connection)
+
     parent_app = app
     provider_router = APIRouter(
-        dependencies=[Depends(_require_proxy_client), Depends(_require_paid_user_seat)]
+        dependencies=[
+            Depends(_require_proxy_client),
+            Depends(_require_paid_user_seat),
+            # Audit-2026-08-03 C6: listed last so an unauthenticated caller
+            # still gets 401 first, but ahead of every endpoint — and thus
+            # ahead of every egress — on the whole provider surface.
+            Depends(_require_firewall_clearance),
+        ]
     )
+    _install_upstream_auth_guard(provider_router, proxy)
     app = cast(Any, provider_router)
 
     async def vertex_publisher_passthrough(request: Request, publisher: str, action: str):

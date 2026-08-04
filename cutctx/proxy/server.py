@@ -2685,6 +2685,13 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 enabled=firewall_config.redact_streaming,
             )
             proxy._streaming_redactor = _streaming_redactor
+            # Audit-2026-08-03 C6: the scanner used to reach only
+            # `/firewall/scan` (admin router), so detection ran but nothing on
+            # the request path consulted it and flagged payloads still
+            # egressed. Publishing it on the proxy lets
+            # `register_provider_routes` enforce it inline, before egress, for
+            # every provider handler.
+            proxy._firewall_scanner = _firewall_scanner
             logger.info(
                 "LLM Firewall enabled (injection=%s, pii=%s, jailbreak=%s)",
                 firewall_config.block_injection,

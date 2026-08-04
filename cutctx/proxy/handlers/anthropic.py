@@ -1198,6 +1198,20 @@ class AnthropicHandlerMixin:
 
             _pre_strip_count = sum(1 for k in headers if k.lower().startswith("x-cutctx-"))
             headers = _strip_internal_headers(headers)
+            # Audit-2026-08-03 C5a: an OAuth-authenticated Claude Code client
+            # pointed at a custom ANTHROPIC_BASE_URL sends no upstream
+            # credential; forwarding that as-is makes Anthropic reject the
+            # request with "x-api-key header is required". Fall back to the
+            # operator's configured Anthropic key exactly like the OpenAI /
+            # Codex handlers already do. A client-supplied x-api-key or OAuth
+            # bearer is left untouched.
+            from cutctx.proxy.auth_keyring import inject_anthropic_api_key
+
+            if inject_anthropic_api_key(headers):
+                logger.debug(
+                    "[%s] injected Anthropic x-api-key from configured credentials",
+                    request_id,
+                )
             log_outbound_headers(
                 forwarder="anthropic_messages",
                 stripped_count=_pre_strip_count

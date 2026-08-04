@@ -3,7 +3,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from cutctx.proxy.auth_keyring import get_api_key, inject_provider_authorization
+from cutctx.proxy.auth_keyring import (
+    get_api_key,
+    inject_anthropic_api_key,
+    inject_provider_authorization,
+)
 
 
 def test_get_api_key_env_var():
@@ -62,6 +66,36 @@ def test_inject_provider_authorization_preserves_client_credential():
         headers = {"authorization": "Bearer client-key"}
         assert inject_provider_authorization(headers, "openai") is False
         assert headers == {"authorization": "Bearer client-key"}
+
+
+def test_inject_anthropic_api_key_when_client_sends_no_credential():
+    """Audit C5a: an OAuth Claude Code client behind a custom base URL sends none."""
+    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-api03-operator"}, clear=True):
+        headers = {"anthropic-version": "2023-06-01", "user-agent": "claude-cli/2.0.1"}
+        assert inject_anthropic_api_key(headers) is True
+        assert headers["x-api-key"] == "sk-ant-api03-operator"
+
+
+def test_inject_anthropic_api_key_preserves_client_oauth_bearer():
+    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-api03-operator"}, clear=True):
+        headers = {"authorization": "Bearer sk-ant-oat01-client"}
+        assert inject_anthropic_api_key(headers) is False
+        assert "x-api-key" not in headers
+
+
+def test_inject_anthropic_api_key_preserves_client_api_key():
+    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-api03-operator"}, clear=True):
+        headers = {"x-api-key": "sk-ant-api03-client"}
+        assert inject_anthropic_api_key(headers) is False
+        assert headers["x-api-key"] == "sk-ant-api03-client"
+
+
+def test_inject_anthropic_api_key_noop_without_configured_credential():
+    with patch.dict(os.environ, {}, clear=True):
+        with patch("cutctx.proxy.auth_keyring.keyring", None):
+            headers: dict[str, str] = {}
+            assert inject_anthropic_api_key(headers) is False
+            assert headers == {}
 
 
 @patch("cutctx.proxy.auth_keyring.keyring")
