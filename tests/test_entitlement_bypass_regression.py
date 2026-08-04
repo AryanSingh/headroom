@@ -425,6 +425,7 @@ def test_tampered_extension_aborts_instead_of_logging(tmp_path, monkeypatch) -> 
     )
     monkeypatch.setattr(integrity, "_ee_dir", lambda: ee_dir)
     monkeypatch.delenv("CUTCTX_SKIP_INTEGRITY_CHECK", raising=False)
+    monkeypatch.delenv("CUTCTX_LICENSE_HMAC_SECRET", raising=False)
 
     integrity.verify_ee_manifest(strict=True)  # clean tree: no raise
 
