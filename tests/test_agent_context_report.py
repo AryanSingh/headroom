@@ -7,6 +7,26 @@ from click.testing import CliRunner
 from cutctx.cli.main import main
 
 
+def _stub_scope_facts(monkeypatch, requests_total: int | None = None) -> None:
+    """Keep the report off the machine's real ~/.cutctx savings ledger.
+
+    Audit C7 / RC-2: the report now reads the true request count from the
+    durable tracker instead of ``len(history_rows)``, so tests have to say
+    which tracker they mean.
+    """
+    monkeypatch.setattr(
+        "cutctx.cli.report._tracker_scope_facts",
+        lambda days: {
+            "scope": "all_time" if days <= 0 else "window",
+            "requests_total": requests_total,
+            "lifetime_requests": requests_total,
+            "window_covered": True,
+            "window_note": None,
+            "history_coverage": {},
+        },
+    )
+
+
 def _write_request_history(tmp_path, rows) -> str:
     path = tmp_path / "request_history.jsonl"
     path.write_text("\n".join(json.dumps(row) for row in rows), encoding="utf-8")
@@ -55,6 +75,7 @@ def _sample_request_history_rows() -> list[dict[str, object]]:
 
 
 def test_agent_context_report_markdown_no_data(monkeypatch, tmp_path) -> None:
+    _stub_scope_facts(monkeypatch)
     monkeypatch.setattr("cutctx.cli.report._collect_savings_history", lambda days: [])
     monkeypatch.setattr(
         "cutctx.cli.report._assurance_section",
@@ -76,6 +97,7 @@ def test_agent_context_report_markdown_no_data(monkeypatch, tmp_path) -> None:
 
 
 def test_agent_context_report_json_aggregates_sources(monkeypatch, tmp_path) -> None:
+    _stub_scope_facts(monkeypatch, requests_total=139_372)
     monkeypatch.setattr(
         "cutctx.cli.report._collect_savings_history",
         lambda days: [
@@ -113,8 +135,21 @@ def test_agent_context_report_json_aggregates_sources(monkeypatch, tmp_path) -> 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["schema_version"] == "agent_context_report_v1"
-    assert payload["summary"]["requests"] == 2
-    assert payload["summary"]["tokens_saved"] == 30
+    # Audit C7 / RC-2: was ``len(rows)`` (2). A report must state the real
+    # request count, not the size of the savings ring buffer.
+    assert payload["summary"]["requests"] == 139_372
+    assert payload["summary"]["savings_rows_observed"] == 2
+    # Audit C7 / RC-3+RC-5: was 30 — the sum of per-request
+    # ``delta_tokens_saved``, printed as "Tokens saved" directly above a
+    # by-source table that summed to a different number and included the
+    # provider's own cache reads. The headline is now Cutctx-attributable
+    # only (10), with the other two quantities named and reconciled.
+    assert payload["summary"]["tokens_saved"] == 10
+    assert payload["summary"]["cutctx_attributable_tokens_saved"] == 10
+    assert payload["summary"]["provider_native_tokens_saved"] == 20
+    assert payload["summary"]["raw_pipeline_delta_tokens"] == 30
+    assert payload["savings_reconciliation"]["invariant_ok"] is True
+    assert payload["savings_reconciliation"]["by_source_total_tokens"] == 30
     assert payload["summary"]["usd_saved"] == 1.75
     assert payload["savings_by_source_tokens"] == {
         "cutctx_compression": 10,
@@ -142,6 +177,7 @@ def test_agent_context_report_json_aggregates_sources(monkeypatch, tmp_path) -> 
 
 
 def test_agent_context_report_markdown_includes_telemetry_snapshot(monkeypatch, tmp_path) -> None:
+    _stub_scope_facts(monkeypatch, requests_total=139_372)
     monkeypatch.setattr(
         "cutctx.cli.report._collect_savings_history",
         lambda days: [

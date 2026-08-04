@@ -173,7 +173,10 @@ from cutctx.proxy.prometheus_metrics import PrometheusMetrics  # noqa: F401
 from cutctx.proxy.rate_limiter import TokenBucketRateLimiter  # noqa: F401
 from cutctx.proxy.request_logger import RequestLogger  # noqa: F401
 from cutctx.proxy.routing import failover_router_from_env
-from cutctx.proxy.savings_tracker import _estimate_compression_savings_usd
+from cutctx.proxy.savings_tracker import (
+    _estimate_compression_savings_usd,
+    split_savings_by_attribution,
+)
 from cutctx.proxy.semantic_cache import SemanticCache  # noqa: F401
 from cutctx.proxy.ssl_context import find_ca_bundle
 from cutctx.proxy.warmup import WarmupRegistry
@@ -3181,6 +3184,15 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         )
 
         summary = {
+            # RC-4 (audit C7): this block is built from in-memory counters
+            # that reset on proxy restart and on POST /stats/reset. It used
+            # to sit as an unlabelled sibling of never-reset on-disk
+            # lifetime figures in the same JSON object.
+            "scope": "since_restart",
+            "scope_note": (
+                "In-memory counters. Reset by a proxy restart and by "
+                "POST /stats/reset. Not comparable with lifetime figures."
+            ),
             "saved": all_layers_tokens_saved,
             "input": total_tokens_before,
             "proxy_compression_saved": proxy_compression_tokens,
@@ -3227,52 +3239,101 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             ),
         }
 
+        # RC-4: the by-source ledger is on-disk lifetime data. It used to be
+        # spliced with the in-memory ``cli_tokens_avoided`` counter under the
+        # ``rtk_cli_filtering`` key, producing one number that was part
+        # lifetime and part since-restart and reconciled with neither.
+        lifetime_source_tokens = {
+            src: int(
+                persistent_savings.get("lifetime", {}).get(f"savings_by_source_tokens.{src}", 0)
+                or 0
+            )
+            for src in savings_sources
+        }
+        lifetime_source_usd = {
+            src: round(
+                float(
+                    persistent_savings.get("lifetime", {}).get(f"savings_by_source_usd.{src}", 0.0)
+                    or 0.0
+                ),
+                6,
+            )
+            for src in savings_sources
+        }
+        lifetime_cutctx_tokens, lifetime_provider_native_tokens = split_savings_by_attribution(
+            lifetime_source_tokens
+        )
+
+        merged_cost_stats = _merge_cost_stats(
+            proxy.cost_tracker.stats() if proxy.cost_tracker else None,
+            prefix_cache_stats,
+            cli_tokens_avoided=cli_tokens_avoided,
+            display_session=display_session,
+        )
+        if isinstance(merged_cost_stats, dict):
+            merged_cost_stats = {"scope": "since_restart", **merged_cost_stats}
+
         return {
+            # RC-4: one legend so no reader has to guess which counter a
+            # figure came from.
+            "scopes": {
+                "since_restart": (
+                    "In-memory counters (summary/tokens/requests/cost/"
+                    "cli_filtering). Reset on proxy restart and on "
+                    "POST /stats/reset."
+                ),
+                "lifetime": (
+                    "Durable on-disk savings ledger (attribution, "
+                    "opportunity_funnel, savings_by_source, "
+                    "persistent_savings). Never reset by /stats/reset."
+                ),
+                "warning": (
+                    "since_restart and lifetime figures are not comparable "
+                    "and must never be summed."
+                ),
+            },
             "summary": summary,
-            "attribution": lifetime_attribution.get("attribution_coverage", {}),
-            "opportunity_funnel": lifetime_attribution.get("opportunity_funnel", {}),
+            "attribution": {
+                "scope": "lifetime",
+                **lifetime_attribution.get("attribution_coverage", {}),
+            },
+            "savings_accounting": {
+                **persistent_savings.get("savings_accounting", {}),
+                "scope": "lifetime",
+            },
+            "opportunity_funnel": {
+                "scope": "lifetime",
+                **lifetime_attribution.get("opportunity_funnel", {}),
+            },
             "compression_declined_total": lifetime_attribution.get("opportunity_funnel", {}).get(
                 "decline_reasons", {}
             ),
             "savings_canary": savings_canary_report,
             "savings_by_source": {
-                "total_tokens": sum(
-                    int(
-                        persistent_savings.get("lifetime", {}).get(
-                            f"savings_by_source_tokens.{src}", 0
-                        )
-                        or 0
-                    )
-                    + (int(cli_tokens_avoided or 0) if src == rtk_source else 0)
-                    for src in savings_sources
+                "scope": "lifetime",
+                "total_tokens": sum(lifetime_source_tokens.values()),
+                "cutctx_attributable_tokens": lifetime_cutctx_tokens,
+                "provider_native_tokens": lifetime_provider_native_tokens,
+                "tokens": lifetime_source_tokens,
+                "usd": lifetime_source_usd,
+            },
+            # The CLI-filtering layer is measured in-process and has no
+            # durable ledger, so it gets its own clearly scoped block
+            # instead of being folded into a lifetime source total.
+            "savings_by_source_since_restart": {
+                "scope": "since_restart",
+                "tokens": {rtk_source: int(cli_tokens_avoided or 0)},
+                "usd": {rtk_source: round(float(cli_filtering_savings_usd or 0.0), 6)},
+                "note": (
+                    "CLI-filtering savings are counted in memory only; they are "
+                    "not part of the lifetime savings_by_source ledger."
                 ),
-                "tokens": {
-                    src: int(
-                        persistent_savings.get("lifetime", {}).get(
-                            f"savings_by_source_tokens.{src}", 0
-                        )
-                        or 0
-                    )
-                    + (int(cli_tokens_avoided or 0) if src == rtk_source else 0)
-                    for src in savings_sources
-                },
-                "usd": {
-                    src: round(
-                        float(
-                            persistent_savings.get("lifetime", {}).get(
-                                f"savings_by_source_usd.{src}", 0.0
-                            )
-                            or 0.0
-                        )
-                        + (float(cli_filtering_savings_usd or 0.0) if src == rtk_source else 0.0),
-                        6,
-                    )
-                    for src in savings_sources
-                },
             },
             "tokens": summary,
             "requests": {
+                "scope": "since_restart",
                 "total": requests_total,
+                "lifetime_total": int(lifetime_attribution.get("requests", 0) or 0),
                 "by_provider": dict(getattr(m, "requests_by_provider", {})),
                 "by_model": dict(getattr(m, "requests_by_model", {})),
             },
@@ -3322,12 +3383,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "otel": get_otel_metrics_status(),
             "langfuse": get_langfuse_tracing_status(),
             "prefix_cache": prefix_cache_stats,
-            "cost": _merge_cost_stats(
-                proxy.cost_tracker.stats() if proxy.cost_tracker else None,
-                prefix_cache_stats,
-                cli_tokens_avoided=cli_tokens_avoided,
-                display_session=display_session,
-            ),
+            "cost": merged_cost_stats,
             "compression": {
                 "ccr_entries": compression_stats.get("entry_count", 0),
                 "ccr_max_entries": compression_stats.get("max_entries", 0),

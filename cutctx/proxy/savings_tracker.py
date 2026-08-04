@@ -17,7 +17,7 @@ import re
 import tempfile
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from csv import DictWriter
 from datetime import datetime, timedelta, timezone
 from io import StringIO
@@ -64,7 +64,111 @@ OBSERVED_PROVIDER_SAVINGS_SOURCES = frozenset(
         "provider_prompt_cache",
     }
 )
+# Audit C7 / RC-3. ``provider_prompt_cache`` is the provider's own
+# ``cache_read_tokens``: the discount the buyer already receives with or
+# without Cutctx in the request path. It is the single largest component of
+# the historical headline figure and must never be presented as something
+# Cutctx delivered. Everything *not* in this set is Cutctx-attributable —
+# it does not happen unless Cutctx is in the path.
+PROVIDER_NATIVE_SAVINGS_SOURCES = OBSERVED_PROVIDER_SAVINGS_SOURCES
+
+#: The one accounting identity every savings surface must satisfy.
+SAVINGS_ATTRIBUTION_INVARIANT = (
+    "cutctx_attributable_tokens + provider_native_tokens == sum(savings_by_source_tokens)"
+)
+
+#: Plain-English provenance for ``tokens_saved``. It is the raw
+#: ``outcome.tokens_saved`` pipeline delta summed across requests. It
+#: partially overlaps provider cache reads (``outcome.py`` clamps the
+#: ``cutctx_compression`` residual at zero but never clamps this counter),
+#: so it is neither the Cutctx-attributable figure nor the grand total. It
+#: is kept for continuity and must always be labelled.
+RAW_PIPELINE_DELTA_NOTE = (
+    "raw_pipeline_delta_tokens is the unattributed sum of per-request "
+    "outcome.tokens_saved. It overlaps provider-native cache reads and is "
+    "NOT a buyer-facing savings figure; quote cutctx_attributable_tokens."
+)
 _VERSION_SUFFIX_RE = re.compile(r"^(?P<base>.+?)-(?:(?:\d{4}-\d{2}-\d{2})|(?:\d{8}))$")
+
+
+def split_savings_by_attribution(
+    savings_by_source_tokens: Mapping[str, Any] | None,
+) -> tuple[int, int]:
+    """Split a by-source token map into ``(cutctx_attributable, provider_native)``.
+
+    Single definition of the split so every surface (``/stats``, the CLI,
+    the buyer report) answers the same question the same way.
+    """
+    cutctx_attributable = 0
+    provider_native = 0
+    for source, value in (savings_by_source_tokens or {}).items():
+        tokens = max(0, _coerce_int(value))
+        if str(source) in PROVIDER_NATIVE_SAVINGS_SOURCES:
+            provider_native += tokens
+        else:
+            cutctx_attributable += tokens
+    return cutctx_attributable, provider_native
+
+
+def savings_attribution_block(
+    *,
+    savings_by_source_tokens: Mapping[str, Any] | None,
+    raw_pipeline_delta_tokens: int | None = None,
+    cutctx_attributable_tokens: int | None = None,
+    provider_native_tokens: int | None = None,
+    scope: str,
+) -> dict[str, Any]:
+    """Build the labelled attribution block shared by every savings surface.
+
+    ``cutctx_attributable_tokens``/``provider_native_tokens`` may be passed
+    when a caller keeps its own accumulators; they are then checked against
+    the by-source ledger (which is canonical) and any disagreement is
+    reported rather than hidden.
+    """
+    derived_cutctx, derived_provider = split_savings_by_attribution(savings_by_source_tokens)
+    declared_cutctx = (
+        derived_cutctx
+        if cutctx_attributable_tokens is None
+        else _coerce_int(cutctx_attributable_tokens)
+    )
+    declared_provider = (
+        derived_provider if provider_native_tokens is None else _coerce_int(provider_native_tokens)
+    )
+    by_source_total = derived_cutctx + derived_provider
+    invariant_ok = (declared_cutctx + declared_provider) == by_source_total
+    block: dict[str, Any] = {
+        "scope": scope,
+        # The only number that may be quoted as "Cutctx saved this".
+        "cutctx_attributable_tokens": declared_cutctx,
+        # The provider's own discount. Real money, but not Cutctx's doing.
+        "provider_native_tokens": declared_provider,
+        "total_observed_tokens": declared_cutctx + declared_provider,
+        "by_source_total_tokens": by_source_total,
+        "provider_native_sources": sorted(PROVIDER_NATIVE_SAVINGS_SOURCES),
+        "invariant": SAVINGS_ATTRIBUTION_INVARIANT,
+        "invariant_ok": invariant_ok,
+        "headline_tokens": declared_cutctx,
+        "headline_basis": "cutctx_attributable_tokens",
+    }
+    if raw_pipeline_delta_tokens is not None:
+        block["raw_pipeline_delta_tokens"] = _coerce_int(raw_pipeline_delta_tokens)
+        block["raw_pipeline_delta_note"] = RAW_PIPELINE_DELTA_NOTE
+    if not invariant_ok:
+        block["invariant_error"] = (
+            f"declared {declared_cutctx} + {declared_provider} != "
+            f"by-source ledger {by_source_total}"
+        )
+    return block
+
+
+def lifetime_savings_by_source_tokens(lifetime: Mapping[str, Any] | None) -> dict[str, int]:
+    """Extract the ``savings_by_source_tokens.*`` ledger from a lifetime dict."""
+    prefix = "savings_by_source_tokens."
+    return {
+        key[len(prefix) :]: _coerce_int(value)
+        for key, value in (lifetime or {}).items()
+        if isinstance(key, str) and key.startswith(prefix)
+    }
 
 
 def _empty_opportunity_funnel() -> dict[str, Any]:
@@ -1207,7 +1311,26 @@ class SavingsTracker:
         with self._lock:
             self._reload_if_stale_locked()
             lifetime = self._state["lifetime"]
+            if _coerce_int(lifetime.get("requests")) == 0 and not self._state["history"]:
+                lifetime.setdefault("first_recorded_at", _to_utc_iso(timestamp_dt))
             lifetime["tokens_saved"] += delta_tokens
+            # RC-3: this writer used to bump ``tokens_saved`` alone, leaving
+            # the created/observed accumulators and the by-source ledger
+            # untouched — a third quantity that reconciled with nothing.
+            # Compression savings recorded here are Cutctx-attributable by
+            # definition, so they land in the same buckets record_request
+            # uses and the attribution invariant keeps holding.
+            lifetime["created_savings_tokens"] = (
+                int(lifetime.get("created_savings_tokens", 0)) + delta_tokens
+            )
+            compression_source_key = "savings_by_source_tokens.cutctx_compression"
+            lifetime[compression_source_key] = (
+                int(lifetime.get(compression_source_key, 0)) + delta_tokens
+            )
+            compression_source_usd_key = "savings_by_source_usd.cutctx_compression"
+            lifetime[compression_source_usd_key] = round(
+                float(lifetime.get(compression_source_usd_key, 0.0)) + delta_usd, 6
+            )
             lifetime["compression_savings_usd"] = round(
                 lifetime["compression_savings_usd"] + delta_usd, 6
             )
@@ -1234,6 +1357,8 @@ class SavingsTracker:
                 6,
             )
 
+            self._enforce_attribution_invariant_locked()
+
             self._state["history"].append(
                 {
                     "timestamp": _to_utc_iso(timestamp_dt),
@@ -1249,11 +1374,82 @@ class SavingsTracker:
                     ),
                     "total_input_tokens": lifetime["total_input_tokens"],
                     "total_input_cost_usd": lifetime["total_input_cost_usd"],
+                    # RC-1/RC-3: windowed queries and the buyer report sum
+                    # per-request deltas and the by-source ledger. A row
+                    # without them is invisible to both.
+                    "delta_tokens_saved": delta_tokens,
+                    "delta_savings_usd": round(delta_usd, 6),
+                    "delta_created_savings_tokens": delta_tokens,
+                    "delta_observed_provider_savings_tokens": 0,
+                    "created_savings_tokens": int(lifetime.get("created_savings_tokens", 0)),
+                    "observed_provider_savings_tokens": int(
+                        lifetime.get("observed_provider_savings_tokens", 0)
+                    ),
+                    "savings_by_source_tokens": {"cutctx_compression": delta_tokens},
+                    "savings_by_source_usd": {"cutctx_compression": round(delta_usd, 6)},
                 }
             )
             self._trim_history_locked(reference_time=timestamp_dt)
             self._save_locked(history_entry=True)
             return True
+
+    def _enforce_attribution_invariant_locked(self) -> bool:
+        """Assert ``created + observed == sum(by-source)`` on every write.
+
+        RC-3: three accumulators used to drift apart silently. They are
+        cheap to reconcile (a dozen integer keys), so every write now checks
+        them. A violation is loud (error log + a persisted counter that every
+        savings surface reports) rather than a number nobody can explain
+        three months later. ``CUTCTX_SAVINGS_STRICT_ATTRIBUTION=1`` turns it
+        into a hard failure for CI.
+        """
+        lifetime = self._state["lifetime"]
+        declared_created = _coerce_int(lifetime.get("created_savings_tokens"))
+        declared_observed = _coerce_int(lifetime.get("observed_provider_savings_tokens"))
+        derived_created, derived_observed = split_savings_by_attribution(
+            lifetime_savings_by_source_tokens(lifetime)
+        )
+        if declared_created == derived_created and declared_observed == derived_observed:
+            lifetime["attribution_invariant_ok"] = True
+            return True
+        lifetime["attribution_invariant_ok"] = False
+        lifetime["attribution_invariant_violations"] = (
+            _coerce_int(lifetime.get("attribution_invariant_violations")) + 1
+        )
+        message = (
+            "event=savings_attribution_invariant_violated "
+            f"created_declared={declared_created} created_derived={derived_created} "
+            f"observed_declared={declared_observed} observed_derived={derived_observed} "
+            f"invariant={SAVINGS_ATTRIBUTION_INVARIANT!r}"
+        )
+        logger.error(message)
+        if os.environ.get("CUTCTX_SAVINGS_STRICT_ATTRIBUTION", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        ):
+            raise AssertionError(message)
+        return False
+
+    def savings_accounting(self) -> dict[str, Any]:
+        """Lifetime attribution block, labelled with its scope (RC-3/RC-4)."""
+        with self._lock:
+            self._reload_if_stale_locked()
+            lifetime = self._state["lifetime"]
+            block = savings_attribution_block(
+                savings_by_source_tokens=lifetime_savings_by_source_tokens(lifetime),
+                raw_pipeline_delta_tokens=_coerce_int(lifetime.get("tokens_saved")),
+                cutctx_attributable_tokens=_coerce_int(lifetime.get("created_savings_tokens")),
+                provider_native_tokens=_coerce_int(
+                    lifetime.get("observed_provider_savings_tokens")
+                ),
+                scope="lifetime",
+            )
+            block["invariant_violations"] = _coerce_int(
+                lifetime.get("attribution_invariant_violations")
+            )
+            return block
 
     def record_request(
         self,
@@ -1486,6 +1682,14 @@ class SavingsTracker:
                 6,
             )
 
+            # RC-2: an all-time ROI needs an all-time denominator. Without a
+            # ledger start date the CLI had to guess, and guessed a 1-day
+            # period for an all-time numerator (~30x inflation). Record it —
+            # but ONLY for a genuinely empty ledger. Stamping "now" onto an
+            # existing ledger would claim its whole history accrued in the
+            # last few minutes, which is the same lie in the other direction.
+            if _coerce_int(lifetime.get("requests")) == 0 and not self._state["history"]:
+                lifetime.setdefault("first_recorded_at", _to_utc_iso(timestamp_dt))
             lifetime["requests"] += 1
             lifetime["tokens_saved"] += delta_tokens_saved
             lifetime["created_savings_tokens"] = (
@@ -1604,6 +1808,7 @@ class SavingsTracker:
             for src_name, usd in savings_by_source_usd.items():
                 key = f"savings_by_source_usd.{src_name}"
                 lifetime[key] = round(float(lifetime.get(key, 0.0)) + float(usd), 6)
+            self._enforce_attribution_invariant_locked()
             lifetime["total_input_tokens"] = next_total_input_tokens
             lifetime["total_input_cost_usd"] = next_total_input_cost_usd
 
@@ -1885,6 +2090,11 @@ class SavingsTracker:
                         # reflect real request count, not a monotonic
                         # lifetime.
                         "delta_tokens_saved": int(delta_tokens_saved),
+                        # RC-1: windowed queries need a per-request input
+                        # delta; without it a window's "tokens before" had
+                        # to be inferred from the cumulative boundary rows
+                        # and collapsed to 0 for a single-row window.
+                        "delta_input_tokens": int(session_input_tokens_delta),
                         "delta_savings_usd": round(float(delta_savings_usd), 6),
                         "delta_cache_savings_usd": round(float(delta_cache_savings_usd), 6),
                         "delta_semantic_cache_usd": round(float(delta_semantic_cache_usd), 6),
@@ -2178,7 +2388,9 @@ class SavingsTracker:
         return {
             "schema_version": snapshot["schema_version"],
             "storage_path": snapshot["storage_path"],
+            "scope": "lifetime",
             "lifetime": snapshot["lifetime"],
+            "savings_accounting": snapshot["savings_accounting"],
             "display_session": snapshot["display_session"],
             "display_session_policy": snapshot["display_session_policy"],
             "history_points": len(snapshot["history"]),
@@ -2215,7 +2427,9 @@ class SavingsTracker:
             "schema_version": snapshot["schema_version"],
             "generated_at": _to_utc_iso(_utc_now()),
             "storage_path": snapshot["storage_path"],
+            "scope": "lifetime",
             "lifetime": snapshot["lifetime"],
+            "savings_accounting": snapshot["savings_accounting"],
             "display_session": snapshot["display_session"],
             "display_session_policy": snapshot["display_session_policy"],
             "history": history,
@@ -2303,7 +2517,25 @@ class SavingsTracker:
                     "max_history_points": self._max_history_points,
                     "max_history_age_days": self._max_history_age_days,
                     "max_response_history_points": self._max_response_history_points,
+                    **self._history_coverage_locked(),
                 },
+                # RC-3/RC-4: one labelled block that says which part of the
+                # savings Cutctx delivered and which part the provider did.
+                "savings_accounting": savings_attribution_block(
+                    savings_by_source_tokens=lifetime_savings_by_source_tokens(
+                        self._state["lifetime"]
+                    ),
+                    raw_pipeline_delta_tokens=_coerce_int(
+                        self._state["lifetime"].get("tokens_saved")
+                    ),
+                    cutctx_attributable_tokens=_coerce_int(
+                        self._state["lifetime"].get("created_savings_tokens")
+                    ),
+                    provider_native_tokens=_coerce_int(
+                        self._state["lifetime"].get("observed_provider_savings_tokens")
+                    ),
+                    scope="lifetime",
+                ),
                 "projects": self._projects_snapshot_locked(),
                 "models": self._models_snapshot_locked(),
                 "clients": self._clients_snapshot_locked(),
@@ -2332,21 +2564,35 @@ class SavingsTracker:
 
         Lets CLI reporting (``cutctx savings``) read the live proxy store
         instead of the SDK-client SQLite/JSONL backends, which the proxy
-        never writes to. History rows carry running lifetime totals rather
-        than per-request deltas for tokens saved/input tokens, so a windowed
-        query subtracts the running totals at the window boundaries; only
-        requests that produced a savings row are counted towards the
-        windowed request count (unfiltered queries use the true lifetime
-        counter).
+        never writes to.
+
+        RC-1 (audit C7). The previous implementation derived a window by
+        subtracting the *cumulative* ``total_tokens_saved`` carried on the
+        boundary rows, taking the baseline from "the last row before
+        ``start_time``". The ring buffer only retains ~a day of rows, so no
+        row ever predated the window, the baseline stayed 0, and every
+        ``--days N`` silently returned the all-time total. This now sums
+        per-request deltas over the rows actually inside the window and
+        states, in the payload, whether the requested window is answerable
+        from retained history at all.
         """
         with self._lock:
             self._reload_if_stale_locked()
             lifetime = self._state["lifetime"]
+            coverage = self._history_coverage_locked()
+            lifetime_requests = _coerce_int(lifetime.get("requests"))
+            lifetime_by_source = lifetime_savings_by_source_tokens(lifetime)
 
             if start_time is None and end_time is None:
-                total_requests = int(lifetime.get("requests", 0))
-                total_tokens_before = int(lifetime.get("total_input_tokens", 0))
-                total_tokens_saved = int(lifetime.get("tokens_saved", 0))
+                scope = "all_time"
+                window_covered = True
+                window_note = None
+                total_requests = lifetime_requests
+                requests_with_savings_rows = coverage["history_points_retained"]
+                total_tokens_before = _coerce_int(lifetime.get("total_input_tokens"))
+                raw_pipeline_delta = _coerce_int(lifetime.get("tokens_saved"))
+                by_source_tokens = dict(lifetime_by_source)
+                unattributed_legacy_tokens = 0
             else:
                 entries = []
                 for row in self._state["history"]:
@@ -2355,31 +2601,109 @@ class SavingsTracker:
                         entries.append((ts, row))
                 entries.sort(key=lambda pair: pair[0])
 
-                baseline_tokens_saved = 0
-                baseline_input_tokens = 0
-                end_tokens_saved = 0
-                end_input_tokens = 0
-                total_requests = 0
+                first_input_tokens: int | None = None
+                last_input_tokens = 0
+                summed_input_deltas = 0
+                every_row_has_input_delta = True
+                raw_pipeline_delta = 0
+                by_source_tokens = {}
+                unattributed_legacy_tokens = 0
+                requests_with_savings_rows = 0
+                has_row_before_window = False
                 for ts, row in entries:
                     if start_time is not None and ts < start_time:
-                        baseline_tokens_saved = _coerce_int(row.get("total_tokens_saved"))
-                        baseline_input_tokens = _coerce_int(row.get("total_input_tokens"))
+                        has_row_before_window = True
                         continue
                     if end_time is not None and ts > end_time:
                         continue
-                    end_tokens_saved = _coerce_int(row.get("total_tokens_saved"))
-                    end_input_tokens = _coerce_int(row.get("total_input_tokens"))
-                    total_requests += 1
+                    if first_input_tokens is None:
+                        first_input_tokens = _coerce_int(row.get("total_input_tokens"))
+                    last_input_tokens = _coerce_int(row.get("total_input_tokens"))
+                    if "delta_input_tokens" in row:
+                        summed_input_deltas += max(0, _coerce_int(row.get("delta_input_tokens")))
+                    else:
+                        every_row_has_input_delta = False
+                    row_delta = max(0, _coerce_int(row.get("delta_tokens_saved")))
+                    raw_pipeline_delta += row_delta
+                    row_sources = row.get("savings_by_source_tokens") or {}
+                    if row_sources:
+                        for source, value in row_sources.items():
+                            by_source_tokens[str(source)] = by_source_tokens.get(
+                                str(source), 0
+                            ) + max(0, _coerce_int(value))
+                    else:
+                        # Pre-attribution row: we know tokens were saved but
+                        # not by what. Never fold these into the
+                        # Cutctx-attributable headline — report them as an
+                        # explicit unattributed remainder instead.
+                        unattributed_legacy_tokens += row_delta
+                    requests_with_savings_rows += 1
 
-                total_tokens_saved = max(0, end_tokens_saved - baseline_tokens_saved)
-                total_tokens_before = max(0, end_input_tokens - baseline_input_tokens)
+                total_requests = requests_with_savings_rows
+                total_tokens_before = (
+                    summed_input_deltas
+                    if every_row_has_input_delta
+                    # Legacy rows carry only the cumulative counter, so the
+                    # first row's own input is unrecoverable. Under-count it
+                    # rather than invent it.
+                    else max(0, last_input_tokens - (first_input_tokens or 0))
+                )
+                # A window is answerable only when retained history reaches
+                # back past its start — either because a row predates it or
+                # because nothing has ever been trimmed.
+                window_covered = bool(
+                    start_time is None or has_row_before_window or coverage["history_complete"]
+                )
+                scope = "window" if window_covered else "window_partial_retained_history"
+                window_note = (
+                    None
+                    if window_covered
+                    else (
+                        "Insufficient history: the requested window starts before the "
+                        f"oldest retained row. Retained history spans "
+                        f"{coverage['retained_window_hours']}h "
+                        f"({coverage['history_points_retained']} rows, "
+                        f"{coverage['history_points_dropped']} trimmed). Figures below "
+                        "cover the retained slice of the requested window only and are "
+                        "a LOWER BOUND, not the full window."
+                    )
+                )
 
+            cutctx_attributable, provider_native = split_savings_by_attribution(by_source_tokens)
+            # Buyer-facing headline is Cutctx-attributable only (RC-3).
+            total_tokens_saved = cutctx_attributable
             total_tokens_after = max(0, total_tokens_before - total_tokens_saved)
             return {
+                # Back-compatible keys. ``total_tokens_saved`` is now the
+                # Cutctx-attributable figure rather than a mixture that
+                # included the provider's own cache reads.
                 "total_requests": total_requests,
                 "total_tokens_before": total_tokens_before,
                 "total_tokens_after": total_tokens_after,
                 "total_tokens_saved": total_tokens_saved,
+                # Scope + honesty labelling (RC-1 / RC-4).
+                "scope": scope,
+                "window_covered": window_covered,
+                "window_start": _to_utc_iso(start_time) if start_time else None,
+                "window_end": _to_utc_iso(end_time) if end_time else None,
+                "window_note": window_note,
+                "history_coverage": coverage,
+                # Real request counts (RC-2). ``total_requests`` for a window
+                # can only count requests that produced a savings row.
+                "lifetime_requests": lifetime_requests,
+                "lifetime_started_at": lifetime.get("first_recorded_at"),
+                "requests_with_savings_rows": requests_with_savings_rows,
+                # Attribution split (RC-3).
+                "savings_by_source_tokens": dict(sorted(by_source_tokens.items())),
+                "attribution": savings_attribution_block(
+                    savings_by_source_tokens=by_source_tokens,
+                    raw_pipeline_delta_tokens=raw_pipeline_delta,
+                    scope=scope,
+                ),
+                "cutctx_attributable_tokens_saved": cutctx_attributable,
+                "provider_native_tokens_saved": provider_native,
+                "raw_pipeline_delta_tokens": raw_pipeline_delta,
+                "unattributed_legacy_tokens": unattributed_legacy_tokens,
             }
 
     def _default_state(self) -> dict[str, Any]:
@@ -2407,6 +2731,11 @@ class SavingsTracker:
             "models": {},
             "clients": {},
             "shadow_checks": [],
+            # RC-1: how many history rows retention has thrown away. Without
+            # this a windowed query cannot tell "no rows before the window"
+            # from "the rows before the window were trimmed", and silently
+            # returns all-time data under a window label.
+            "history_points_dropped": 0,
             "journal_generation": 0,
         }
 
@@ -2810,7 +3139,31 @@ class SavingsTracker:
             "models": _normalize_models(raw.get("models")),
             "clients": _normalize_clients(raw.get("clients")),
             "shadow_checks": _normalize_shadow_checks(raw.get("shadow_checks")),
+            # RC-1: retention loss counter survives reload/journal replay.
+            "history_points_dropped": max(0, _coerce_int(raw.get("history_points_dropped"))),
         }
+        # Provenance/diagnostic lifetime fields that the explicit rebuild
+        # above would otherwise drop on every reload.
+        if isinstance(lifetime_raw, dict):
+            for carried in (
+                "attribution_invariant_ok",
+                "attribution_invariant_violations",
+            ):
+                if carried in lifetime_raw:
+                    state["lifetime"][carried] = lifetime_raw[carried]
+            # ``first_recorded_at`` is only believable if it is no later than
+            # the oldest row still on disk. A value stamped onto an existing
+            # ledger would compress its whole history into a few minutes and
+            # blow up any all-time rate. Drop it rather than divide by it.
+            claimed_start = _parse_timestamp(lifetime_raw.get("first_recorded_at"))
+            if claimed_start is not None:
+                oldest_row = (
+                    _parse_timestamp(normalized_history[0].get("timestamp"))
+                    if normalized_history
+                    else None
+                )
+                if oldest_row is None or claimed_start <= oldest_row:
+                    state["lifetime"]["first_recorded_at"] = _to_utc_iso(claimed_start)
         if "attribution_note" in raw:
             state["attribution_note"] = raw["attribution_note"]
         if "attribution_reconciliation" in raw:
@@ -2846,6 +3199,7 @@ class SavingsTracker:
         history = self._state["history"]
         if not history:
             return
+        points_before = len(history)
 
         if self._max_history_age_days > 0:
             cutoff = (reference_time or _utc_now()) - timedelta(days=self._max_history_age_days)
@@ -2862,6 +3216,53 @@ class SavingsTracker:
             history = history[-self._max_history_points :]
 
         self._state["history"] = history
+        dropped = points_before - len(history)
+        if dropped > 0:
+            self._state["history_points_dropped"] = (
+                _coerce_int(self._state.get("history_points_dropped")) + dropped
+            )
+
+    def _history_coverage_locked(self) -> dict[str, Any]:
+        """Describe what the retained history can and cannot answer (RC-1).
+
+        The ring buffer holds ``DEFAULT_MAX_HISTORY_POINTS`` rows — roughly a
+        day of production traffic. Any window that starts before the oldest
+        retained row is unanswerable from this store; saying so is the whole
+        point of this method.
+        """
+        history = self._state["history"]
+        dropped = max(0, _coerce_int(self._state.get("history_points_dropped")))
+        lifetime_requests = _coerce_int(self._state.get("lifetime", {}).get("requests"))
+        # Stores written before the dropped-point counter existed carry no
+        # loss record. A full ring buffer with more lifetime requests than
+        # retained rows is proof that rows were discarded.
+        legacy_truncation = (
+            dropped == 0
+            and self._max_history_points > 0
+            and len(history) >= self._max_history_points
+            and lifetime_requests > len(history)
+        )
+        earliest = _parse_timestamp(history[0].get("timestamp")) if history else None
+        latest = _parse_timestamp(history[-1].get("timestamp")) if history else None
+        window_hours = 0.0
+        if earliest is not None and latest is not None:
+            window_hours = round(max(0.0, (latest - earliest).total_seconds() / 3600.0), 2)
+        return {
+            "history_points_retained": len(history),
+            "history_points_dropped": dropped,
+            "history_complete": (dropped == 0 and not legacy_truncation),
+            "history_truncation_inferred": legacy_truncation,
+            "retained_window_start": _to_utc_iso(earliest) if earliest else None,
+            "retained_window_end": _to_utc_iso(latest) if latest else None,
+            "retained_window_hours": window_hours,
+            "max_history_points": self._max_history_points,
+        }
+
+    def history_coverage(self) -> dict[str, Any]:
+        """Public wrapper around :meth:`_history_coverage_locked`."""
+        with self._lock:
+            self._reload_if_stale_locked()
+            return self._history_coverage_locked()
 
     def _history_for_response(
         self,

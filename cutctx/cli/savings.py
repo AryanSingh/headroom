@@ -113,8 +113,46 @@ def _format_cost(cost: float) -> str:
     return f"${cost:.2f}"
 
 
+def _roi_period_days(days: int, stats: dict[str, Any], now: datetime) -> tuple[float | None, str]:
+    """Resolve the period the ROI denominator must cover (audit C7 / RC-2).
+
+    ROI used to divide an all-time numerator by a period denominator: with
+    ``--days 0`` the old ``max(days, 1)`` clamp priced an unbounded history
+    against a single day of subscription, inflating ROI ~30x. The
+    denominator must span exactly the same period as the numerator, and
+    when that period is unknowable the honest answer is "unknown", not a
+    guess that happens to flatter the product.
+    """
+    if days > 0:
+        return float(days), "requested_window"
+    started_at = stats.get("lifetime_started_at")
+    if isinstance(started_at, str) and started_at:
+        parsed = _parse_iso_utc(started_at)
+        if parsed is not None:
+            elapsed = (now - parsed).total_seconds() / 86400.0
+            if elapsed > 0:
+                return elapsed, "ledger_start_to_now"
+    return None, "unknown_ledger_start"
+
+
+def _parse_iso_utc(value: str) -> datetime | None:
+    try:
+        if value.endswith("Z"):
+            value = value[:-1] + "+00:00"
+        parsed = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
 def _compute_summary(storage, days: int = 30, model: str = "claude-sonnet-4-5") -> dict[str, Any]:
-    """Compute savings summary statistics."""
+    """Compute savings summary statistics.
+
+    Every figure returned here is labelled with the scope it covers. The
+    headline ``tokens_saved_filtered`` is Cutctx-attributable only; the
+    provider's own prompt-cache reads are reported separately and are never
+    folded into a Cutctx savings or ROI claim (audit C7 / RC-3).
+    """
     now = datetime.now(timezone.utc)
     start_time = now - timedelta(days=days) if days > 0 else None
 
@@ -156,17 +194,42 @@ def _compute_summary(storage, days: int = 30, model: str = "claude-sonnet-4-5") 
         else 0.0
     )
 
-    # ROI calculation: monthly plan cost is $49/mo
+    # ROI: numerator and denominator must cover the same period (RC-2).
     plan_cost_monthly = 49.0
-    cost_saved_monthly = cost_saved if days == 30 else (cost_saved / max(days, 1) * 30)
-    roi = cost_saved_monthly / plan_cost_monthly if plan_cost_monthly > 0 else 0.0
+    period_days, period_basis = _roi_period_days(days, filtered_stats, now)
+    if period_days and period_days > 0:
+        cost_saved_monthly = cost_saved / period_days * 30.0
+        roi = cost_saved_monthly / plan_cost_monthly if plan_cost_monthly > 0 else 0.0
+        plan_cost_for_period = plan_cost_monthly * period_days / 30.0
+    else:
+        cost_saved_monthly = None
+        roi = None
+        plan_cost_for_period = None
 
     # Breakeven: tokens needed per month to offset plan cost
     breakeven_tokens = (plan_cost_monthly / input_price) * 1_000_000 if input_price > 0 else 0
 
+    scope = filtered_stats.get("scope", "window" if days > 0 else "all_time")
+    window_covered = bool(filtered_stats.get("window_covered", True))
+    roi_note = None
+    if roi is None:
+        roi_note = (
+            "ROI is not computable for an all-time window: the savings ledger "
+            "records no start date, so there is no denominator. Use --days N."
+        )
+    elif not window_covered:
+        roi_note = (
+            "ROI is a LOWER BOUND: the numerator covers only the retained slice "
+            "of the requested window while the denominator covers the whole window."
+        )
+
     return {
         "days": days,
         "model": model,
+        "scope": scope,
+        "window_covered": window_covered,
+        "window_note": filtered_stats.get("window_note"),
+        "history_coverage": filtered_stats.get("history_coverage", {}),
         "tokens_saved_filtered": tokens_saved_filtered,
         "tokens_saved_all": tokens_saved_all,
         "tokens_before_filtered": tokens_before_filtered,
@@ -175,22 +238,53 @@ def _compute_summary(storage, days: int = 30, model: str = "claude-sonnet-4-5") 
         "cost_saved": cost_saved,
         "cost_without_cutctx": cost_without_cutctx,
         "cost_with_cutctx": cost_with_cutctx,
+        # RC-2: the real request count, not the ring-buffer size. Windowed
+        # queries can only see requests that produced a savings row, so both
+        # numbers are reported rather than one standing in for the other.
         "sessions_count": filtered_stats.get("total_requests", 0),
+        "requests_in_scope": filtered_stats.get("total_requests", 0),
+        "requests_with_savings_rows": filtered_stats.get("requests_with_savings_rows", 0),
+        "lifetime_requests": filtered_stats.get(
+            "lifetime_requests", all_time_stats.get("total_requests", 0)
+        ),
+        "lifetime_started_at": filtered_stats.get("lifetime_started_at"),
+        # RC-3: attribution split, on every surface.
+        "cutctx_attributable_tokens": filtered_stats.get(
+            "cutctx_attributable_tokens_saved", tokens_saved_filtered
+        ),
+        "provider_native_tokens": filtered_stats.get("provider_native_tokens_saved", 0),
+        "unattributed_legacy_tokens": filtered_stats.get("unattributed_legacy_tokens", 0),
+        "attribution": filtered_stats.get("attribution", {}),
+        "savings_by_source": {"tokens": filtered_stats.get("savings_by_source_tokens", {})},
         "roi": roi,
+        "roi_period_days": period_days,
+        "roi_period_basis": period_basis,
+        "roi_note": roi_note,
         "plan_cost_monthly": plan_cost_monthly,
+        "plan_cost_for_period": plan_cost_for_period,
         "cost_saved_monthly": cost_saved_monthly,
         "breakeven_tokens": breakeven_tokens,
     }
 
 
 def _print_terminal_summary(summary: dict[str, Any]) -> None:
-    """Print a formatted terminal summary."""
+    """Print a formatted terminal summary.
+
+    Every headline carries its scope. A window that retained history cannot
+    answer is labelled as such instead of quietly showing all-time numbers
+    under a window heading (audit C7 / RC-1).
+    """
     days = summary["days"]
     period = f"last {days} days" if days > 0 else "all time"
 
     click.echo()
     click.echo(click.style(f"Cutctx Savings Report — {period}", fg="green", bold=True))
+    click.echo(click.style(f"scope: {summary.get('scope', 'unknown')}", fg="green"))
     click.echo(click.style("─" * 50, fg="green"))
+
+    if summary.get("window_note"):
+        click.echo(click.style(f"  ⚠ {summary['window_note']}", fg="yellow"))
+        click.echo()
 
     tokens_saved = summary["tokens_saved_filtered"]
     compression = summary["compression_ratio"] * 100
@@ -199,13 +293,37 @@ def _print_terminal_summary(summary: dict[str, Any]) -> None:
     roi = summary["roi"]
 
     click.echo(
-        f"  {click.style('Tokens saved:', bold=True):20s} {_format_tokens(tokens_saved):>10s}  ({compression:.1f}% compression)"
+        f"  {click.style('Cutctx tokens saved:', bold=True):20s} {_format_tokens(tokens_saved):>10s}  ({compression:.1f}% compression)"
     )
+    click.echo(
+        f"  {click.style('Provider cache:', bold=True):20s} "
+        f"{_format_tokens(int(summary.get('provider_native_tokens', 0))):>10s}  "
+        "(provider-native — happens with or without Cutctx, not counted above)"
+    )
+    if int(summary.get("unattributed_legacy_tokens", 0)) > 0:
+        click.echo(
+            f"  {click.style('Unattributed:', bold=True):20s} "
+            f"{_format_tokens(int(summary['unattributed_legacy_tokens'])):>10s}  "
+            "(pre-attribution rows; excluded from the Cutctx figure)"
+        )
     click.echo(
         f"  {click.style('Cost saved:', bold=True):20s} {_format_cost(cost_saved):>10s}  (vs ${summary['cost_without_cutctx']:.2f} without Cutctx)"
     )
-    click.echo(f"  {click.style('Sessions:', bold=True):20s} {sessions:>10d}")
-    click.echo(f"  {click.style('ROI vs $49/mo:', bold=True):20s} {roi:>10.2f}×")
+    click.echo(f"  {click.style('Requests in scope:', bold=True):20s} {sessions:>10d}")
+    click.echo(
+        f"  {click.style('Requests lifetime:', bold=True):20s} "
+        f"{int(summary.get('lifetime_requests', 0)):>10d}"
+    )
+    if roi is None:
+        click.echo(f"  {click.style('ROI vs $49/mo:', bold=True):20s} {'n/a':>10s}")
+    else:
+        click.echo(
+            f"  {click.style('ROI vs $49/mo:', bold=True):20s} {roi:>10.2f}×  "
+            f"(over {float(summary.get('roi_period_days') or 0):.1f}d, "
+            f"plan cost ${float(summary.get('plan_cost_for_period') or 0):.2f})"
+        )
+    if summary.get("roi_note"):
+        click.echo(click.style(f"  note: {summary['roi_note']}", fg="yellow"))
 
     if summary["days"] == 30:
         breakeven = summary["breakeven_tokens"]
@@ -262,6 +380,11 @@ def _print_savings_breakdown(
 
     # terminal
     if by_source:
+        from cutctx.proxy.savings_tracker import (
+            PROVIDER_NATIVE_SAVINGS_SOURCES,
+            split_savings_by_attribution,
+        )
+
         click.echo()
         click.echo(click.style("Savings by source:", fg="cyan", bold=True))
         click.echo(click.style("─" * 50, fg="cyan"))
@@ -269,8 +392,12 @@ def _print_savings_breakdown(
         for src in SavingsSource:
             n = by_source_data.get(src.value, 0)
             pct = (n / total * 100) if total else 0.0
-            click.echo(f"  {src.label:30s} {_format_tokens(n):>10s}  ({pct:5.1f}%)")
-        click.echo(f"  {'Total':30s} {_format_tokens(total):>10s}")
+            marker = " [provider-native]" if src.value in PROVIDER_NATIVE_SAVINGS_SOURCES else ""
+            click.echo(f"  {src.label:30s} {_format_tokens(n):>10s}  ({pct:5.1f}%){marker}")
+        click.echo(f"  {'Total (all sources)':30s} {_format_tokens(total):>10s}")
+        cutctx_tokens, provider_tokens = split_savings_by_attribution(by_source_data)
+        click.echo(f"  {'  of which Cutctx-attributable':30s} {_format_tokens(cutctx_tokens):>10s}")
+        click.echo(f"  {'  of which provider-native':30s} {_format_tokens(provider_tokens):>10s}")
 
     if by_provider:
         click.echo()
@@ -285,6 +412,59 @@ def _print_savings_breakdown(
             for src_name, n in (src_dict.get("tokens") or {}).items():
                 click.echo(f"    {src_name:28s} {_format_tokens(n):>10s}")
             click.echo(f"    {'Total':28s} {_format_tokens(total):>10s}")
+
+
+def _savings_json_payload(summary: dict[str, Any]) -> dict[str, Any]:
+    """Machine-readable savings payload.
+
+    ``cutctx savings --format json`` used to print the human terminal
+    summary and then, unless ``--by-source``/``--by-provider`` was also
+    passed, print nothing at all — the JSON branch sat behind an early
+    return. This builds the payload once so the JSON surface is a first
+    class output with the same scope labels as the terminal one.
+    """
+    from cutctx.savings import SavingsSource
+
+    by_source_tokens: dict[str, int] = (summary.get("savings_by_source") or {}).get("tokens", {})
+    return {
+        "period_days": summary["days"],
+        "scope": summary.get("scope"),
+        "window_covered": summary.get("window_covered", True),
+        "window_note": summary.get("window_note"),
+        "history_coverage": summary.get("history_coverage", {}),
+        "model": summary.get("model"),
+        # Headline: Cutctx-attributable only.
+        "total_tokens_saved": summary["tokens_saved_filtered"],
+        "cutctx_attributable_tokens": summary.get("cutctx_attributable_tokens", 0),
+        "provider_native_tokens": summary.get("provider_native_tokens", 0),
+        "unattributed_legacy_tokens": summary.get("unattributed_legacy_tokens", 0),
+        "attribution": summary.get("attribution", {}),
+        "total_usd_saved": round(float(summary["cost_saved"]), 6),
+        "tokens_before": summary["tokens_before_filtered"],
+        "tokens_after": summary["tokens_after_filtered"],
+        "compression_ratio": round(float(summary["compression_ratio"]), 6),
+        "requests_in_scope": summary.get("requests_in_scope", summary["sessions_count"]),
+        "requests_with_savings_rows": summary.get("requests_with_savings_rows", 0),
+        "lifetime_requests": summary.get("lifetime_requests", 0),
+        "lifetime_started_at": summary.get("lifetime_started_at"),
+        "sessions_count": summary["sessions_count"],
+        "savings_by_source": {
+            src.value: int(by_source_tokens.get(src.value, 0)) for src in SavingsSource
+        },
+        "savings_by_source_unmapped": {
+            key: int(value)
+            for key, value in by_source_tokens.items()
+            if key not in {src.value for src in SavingsSource}
+        },
+        "savings_sources": [{"id": src.value, "label": src.label} for src in SavingsSource],
+        "roi": summary["roi"],
+        "roi_period_days": summary.get("roi_period_days"),
+        "roi_period_basis": summary.get("roi_period_basis"),
+        "roi_note": summary.get("roi_note"),
+        "plan_cost_monthly": summary["plan_cost_monthly"],
+        "plan_cost_for_period": summary.get("plan_cost_for_period"),
+        "breakeven_tokens": summary["breakeven_tokens"],
+    }
 
 
 def _ensure_output_parent(output_path: Path) -> None:
@@ -340,6 +520,20 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
     roi = summary["roi"]
     tokens_before = summary["tokens_before_filtered"]
     summary["tokens_after_filtered"]
+    # ROI is None when the period is unknown (RC-2); never render a made-up
+    # multiple in a buyer-facing HTML report.
+    roi_text = "n/a" if roi is None else f"{roi:.2f}×"
+    roi_subtext = (
+        summary.get("roi_note") or "period unknown"
+        if roi is None
+        else f"${float(summary['cost_saved_monthly']):.2f}/mo equivalent"
+    )
+    roi_period_days = float(summary.get("roi_period_days") or 0.0)
+    projected_monthly_tokens = (
+        int(tokens_before / roi_period_days * 30) if roi_period_days > 0 else 0
+    )
+    scope_label = summary.get("scope", "unknown")
+    window_note = summary.get("window_note") or ""
 
     # HTML template with inline CSS and JS
     html = f"""<!DOCTYPE html>
@@ -504,13 +698,14 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
 <body>
     <div class="container">
         <h1>Cutctx Savings Report</h1>
-        <div class="subtitle">Generated {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")}</div>
+        <div class="subtitle">Generated {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")}
+        &middot; scope: {scope_label} &middot; {window_note}</div>
 
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="label">Tokens Saved</div>
+                <div class="label">Cutctx Tokens Saved</div>
                 <div class="value">{_format_tokens(tokens_saved)}</div>
-                <div class="subtext">{compression:.1f}% compression</div>
+                <div class="subtext">{compression:.1f}% compression &middot; excludes {_format_tokens(int(summary.get("provider_native_tokens", 0)))} provider-native cache</div>
             </div>
             <div class="stat-card">
                 <div class="label">Cost Saved</div>
@@ -518,14 +713,14 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
                 <div class="subtext">vs ${summary["cost_without_cutctx"]:.2f} full price</div>
             </div>
             <div class="stat-card">
-                <div class="label">Sessions Processed</div>
+                <div class="label">Requests In Scope</div>
                 <div class="value">{sessions}</div>
-                <div class="subtext">in last {summary["days"]} days</div>
+                <div class="subtext">{summary.get("lifetime_requests", 0):,} lifetime &middot; scope: {scope_label}</div>
             </div>
             <div class="stat-card">
                 <div class="label">ROI vs $49/mo</div>
-                <div class="value">{roi:.2f}×</div>
-                <div class="subtext">${summary["cost_saved_monthly"]:.2f}/mo equivalent</div>
+                <div class="value">{roi_text}</div>
+                <div class="subtext">{roi_subtext}</div>
             </div>
         </div>
 
@@ -565,7 +760,7 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
             </div>
             <div class="breakeven-metric">
                 <span>Your tokens/month (projected):</span>
-                <span style="font-weight: bold;">{_format_tokens(int(summary["tokens_before_filtered"] / summary["days"] * 30 if summary["days"] > 0 else 0))}</span>
+                <span style="font-weight: bold;">{_format_tokens(projected_monthly_tokens)}</span>
             </div>
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); opacity: 0.8;">
                 <span id="breakeven-status"></span>
@@ -653,9 +848,9 @@ def _generate_html_report(summary: dict[str, Any], output_path: Path) -> None:
 
         // Update break-even status
         function updateBreakEvenStatus() {{
-            const monthlyTokens = {tokens_before} / {summary["days"]} * 30;
+            const monthlyTokens = {projected_monthly_tokens};
             const breakEvenTokens = {summary["breakeven_tokens"]};
-            const percentage = (monthlyTokens / breakEvenTokens) * 100;
+            const percentage = breakEvenTokens > 0 ? (monthlyTokens / breakEvenTokens) * 100 : 0;
 
             const status = document.getElementById('breakeven-status');
             if (percentage >= 100) {{
@@ -784,8 +979,15 @@ def savings(
                 json.dumps(
                     {
                         "period_days": days,
+                        "scope": summary.get("scope", "window" if days > 0 else "all_time"),
+                        "window_covered": summary.get("window_covered", True),
+                        "window_note": summary.get("window_note"),
                         "sessions_count": 0,
+                        "requests_in_scope": 0,
+                        "lifetime_requests": summary.get("lifetime_requests", 0),
                         "total_tokens_saved": 0,
+                        "cutctx_attributable_tokens": 0,
+                        "provider_native_tokens": 0,
                         "total_usd_saved": 0.0,
                         "savings_by_source": {src.value: 0 for src in SavingsSource},
                         "savings_by_source_usd": {src.value: 0.0 for src in SavingsSource},
@@ -808,19 +1010,36 @@ def savings(
             )
         return
 
+    # Machine-readable formats are exclusive: emitting the human summary
+    # first made `--format json` unparseable (and, without --by-source, it
+    # emitted no JSON at all).
+    if output_format == "json":
+        payload = _savings_json_payload(summary)
+        if by_provider:
+            payload["savings_by_provider"] = summary.get("savings_by_provider") or {}
+        click.echo(json.dumps(payload, indent=2, default=str))
+        return
+
+    if output_format == "csv":
+        _print_savings_breakdown(
+            summary,
+            by_source=True,
+            by_provider=by_provider,
+            output_format="csv",
+        )
+        return
+
     # Print terminal summary
     _print_terminal_summary(summary)
 
-    # Phase 5.1: by-source / by-provider / format flags
-    if by_source or by_provider or output_format != "terminal":
+    # Phase 5.1: by-source / by-provider breakdowns
+    if by_source or by_provider:
         _print_savings_breakdown(
             summary,
             by_source=by_source,
             by_provider=by_provider,
             output_format=output_format,
         )
-        if output_format != "terminal":
-            return
 
     # If stats-only, exit early
     if stats_only:
