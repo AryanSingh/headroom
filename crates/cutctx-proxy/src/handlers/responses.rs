@@ -141,12 +141,14 @@ pub async fn handle_responses(
         );
     }
 
+    let requested_model = extract_requested_model(&body);
+
     // Reconstruct the Request<Body> shape forward_http expects.
     let mut builder = Request::builder().method(method).uri(uri);
     if let Some(hs) = builder.headers_mut() {
         *hs = headers;
     }
-    let req = match builder.body(Body::from(body)) {
+    let mut req = match builder.body(Body::from(body)) {
         Ok(r) => r,
         Err(e) => {
             tracing::error!(
@@ -161,6 +163,10 @@ pub async fn handle_responses(
                 .expect("static response");
         }
     };
+    if let Some(model) = requested_model {
+        req.extensions_mut()
+            .insert(crate::proxy::RequestedModel(model));
+    }
 
     forward_http(state, client_addr, req)
         .await
@@ -186,6 +192,14 @@ fn extract_request_service_tier(body: &Bytes) -> Option<String> {
         .map(|s| s.to_string())
 }
 
+fn extract_requested_model(body: &Bytes) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_slice(body).ok()?;
+    value
+        .get("model")
+        .and_then(|model| model.as_str())
+        .map(str::to_owned)
+}
+
 /// Cheap check: is this request asking for an SSE response? Compares
 /// `Accept` against `text/event-stream` (case-insensitive on the
 /// media-type token, RFC 7231 §3.1.1.1). Multiple media types in
@@ -207,6 +221,15 @@ fn accepts_sse(headers: &HeaderMap) -> bool {
 mod tests {
     use super::*;
     use http::HeaderValue;
+
+    #[test]
+    fn extracts_requested_model_for_policy_enforcement() {
+        let body = Bytes::from_static(br#"{"model":"gpt-5.4-mini","input":"hello"}"#);
+        assert_eq!(
+            extract_requested_model(&body).as_deref(),
+            Some("gpt-5.4-mini")
+        );
+    }
 
     #[test]
     fn accepts_sse_explicit() {
