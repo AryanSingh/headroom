@@ -1,55 +1,84 @@
-<!-- markdownlint-disable MD013 -->
+# Code Review Report: Claude Audit Working Tree
 
-# Verified Code Review Report
+**Date:** 2026-08-04  
+**Branch:** `audit-fixes-2026-08-03`  
+**Scope:** Uncommitted files present after Claude's product release audit session
 
-**Date:** 2026-07-31
-**Final verification:** 2026-08-01
-**Method:** Source inspection, targeted tests, CI contract tests, Ruff 0.9.4, dashboard lint/build
+## Summary
 
-## Outcome
+The working tree contains several independent changes. The packaged dashboard assets and MCP registry regression tests are ready for isolated commits. The retention, audit-verification response, and timeout-default changes need more evidence or corrective work. `uv.lock` contains a broad local resolver rewrite and should stay out of these commits.
 
-The codebase is suitable for a controlled release. The generated report promoted maintainability observations to P1 defects and overstated silent exception handling. Verified reliability gaps were fixed.
+Focused verification completed:
 
-## Actionable findings completed
+- Python: 73 passed in `test_proxy_resilience_hardening.py`, `test_audit_chain_verify.py`, `test_retention.py`, and `test_mcp_registry/test_install.py`.
+- Dashboard: 31 tests passed; Vite production build completed.
+- Packaged dashboard: generated `dashboard/dist` files match the files under `cutctx/dashboard`, excluding Python package-only files.
+- Ruff 0.9.4: affected Python files passed.
+- Git whitespace check: passed.
 
-| Finding | Resolution |
-| --- | --- |
-| Unbounded WebSocket lifecycle | Added pre-connect admission reservations, configured limit, cleanup, health fields, Prometheus counter, and alert. |
-| Entry-count-only compression cache | Added value-byte and per-entry budgets, LRU eviction, stats, proxy config, health aggregation, and Prometheus gauges. |
-| Stripe duplicate fulfillment | Added schema-enforced subscription identity plus a transactional delivery outbox with failed-hook retry. |
-| Starlette legacy TestClient backend | Added `httpx2` and a 3.10–3.14 compatibility smoke job. |
-| Missing visual regression contract | Added an inspected Playwright baseline for a stable dark overview shell. |
-| Dependency audit findings | Updated dashboard transitive overrides for fixed `brace-expansion` and `postcss`; `npm audit` reports zero vulnerabilities. |
+## Findings
 
-## Findings reclassified
+### [P1] Retention dry-run claims global safety but only protects the audit database
 
-| Generated finding | Verified disposition |
-| --- | --- |
-| `server.py` size | Maintainability backlog, not a release defect. Major route extraction already exists under `cutctx/proxy/routes/`; a large speculative split during an audit would increase regression risk. |
-| 37 silent `except Exception` blocks | Count was stale. Current instances primarily log, re-raise, or intentionally degrade optional components. Health capability probes that return unavailable are diagnostic fallbacks, not swallowed request failures. |
-| Savings tracker/model router size | Maintainability observations. No failing invariant or unsafe coupling was demonstrated. |
-| F-string SQL | Fixed identifiers and placeholder construction; no attacker-controlled SQL identifiers found. |
-| Missing per-request memory accounting | Body size is already bounded; retained cross-request cache memory was the actual gap and is now fixed. |
-| No persistent cache | Product/performance choice, not correctness. |
-| Dataclass/Pydantic split | Intentional boundary: internal runtime state versus request validation models. |
+**Files:** `cutctx_ee/retention.py`, `tests/test_retention.py`
 
-## Remaining engineering backlog
+`RetentionConfig.dry_run` says that every cleanup task counts candidates and removes nothing. `run_cleanup()` still calls the CCR, spend-ledger, and episodic cleanup implementations without a dry-run guard. Enabling `CUTCTX_RETENTION_DRY_RUN` can therefore delete CCR entries, spend events, and episodic files while the operator expects a preview.
 
-- Continue incremental extraction from `server.py` only when a feature change supplies a behavioral seam and dedicated tests.
-- Standardize control-plane error envelopes without rewriting provider passthrough payloads.
-- Add named diagnostic reason fields for optional health probes if operators need more detail than availability booleans.
-- Externalize mutable state before enabling multiple replicas.
+The current tests do not cover `dry_run`, `audit_db_path`, numeric epochs stored as text, or environment precedence. The change should not be committed until failing tests establish those contracts and the implementation protects each enabled backend.
 
-These are maintainability or platform-evolution items, not unremediated defects from this audit.
+### [P1] A bare retention manager still targets the operator's default audit database
 
-## Reproduction record
+**File:** `cutctx_ee/retention.py`
 
-```bash
-rtk pytest
-rtk proxy uvx ruff@0.9.4 check .
-rtk proxy uvx ruff@0.9.4 format --check .
-rtk proxy .venv/bin/python scripts/mypy_ratchet.py
-rtk git diff --check
-```
+`resolve_audit_db_path()` makes the selected path inspectable, but `RetentionManager()` still falls back to `~/.cutctx/audit.db` and `run_cleanup()` executes against it. The new comments describe protection from silently targeting the operator database, but the runtime does not require an explicit path, preview, or acknowledgement.
 
-Pytest passed 9,919 tests and skipped 271. Ruff checked and format-checked 1,513 files. The mypy ratchet reported no errors beyond its recorded baseline, and the diff whitespace check passed.
+The remediation plan must choose and test one contract: require an explicit path for destructive audit cleanup, default retention to dry-run when the path is implicit, or retain the fallback with a clear operator-facing warning and status field.
+
+### [P1] Audit verification changes the monitoring contract without endpoint tests
+
+**File:** `cutctx/proxy/routes/admin.py`
+
+The uncommitted route returns HTTP 200 with `ok: false` for a detected tamper. The committed behavior used an HTTP failure for a broken chain. Either contract can work, but monitoring clients may rely on the status code. Existing tests exercise `AuditLogger.verify_chain()` and do not call `GET /audit/verify` for clean, tampered, unavailable, and verifier-error cases.
+
+Add endpoint-level tests and document the response contract before committing the change. Update the OpenAPI artifact if the public response shape changes.
+
+### [P2] The 120-second request deadline lacks evidence for changing the default
+
+**Files:** `.env.example`, `cutctx/proxy/models.py`
+
+The total deadline feature and validation already have regression coverage. The uncommitted change lowers the default from 300 seconds to 120 seconds, but no test pins the new default and the comments cite an observed completion-time bound without preserved evidence. This may terminate supported batch or agentic requests.
+
+Keep the configuration knob. Commit the default change only after a product decision defines the supported request-duration envelope and a test pins it.
+
+### [P2] MCP registry test correction is valid
+
+**File:** `tests/test_mcp_registry/test_install.py`
+
+The production implementation already emits `CUTCTX_PROXY_URL` for the default URL. The updated tests match that behavior and guard against registrar rewrites dropping the environment table. All twelve tests pass. This file can be committed independently.
+
+### [P2] Packaged dashboard assets match the current source build
+
+**Files:** `cutctx/dashboard/index.html`, `cutctx/dashboard/assets/*`
+
+The new hashed assets match a fresh Vite build from `dashboard/`. The package index references the generated JavaScript and CSS entry chunks. Dashboard tests and bundle-size checks pass. Commit the index, asset deletions, and asset additions as one generated-artifact change.
+
+### [P3] `uv.lock` is unrelated resolver churn
+
+**File:** `uv.lock`
+
+The diff rewrites more than one thousand lines of environment markers and dependencies. Repository instructions describe this lockfile as locally regenerated and not committed. It does not belong in any audit-remediation commit without a dedicated dependency update and matrix validation.
+
+### [P3] Independent audit report needs a publication decision
+
+**File:** `AUDIT_INDEPENDENT_2026-08-03.md`
+
+The report is useful release evidence but contains detailed security findings, local paths, upstream request identifiers, and credential-shaped examples. Review and scrub it before deciding whether the public repository should track it. Keep it uncommitted during implementation planning.
+
+## Commit Recommendation
+
+Create two verified commits now when the Deepwork oracle gate becomes available:
+
+1. MCP registry regression tests only.
+2. Packaged dashboard build artifacts only.
+
+Hold the timeout, audit endpoint, retention, lockfile, and independent audit report for separate TDD or publication decisions.
