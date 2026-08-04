@@ -120,8 +120,16 @@ class DeterministicRoutingEngine:
             request,
             equivalent_weights=equivalent_weights,
         )
+        assigned_rejected_reason = rejected_reason
         if selected is None and mode != RoutingMode.STRICT.value:
-            selected, rejected_reason = self._first_eligible(fallbacks, required, request=request)
+            selected, fallback_rejected_reason = self._first_eligible(
+                fallbacks, required, request=request
+            )
+            rejected_reason = (
+                assigned_rejected_reason
+                if selected is not None
+                else fallback_rejected_reason or assigned_rejected_reason
+            )
         if selected is None:
             if mode == RoutingMode.STRICT.value:
                 raise RoutingUnavailableError(
@@ -140,6 +148,19 @@ class DeterministicRoutingEngine:
                 )
             candidates.append(selected.key)
 
+        policy_selected = False
+        if mode != RoutingMode.STRICT.value and policy == RoutingPolicy.CHEAPEST.value:
+            cheapest = self._policy_candidate(policy, required, excluded=set(), request=request)
+            if cheapest is not None:
+                selected = cheapest
+                policy_selected = True
+                if selected.key not in candidates:
+                    candidates.append(selected.key)
+                selection_evidence = {
+                    "strategy": "policy_cheapest",
+                    "selected": selected.deployment_key,
+                }
+
         # ``primary`` may be an account-scoped deployment key
         # (``provider:account:model``), while ``ModelRecord.key`` intentionally
         # omits the account.  Compare deployment identities so a successful
@@ -152,7 +173,8 @@ class DeterministicRoutingEngine:
         primary_model = self.registry.get(primary)
         primary_deployment = primary_model.deployment_key if primary_model is not None else primary
         fallback_used = (
-            selected.deployment_key != primary_deployment
+            not policy_selected
+            and selected.deployment_key != primary_deployment
             and selected.deployment_key not in equivalent_deployment_keys
         )
         decision = RoutingDecision(
@@ -166,7 +188,9 @@ class DeterministicRoutingEngine:
             mode=mode,
             policy=policy,
             reason=(
-                "equivalent_deployment_selected"
+                f"policy:{policy}"
+                if policy_selected
+                else "equivalent_deployment_selected"
                 if selected.deployment_key != primary_deployment and not fallback_used
                 else reason
                 if not fallback_used
@@ -441,6 +465,25 @@ class DeterministicRoutingEngine:
             )
             if request.data_classification.lower() not in supported_values:
                 return "data_classification_not_allowed"
+        input_limit = (
+            model.max_input_tokens
+            if model.max_input_tokens is not None
+            else model.context_length
+            if model.context_length > 0
+            else None
+        )
+        if (
+            input_limit is not None
+            and request.estimated_input_tokens is not None
+            and request.estimated_input_tokens > input_limit
+        ):
+            return "input_context_exceeded"
+        if (
+            model.max_output_tokens is not None
+            and request.estimated_output_tokens is not None
+            and request.estimated_output_tokens > model.max_output_tokens
+        ):
+            return "output_limit_exceeded"
         if request.max_cost_usd is not None:
             if model.input_cost_per_million is None or model.output_cost_per_million is None:
                 return "cost_unknown"
@@ -621,6 +664,7 @@ class DeterministicRoutingEngine:
             model
             for model in self.registry.list(required_capabilities=required, available_only=True)
             if model.deployment_key not in excluded
+            and self.registry.cooldown_remaining_seconds(model.deployment_key) is None
             and not model.deprecated
             and (not self.require_configured_accounts or self._has_enabled_account(model))
             and self._constraint_rejection_reason(model, request) is None
@@ -635,11 +679,7 @@ class DeterministicRoutingEngine:
         if policy == RoutingPolicy.CHEAPEST.value:
             return min(
                 models,
-                key=lambda model: (
-                    model.input_cost_per_million is None,
-                    model.input_cost_per_million or 0,
-                    model.key,
-                ),
+                key=lambda model: self._cheapest_sort_key(model, request),
             )
         if policy == RoutingPolicy.HIGHEST_QUALITY.value:
             return max(models, key=lambda model: (model.reliability or 0, model.key))
@@ -652,6 +692,26 @@ class DeterministicRoutingEngine:
                 model.key,
             ),
         )
+
+    @staticmethod
+    def _cheapest_sort_key(
+        model: ModelRecord,
+        request: RoutingRequest | None,
+    ) -> tuple[bool, float, str]:
+        input_rate = model.input_cost_per_million
+        output_rate = model.output_cost_per_million
+        if input_rate is None or output_rate is None:
+            return True, 0.0, model.key
+        if request is not None and (
+            request.estimated_input_tokens is not None
+            or request.estimated_output_tokens is not None
+        ):
+            estimated_cost = (
+                (request.estimated_input_tokens or 0) * input_rate
+                + (request.estimated_output_tokens or 0) * output_rate
+            ) / 1_000_000
+            return False, estimated_cost, model.key
+        return False, input_rate + output_rate, model.key
 
     @staticmethod
     def _deduplicate(values: list[str]) -> list[str]:
