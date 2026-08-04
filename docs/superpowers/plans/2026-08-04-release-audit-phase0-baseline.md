@@ -43,7 +43,7 @@
 Run:
 
 ```bash
-rtk proxy uv run --frozen python -c 'import pathlib, cutctx, cutctx_ee, cutctx_ee.memory_service.api, cutctx_ee.retention; roots=[pathlib.Path(cutctx.__file__).resolve(), pathlib.Path(cutctx_ee.__file__).resolve(), pathlib.Path(cutctx_ee.memory_service.api.__file__).resolve(), pathlib.Path(cutctx_ee.retention.__file__).resolve()]; print("\n".join(str(path) for path in roots)); assert all(str(path).startswith(str(pathlib.Path.cwd().resolve())) for path in roots); assert all(path.suffix == ".py" or path.name == "__init__.py" for path in roots)'
+rtk proxy uv run --frozen python -c 'import pathlib, cutctx, cutctx_ee, cutctx_ee.memory_service.api, cutctx_ee.retention; cwd=pathlib.Path.cwd().resolve(); roots=[pathlib.Path(cutctx.__file__).resolve(), pathlib.Path(cutctx_ee.__file__).resolve(), pathlib.Path(cutctx_ee.memory_service.api.__file__).resolve(), pathlib.Path(cutctx_ee.retention.__file__).resolve()]; print("\n".join(str(path) for path in roots)); assert all(path.is_relative_to(cwd) for path in roots); assert all(path.suffix == ".py" for path in roots)'
 ```
 
 Expected: every printed path is under the current worktree and no inspected enterprise module resolves to `.so`.
