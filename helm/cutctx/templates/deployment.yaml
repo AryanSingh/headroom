@@ -40,6 +40,8 @@ spec:
               containerPort: {{ .Values.proxy.port }}
               protocol: TCP
           env:
+            - name: HOME
+              value: "/home/nonroot"
             - name: CUTCTX_HOST
               value: "0.0.0.0"
             - name: CUTCTX_PORT
