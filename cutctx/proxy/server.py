@@ -3015,6 +3015,18 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         return await call_next(request)
 
     @app.middleware("http")
+    async def _inbound_metrics_middleware(request: Request, call_next):
+        """Count every accepted HTTP request and its terminal outcome."""
+        proxy.metrics.record_inbound_request(method=request.method, path=request.url.path)
+        try:
+            response = await call_next(request)
+        except BaseException as exc:
+            proxy.metrics.record_inbound_aborted(reason=type(exc).__name__)
+            raise
+        proxy.metrics.record_inbound_response(status_code=response.status_code)
+        return response
+
+    @app.middleware("http")
     async def _inflight_body_budget_middleware(request: Request, call_next):
         """Reserve declared body bytes for the lifetime of the request."""
         reserved = 0
