@@ -93,7 +93,16 @@ def resolve_targets(
         return [target.value for target in valid_targets]
 
     if provider_mode == ProviderSelectionMode.AUTO.value:
-        detected = [target for target in detect_targets() if target in valid]
+        # The OpenClaw CLI can be present while Cutctx's default plugin spec is
+        # not published to npm. Selecting it implicitly makes an otherwise
+        # healthy first-run install fail with an npm 404. Keep the explicit
+        # ``all`` and ``manual --target openclaw`` paths for operators who
+        # provide a local/published plugin, but never make AUTO depend on it.
+        detected = [
+            target
+            for target in detect_targets()
+            if target in valid and target != ToolTarget.OPENCLAW.value
+        ]
         return detected or [
             ToolTarget.CLAUDE.value,
             ToolTarget.CODEX.value,

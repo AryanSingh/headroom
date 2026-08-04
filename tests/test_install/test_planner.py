@@ -58,6 +58,18 @@ def test_resolve_targets_auto_falls_back_when_detection_empty(monkeypatch) -> No
     ]
 
 
+def test_resolve_targets_auto_skips_unpublished_openclaw_plugin(monkeypatch) -> None:
+    """Auto-install must not select a target whose default npm package is absent."""
+    monkeypatch.setattr(
+        "cutctx.install.planner.detect_targets",
+        lambda: [ToolTarget.CLAUDE.value, ToolTarget.OPENCLAW.value],
+    )
+
+    targets = resolve_targets(ProviderSelectionMode.AUTO.value, [])
+
+    assert targets == [ToolTarget.CLAUDE.value]
+
+
 def test_build_manifest_for_persistent_docker_sets_expected_defaults() -> None:
     manifest = build_manifest(
         profile="default",
