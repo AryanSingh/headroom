@@ -1,0 +1,7 @@
+{
+  "model": "gpt-5.4",
+  "messages": [
+    {"role": "user", "content": "<synthetic:text:first>"}
+  ],
+  "stream": false
+}

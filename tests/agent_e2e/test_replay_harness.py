@@ -41,12 +41,27 @@ def test_claude_full_history_resume_succeeds_after_real_proxy_restart() -> None:
 
 
 @pytest.mark.timeout(30)
+def test_opencode_full_history_resume_succeeds_after_real_proxy_restart() -> None:
+    with ReplayHarness(FIXTURES) as harness:
+        result = harness.run("opencode-chat-resume")
+
+    assert result.proxy_restarts == 1
+    assert len(result.upstream_requests) == 2
+    resumed = result.upstream_requests[-1]
+    assert resumed["path"] == "/v1/chat/completions"
+    assert resumed["body"]["model"] == "gpt-5.4"
+    assert len(resumed["body"]["messages"]) == 3
+    assert resumed["body"]["messages"][-1]["content"] == "<synthetic:text:resume>"
+
+
+@pytest.mark.timeout(30)
 def test_each_committed_executable_scenario_reaches_strict_upstream() -> None:
     for scenario_id in (
         "codex-protocol-matrix",
         "codex-subscription-http-resume",
         "codex-websocket-direct",
         "claude-messages-resume",
+        "opencode-chat-resume",
     ):
         with ReplayHarness(FIXTURES) as harness:
             result = harness.run(scenario_id)

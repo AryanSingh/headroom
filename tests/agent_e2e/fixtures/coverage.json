@@ -82,6 +82,12 @@
       "dropped-socket",
       "context-overflow",
       "fallback-routing"
+    ],
+    "opencode": [
+      "http-json",
+      "multi-turn",
+      "resume",
+      "proxy-restart"
     ]
   }
 }

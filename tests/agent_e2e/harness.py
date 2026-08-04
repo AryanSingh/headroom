@@ -1,4 +1,4 @@
-"""Real-network hermetic replay harness for Codex and Claude fixtures."""
+"""Real-network hermetic replay harness for coding-agent fixtures."""
 
 from __future__ import annotations
 
@@ -93,6 +93,11 @@ class ScriptedUpstream:
             methods=["POST"],
         )
         self.app.add_api_route("/v1/responses", self._codex_api, methods=["POST"])
+        self.app.add_api_route(
+            "/v1/chat/completions",
+            self._openai_chat,
+            methods=["POST"],
+        )
         self.app.add_api_route("/v1/messages", self._claude, methods=["POST"])
         self.app.add_api_websocket_route(
             "/backend-api/codex/responses",
@@ -148,6 +153,26 @@ class ScriptedUpstream:
             status_code=int(script.get("status", 200)),
             headers=script.get("headers", {}),
             media_type="text/event-stream",
+        )
+
+    async def _openai_chat(self, request: Request):
+        body = await self._capture(request)
+        for field_name in ("model", "messages"):
+            if field_name not in body:
+                return JSONResponse(
+                    {"error": {"message": f"Missing {field_name}"}},
+                    status_code=400,
+                )
+        script = self._next_script()
+        if "json" not in script:
+            return JSONResponse(
+                {"error": {"message": "OpenCode fixture requires JSON response"}},
+                status_code=500,
+            )
+        return JSONResponse(
+            script["json"],
+            status_code=int(script.get("status", 200)),
+            headers=script.get("headers", {}),
         )
 
     async def _claude(self, request: Request):
