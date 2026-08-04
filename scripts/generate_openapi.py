@@ -42,6 +42,7 @@ def _build_app() -> Any:
             or configuration).
     """
     try:
+        import cutctx.orchestration as orchestration
         from cutctx.proxy.server import create_app
     except ImportError as exc:
         raise ImportError(
@@ -50,8 +51,16 @@ def _build_app() -> Any:
         ) from exc
 
     try:
-        app = create_app()
-        return app
+        # The committed artifact describes the always-available core API.
+        # Optional orchestration dependencies may be installed in a developer
+        # environment but absent in CI or a core deployment, so allowing their
+        # auto-detection here makes schema generation environment-dependent.
+        original_builder = orchestration.build_orchestration_service
+        orchestration.build_orchestration_service = lambda: None
+        try:
+            return create_app()
+        finally:
+            orchestration.build_orchestration_service = original_builder
     except Exception as exc:
         # Provide helpful context for common failure modes
         print(f"ERROR: Failed to construct FastAPI app: {exc}", file=sys.stderr)
