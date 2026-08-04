@@ -41,6 +41,7 @@ DEFAULT_MAX_HISTORY_AGE_DAYS = 365
 DEFAULT_MAX_RESPONSE_HISTORY_POINTS = 500
 DEFAULT_DISPLAY_SESSION_INACTIVITY_MINUTES = 60
 DEFAULT_SAVINGS_FLUSH_INTERVAL_SECONDS = 0.25
+STALE_SNAPSHOT_TEMP_MAX_AGE_SECONDS = 24 * 60 * 60
 
 # Commercial-readiness runbook Task 1 (Savings Validation Protocol / shadow
 # mode). Every normal per-request/history savings row is an *estimate*
@@ -1271,11 +1272,26 @@ class SavingsTracker:
         self._flush_generation = 0
         self._writer_stopping = False
         self._writer: threading.Thread | None = None
+        self._cleanup_stale_snapshot_files()
         self._state = self._load_state()
         self._state = self._replay_journal(self._state)
         self._journal_generation = _coerce_int(self._state.get("journal_generation"))
         self._pending_journal_records: list[dict[str, Any]] = []
         self._loaded_mtime = self._current_mtime()
+
+    def _cleanup_stale_snapshot_files(self) -> None:
+        """Remove abandoned atomic-write files without racing active writers."""
+        cutoff = time.time() - STALE_SNAPSHOT_TEMP_MAX_AGE_SECONDS
+        try:
+            candidates = self._path.parent.glob(".proxy_savings_*.tmp")
+            for candidate in candidates:
+                try:
+                    if candidate.stat().st_mtime < cutoff:
+                        candidate.unlink()
+                except OSError:
+                    continue
+        except OSError:
+            return
 
     @property
     def storage_path(self) -> str:

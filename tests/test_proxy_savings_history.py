@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -1200,6 +1201,21 @@ def test_malformed_savings_state_is_ignored_safely(tmp_path, monkeypatch):
         data = response.json()
         assert data["lifetime"]["tokens_saved"] == 0
         assert data["history"] == []
+
+
+def test_savings_tracker_removes_only_stale_atomic_write_files(tmp_path):
+    path = tmp_path / "proxy_savings.json"
+    stale = tmp_path / ".proxy_savings_abandoned.tmp"
+    recent = tmp_path / ".proxy_savings_active.tmp"
+    stale.write_text("old partial snapshot", encoding="utf-8")
+    recent.write_text("possible concurrent writer", encoding="utf-8")
+    old = datetime.now(tz=timezone.utc).timestamp() - 25 * 60 * 60
+    os.utime(stale, (old, old))
+
+    SavingsTracker(path=str(path))
+
+    assert not stale.exists()
+    assert recent.exists()
 
 
 def test_dashboard_includes_history_toggle_and_endpoint(tmp_path, monkeypatch):
