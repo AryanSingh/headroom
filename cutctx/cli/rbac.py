@@ -33,7 +33,7 @@ def list_roles(admin_key: str | None) -> None:
         data = r.json()
         assignments = data.get("assignments", {})
         if not assignments:
-            click.echo("No role assignments. All users default to admin.")
+            click.echo("No role assignments. Unassigned users default to read-only viewer.")
             return
         click.echo("Role assignments:")
         for user_id, role in assignments.items():
@@ -46,7 +46,7 @@ def list_roles(admin_key: str | None) -> None:
 @click.argument("user_id")
 @click.option(
     "--role",
-    type=click.Choice(["viewer", "operator", "admin"]),
+    type=click.Choice(["viewer", "memory_curator", "operator", "admin"]),
     required=True,
     help="Role to assign",
 )
