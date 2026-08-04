@@ -295,6 +295,24 @@ async def test_funnel_passes_canonical_record_tokens_shape() -> None:
 
 
 @pytest.mark.asyncio
+async def test_funnel_records_estimated_request_cost_in_budget_ledger() -> None:
+    """A logged cost must also advance the enforceable period budget."""
+    h = _FunnelHarness()
+    h.cost_tracker.estimate_cost.return_value = 0.25
+
+    await h._record_request_outcome(
+        _outcome(
+            model="gpt-4o",
+            optimized_tokens=1_000,
+            output_tokens=200,
+            uncached_input_tokens=1_000,
+        )
+    )
+
+    h.cost_tracker.record_cost.assert_called_once_with(0.25)
+
+
+@pytest.mark.asyncio
 async def test_funnel_skips_cost_tracker_when_absent() -> None:
     """When the proxy was started with ``--no-cost``, ``cost_tracker``
     is None and the funnel must skip step 2 silently."""

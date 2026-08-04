@@ -2966,6 +2966,54 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     _inflight_body_budget = InFlightBodyBudget(get_max_inflight_body_bytes())
     proxy.inflight_body_budget = _inflight_body_budget
 
+    def _is_billable_upstream_request(request: Request) -> bool:
+        """Identify POSTs that can create provider spend."""
+        if request.method != "POST":
+            return False
+        path = request.url.path
+        if path in {
+            "/v1/messages",
+            "/v1/chat/completions",
+            "/v1/responses",
+            "/v1/embeddings",
+            "/v1/moderations",
+            "/v1/images/generations",
+            "/v1/audio/transcriptions",
+            "/v1/audio/speech",
+        }:
+            return True
+        return path.endswith(
+            (
+                ":generateContent",
+                ":streamGenerateContent",
+                ":embedContent",
+                ":batchEmbedContents",
+                ":rawPredict",
+                ":streamRawPredict",
+            )
+        )
+
+    @app.middleware("http")
+    async def _spend_budget_middleware(request: Request, call_next):
+        """Apply the configured spend cap consistently across providers."""
+        tracker = proxy.cost_tracker
+        if tracker is not None and _is_billable_upstream_request(request):
+            allowed, remaining = tracker.check_budget()
+            if not allowed:
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": {
+                            "type": "budget_exceeded",
+                            "message": (
+                                f"Budget exceeded for {tracker.budget_period} period"
+                            ),
+                            "remaining_usd": remaining,
+                        }
+                    },
+                )
+        return await call_next(request)
+
     @app.middleware("http")
     async def _inflight_body_budget_middleware(request: Request, call_next):
         """Reserve declared body bytes for the lifetime of the request."""
