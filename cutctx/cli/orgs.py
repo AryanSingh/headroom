@@ -7,7 +7,7 @@ import os
 import click
 import httpx
 
-from cutctx.cli.admin_auth import admin_headers
+from cutctx.cli.admin_auth import admin_headers, raise_for_cli_status
 
 
 def _api_base() -> str:
@@ -57,7 +57,7 @@ def list_orgs(admin_key: str | None) -> None:
     """List all organizations."""
     try:
         r = httpx.get(f"{_api_base()}/orgs", headers=_admin_headers(admin_key), timeout=10)
-        r.raise_for_status()
+        raise_for_cli_status(r)
         data = r.json()
         # H11a: the API returns {"orgs": [...]} but this read "organizations",
         # so the list was always empty and the command reported
@@ -96,7 +96,7 @@ def create_org(name: str, email: str, admin_key: str | None) -> None:
             json={"name": name, "admin_email": email},
             timeout=10,
         )
-        r.raise_for_status()
+        raise_for_cli_status(r)
         org = _unwrap_obj(r.json(), "org", "organization")
         click.echo(f"Created: {org.get('name', name)} (id={org.get('id', '?')})")
     except Exception as e:
@@ -113,7 +113,7 @@ def delete_org(org_id: str, admin_key: str | None) -> None:
         r = httpx.delete(
             f"{_api_base()}/orgs/{org_id}", headers=_admin_headers(admin_key), timeout=10
         )
-        r.raise_for_status()
+        raise_for_cli_status(r)
         click.echo(f"Deleted org {org_id}")
     except Exception as e:
         raise click.ClickException(str(e)) from e
@@ -126,7 +126,7 @@ def show_org(org_id: str, admin_key: str | None) -> None:
     """Show organization details with hierarchy."""
     try:
         r = httpx.get(f"{_api_base()}/orgs/{org_id}", headers=_admin_headers(admin_key), timeout=10)
-        r.raise_for_status()
+        raise_for_cli_status(r)
         data = _unwrap_obj(r.json(), "org", "organization")
         click.echo(f"Organization: {data.get('name', '?')}")
         click.echo(f"  ID: {data.get('id', '?')}")

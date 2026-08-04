@@ -7,7 +7,7 @@ import os
 import click
 import httpx
 
-from cutctx.cli.admin_auth import admin_headers
+from cutctx.cli.admin_auth import admin_headers, raise_for_cli_status
 
 
 def _api_base() -> str:
@@ -29,7 +29,7 @@ def list_roles(admin_key: str | None) -> None:
     """List all role assignments."""
     try:
         r = httpx.get(f"{_api_base()}/rbac/roles", headers=_admin_headers(admin_key), timeout=10)
-        r.raise_for_status()
+        raise_for_cli_status(r)
         data = r.json()
         assignments = data.get("assignments", {})
         if not assignments:
@@ -60,7 +60,7 @@ def assign_role(user_id: str, role: str, admin_key: str | None) -> None:
             json={"user_id": user_id, "role": role},
             timeout=10,
         )
-        r.raise_for_status()
+        raise_for_cli_status(r)
         click.echo(f"Assigned role '{role}' to user '{user_id}'")
     except Exception as e:
         raise click.ClickException(str(e)) from e
@@ -78,7 +78,7 @@ def revoke_role(user_id: str, admin_key: str | None) -> None:
             headers=_admin_headers(admin_key),
             timeout=10,
         )
-        r.raise_for_status()
+        raise_for_cli_status(r)
         click.echo(f"Revoked role for user '{user_id}'")
     except Exception as e:
         raise click.ClickException(str(e)) from e
