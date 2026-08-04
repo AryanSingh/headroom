@@ -28,14 +28,21 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import sqlite3
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("cutctx.retention")
+
+_STRICT_NUMERIC_TEXT = re.compile(r"^[0-9]+(?:\.[0-9]+)?$")
+_CANONICAL_UTC_ISO = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+00:00$"
+)
 
 
 @dataclass
@@ -52,6 +59,15 @@ class RetentionConfig:
     audit_max_age_days: int = 90  # 90 days
     audit_max_db_size_mb: int = 500  # 500MB
     audit_checkpoint_interval: int = 3600  # WAL checkpoint every hour
+    # Explicit audit DB path. Empty means "resolve from the retention-specific
+    # or canonical audit env var, else the documented user-level default".
+    audit_db_path: str = ""
+
+    # Global preview switch. When true every cleanup task COUNTS what it would
+    # remove and removes nothing. Deletion is irreversible and previously the
+    # only way to find out what a policy would do was to let it run — during
+    # audit verification that permanently destroyed 19,861 real audit rows.
+    dry_run: bool = False
 
     # Spend ledger
     spend_enabled: bool = True
@@ -76,6 +92,8 @@ class RetentionConfig:
             audit_max_age_days=_get_int("CUTCTX_RETENTION_AUDIT_MAX_AGE_DAYS", 90),
             audit_max_db_size_mb=_get_int("CUTCTX_RETENTION_AUDIT_MAX_DB_MB", 500),
             audit_checkpoint_interval=_get_int("CUTCTX_RETENTION_AUDIT_CHECKPOINT_INTERVAL", 3600),
+            audit_db_path=os.environ.get("CUTCTX_RETENTION_AUDIT_DB_PATH", ""),
+            dry_run=_get_bool("CUTCTX_RETENTION_DRY_RUN", False),
             spend_enabled=_get_bool("CUTCTX_RETENTION_SPEND_ENABLED", True),
             spend_max_age_days=_get_int("CUTCTX_RETENTION_SPEND_MAX_AGE_DAYS", 365),
             episodic_enabled=_get_bool("CUTCTX_RETENTION_EPISODIC_ENABLED", True),
@@ -159,6 +177,8 @@ class RetentionManager:
         """Return retention manager statistics."""
         return {
             **self._stats,
+            "dry_run": self.config.dry_run,
+            "audit_db_path": str(self.resolve_audit_db_path()),
             "config": {
                 "ccr_max_age_seconds": self.config.ccr_max_age_seconds,
                 "ccr_max_entries": self.config.ccr_max_entries,
@@ -206,10 +226,11 @@ class RetentionManager:
         if self.config.episodic_enabled:
             results["episodic_deleted"] = await asyncio.to_thread(self._cleanup_episodic_memories)
 
-        self._stats["ccr_deleted"] += results["ccr_deleted"]
-        self._stats["audit_deleted"] += results["audit_deleted"]
-        self._stats["spend_deleted"] += results["spend_deleted"]
-        self._stats["episodic_deleted"] += results["episodic_deleted"]
+        if not self.config.dry_run:
+            self._stats["ccr_deleted"] += results["ccr_deleted"]
+            self._stats["audit_deleted"] += results["audit_deleted"]
+            self._stats["spend_deleted"] += results["spend_deleted"]
+            self._stats["episodic_deleted"] += results["episodic_deleted"]
         self._stats["last_cleanup"] = time.time()
         self._stats["cleanup_count"] += 1
 
@@ -231,22 +252,51 @@ class RetentionManager:
             from cutctx.cache.compression_store import get_compression_store
 
             store = get_compression_store()
-            deleted = store.cleanup_expired(max_age_seconds=self.config.ccr_max_age_seconds)
-            # Also enforce max entries limit
-            store.truncate(max_entries=self.config.ccr_max_entries)
-            return deleted
+            if self.config.dry_run:
+                return store.preview_cleanup(
+                    max_age_seconds=self.config.ccr_max_age_seconds,
+                    max_entries=self.config.ccr_max_entries,
+                )
+            return store.cleanup_retention(
+                max_age_seconds=self.config.ccr_max_age_seconds,
+                max_entries=self.config.ccr_max_entries,
+            )
         except Exception:
             self._record_failure("ccr")
             logger.warning("CCR retention cleanup failed", exc_info=True)
             return 0
 
+    def resolve_audit_db_path(self) -> Path:
+        """Resolve the audit DB this manager will operate on, explicitly.
+
+        Precedence, most specific first:
+
+        1. ``RetentionConfig.audit_db_path`` — set it and nothing else is
+           consulted. This is the only form a test or ops script should use.
+        2. ``CUTCTX_RETENTION_AUDIT_DB_PATH`` — retention-specific override.
+        3. ``CUTCTX_AUDIT_DB_PATH`` — the proxy-wide audit DB location.
+        4. ``~/.cutctx/audit.db`` — the implicit user-level default.
+
+        The implicit default remains supported for compatibility. Exposing the
+        resolved path makes the target inspectable before anything is deleted;
+        resolution alone does not protect a bare manager from that target.
+        """
+        explicit = (self.config.audit_db_path or "").strip()
+        if explicit:
+            return Path(explicit).expanduser()
+        for env_key in ("CUTCTX_RETENTION_AUDIT_DB_PATH", "CUTCTX_AUDIT_DB_PATH"):
+            value = (os.environ.get(env_key) or "").strip()
+            if value:
+                return Path(value).expanduser()
+        return Path.home() / ".cutctx" / "audit.db"
+
     def _cleanup_audit_log(self) -> int:
-        """Remove old audit log entries and checkpoint WAL."""
-        db_path = (
-            Path(os.environ.get("CUTCTX_AUDIT_DB_PATH", ""))
-            if os.environ.get("CUTCTX_AUDIT_DB_PATH")
-            else Path.home() / ".cutctx" / "audit.db"
-        )
+        """Remove old audit log entries and checkpoint WAL.
+
+        Honours ``config.dry_run``: the same predicate is evaluated as a
+        COUNT and nothing is written.
+        """
+        db_path = self.resolve_audit_db_path()
         if not db_path.exists():
             return 0
 
@@ -262,32 +312,30 @@ class RetentionManager:
 
             conn = sqlite3.connect(str(db_path))
             try:
-                # Delete old entries.
-                #
-                # ``audit_events.timestamp`` is a TEXT column holding ISO-8601
-                # (see cutctx_ee/audit: ``datetime.now(timezone.utc).isoformat()``).
-                # Binding a float epoch cutoff against it never matched a row,
-                # because SQLite orders every numeric value before every text
-                # value regardless of content — retention silently deleted
-                # nothing while reporting success.
-                #
-                # Normalise both sides: compare ISO text against ISO text, and
-                # keep a numeric branch so historical rows that stored an epoch
-                # (and the REAL-typed schema used by older deployments) are
-                # still collected. ``typeof()`` selects the right branch per row.
                 cutoff_epoch = time.time() - (self.config.audit_max_age_days * 86400)
-                cutoff_iso = datetime.fromtimestamp(cutoff_epoch, timezone.utc).isoformat()
-                cursor = conn.execute(
-                    """
-                    DELETE FROM audit_events
-                    WHERE (typeof(timestamp) IN ('integer', 'real')
-                           AND timestamp < :cutoff_epoch)
-                       OR (typeof(timestamp) = 'text'
-                           AND timestamp < :cutoff_iso)
-                    """,
-                    {"cutoff_epoch": cutoff_epoch, "cutoff_iso": cutoff_iso},
-                )
-                deleted = max(0, cursor.rowcount or 0)
+                candidates = []
+                for rowid, raw_timestamp in conn.execute(
+                    "SELECT rowid, timestamp FROM audit_events"
+                ):
+                    timestamp = _parse_retention_timestamp(raw_timestamp)
+                    if timestamp is not None and timestamp < cutoff_epoch:
+                        candidates.append(rowid)
+
+                if self.config.dry_run:
+                    would_delete = len(candidates)
+                    logger.info(
+                        "Retention DRY RUN: would delete %d audit row(s) from %s",
+                        would_delete,
+                        db_path,
+                    )
+                    return would_delete
+
+                deleted = 0
+                for rowid in candidates:
+                    cursor = conn.execute(
+                        "DELETE FROM audit_events WHERE rowid = ?", (rowid,)
+                    )
+                    deleted += max(0, cursor.rowcount or 0)
 
                 # End the delete transaction before maintenance statements.
                 # SQLite rejects VACUUM while a transaction is active.
@@ -324,8 +372,9 @@ class RetentionManager:
             for md_file in memories_dir.glob("*.md"):
                 try:
                     if md_file.stat().st_mtime < cutoff:
-                        md_file.unlink()
                         deleted += 1
+                        if not self.config.dry_run:
+                            md_file.unlink()
                 except OSError:
                     continue
 
@@ -345,13 +394,20 @@ class RetentionManager:
             cutoff = int(time.time() - (self.config.spend_max_age_days * 86400))
             try:
                 with engine.begin() as conn:
-                    result = conn.execute(
-                        text("DELETE FROM spend_events WHERE ts < :cutoff"),
-                        {"cutoff": cutoff},
-                    )
-                    deleted = max(0, int(result.rowcount or 0))
+                    if self.config.dry_run:
+                        result = conn.execute(
+                            text("SELECT COUNT(*) FROM spend_events WHERE ts < :cutoff"),
+                            {"cutoff": cutoff},
+                        )
+                        deleted = int(result.scalar_one() or 0)
+                    else:
+                        result = conn.execute(
+                            text("DELETE FROM spend_events WHERE ts < :cutoff"),
+                            {"cutoff": cutoff},
+                        )
+                        deleted = max(0, int(result.rowcount or 0))
 
-                if deleted > 100 and engine.dialect.name == "sqlite":
+                if not self.config.dry_run and deleted > 100 and engine.dialect.name == "sqlite":
                     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                         conn.execute(text("VACUUM"))
                 return deleted
@@ -375,6 +431,24 @@ def _get_bool(key: str, default: bool) -> bool:
     if val in ("0", "false", "no"):
         return False
     return default
+
+
+def _parse_retention_timestamp(value: Any) -> float | None:
+    """Parse only supported timestamp formats for the retention boundary."""
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        numeric = float(value)
+        return numeric if isfinite(numeric) else None
+    if not isinstance(value, str):
+        return None
+    if _STRICT_NUMERIC_TEXT.fullmatch(value):
+        numeric = float(value)
+        return numeric if isfinite(numeric) else None
+    if not _CANONICAL_UTC_ISO.fullmatch(value):
+        return None
+    try:
+        return datetime.fromisoformat(value).timestamp()
+    except ValueError:
+        return None
 
 
 def _get_int(key: str, default: int) -> int:
