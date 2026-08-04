@@ -228,14 +228,33 @@ def _export_all(
     return [m.to_dict() for m in memories]
 
 
-def _import_memories(store: SQLiteMemoryStore, memories: list[dict[str, Any]]) -> int:
-    """Import memories from a list of dictionaries."""
+def _describe_import_error(entry: Any, error: Exception) -> str:
+    """Return a concise, non-traceback diagnostic for one malformed row."""
+    if not isinstance(entry, dict):
+        return f"expected an object, got {type(entry).__name__}"
+    if isinstance(error, KeyError):
+        return f"missing required field {error.args[0]!r}"
+    for field in ("created_at", "valid_from", "valid_until", "last_accessed"):
+        value = entry.get(field)
+        if value:
+            try:
+                datetime.fromisoformat(value)
+            except (TypeError, ValueError):
+                return f"field {field!r} must be an ISO-8601 datetime"
+    return f"invalid value or type ({type(error).__name__})"
+
+
+def _import_memories(
+    store: SQLiteMemoryStore, memories: list[Any]
+) -> tuple[int, list[str]]:
+    """Import memories and return the count plus actionable row diagnostics."""
     if not memories:
-        return 0
+        return 0, []
 
     imported_count = 0
+    errors: list[str] = []
     with store._get_conn() as conn:
-        for mem_dict in memories:
+        for index, mem_dict in enumerate(memories, start=1):
             try:
                 memory = Memory.from_dict(mem_dict)
                 row = store._memory_to_row(memory)
@@ -262,13 +281,13 @@ def _import_memories(store: SQLiteMemoryStore, memories: list[dict[str, Any]]) -
                     row,
                 )
                 imported_count += 1
-            except (KeyError, ValueError, TypeError):
-                # Skip malformed entries
+            except (AttributeError, KeyError, ValueError, TypeError) as error:
+                errors.append(f"Entry {index}: {_describe_import_error(mem_dict, error)}")
                 continue
 
         conn.commit()
 
-    return imported_count
+    return imported_count, errors
 
 
 @main.group()
@@ -953,11 +972,14 @@ def import_memories(ctx: click.Context, db_path: str, file: str, force: bool) ->
             )
 
         store = get_store(db_path)
-        imported = _import_memories(store, memories_data)
+        imported, import_errors = _import_memories(store, memories_data)
         print_success(f"Imported {imported} memory(ies).")
 
-        if imported < count:
-            print_warning(f"Skipped {count - imported} malformed entries.")
+        if import_errors:
+            print_warning(f"Skipped {len(import_errors)} malformed entries.")
+            for error in import_errors:
+                click.echo(f"  - {error}")
+            click.echo("Required fields: id, content, created_at, valid_from (ISO-8601 datetimes).")
 
     except json.JSONDecodeError as e:
         print_error(f"Invalid JSON file: {e}")
