@@ -562,7 +562,16 @@ def generate(tier: str, org: str, seats: int, expiry: str | None, dry_run: bool)
 
 @license.command("token")
 @click.option("--subject", default=None, help="Seat subject (defaults to the current OS user).")
-@click.option("--ttl-hours", default=72.0, show_default=True, help="Token lifetime in hours.")
+@click.option(
+    "--ttl-hours",
+    # H11d: a negative (or zero) TTL minted a token that was already expired
+    # the moment it was printed — the command reported success and the token
+    # failed at the first request. A lifetime must be strictly positive.
+    type=click.FloatRange(min=0, min_open=True),
+    default=72.0,
+    show_default=True,
+    help="Token lifetime in hours (must be > 0).",
+)
 @click.option("--header", "as_header", is_flag=True, help="Print as an HTTP header line.")
 def license_token(subject: str | None, ttl_hours: float, as_header: bool) -> None:
     """Mint a signed user token for paid provider traffic.

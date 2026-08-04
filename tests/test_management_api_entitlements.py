@@ -353,3 +353,36 @@ def test_sso_can_secure_admin_routes_without_admin_api_key(tmp_path, monkeypatch
             )
             assert valid.status_code == 200
             assert valid.json()["status"] == "no_license"
+
+
+def test_org_delete_route_exists_and_cascades(tmp_path, monkeypatch):
+    """H11a: `cutctx orgs delete` always 404'd — no DELETE /orgs/{id} route.
+
+    OrgStore.delete_org existed, but nothing exposed it, so the CLI's only
+    destructive org operation was unreachable.
+    """
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    with _make_client(tmp_path, monkeypatch, tier="business") as client:
+        headers = {"X-Cutctx-Admin-Key": "secret"}
+
+        created = client.post("/orgs", json={"name": "Acme"}, headers=headers)
+        assert created.status_code == 200, created.text
+        org_id = created.json()["org"]["id"]
+
+        assert client.get("/orgs", headers=headers).json()["orgs"]
+
+        deleted = client.delete(f"/orgs/{org_id}", headers=headers)
+        assert deleted.status_code == 200, deleted.text
+        assert deleted.json() == {"deleted": True, "org_id": org_id}
+
+        assert client.get("/orgs", headers=headers).json() == {"orgs": []}
+        assert client.get(f"/orgs/{org_id}", headers=headers).status_code == 404
+
+
+def test_org_delete_unknown_id_is_404(tmp_path, monkeypatch):
+    monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
+    with _make_client(tmp_path, monkeypatch, tier="business") as client:
+        response = client.delete(
+            "/orgs/does-not-exist", headers={"X-Cutctx-Admin-Key": "secret"}
+        )
+        assert response.status_code == 404

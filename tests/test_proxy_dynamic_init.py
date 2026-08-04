@@ -468,3 +468,134 @@ def test_dashboard_orchestrator_toggle_loads_codex_mini_preset() -> None:
         route.source == "gpt-5.6-terra" and route.target == "gpt-5.4-mini"
         for route in proxy._model_router.config.routes
     )
+
+
+# ---------------------------------------------------------------------------
+# H9 — the legacy flags endpoint must never claim success for a discarded write
+# ---------------------------------------------------------------------------
+
+
+def test_legacy_config_flags_reports_unknown_keys() -> None:
+    """H9: unrecognised keys were silently dropped and reported as success.
+
+    The dashboard's patchDashboardConfig only falls through to another
+    endpoint when the response names unknown keys, so a missing `unknown`
+    field made a total no-op indistinguishable from a successful write.
+    """
+    app = create_app(ProxyConfig(admin_api_key="test_admin", optimize=False))
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/admin/config/flags",
+            json={"not_a_real_flag": True, "another_bogus_one": False},
+            headers={"x-cutctx-admin-key": "test_admin"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "unknown" in body, "legacy endpoint still omits the `unknown` field"
+    assert set(body["unknown"]) == {"not_a_real_flag", "another_bogus_one"}
+    assert body["status"] != "success", "a fully discarded write must not report success"
+
+
+def test_legacy_config_flags_always_includes_unknown_field() -> None:
+    """Even a fully successful write must carry the field, so callers can rely on it."""
+    app = create_app(ProxyConfig(admin_api_key="test_admin", optimize=False))
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/admin/config/flags",
+            json={"ccr": True},
+            headers={"x-cutctx-admin-key": "test_admin"},
+        )
+
+    body = response.json()
+    assert body["unknown"] == {}
+    assert body["status"] == "success"
+
+
+def test_legacy_config_flags_accepts_canonical_keys() -> None:
+    """H9: canonical keys were ignored wholesale by the legacy endpoint."""
+    config = ProxyConfig(
+        admin_api_key="test_admin", optimize=False, ccr_context_tracking=False
+    )
+    app = create_app(config)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/admin/config/flags",
+            json={"ccr_context_tracking": True},
+            headers={"x-cutctx-admin-key": "test_admin"},
+        )
+
+    body = response.json()
+    assert body["unknown"] == {}
+    assert config.ccr_context_tracking is True
+    assert body["config"]["ccr"] is True
+
+
+def test_legacy_config_flags_applies_canonical_pipeline_flag() -> None:
+    """The 7 canonical pipeline flags were invisible to this endpoint."""
+    from cutctx.proxy.intelligence_pipeline import get_runtime_flag
+
+    app = create_app(ProxyConfig(admin_api_key="test_admin", optimize=False))
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/admin/config/flags",
+            json={"dedup_enabled": True},
+            headers={"x-cutctx-admin-key": "test_admin"},
+        )
+
+    body = response.json()
+    assert body["unknown"] == {}
+    assert body["applied_live"]["dedup_enabled"] == {"enabled": True}
+    assert get_runtime_flag("dedup_enabled") is True
+
+
+def test_legacy_config_flags_partial_write_is_not_success() -> None:
+    app = create_app(ProxyConfig(admin_api_key="test_admin", optimize=False))
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/admin/config/flags",
+            json={"ccr": True, "totally_bogus": True},
+            headers={"x-cutctx-admin-key": "test_admin"},
+        )
+
+    body = response.json()
+    assert body["status"] == "partial"
+    assert set(body["unknown"]) == {"totally_bogus"}
+
+
+def test_legacy_config_flags_get_surfaces_canonical_flags() -> None:
+    """Related (Medium): the GET exposed only 7 legacy keys."""
+    app = create_app(ProxyConfig(admin_api_key="test_admin", optimize=False))
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/admin/config/flags",
+            headers={"x-cutctx-admin-key": "test_admin"},
+        )
+
+    body = response.json()
+    for canonical in (
+        "task_aware_enabled",
+        "dedup_enabled",
+        "context_budget_enabled",
+        "profiles_enabled",
+        "shared_context_enabled",
+        "cost_forecast_enabled",
+        "autopilot_enabled",
+        "cache_enabled",
+        "ccr_context_tracking",
+        "episodic_memory_enabled",
+        "firewall_enabled",
+        "rate_limit_enabled",
+        "text_compression_engine_enabled",
+        "log_template_mining_enabled",
+        "audit_enabled",
+    ):
+        assert canonical in body, f"legacy GET is still blind to {canonical}"
+    # Legacy names retained for backwards compatibility.
+    assert "rate_limiter" in body

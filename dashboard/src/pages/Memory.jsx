@@ -18,7 +18,21 @@ export default function Memory({ searchQuery = '' }) {
       try {
         let data = [];
         try {
-          data = await fetchDashboardJson('/v1/memory/query?limit=20');
+          // Tenant scoping (audit C4) made the scope explicit: /v1/memory/query
+          // is never an implicit wildcard. A principal bound to one org needs
+          // no parameter, but the dashboard's admin key carries no org binding,
+          // so the unscoped call now returns 400. Ask for the principal's own
+          // scope first, then retry with the explicit cross-org parameter —
+          // that covers both an org-bound operator and the root admin key.
+          try {
+            data = await fetchDashboardJson('/v1/memory/query?limit=20');
+          } catch (scopeErr) {
+            if (scopeErr.message && scopeErr.message.includes('400')) {
+              data = await fetchDashboardJson('/v1/memory/query?limit=20&all_orgs=true');
+            } else {
+              throw scopeErr;
+            }
+          }
         } catch (fetchErr) {
           if (fetchErr.message && (fetchErr.message.includes('404') || fetchErr.message.includes('501') || fetchErr.message.includes('503'))) {
             data = [];

@@ -6,6 +6,7 @@ import os
 import sqlite3
 import tempfile
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -153,7 +154,128 @@ class TestRetentionManager:
             deleted = mgr._cleanup_audit_log()
             assert deleted == 1
 
+    def test_cleanup_audit_deletes_iso_timestamp_rows(self, tmp_path, monkeypatch):
+        """H7 regression: production schema stores ``timestamp`` as ISO-8601 TEXT.
+
+        The cleanup used to bind a float epoch cutoff against that TEXT column.
+        SQLite sorts every numeric value before every text value, so the DELETE
+        matched nothing while ``run_cleanup`` still reported success with
+        ``errors: 0``. This test builds the *real* audit schema (see
+        ``cutctx_ee/audit/__init__.py::_ensure_schema``) and asserts old rows
+        actually go away.
+        """
+        from cutctx_ee.audit import AuditEvent, AuditLogger
+
+        db_path = tmp_path / "audit-iso.db"
+        monkeypatch.setenv("CUTCTX_AUDIT_DB_PATH", str(db_path))
+        audit = AuditLogger(db_path=str(db_path))
+        old_iso = datetime.fromtimestamp(
+            time.time() - (100 * 86400), timezone.utc
+        ).isoformat()
+        recent_iso = datetime.fromtimestamp(
+            time.time() - (10 * 86400), timezone.utc
+        ).isoformat()
+        audit.log(AuditEvent(action="test", actor="user", timestamp=old_iso, event_id="old1"))
+        audit.log(AuditEvent(action="test", actor="user", timestamp=recent_iso, event_id="new1"))
+        audit.close()
+
+        # Sanity-check we really are exercising the TEXT column, not REAL.
+        probe = sqlite3.connect(str(db_path))
+        try:
+            types = {
+                row[0] for row in probe.execute("SELECT typeof(timestamp) FROM audit_events")
+            }
+        finally:
+            probe.close()
+        assert types == {"text"}, f"expected ISO TEXT timestamps, got {types}"
+
+        manager = RetentionManager(
+            RetentionConfig(
+                ccr_enabled=False,
+                audit_enabled=True,
+                audit_max_age_days=90,
+                spend_enabled=False,
+                episodic_enabled=False,
+            )
+        )
+        assert manager._cleanup_audit_log() == 1
+
+        remaining = sqlite3.connect(str(db_path))
+        try:
+            ids = [row[0] for row in remaining.execute("SELECT event_id FROM audit_events")]
+        finally:
+            remaining.close()
+        assert ids == ["new1"]
+
+    def test_cleanup_audit_handles_mixed_epoch_and_iso_rows(self, tmp_path, monkeypatch):
+        """H7: legacy rows that stored a numeric epoch must still be collected."""
+        db_path = tmp_path / "audit-mixed.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("CREATE TABLE audit_events (event_id TEXT PRIMARY KEY, timestamp)")
+        old_epoch = time.time() - (100 * 86400)
+        old_iso = datetime.fromtimestamp(old_epoch, timezone.utc).isoformat()
+        recent_epoch = time.time() - (10 * 86400)
+        recent_iso = datetime.fromtimestamp(recent_epoch, timezone.utc).isoformat()
+        conn.executemany(
+            "INSERT INTO audit_events VALUES (?, ?)",
+            [
+                ("old-epoch", old_epoch),
+                ("old-iso", old_iso),
+                ("new-epoch", recent_epoch),
+                ("new-iso", recent_iso),
+            ],
+        )
+        conn.commit()
+        conn.close()
+
+        monkeypatch.setenv("CUTCTX_AUDIT_DB_PATH", str(db_path))
+        manager = RetentionManager(
+            RetentionConfig(
+                ccr_enabled=False,
+                audit_enabled=True,
+                audit_max_age_days=90,
+                spend_enabled=False,
+                episodic_enabled=False,
+            )
+        )
+        assert manager._cleanup_audit_log() == 2
+
+        remaining = sqlite3.connect(str(db_path))
+        try:
+            ids = sorted(row[0] for row in remaining.execute("SELECT event_id FROM audit_events"))
+        finally:
+            remaining.close()
+        assert ids == ["new-epoch", "new-iso"]
+
+    @pytest.mark.asyncio
+    async def test_run_cleanup_reports_failures_instead_of_silent_success(self, monkeypatch):
+        """H7: a cleanup task that raises must bump ``errors``, not report success."""
+        manager = RetentionManager(
+            RetentionConfig(
+                ccr_enabled=False,
+                audit_enabled=True,
+                spend_enabled=False,
+                episodic_enabled=False,
+            )
+        )
+
+        def _boom(*_args, **_kwargs):
+            raise sqlite3.OperationalError("disk I/O error")
+
+        monkeypatch.setattr(sqlite3, "connect", _boom)
+        monkeypatch.setattr(Path, "exists", lambda self: True)
+
+        await manager.run_cleanup()
+        stats = manager.get_stats()
+        assert stats["errors"] == 1
+        assert stats["failed_categories"] == {"audit": 1}
+
     def test_cleanup_audit_bulk_delete_vacuums_after_commit(self, tmp_path, monkeypatch):
+        # NOTE: this fixture declares ``timestamp REAL``, which is NOT the
+        # production schema (that column is TEXT/ISO-8601). It is retained
+        # because it now legitimately covers the numeric-epoch branch of the
+        # H7 fix; the ISO coverage lives in
+        # ``test_cleanup_audit_deletes_iso_timestamp_rows`` above.
         db_path = tmp_path / "audit-bulk.db"
         conn = sqlite3.connect(str(db_path))
         conn.execute("CREATE TABLE audit_events (id TEXT PRIMARY KEY, timestamp REAL)")

@@ -67,7 +67,7 @@ def list_events(
             if detail:
                 click.echo(f"    {detail}")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
 
 
 @audit.command("export")
@@ -101,7 +101,7 @@ def export_events(
         else:
             click.echo(content)
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
 
 
 @audit.command("stats")
@@ -136,4 +136,4 @@ def audit_stats(admin_key: str | None, as_json: bool = False) -> None:
             for a, count in result["by_action"].items():
                 click.echo(f"  {a}: {count}")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e

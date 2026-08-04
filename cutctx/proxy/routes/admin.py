@@ -685,6 +685,36 @@ def create_admin_router(
             raise HTTPException(status_code=404, detail="Organization not found")
         return {"org": hierarchy}
 
+    @router.delete(
+        "/orgs/{org_id}",
+        dependencies=[
+            _Dep(require_admin_auth),
+            _Dep(require_rbac_permission("orgs.write")),
+            _Dep(require_entitlement("workspace_model")),
+        ],
+    )
+    async def delete_org(org_id: str, request: Request):
+        """Delete an organization and cascade to its workspaces/projects/agents.
+
+        H11a: ``cutctx orgs delete`` always 404'd because no route existed,
+        even though ``OrgStore.delete_org`` did. The CLI's only destructive
+        org operation was unreachable.
+        """
+        if not _proxy.org_store:
+            raise HTTPException(status_code=503, detail="Org store not available")
+        if not _proxy.org_store.get_org(org_id):
+            raise HTTPException(status_code=404, detail="Organization not found")
+        deleted = _proxy.org_store.delete_org(org_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        await _audit_admin_action(
+            _proxy,
+            request,
+            action="data.deleted",
+            detail={"action": "org_deleted", "org_id": org_id},
+        )
+        return {"deleted": True, "org_id": org_id}
+
     @router.post(
         "/orgs/{org_id}/workspaces",
         dependencies=[

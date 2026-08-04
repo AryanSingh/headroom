@@ -31,6 +31,7 @@ import os
 import sqlite3
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -103,7 +104,17 @@ class RetentionManager:
             "last_cleanup": None,
             "cleanup_count": 0,
             "errors": 0,
+            # Per-category failure counters. Without these a cleanup whose
+            # every task raised still reported ``errors: 0`` and four zero
+            # deletion counts, which is indistinguishable from "nothing to do".
+            "failed_categories": {},
         }
+
+    def _record_failure(self, category: str) -> None:
+        """Record that a cleanup category raised, so stats stop lying."""
+        self._stats["errors"] += 1
+        failures = self._stats["failed_categories"]
+        failures[category] = failures.get(category, 0) + 1
 
     @property
     def enabled(self) -> bool:
@@ -225,7 +236,8 @@ class RetentionManager:
             store.truncate(max_entries=self.config.ccr_max_entries)
             return deleted
         except Exception:
-            logger.debug("CCR cleanup failed", exc_info=True)
+            self._record_failure("ccr")
+            logger.warning("CCR retention cleanup failed", exc_info=True)
             return 0
 
     def _cleanup_audit_log(self) -> int:
@@ -250,13 +262,32 @@ class RetentionManager:
 
             conn = sqlite3.connect(str(db_path))
             try:
-                # Delete old entries
-                cutoff = time.time() - (self.config.audit_max_age_days * 86400)
+                # Delete old entries.
+                #
+                # ``audit_events.timestamp`` is a TEXT column holding ISO-8601
+                # (see cutctx_ee/audit: ``datetime.now(timezone.utc).isoformat()``).
+                # Binding a float epoch cutoff against it never matched a row,
+                # because SQLite orders every numeric value before every text
+                # value regardless of content — retention silently deleted
+                # nothing while reporting success.
+                #
+                # Normalise both sides: compare ISO text against ISO text, and
+                # keep a numeric branch so historical rows that stored an epoch
+                # (and the REAL-typed schema used by older deployments) are
+                # still collected. ``typeof()`` selects the right branch per row.
+                cutoff_epoch = time.time() - (self.config.audit_max_age_days * 86400)
+                cutoff_iso = datetime.fromtimestamp(cutoff_epoch, timezone.utc).isoformat()
                 cursor = conn.execute(
-                    "DELETE FROM audit_events WHERE timestamp < ?",
-                    (cutoff,),
+                    """
+                    DELETE FROM audit_events
+                    WHERE (typeof(timestamp) IN ('integer', 'real')
+                           AND timestamp < :cutoff_epoch)
+                       OR (typeof(timestamp) = 'text'
+                           AND timestamp < :cutoff_iso)
+                    """,
+                    {"cutoff_epoch": cutoff_epoch, "cutoff_iso": cutoff_iso},
                 )
-                deleted = cursor.rowcount
+                deleted = max(0, cursor.rowcount or 0)
 
                 # End the delete transaction before maintenance statements.
                 # SQLite rejects VACUUM while a transaction is active.
@@ -276,7 +307,8 @@ class RetentionManager:
             finally:
                 conn.close()
         except Exception:
-            logger.debug("Audit cleanup failed", exc_info=True)
+            self._record_failure("audit")
+            logger.warning("Audit retention cleanup failed", exc_info=True)
             return 0
 
     def _cleanup_episodic_memories(self) -> int:
@@ -299,7 +331,8 @@ class RetentionManager:
 
             return deleted
         except Exception:
-            logger.debug("Episodic memory cleanup failed", exc_info=True)
+            self._record_failure("episodic")
+            logger.warning("Episodic memory retention cleanup failed", exc_info=True)
             return 0
 
     def _cleanup_spend_ledger(self) -> int:
@@ -325,7 +358,8 @@ class RetentionManager:
             finally:
                 engine.dispose()
         except Exception:
-            logger.debug("Spend ledger cleanup failed", exc_info=True)
+            self._record_failure("spend")
+            logger.warning("Spend ledger retention cleanup failed", exc_info=True)
             return 0
 
 

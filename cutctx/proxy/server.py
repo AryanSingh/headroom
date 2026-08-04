@@ -4793,6 +4793,26 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             preset=getattr(config, "model_routing_preset", None),
             route_count=len(getattr(router_config, "routes", []) or []),
         )
+        # H9 (related, Medium): this response exposed only the 7 legacy
+        # booleans and was blind to the canonical pipeline flags, so the
+        # dashboard could not see — let alone render — most live toggles.
+        # Surface the full canonical set alongside the legacy names, which
+        # are retained for backwards compatibility.
+        from cutctx.proxy.intelligence_pipeline import get_runtime_flag
+
+        canonical_live_flags = {}
+        for flag_key in (
+            "task_aware_enabled",
+            "dedup_enabled",
+            "context_budget_enabled",
+            "profiles_enabled",
+            "shared_context_enabled",
+            "cost_forecast_enabled",
+            "autopilot_enabled",
+        ):
+            config_default = bool(getattr(config, flag_key, False))
+            canonical_live_flags[flag_key] = bool(get_runtime_flag(flag_key, config_default))
+
         return {
             "cache": getattr(config, "cache_enabled", False),
             "ccr": getattr(config, "ccr_context_tracking", False)
@@ -4804,6 +4824,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "orchestrator": getattr(config, "orchestrator_enabled", False),
             "orchestrator_mode": orchestrator_mode,
             "desired_overrides": load_desired_feature_flags(),
+            # Canonical spellings — the vocabulary /config/flags speaks.
+            **canonical_live_flags,
+            "cache_enabled": bool(getattr(config, "cache_enabled", False)),
+            "ccr_context_tracking": bool(getattr(config, "ccr_context_tracking", False)),
+            "episodic_memory_enabled": bool(getattr(config, "episodic_memory_enabled", False)),
+            "firewall_enabled": bool(getattr(config, "firewall_enabled", False)),
+            "rate_limit_enabled": bool(getattr(config, "rate_limit_enabled", False)),
+            "text_compression_engine_enabled": bool(getattr(config, "use_llmlingua", False)),
+            "log_template_mining_enabled": bool(getattr(config, "drain3_enabled", False)),
+            "audit_enabled": bool(getattr(config, "audit_enabled", False)),
         }
 
     @app.post("/admin/config/flags")
@@ -4823,9 +4853,59 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "reversible_code",
             "orchestrator",
         }
+
+        # H9: this endpoint spoke only the legacy vocabulary. Every canonical
+        # key (the vocabulary /config/flags and the dashboard use) was silently
+        # dropped, yet the response still said {"status": "success"} with an
+        # empty applied_live and NO "unknown" field. Because
+        # patchDashboardConfig only falls through when the response reports
+        # unknown keys, a fallback hit was an undetectable silent no-op
+        # reported as success.
+        #
+        # Two changes: accept the canonical vocabulary by folding it onto the
+        # legacy keys, and report anything still unrecognised in "unknown".
+        canonical_to_legacy = {
+            "cache_enabled": "cache",
+            "ccr_context_tracking": "ccr",
+            "episodic_memory_enabled": "memory",
+            "firewall_enabled": "firewall",
+            "rate_limit_enabled": "rate_limiter",
+        }
+        # Canonical live-toggle flags the intelligence pipeline owns. They have
+        # no legacy spelling, so they are applied directly rather than folded.
+        runtime_flag_keys = {
+            "task_aware_enabled",
+            "dedup_enabled",
+            "context_budget_enabled",
+            "profiles_enabled",
+            "shared_context_enabled",
+            "cost_forecast_enabled",
+            "autopilot_enabled",
+        }
+
+        unknown: dict[str, str] = {}
+        normalized_from: dict[str, str] = {}
+        normalized_payload: dict[str, Any] = {}
+        runtime_updates: dict[str, bool] = {}
+        for raw_key, raw_value in payload.items():
+            if raw_key in canonical_to_legacy:
+                legacy_key = canonical_to_legacy[raw_key]
+                normalized_payload[legacy_key] = raw_value
+                normalized_from[legacy_key] = raw_key
+            elif raw_key in boolean_keys or raw_key == "orchestrator_mode":
+                normalized_payload[raw_key] = raw_value
+            elif raw_key in runtime_flag_keys:
+                if not isinstance(raw_value, bool):
+                    raise HTTPException(status_code=422, detail=f"{raw_key} must be boolean")
+                runtime_updates[raw_key] = raw_value
+            else:
+                unknown[raw_key] = "unknown flag"
+        payload = normalized_payload
+
         for key in boolean_keys.intersection(payload):
             if not isinstance(payload[key], bool):
-                raise HTTPException(status_code=422, detail=f"{key} must be boolean")
+                detail_key = normalized_from.get(key, key)
+                raise HTTPException(status_code=422, detail=f"{detail_key} must be boolean")
         if "orchestrator_mode" in payload and not isinstance(payload["orchestrator_mode"], str):
             raise HTTPException(status_code=422, detail="orchestrator_mode must be a string")
 
@@ -4941,6 +5021,17 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
         if "orchestrator" in payload:
             _apply_orchestrator_mode("auto" if bool(payload["orchestrator"]) else "off")
 
+        # H9: apply the canonical pipeline flags this endpoint used to discard.
+        applied_runtime: dict[str, Any] = {}
+        if runtime_updates:
+            from cutctx.proxy.intelligence_pipeline import set_runtime_flag
+
+            for flag_key, flag_value in runtime_updates.items():
+                set_runtime_flag(flag_key, flag_value)
+                if hasattr(config, flag_key):
+                    setattr(config, flag_key, flag_value)
+                applied_runtime[flag_key] = {"enabled": flag_value}
+
         model_router = getattr(proxy, "_model_router", None)
         router_config = getattr(model_router, "config", None)
         orchestrator_mode = model_routing_mode_for_state(
@@ -4962,8 +5053,25 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     "current": bool(getattr(config, canonical_key)),
                     "desired": bool(payload[legacy_key]),
                 }
+        applied_live: dict[str, Any] = dict(applied_runtime)
+        if reversible_code_routers_updated is not None:
+            applied_live["reversible_code"] = {
+                "enabled": config.enable_reversible_code,
+                "routers_updated": reversible_code_routers_updated,
+            }
+        for legacy_key, source_key in normalized_from.items():
+            if legacy_key in payload:
+                applied_live[source_key] = {"normalized_to": legacy_key}
+
         return {
-            "status": "success",
+            # H9: never claim unqualified success for a write that discarded
+            # keys. "partial" when some keys were applied and some dropped,
+            # "rejected" when nothing was recognised at all.
+            "status": (
+                "success"
+                if not unknown
+                else ("rejected" if not payload and not runtime_updates else "partial")
+            ),
             "config": {
                 "cache": bool(getattr(config, "cache_enabled", False)),
                 "ccr": bool(getattr(config, "ccr_context_tracking", False)),
@@ -4976,16 +5084,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             },
             "payload": payload,
             "restart_required": restart_required,
-            "applied_live": (
-                {
-                    "reversible_code": {
-                        "enabled": config.enable_reversible_code,
-                        "routers_updated": reversible_code_routers_updated,
-                    }
-                }
-                if reversible_code_routers_updated is not None
-                else {}
-            ),
+            "applied_live": applied_live,
+            # Always present, even when empty: the dashboard's fallback logic
+            # reads Object.keys(data?.unknown || {}) and treated a missing
+            # field as "everything applied".
+            "unknown": unknown,
         }
 
     try:

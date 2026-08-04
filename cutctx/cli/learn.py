@@ -231,7 +231,7 @@ def learn(
     try:
         resolved_model = model or _detect_default_model()
     except RuntimeError as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
         raise SystemExit(1) from None
 
     # Determine which agents to scan

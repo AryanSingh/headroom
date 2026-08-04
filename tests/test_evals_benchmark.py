@@ -1387,7 +1387,13 @@ class TestVerifyReport:
 
         runner = CliRunner()
         result = runner.invoke(main, ["verify", "--format", "json"])
-        assert result.exit_code == 0, result.output
+        # H12 CORRECTION: this previously asserted ``exit_code == 0`` for a
+        # report whose verdict is FAIL, which is precisely the defect — it
+        # locked in a "CI-friendly" gate that could not fail a build unless
+        # the caller remembered --ci. A FAIL verdict must exit non-zero
+        # regardless of the flag. The report is still written to stdout so
+        # --format json remains machine-readable on failure.
+        assert result.exit_code == 1, result.output
         data = json_module.loads(result.output)
         assert data["git_sha"] == "abc123"
         assert data["summary"]["tokens_saved"] == 0

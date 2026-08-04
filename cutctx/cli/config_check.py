@@ -31,7 +31,16 @@ def _check_env(var: str, required: bool = False, default: str | None = None) -> 
 
 
 @click.command("config-check")
-@click.option("--port", default=8787, help="Port to check")
+@click.option(
+    "--port",
+    # H11e: an out-of-range port reached socket code and raised an unhandled
+    # OverflowError traceback. Reject it at parse time with a clear message.
+    # 0 is allowed: it is the standard "let the OS pick a free port" value and
+    # existing callers/tests rely on it.
+    type=click.IntRange(0, 65535),
+    default=8787,
+    help="Port to check (0-65535; 0 lets the OS choose)",
+)
 @click.option("--host", default=None, envvar="CUTCTX_HOST", help="Host to validate")
 @click.option("--production", is_flag=True, help="Treat warnings as production launch blockers")
 @click.option("--format", "output_format", type=click.Choice(["text", "json"]), default="text")

@@ -21,13 +21,37 @@ but the label is now accurate for any future Unicode payload).
 
 from __future__ import annotations
 
+import io
 import json
 import logging
+import os
 import sys
 from collections import deque
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
+
+from cutctx.security.redaction import redact_structure, register_secret_value
+
+#: Env vars whose values are credentials with no guessable shape. Registered
+#: for exact-match redaction so they can never be written to the JSONL log.
+_SECRET_ENV_VARS = (
+    "CUTCTX_ADMIN_API_KEY",
+    "CUTCTX_CLIENT_API_KEY",
+    "CUTCTX_API_KEY",
+    "CUTCTX_PROXY_API_KEY",
+    "CUTCTX_LICENSE_KEY",
+    "CUTCTX_LICENSE_HMAC_SECRET",
+    "CUTCTX_AUDIT_SECRET_KEY",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+)
+
+
+def _register_known_secrets_from_env() -> None:
+    """Register literal credential values so every sink redacts them."""
+    for name in _SECRET_ENV_VARS:
+        register_secret_value(os.environ.get(name))
 from threading import Lock
 from typing import TYPE_CHECKING, Any
 
@@ -255,10 +279,16 @@ class RequestLogger:
     """
 
     MAX_LOG_ENTRIES = 10_000
+    #: H6: cap the on-disk JSONL. The audited file had reached 445 MB.
+    DEFAULT_MAX_LOG_BYTES = 256 * 1024 * 1024
 
     def __init__(self, log_file: str | None = None, log_full_messages: bool = False):
         self.log_file = Path(log_file) if log_file else None
         self.log_full_messages = log_full_messages
+        # H6: the admin/client/licence keys are operator-chosen and have no
+        # guessable shape, so register their literal values for exact-match
+        # redaction. Shape-based regexes alone can never catch them.
+        _register_known_secrets_from_env()
         # Use deque with maxlen for automatic FIFO eviction
         self._logs: deque[RequestLog] = deque(maxlen=self.MAX_LOG_ENTRIES)
         # When a file write fails (read-only fs, permissions, disk full) we
@@ -271,7 +301,13 @@ class RequestLogger:
 
         if self.log_file:
             try:
-                self.log_file.parent.mkdir(parents=True, exist_ok=True)
+                # H6: 0700 on the log directory — it holds request history
+                # and, when log_full_messages is on, prompt content.
+                self.log_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                try:
+                    os.chmod(self.log_file.parent, 0o700)
+                except OSError:
+                    pass  # network mounts / Windows may reject chmod
             except OSError as e:
                 logger.warning(
                     "Cannot create log directory %s: %s — logging to memory only",
@@ -325,6 +361,70 @@ class RequestLogger:
         except OSError:
             pass  # file may not exist yet on a brand-new install
 
+    @staticmethod
+    def _open_private_append(path: Path) -> io.TextIOWrapper:
+        """Open the JSONL log for append with owner-only (0600) permissions.
+
+        H6: the request history contains request metadata and (when
+        ``log_full_messages`` is on) prompt content, yet it was created at
+        0644 — world-readable on a shared host.
+
+        ``os.open``'s mode argument only applies when the file is *created*,
+        so an already-existing 0644 log would keep its permissions forever.
+        We therefore ``fchmod`` the descriptor after opening (same reasoning
+        as ``cutctx/cli/wrap.py:_restrict_open_file_to_owner``). fchmod acts
+        on the descriptor, so there is no TOCTOU window.
+        """
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+        except OSError:
+            # Some filesystems (network mounts, Windows) reject fchmod.
+            # Losing the tightening must not lose the log line.
+            pass
+        return os.fdopen(fd, "a", encoding="utf-8")
+
+    def _rotate_if_oversized(self) -> None:
+        """Cap the JSONL log, rotating to ``<name>.1`` when it grows too big.
+
+        H6: the audited file had reached 445 MB with no cap. Keeps one
+        generation so recent history survives a rotation. Configurable via
+        ``CUTCTX_REQUEST_LOG_MAX_BYTES`` (0 disables rotation).
+        """
+        if not self.log_file:
+            return
+        try:
+            max_bytes = int(
+                os.environ.get("CUTCTX_REQUEST_LOG_MAX_BYTES", self.DEFAULT_MAX_LOG_BYTES)
+            )
+        except (TypeError, ValueError):
+            max_bytes = self.DEFAULT_MAX_LOG_BYTES
+        if max_bytes <= 0:
+            return
+        # Callers (and tests) sometimes assign ``log_file`` directly as a str,
+        # bypassing the Path coercion in __init__. open() accepted that, so
+        # this must too.
+        log_path = Path(self.log_file)
+        try:
+            if log_path.stat().st_size < max_bytes:
+                return
+            rotated = log_path.with_suffix(log_path.suffix + ".1")
+            os.replace(log_path, rotated)
+            try:
+                os.chmod(rotated, 0o600)
+            except OSError:
+                pass
+            logger.info(
+                "Rotated request history %s → %s (exceeded %d bytes)",
+                self.log_file,
+                rotated,
+                max_bytes,
+            )
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            logger.warning("Could not rotate request history %s: %s", self.log_file, exc)
+
     def log(self, entry: RequestLog):
         """Log a request. Oldest entries are automatically removed when limit reached.
 
@@ -361,12 +461,18 @@ class RequestLogger:
 
         if self.log_file and not self._file_write_degraded:
             try:
-                with open(self.log_file, "a") as f:
-                    log_dict = asdict(entry)
-                    if not self.log_full_messages:
-                        log_dict.pop("request_messages", None)
-                        log_dict.pop("compressed_messages", None)
-                        log_dict.pop("response_content", None)
+                log_dict = asdict(entry)
+                if not self.log_full_messages:
+                    log_dict.pop("request_messages", None)
+                    log_dict.pop("compressed_messages", None)
+                    log_dict.pop("response_content", None)
+                # H6: never write a credential to disk. Covers the admin key,
+                # client/licence/provider keys and Authorization headers,
+                # wherever they appear in the record (tags, headers, errors,
+                # message bodies).
+                log_dict = redact_structure(log_dict)
+                self._rotate_if_oversized()
+                with self._open_private_append(self.log_file) as f:
                     f.write(json.dumps(log_dict) + "\n")
             except OSError as exc:
                 # Graceful degradation: memory-only logging continues, but flag

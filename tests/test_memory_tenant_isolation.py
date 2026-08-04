@@ -213,3 +213,48 @@ class TestMemoryReviewActionValidation:
         assert default_items == []
         assert [item["id"] for item in explicit_items] == ["mem-a"]
         assert explicit_items[0]["review_state"] == "DEPRECATED"
+
+
+class TestDashboardMemoryPageContract:
+    """R5: the dashboard Memory page broke when C4 landed.
+
+    ``dashboard/src/pages/Memory.jsx`` queried ``/v1/memory/query`` with no
+    scope. That is now a 400 for the dashboard's admin key (which is bound to
+    no org), so the page rendered an error instead of listing memories. The
+    page now retries with the explicit cross-org parameter; these tests pin
+    both halves of the sequence it performs.
+    """
+
+    def test_unscoped_admin_query_is_the_400_that_broke_the_page(self, store) -> None:
+        with TestClient(_build_app(principal_org=None)) as client:
+            response = client.get("/v1/memory/query?limit=20")
+
+        assert response.status_code == 400, response.text
+        assert "org_id is required" in response.text
+
+    def test_dashboard_fallback_all_orgs_lists_memories(self, store) -> None:
+        """The exact retry URL Memory.jsx now issues must succeed."""
+        with TestClient(_build_app(principal_org=None)) as client:
+            response = client.get("/v1/memory/query?limit=20&all_orgs=true")
+
+        assert response.status_code == 200, response.text
+        items = response.json()["items"]
+        assert {item["org_id"] for item in items} == {ORG_A, ORG_B}
+
+    def test_org_bound_operator_still_uses_the_first_call(self, store) -> None:
+        """An org-bound principal must not need the cross-org fallback."""
+        with TestClient(_build_app(principal_org=ORG_A)) as client:
+            response = client.get("/v1/memory/query?limit=20")
+
+        assert response.status_code == 200, response.text
+        assert {item["org_id"] for item in response.json()["items"]} == {ORG_A}
+
+
+def test_memory_page_issues_the_cross_org_fallback() -> None:
+    """Guard the client half of R5 in the same commit as the contract."""
+    from pathlib import Path
+
+    source = Path(__file__).resolve().parents[1] / "dashboard/src/pages/Memory.jsx"
+    text = source.read_text(encoding="utf-8")
+    assert "all_orgs=true" in text, "Memory.jsx no longer sends the cross-org fallback"
+    assert "includes('400')" in text, "Memory.jsx no longer detects the 400 scope error"

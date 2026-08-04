@@ -39,7 +39,7 @@ def list_roles(admin_key: str | None) -> None:
         for user_id, role in assignments.items():
             click.echo(f"  {user_id}: {role}")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
 
 
 @rbac.command("assign")
@@ -63,7 +63,7 @@ def assign_role(user_id: str, role: str, admin_key: str | None) -> None:
         r.raise_for_status()
         click.echo(f"Assigned role '{role}' to user '{user_id}'")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
 
 
 @rbac.command("revoke")
@@ -81,4 +81,4 @@ def revoke_role(user_id: str, admin_key: str | None) -> None:
         r.raise_for_status()
         click.echo(f"Revoked role for user '{user_id}'")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
