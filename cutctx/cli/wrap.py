@@ -3511,6 +3511,7 @@ def codex(
     # call repeatedly. Crucially this must run before MCP install, which
     # writes its marker block to the same file.
     _codex_config_file, _codex_backup_file = _codex_config_paths()
+    _codex_config_file.parent.mkdir(parents=True, exist_ok=True)
     _snapshot_codex_config_if_unwrapped(_codex_config_file, _codex_backup_file)
 
     # Setup CLI context tool for Codex.
