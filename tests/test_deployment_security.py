@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from cutctx.proxy.deployment_security import (
@@ -132,6 +134,36 @@ def test_effective_license_key_reads_activated_local_store(tmp_path, monkeypatch
     )
 
     assert effective_license_key(ProxyConfig(license_key=None)) == "cutctx_local_enterprise_key"
+
+
+@pytest.mark.uses_local_license
+def test_effective_license_key_prefers_config_then_env_then_keyring(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from cutctx.auth.operator_credentials import CUTCTX_LICENSE_ACCOUNT
+    from cutctx.proxy import deployment_security
+
+    key_file = tmp_path / "license_key.txt"
+    key_file.write_text("file-license\n", encoding="utf-8")
+    monkeypatch.setattr("cutctx.paths.workspace_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "cutctx.paths.license_cache_path",
+        lambda: tmp_path / "license_cache.json",
+    )
+    monkeypatch.setattr(
+        deployment_security,
+        "read_operator_credential",
+        lambda account: ("keyring-license" if account == CUTCTX_LICENSE_ACCOUNT else None),
+    )
+
+    config = SimpleNamespace(license_key="config-license")
+    assert deployment_security.effective_license_key(config) == "config-license"
+    config.license_key = None
+    monkeypatch.setenv("CUTCTX_LICENSE_KEY", "env-license")
+    assert deployment_security.effective_license_key(config) == "env-license"
+    monkeypatch.delenv("CUTCTX_LICENSE_KEY")
+    assert deployment_security.effective_license_key(config) == "keyring-license"
 
 
 @pytest.mark.uses_local_license

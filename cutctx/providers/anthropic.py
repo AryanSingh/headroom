@@ -281,14 +281,23 @@ class AnthropicTokenCounter(TokenCounter):
             return 0
 
         if self._encoding:
-            # tiktoken with ~1.1x multiplier for Claude
-            try:
-                base_count = len(self._encoding.encode(text))
-            except ValueError:
-                # Real tool output can legitimately contain strings that look like
-                # tiktoken special tokens (for example FIM markers in code spans).
-                # Treat them as ordinary text for estimation instead of failing.
-                base_count = len(self._encoding.encode(text, disallowed_special=()))
+            from cutctx.tokenizers.bpe_guard import iter_bpe_safe_chunks
+
+            # H16: tiktoken's BPE merge loop is quadratic in the length of a
+            # single pre-token. This is the hottest caller in the compression
+            # pipeline (19 encodes per request), so one unbroken 100 KB run of
+            # non-whitespace characters cost ~14.5 s of CPU here. Slicing
+            # over-long runs keeps it linear; ordinary text is not sliced.
+            base_count = 0
+            for chunk in iter_bpe_safe_chunks(text):
+                # tiktoken with ~1.1x multiplier for Claude
+                try:
+                    base_count += len(self._encoding.encode(chunk))
+                except ValueError:
+                    # Real tool output can legitimately contain strings that look like
+                    # tiktoken special tokens (for example FIM markers in code spans).
+                    # Treat them as ordinary text for estimation instead of failing.
+                    base_count += len(self._encoding.encode(chunk, disallowed_special=()))
             return int(base_count * 1.1)
 
         # Character-based fallback

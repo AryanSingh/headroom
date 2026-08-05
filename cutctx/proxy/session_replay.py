@@ -605,12 +605,14 @@ def record_for_pipeline(
 ) -> None:
     """Record a replay event from pipeline extension code.
 
-    Pipeline extensions don't always have a session_id. When absent, we
-    record under a synthetic ``_pipeline`` session so the event still
-    appears in the replay timeline.
+    Pipeline extensions don't always have a session identity. Unbound events
+    are intentionally skipped so they cannot create a synthetic replay
+    timeline that duplicates request-scoped handler events.
     """
+    if not session_id:
+        return
     record_replay_event(
-        session_id=session_id or "_pipeline",
+        session_id=session_id,
         event_type=event_type,
         surface=surface,
         request_id=request_id,
@@ -640,7 +642,9 @@ class ReplayPipelineExtension:
             return event
 
         metadata = event.metadata or {}
-        session_id = metadata.get("session_id") or metadata.get("project_id") or "_pipeline"
+        session_id = metadata.get("session_id") or metadata.get("project_id")
+        if not session_id:
+            return event
         request_id = metadata.get("request_id") or event.request_id
 
         if event.stage is PipelineStage.INPUT_COMPRESSED:

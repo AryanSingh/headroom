@@ -30,10 +30,20 @@ def build_release_evidence(
     """Bind release validation data to the exact compiled wheel bytes."""
     manifest_sha256 = verification.get("manifest_sha256")
     native_module_count = verification.get("native_module_count")
+    native_modules = verification.get("native_modules")
+    wheel_name = verification.get("wheel")
+    wheel_sha256 = verification.get("wheel_sha256")
     if not isinstance(manifest_sha256, str) or not manifest_sha256:
         raise ValueError("verification result is missing manifest_sha256")
     if not isinstance(native_module_count, int) or native_module_count < 1:
         raise ValueError("verification result is missing native_module_count")
+    if not isinstance(native_modules, list) or not native_modules or not all(
+        isinstance(name, str) and name for name in native_modules
+    ):
+        raise ValueError("verification result is missing native_modules")
+    actual_wheel_sha256 = _sha256_file(wheel)
+    if wheel_name != wheel.name or wheel_sha256 != actual_wheel_sha256:
+        raise ValueError("verification result belongs to a different wheel")
 
     timestamp = created_at or datetime.now(UTC)
     if timestamp.tzinfo is None:
@@ -42,9 +52,11 @@ def build_release_evidence(
         "git_sha": git_sha,
         "version": version,
         "wheel": wheel.name,
-        "wheel_sha256": _sha256_file(wheel),
+        "wheel_sha256": actual_wheel_sha256,
         "manifest_sha256": manifest_sha256,
         "native_module_count": native_module_count,
+        "native_modules": native_modules,
+        "verification_passed": True,
         "created_at": timestamp.isoformat(),
         "validation": verification,
     }

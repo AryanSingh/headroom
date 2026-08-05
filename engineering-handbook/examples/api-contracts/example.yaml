@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH06-API-CONTRACTS-RUN
+title: Product Atlas API contract fixture
+command: [python3, api_contracts_fixture.py]
+timeout_seconds: 15
+cleanup: []
+dependencies: [Python 3 standard library]
+fixtures: [api_contracts_fixture.py, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}

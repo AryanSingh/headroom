@@ -52,6 +52,8 @@ spec:
               containerPort: 8787
               protocol: TCP
           env:
+            - name: HOME
+              value: "/home/nonroot"
             - name: CUTCTX_MODE
               value: "token"
             - name: CUTCTX_OPTIMIZE

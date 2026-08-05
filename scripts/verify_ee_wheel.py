@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import zipfile
+from email.parser import BytesParser
 from pathlib import Path
 from typing import Any
 
@@ -55,6 +56,38 @@ def verify_wheel(wheel_path: Path, secret: str) -> dict[str, object]:
         if MANIFEST_NAME not in names:
             raise WheelVerificationError("MANIFEST is missing from wheel")
 
+        if wheel_path.name.endswith("-none-any.whl"):
+            raise WheelVerificationError("compiled EE wheel must use a native platform tag")
+
+        metadata_names = [name for name in names if name.endswith(".dist-info/METADATA")]
+        wheel_metadata_names = [name for name in names if name.endswith(".dist-info/WHEEL")]
+        if len(metadata_names) != 1 or len(wheel_metadata_names) != 1:
+            raise WheelVerificationError("wheel must contain exactly one METADATA and WHEEL file")
+        metadata = BytesParser().parsebytes(archive.read(metadata_names[0]))
+        version = metadata.get("Version", "")
+        if not version:
+            raise WheelVerificationError("wheel METADATA is missing Version")
+        required_core = f"cutctx-ai=={version}"
+        declared_dependencies = set(metadata.get_all("Requires-Dist", []))
+        if required_core not in declared_dependencies:
+            raise WheelVerificationError(
+                f"wheel METADATA must require exact core dependency {required_core}"
+            )
+        required_runtime_dependencies = {
+            "cryptography>=41.0.0",
+            "PyJWT[crypto]>=2.8.0",
+            "sqlalchemy<3.0,>=2.0",
+        }
+        missing_runtime_dependencies = required_runtime_dependencies - declared_dependencies
+        if missing_runtime_dependencies:
+            raise WheelVerificationError(
+                "wheel METADATA is missing EE runtime dependencies: "
+                f"{sorted(missing_runtime_dependencies)}"
+            )
+        wheel_metadata = archive.read(wheel_metadata_names[0]).decode("utf-8", errors="replace")
+        if "Root-Is-Purelib: false" not in wheel_metadata or "-none-any" in wheel_metadata:
+            raise WheelVerificationError("compiled EE wheel must declare a native platform tag")
+
         source_leaks = [
             name
             for name in names
@@ -62,6 +95,22 @@ def verify_wheel(wheel_path: Path, secret: str) -> dict[str, object]:
         ]
         if source_leaks:
             raise WheelVerificationError(f"EE source leaked into wheel: {sorted(source_leaks)}")
+
+        unexpected_entries = []
+        for name in names:
+            if name.endswith("/") or ".dist-info/" in name:
+                continue
+            if name in {GENERATED_SOURCE, MANIFEST_NAME}:
+                continue
+            if name.startswith(PACKAGE_PREFIX) and name.endswith((".so", ".pyd")):
+                if any(part.endswith(".build") for part in Path(name).parts):
+                    unexpected_entries.append(name)
+                continue
+            unexpected_entries.append(name)
+        if unexpected_entries:
+            raise WheelVerificationError(
+                f"unexpected wheel entries: {sorted(unexpected_entries)}"
+            )
 
         raw_manifest = archive.read(MANIFEST_NAME)
         try:
@@ -110,6 +159,8 @@ def verify_wheel(wheel_path: Path, secret: str) -> dict[str, object]:
         "manifest_sha256": _sha256(raw_manifest),
         "native_module_count": len(native_names),
         "native_modules": [name.removeprefix(PACKAGE_PREFIX) for name in native_names],
+        "version": version,
+        "verification_passed": True,
     }
 
 

@@ -19,8 +19,7 @@ function eventTitle(event) {
   return event.event_type || 'Replay event';
 }
 
-export default function Replay() {
-  const [sessionId, setSessionId] = useState('');
+export default function Replay({ searchQuery = '', setSearchQuery = () => {} }) {
   const [payload, setPayload] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -29,7 +28,7 @@ export default function Replay() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const trimmed = sessionId.trim();
+    const trimmed = searchQuery.trim();
     if (!trimmed || loading) {
       return;
     }
@@ -70,13 +69,13 @@ export default function Replay() {
           <label className="field" style={{ flex: 1, margin: 0 }}>
             <span>Session ID</span>
             <input
-              value={sessionId}
-              onChange={(event) => setSessionId(event.target.value)}
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="sess-prod-123 or x-cutctx-session-id"
               aria-label="Session ID"
             />
           </label>
-          <button className="primary-button" type="submit" disabled={loading || !sessionId.trim()}>
+          <button className="primary-button" type="submit" disabled={loading || !searchQuery.trim()}>
             <Search size={16} />
             {loading ? 'Loading…' : 'Load replay'}
           </button>

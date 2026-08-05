@@ -7,7 +7,7 @@ import os
 import click
 import httpx
 
-from cutctx.cli.admin_auth import admin_headers
+from cutctx.cli.admin_auth import admin_headers, raise_for_cli_status
 
 
 def _api_base() -> str:
@@ -16,6 +16,34 @@ def _api_base() -> str:
 
 def _admin_headers(admin_key: str | None) -> dict[str, str]:
     return admin_headers(admin_key, _api_base())
+
+
+def _unwrap_list(data: object, *keys: str) -> list:
+    """Pull a list out of an API envelope, tolerating either spelling."""
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for key in keys:
+            value = data.get(key)
+            if isinstance(value, list):
+                return value
+    return []
+
+
+def _unwrap_obj(data: object, *keys: str) -> dict:
+    """Pull an object out of an API envelope, tolerating a bare object.
+
+    H11a: every org endpoint wraps its payload (``{"org": {...}}``), but the
+    CLI read the fields off the envelope, so `create` printed ``id=?`` and
+    `show` printed ``?/?/?``.
+    """
+    if isinstance(data, dict):
+        for key in keys:
+            value = data.get(key)
+            if isinstance(value, dict):
+                return value
+        return data
+    return {}
 
 
 @click.group()
@@ -29,16 +57,19 @@ def list_orgs(admin_key: str | None) -> None:
     """List all organizations."""
     try:
         r = httpx.get(f"{_api_base()}/orgs", headers=_admin_headers(admin_key), timeout=10)
-        r.raise_for_status()
+        raise_for_cli_status(r)
         data = r.json()
-        orgs_list = data.get("organizations", data if isinstance(data, list) else [])
+        # H11a: the API returns {"orgs": [...]} but this read "organizations",
+        # so the list was always empty and the command reported
+        # "No organizations found." while GET /orgs returned real rows.
+        orgs_list = _unwrap_list(data, "orgs", "organizations")
         if not orgs_list:
             click.echo("No organizations found.")
             return
         for o in orgs_list:
             click.echo(f"  {o.get('name', '?')} ({o.get('slug', '?')}) — {o.get('id', '?')}")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
 
 
 def _validate_email(ctx: click.Context, param: click.Parameter, value: str) -> str:
@@ -65,11 +96,11 @@ def create_org(name: str, email: str, admin_key: str | None) -> None:
             json={"name": name, "admin_email": email},
             timeout=10,
         )
-        r.raise_for_status()
-        data = r.json()
-        click.echo(f"Created: {data.get('name', name)} (id={data.get('id', '?')})")
+        raise_for_cli_status(r)
+        org = _unwrap_obj(r.json(), "org", "organization")
+        click.echo(f"Created: {org.get('name', name)} (id={org.get('id', '?')})")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
 
 
 @orgs.command("delete")
@@ -82,10 +113,10 @@ def delete_org(org_id: str, admin_key: str | None) -> None:
         r = httpx.delete(
             f"{_api_base()}/orgs/{org_id}", headers=_admin_headers(admin_key), timeout=10
         )
-        r.raise_for_status()
+        raise_for_cli_status(r)
         click.echo(f"Deleted org {org_id}")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
 
 
 @orgs.command("show")
@@ -95,8 +126,8 @@ def show_org(org_id: str, admin_key: str | None) -> None:
     """Show organization details with hierarchy."""
     try:
         r = httpx.get(f"{_api_base()}/orgs/{org_id}", headers=_admin_headers(admin_key), timeout=10)
-        r.raise_for_status()
-        data = r.json()
+        raise_for_cli_status(r)
+        data = _unwrap_obj(r.json(), "org", "organization")
         click.echo(f"Organization: {data.get('name', '?')}")
         click.echo(f"  ID: {data.get('id', '?')}")
         click.echo(f"  Slug: {data.get('slug', '?')}")
@@ -106,4 +137,4 @@ def show_org(org_id: str, admin_key: str | None) -> None:
             for proj in ws.get("projects", []):
                 click.echo(f"    Project: {proj.get('name', '?')}")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e

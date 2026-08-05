@@ -163,14 +163,40 @@ def _get_hmac_secret() -> str | None:
     return os.environ.get(_HMAC_SECRET_ENV, "").strip() or None
 
 
+def _machine_hmac_secret() -> str:
+    """Derive a machine-bound HMAC secret for locally written state files.
+
+    Used when ``CUTCTX_LICENSE_HMAC_SECRET`` is not configured, which is the
+    case on virtually every install. Binding the signature to the machine
+    fingerprint keeps locally written state (licence cache, trial, seat)
+    tamper-evident and non-portable instead of unauthenticated.
+    """
+    return hashlib.sha256(b"cutctx-state-hmac-v1|" + _machine_fingerprint()).hexdigest()
+
+
+def _effective_hmac_secret() -> str:
+    """Return the secret to sign/verify local state with — never empty.
+
+    Audit-2026-08-03 C3.2: ``verify_payload`` previously returned ``True``
+    whenever ``CUTCTX_LICENSE_HMAC_SECRET`` was unset (the normal case), so a
+    hand-written ``~/.cutctx/license_cache.json`` claiming
+    ``{"status": "active", "plan": "enterprise"}`` verified successfully and
+    granted every enterprise feature. There is now always a secret: the
+    configured one, or a machine-derived fallback.
+    """
+    return _get_hmac_secret() or _machine_hmac_secret()
+
+
 def sign_payload(data: dict[str, Any], secret: str | None = None) -> str:
     """Compute HMAC-SHA256 signature of a JSON payload.
 
     The payload is canonicalized to compact JSON (sorted keys, no whitespace)
-    before signing so signatures are deterministic.
+    before signing so signatures are deterministic. ``secret=None`` means
+    "use the effective secret" (configured, else machine-derived); pass an
+    empty string to explicitly skip signing.
     """
     if secret is None:
-        secret = _get_hmac_secret()
+        secret = _effective_hmac_secret()
     if not secret:
         return ""
 
@@ -181,14 +207,14 @@ def sign_payload(data: dict[str, Any], secret: str | None = None) -> str:
 def verify_payload(data: dict[str, Any], signature: str, secret: str | None = None) -> bool:
     """Verify HMAC-SHA256 signature of a JSON payload.
 
-    Returns True if the signature is valid. Returns True (skip) if no secret
-    is configured (development/backward-compat mode).
+    Returns True only when ``signature`` matches. An empty/missing signature
+    never verifies: an unsigned payload is not a trusted payload.
     """
     if secret is None:
-        secret = _get_hmac_secret()
-    if not secret:
-        # No secret configured — skip verification (dev mode)
-        return True
+        secret = _effective_hmac_secret()
+    if not secret or not signature:
+        # No verifiable evidence — fail closed (was: return True).
+        return False
     expected = sign_payload(data, secret)
     return hmac.compare_digest(expected, signature)
 
@@ -277,12 +303,17 @@ def write_hmac_json(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(envelope, indent=2))
 
 
-def read_hmac_json(path: Path) -> dict[str, Any] | None:
+def read_hmac_json(path: Path, allow_unsigned: bool = False) -> dict[str, Any] | None:
     """Read a JSON dict and verify its HMAC signature.
 
-    Returns the payload dict if the signature is valid (or no secret is
-    configured). Returns None if the signature is invalid or the file is
-    corrupt.
+    Returns the payload dict only when the signature verifies. Returns None
+    if the signature is missing/invalid or the file is corrupt.
+
+    Audit-2026-08-03 C3.2: this used to return a bare ``{...}`` document
+    verbatim as "legacy plain JSON", so writing an unsigned
+    ``license_cache.json`` was enough to claim any plan. Unsigned documents
+    are now rejected unless the caller explicitly opts in with
+    ``allow_unsigned=True`` (non-security-relevant migration reads only).
     """
     if not path.exists():
         return None
@@ -293,8 +324,18 @@ def read_hmac_json(path: Path) -> dict[str, Any] | None:
         logger.warning("Corrupt HMAC file at %s", path)
         return None
 
+    if not isinstance(envelope, dict):
+        logger.warning("HMAC file at %s is not a JSON object", path)
+        return None
+
     if "payload" not in envelope:
-        # Legacy plain JSON — return as-is for migration
+        if not allow_unsigned:
+            logger.warning(
+                "Unsigned (legacy plain JSON) state file at %s — refusing to trust it. "
+                "Re-run `cutctx license activate <key>` to write a signed cache.",
+                path,
+            )
+            return None
         logger.info("Legacy plain JSON at %s, treating as unsigned", path)
         return envelope
 

@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import patch
 
 import httpx
+import pytest
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
@@ -24,6 +25,37 @@ def _app() -> Any:
             vertex_api_url="https://vertex.test",
         )
     )
+
+
+@pytest.mark.parametrize(
+    ("path", "body", "field"),
+    [
+        ("/v1/chat/completions", {"model": 123, "messages": []}, "model"),
+        ("/v1beta/models/demo:generateContent", {"contents": None}, "contents"),
+        (
+            "/v1/projects/p/locations/us-central1/publishers/google/models/"
+            "gemini-2.0-flash:generateContent",
+            {"contents": ["not-an-object"]},
+            "contents[0]",
+        ),
+        (
+            "/v1beta1/projects/p/locations/us-central1/publishers/anthropic/models/"
+            "claude-3-5-sonnet@20240620:rawPredict",
+            {"messages": None},
+            "messages",
+        ),
+    ],
+)
+def test_all_provider_routes_reject_malformed_input_without_tracebacks(
+    path: str, body: dict[str, Any], field: str
+) -> None:
+    """OpenAI, Gemini, and both Vertex dialects share the safe 400 boundary."""
+    with TestClient(_app(), raise_server_exceptions=False) as client:
+        response = client.post(path, json=body)
+
+    assert response.status_code == 400, response.text
+    assert field in response.text
+    assert "Traceback" not in response.text
 
 
 def test_provider_passthrough_routes_forward_expected_targets(monkeypatch) -> None:

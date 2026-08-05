@@ -42,13 +42,23 @@ def _run_security_guards() -> None:
     except ImportError:
         _log.debug("cutctx.security.antidebug not available — skipping anti-debug guard")
 
-    # Guard 2: binary integrity
+    # Guard 2: binary integrity.
+    #
+    # Audit-2026-08-03 H2: this passed strict=False, so a hash mismatch only
+    # logged "Refusing to load EE modules" and then returned — the tampered
+    # module imported and ran anyway, contradicting this module's own
+    # docstring. It is enforcing now; ``IntegrityError`` propagates out of
+    # ``import cutctx_ee`` and aborts loading, which is what the docstring
+    # always claimed. This is only safe because H1 removed the permanent
+    # false alarm (stale binaries + a git-tracked manifest that could never
+    # match a local build). ``CUTCTX_SKIP_INTEGRITY_CHECK=1`` remains the
+    # documented emergency escape hatch.
     try:
         from cutctx.security.integrity import verify_ee_manifest
-
-        verify_ee_manifest(strict=False)
     except ImportError:
         _log.debug("cutctx.security.integrity not available — skipping integrity check")
+    else:
+        verify_ee_manifest(strict=True)
 
 
 _run_security_guards()

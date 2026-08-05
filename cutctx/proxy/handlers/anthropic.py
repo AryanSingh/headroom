@@ -1198,6 +1198,20 @@ class AnthropicHandlerMixin:
 
             _pre_strip_count = sum(1 for k in headers if k.lower().startswith("x-cutctx-"))
             headers = _strip_internal_headers(headers)
+            # Audit-2026-08-03 C5a: an OAuth-authenticated Claude Code client
+            # pointed at a custom ANTHROPIC_BASE_URL sends no upstream
+            # credential; forwarding that as-is makes Anthropic reject the
+            # request with "x-api-key header is required". Fall back to the
+            # operator's configured Anthropic key exactly like the OpenAI /
+            # Codex handlers already do. A client-supplied x-api-key or OAuth
+            # bearer is left untouched.
+            from cutctx.proxy.auth_keyring import inject_anthropic_api_key
+
+            if inject_anthropic_api_key(headers):
+                logger.debug(
+                    "[%s] injected Anthropic x-api-key from configured credentials",
+                    request_id,
+                )
             log_outbound_headers(
                 forwarder="anthropic_messages",
                 stripped_count=_pre_strip_count
@@ -2968,6 +2982,32 @@ class AnthropicHandlerMixin:
                     except (json.JSONDecodeError, ValueError) as e:
                         logger.debug(
                             f"[{request_id}] Failed to parse response JSON for CCR handling: {e}"
+                        )
+
+                    # An unparseable 2xx is an upstream fault like any other.
+                    # Relaying it verbatim handed the client a "200 OK" whose
+                    # body no SDK can decode, while every other upstream fault
+                    # correctly became a 502.
+                    if resp_json is None and 200 <= response.status_code < 300:
+                        logger.error(
+                            "[%s] Upstream returned %d with a body that is not valid JSON "
+                            "(%d bytes); surfacing as 502",
+                            request_id,
+                            response.status_code,
+                            len(response.content or b""),
+                        )
+                        await self.metrics.record_failed(provider=provider_name)
+                        return JSONResponse(
+                            status_code=502,
+                            content={
+                                "type": "error",
+                                "error": {
+                                    "type": "api_error",
+                                    "message": (
+                                        "Upstream returned a malformed (non-JSON) response body."
+                                    ),
+                                },
+                            },
                         )
 
                     # CCR Response Handling: Handle cutctx_retrieve tool calls automatically

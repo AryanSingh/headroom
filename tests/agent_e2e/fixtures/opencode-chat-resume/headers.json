@@ -1,0 +1,5 @@
+{
+  "authorization_kind": "openai-api-key",
+  "content-type": "application/json",
+  "user-agent": "opencode/1.x fixture"
+}

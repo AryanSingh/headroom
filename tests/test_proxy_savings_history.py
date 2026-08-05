@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -219,11 +220,15 @@ def test_savings_tracker_sanitizes_legacy_state_and_applies_retention(tmp_path):
             "savings_by_source_usd": {},
         }
     ]
-    assert snapshot["retention"] == {
-        "max_history_points": 1,
-        "max_history_age_days": 2,
-        "max_response_history_points": 500,
-    }
+    # Audit C7 / RC-1: retention now also reports what it threw away, so a
+    # windowed query can tell "nothing happened before the window" from
+    # "the rows before the window were trimmed".
+    assert snapshot["retention"]["max_history_points"] == 1
+    assert snapshot["retention"]["max_history_age_days"] == 2
+    assert snapshot["retention"]["max_response_history_points"] == 500
+    assert snapshot["retention"]["history_points_retained"] == 1
+    assert snapshot["retention"]["history_points_dropped"] == 2
+    assert snapshot["retention"]["history_complete"] is False
 
 
 def test_non_dict_savings_state_resets_to_default(tmp_path):
@@ -292,6 +297,11 @@ def test_record_compression_savings_skips_empty_updates_and_normalizes_timestamp
     )
 
     snapshot = tracker.snapshot()
+    # Audit C7 / RC-3: this writer used to bump ``tokens_saved`` alone and
+    # write a row with no per-request delta and no by-source key, so its
+    # savings were invisible to windowed queries and to every by-source
+    # surface. The rows now carry the same attribution fields
+    # ``record_request`` writes.
     assert snapshot["history"] == [
         {
             "timestamp": "2026-03-27T08:00:00Z",
@@ -304,6 +314,14 @@ def test_record_compression_savings_skips_empty_updates_and_normalizes_timestamp
             "observed_provider_savings_usd": 0.0,
             "total_input_tokens": 120,
             "total_input_cost_usd": 0.24,
+            "delta_tokens_saved": 10,
+            "delta_savings_usd": 0.01,
+            "delta_created_savings_tokens": 10,
+            "delta_observed_provider_savings_tokens": 0,
+            "created_savings_tokens": 10,
+            "observed_provider_savings_tokens": 0,
+            "savings_by_source_tokens": {"cutctx_compression": 10},
+            "savings_by_source_usd": {"cutctx_compression": 0.01},
         },
         {
             "timestamp": "2026-03-27T12:34:00Z",
@@ -316,11 +334,24 @@ def test_record_compression_savings_skips_empty_updates_and_normalizes_timestamp
             "observed_provider_savings_usd": 0.0,
             "total_input_tokens": 180,
             "total_input_cost_usd": 0.36,
+            "delta_tokens_saved": 5,
+            "delta_savings_usd": 0.005,
+            "delta_created_savings_tokens": 5,
+            "delta_observed_provider_savings_tokens": 0,
+            "created_savings_tokens": 15,
+            "observed_provider_savings_tokens": 0,
+            "savings_by_source_tokens": {"cutctx_compression": 5},
+            "savings_by_source_usd": {"cutctx_compression": 0.005},
         },
     ]
+    assert snapshot["savings_accounting"]["invariant_ok"] is True
+    assert snapshot["savings_accounting"]["cutctx_attributable_tokens"] == 15
+    assert snapshot["savings_accounting"]["provider_native_tokens"] == 0
 
     persisted = json.loads(path.read_text(encoding="utf-8"))
     assert persisted["lifetime"]["tokens_saved"] == 15
+    assert persisted["lifetime"]["created_savings_tokens"] == 15
+    assert persisted["lifetime"]["savings_by_source_tokens.cutctx_compression"] == 15
     assert persisted["lifetime"]["total_input_tokens"] == 180
     assert persisted["lifetime"]["total_input_cost_usd"] == pytest.approx(0.36)
     assert persisted["history"][-1]["timestamp"] == "2026-03-27T12:34:00Z"
@@ -1170,6 +1201,21 @@ def test_malformed_savings_state_is_ignored_safely(tmp_path, monkeypatch):
         data = response.json()
         assert data["lifetime"]["tokens_saved"] == 0
         assert data["history"] == []
+
+
+def test_savings_tracker_removes_only_stale_atomic_write_files(tmp_path):
+    path = tmp_path / "proxy_savings.json"
+    stale = tmp_path / ".proxy_savings_abandoned.tmp"
+    recent = tmp_path / ".proxy_savings_active.tmp"
+    stale.write_text("old partial snapshot", encoding="utf-8")
+    recent.write_text("possible concurrent writer", encoding="utf-8")
+    old = datetime.now(tz=timezone.utc).timestamp() - 25 * 60 * 60
+    os.utime(stale, (old, old))
+
+    SavingsTracker(path=str(path))
+
+    assert not stale.exists()
+    assert recent.exists()
 
 
 def test_dashboard_includes_history_toggle_and_endpoint(tmp_path, monkeypatch):

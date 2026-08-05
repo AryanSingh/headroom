@@ -17,6 +17,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import click
@@ -48,6 +49,37 @@ def _run_in_click_context(fn) -> str:  # type: ignore[no-untyped-def]
     result = runner.invoke(_cmd)
     assert result.exit_code == 0, result.output
     return result.output
+
+
+def test_resolve_license_key_reads_shared_desktop_keyring(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from cutctx.proxy import deployment_security
+
+    monkeypatch.delenv("CUTCTX_LICENSE_KEY", raising=False)
+    monkeypatch.setattr(wrap_mod.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(paths_mod, "workspace_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        paths_mod,
+        "license_cache_path",
+        lambda: tmp_path / "license_cache.json",
+    )
+    received: list[SimpleNamespace] = []
+
+    def fake_effective_license_key(config: SimpleNamespace) -> str:
+        received.append(config)
+        return "cutctx-keyring-license"
+
+    monkeypatch.setattr(
+        deployment_security,
+        "effective_license_key",
+        fake_effective_license_key,
+    )
+
+    assert wrap_mod._resolve_license_key() == "cutctx-keyring-license"
+    assert len(received) == 1
+    assert received[0].license_key is None
 
 
 @pytest.mark.parametrize(

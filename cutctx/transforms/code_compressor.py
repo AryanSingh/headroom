@@ -49,6 +49,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from ..ccr.markers import CCR_HASH_LENGTH
 from ..config import TransformResult
 from ..tokenizer import Tokenizer
 from .base import Transform
@@ -1145,11 +1146,17 @@ class CodeAwareCompressor(Transform):
 
                     # Use the actual config attribute (not the wrong name)
                     ttl_min = max(1, self.config.ccr_ttl // 60)
+                    # C2 (third instance of the hash-length drift class): this
+                    # marker put "hash=<h>." mid-string, so GENERIC_COMPRESSED_HASH_RE
+                    # — which anchors the hash to the closing bracket — could never
+                    # match it, and no other pattern did either. The handle was
+                    # emitted but unretrievable. Put the hash last and truncate with
+                    # the shared constant so producer and parser cannot drift again.
                     compressed += (
                         f"\n# [{original_tokens - compressed_tokens} tokens compressed."
                         f"{summary_str}"
-                        f" Retrieve more: hash={cache_key}."
-                        f" Expires in {ttl_min}m.]"
+                        f" Expires in {ttl_min}m."
+                        f" Retrieve more: hash={cache_key[:CCR_HASH_LENGTH]}]"
                     )
 
             return CodeCompressionResult(

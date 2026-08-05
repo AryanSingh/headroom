@@ -30,19 +30,48 @@ from ._utils.parsers import parse_duration
 from .main import main
 
 
+def default_db_path() -> str:
+    """Canonical memory DB location.
+
+    H11c: this used to default to the bare relative name
+    ``cutctx_memory.db``, so ``cutctx memory stats`` run from any directory
+    silently created an empty database *in the current working directory*
+    and then reported "0 memories" — the user's real memories were never
+    consulted, and the tree accumulated stray DB files. Resolve to the
+    workspace path the rest of the product uses.
+    """
+    from cutctx import paths as _paths
+
+    return str(_paths.memory_db_path())
+
+
 def db_path_option(fn: Any) -> Any:
     """Shared --db-path option for memory commands."""
     return click.option(
         "--db-path",
         type=click.Path(),
-        default="cutctx_memory.db",
+        default=default_db_path,
         help="Path to the memory database file.",
-        show_default=True,
+        show_default="the workspace memory.db",
     )(fn)
 
 
 def get_store(db_path: str) -> SQLiteMemoryStore:
     """Get a SQLiteMemoryStore instance."""
+    return SQLiteMemoryStore(db_path)
+
+
+def get_store_readonly(db_path: str) -> SQLiteMemoryStore | None:
+    """Open an existing store without creating one.
+
+    H11c: read-only commands must not bring a database into existence as a
+    side effect of being asked a question. Returns ``None`` when the path
+    does not exist so the caller can say so plainly.
+    """
+    from pathlib import Path as _Path
+
+    if not _Path(db_path).exists():
+        return None
     return SQLiteMemoryStore(db_path)
 
 
@@ -199,14 +228,31 @@ def _export_all(
     return [m.to_dict() for m in memories]
 
 
-def _import_memories(store: SQLiteMemoryStore, memories: list[dict[str, Any]]) -> int:
-    """Import memories from a list of dictionaries."""
+def _describe_import_error(entry: Any, error: Exception) -> str:
+    """Return a concise, non-traceback diagnostic for one malformed row."""
+    if not isinstance(entry, dict):
+        return f"expected an object, got {type(entry).__name__}"
+    if isinstance(error, KeyError):
+        return f"missing required field {error.args[0]!r}"
+    for field in ("created_at", "valid_from", "valid_until", "last_accessed"):
+        value = entry.get(field)
+        if value:
+            try:
+                datetime.fromisoformat(value)
+            except (TypeError, ValueError):
+                return f"field {field!r} must be an ISO-8601 datetime"
+    return f"invalid value or type ({type(error).__name__})"
+
+
+def _import_memories(store: SQLiteMemoryStore, memories: list[Any]) -> tuple[int, list[str]]:
+    """Import memories and return the count plus actionable row diagnostics."""
     if not memories:
-        return 0
+        return 0, []
 
     imported_count = 0
+    errors: list[str] = []
     with store._get_conn() as conn:
-        for mem_dict in memories:
+        for index, mem_dict in enumerate(memories, start=1):
             try:
                 memory = Memory.from_dict(mem_dict)
                 row = store._memory_to_row(memory)
@@ -233,13 +279,13 @@ def _import_memories(store: SQLiteMemoryStore, memories: list[dict[str, Any]]) -
                     row,
                 )
                 imported_count += 1
-            except (KeyError, ValueError, TypeError):
-                # Skip malformed entries
+            except (AttributeError, KeyError, ValueError, TypeError) as error:
+                errors.append(f"Entry {index}: {_describe_import_error(mem_dict, error)}")
                 continue
 
         conn.commit()
 
-    return imported_count
+    return imported_count, errors
 
 
 @main.group()
@@ -457,7 +503,13 @@ def show_stats(ctx: click.Context, db_path: str) -> None:
 
     Displays counts by scope level, age distribution, and storage information.
     """
-    store = get_store(db_path)
+    # H11c: asking for stats must not create a database as a side effect.
+    store = get_store_readonly(db_path)
+    if store is None:
+        print_error(
+            f"No memory database at {db_path}. Pass --db-path to point at an existing store."
+        )
+        sys.exit(1)
 
     try:
         stats = _get_stats(store)
@@ -805,11 +857,12 @@ def purge_memories(ctx: click.Context, db_path: str, confirm_flag: bool) -> None
             click.echo("No memories to delete.")
             return
 
-        # Final confirmation
-        click.confirm(
-            f"Are you sure you want to delete ALL {total} memories? This cannot be undone.",
-            abort=True,
-        )
+        # H11b: --confirm IS the confirmation. This second, unconditional
+        # click.confirm() ignored the flag, so the documented invocation
+        # `cutctx memory purge --confirm` prompted anyway and hung forever
+        # under any non-interactive caller (CI, scripts, agents) — stdin is
+        # not a TTY there, so the prompt could never be answered.
+        click.echo(f"Deleting ALL {total} memory(ies). This cannot be undone.")
 
         # Purge
         deleted = asyncio.run(store.clear_all())
@@ -916,11 +969,14 @@ def import_memories(ctx: click.Context, db_path: str, file: str, force: bool) ->
             )
 
         store = get_store(db_path)
-        imported = _import_memories(store, memories_data)
+        imported, import_errors = _import_memories(store, memories_data)
         print_success(f"Imported {imported} memory(ies).")
 
-        if imported < count:
-            print_warning(f"Skipped {count - imported} malformed entries.")
+        if import_errors:
+            print_warning(f"Skipped {len(import_errors)} malformed entries.")
+            for error in import_errors:
+                click.echo(f"  - {error}")
+            click.echo("Required fields: id, content, created_at, valid_from (ISO-8601 datetimes).")
 
     except json.JSONDecodeError as e:
         print_error(f"Invalid JSON file: {e}")

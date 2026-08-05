@@ -42,6 +42,34 @@ def inject_provider_authorization(headers: MutableMapping[str, str], provider: s
     return True
 
 
+def inject_anthropic_api_key(headers: MutableMapping[str, str]) -> bool:
+    """Add the configured Anthropic credential when a client sent none.
+
+    Audit-2026-08-03 C5a. Claude Code authenticates with an OAuth session, and
+    when it is pointed at a custom ``ANTHROPIC_BASE_URL`` it treats that host
+    as the gateway and sends *no* upstream credential at all. Forwarding that
+    request verbatim makes Anthropic answer ``x-api-key header is required``,
+    which the CLI reads as an expired session and retries indefinitely.
+
+    This mirrors :func:`inject_provider_authorization` — the pattern the
+    OpenAI/Codex handlers already use — but writes Anthropic's native
+    ``x-api-key`` header. A caller-supplied credential is never replaced, so a
+    client that *does* forward its OAuth ``Authorization`` bearer keeps
+    reaching Anthropic under its own identity.
+    """
+    for name, value in headers.items():
+        lowered = name.lower()
+        if lowered in ("x-api-key", "authorization") and str(value).strip():
+            return False
+
+    api_key = get_api_key("anthropic")
+    if not api_key:
+        return False
+
+    headers["x-api-key"] = api_key
+    return True
+
+
 def get_api_key(provider: str) -> str:
     """
     Retrieve the API key for a given provider.

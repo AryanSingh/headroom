@@ -437,6 +437,31 @@ def test_wrap_codex_prepare_only_creates_backup_and_config(
     assert backup.read_text() == original
 
 
+def test_wrap_codex_prepare_only_registers_retrieve_on_fresh_codex_home(
+    runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A new Codex home must retain the active proxy URL for retrieval."""
+    _set_test_home(monkeypatch, tmp_path)
+
+    with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
+        result = runner.invoke(
+            main,
+            [
+                "wrap",
+                "codex",
+                "--prepare-only",
+                "--no-serena",
+                "--port",
+                "9911",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    content = (tmp_path / ".codex" / "config.toml").read_text()
+    assert "[mcp_servers.cutctx]" in content
+    assert '[mcp_servers.cutctx.env]\nCUTCTX_PROXY_URL = "http://127.0.0.1:9911"' in content
+
+
 def test_wrap_codex_prepare_only_respects_codex_home(
     runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -793,7 +818,10 @@ def test_unwrap_codex_removes_cutctx_only_config_file(
     _set_test_home(monkeypatch, tmp_path)
 
     with patch("cutctx.cli.wrap._ensure_rtk_binary", return_value=None):
-        wrap_result = runner.invoke(main, ["wrap", "codex", "--prepare-only", "--port", "8787"])
+        wrap_result = runner.invoke(
+            main,
+            ["wrap", "codex", "--prepare-only", "--no-mcp", "--no-serena", "--port", "8787"],
+        )
     assert wrap_result.exit_code == 0, wrap_result.output
 
     config_file = tmp_path / ".codex" / "config.toml"

@@ -159,6 +159,7 @@ export default function App() {
   const [apiTokenDraft, setApiTokenDraft] = useState('')
   const [licenseDraft, setLicenseDraft] = useState('')
   const [toast, setToast] = useState('')
+  const [toastRole, setToastRole] = useState<'status' | 'alert'>('status')
   const [busy, setBusy] = useState(false)
 
   const color = trayColorForPhase(status.phase)
@@ -222,6 +223,7 @@ export default function App() {
   async function run(action: () => Promise<unknown>, okMessage?: string) {
     setBusy(true)
     setToast('')
+    setToastRole('status')
     try {
       const result = await action()
       if (typeof result === 'string' && result) {
@@ -231,6 +233,7 @@ export default function App() {
       }
       await refresh()
     } catch (err) {
+      setToastRole('alert')
       setToast(err instanceof Error ? err.message : String(err))
     } finally {
       setBusy(false)
@@ -571,7 +574,15 @@ export default function App() {
         </div>
       </section>
 
-      {toast ? <div className="toast">{toast}</div> : null}
+      {toast ? (
+        <div
+          className="toast"
+          role={toastRole}
+          aria-live={toastRole === 'alert' ? 'assertive' : 'polite'}
+        >
+          {toast}
+        </div>
+      ) : null}
 
       <footer className="footer">
         <span>CutCtx Control 0.1.0</span>

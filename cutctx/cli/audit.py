@@ -8,7 +8,7 @@ import os
 import click
 import httpx
 
-from cutctx.cli.admin_auth import admin_headers
+from cutctx.cli.admin_auth import admin_headers, raise_for_cli_status
 
 
 def _api_base() -> str:
@@ -46,7 +46,7 @@ def list_events(
             headers=_admin_headers(admin_key),
             timeout=10,
         )
-        r.raise_for_status()
+        raise_for_cli_status(r)
         data = r.json()
         events = data.get("events", [])
         if as_json:
@@ -67,7 +67,7 @@ def list_events(
             if detail:
                 click.echo(f"    {detail}")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
 
 
 @audit.command("export")
@@ -92,7 +92,7 @@ def export_events(
             headers=_admin_headers(admin_key),
             timeout=30,
         )
-        r.raise_for_status()
+        raise_for_cli_status(r)
         content = r.text
         if output:
             with open(output, "w") as f:
@@ -101,7 +101,7 @@ def export_events(
         else:
             click.echo(content)
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e
 
 
 @audit.command("stats")
@@ -116,7 +116,7 @@ def audit_stats(admin_key: str | None, as_json: bool = False) -> None:
             headers=_admin_headers(admin_key),
             timeout=10,
         )
-        r.raise_for_status()
+        raise_for_cli_status(r)
         data = r.json()
         events = data.get("events", [])
         by_action: dict[str, int] = {}
@@ -136,4 +136,4 @@ def audit_stats(admin_key: str | None, as_json: bool = False) -> None:
             for a, count in result["by_action"].items():
                 click.echo(f"  {a}: {count}")
     except Exception as e:
-        click.echo(f"Error: {e}")
+        raise click.ClickException(str(e)) from e

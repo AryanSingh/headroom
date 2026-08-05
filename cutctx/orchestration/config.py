@@ -21,6 +21,7 @@ class LayeredConfigStore:
     """
 
     ORDER = ("global", "user", "workspace", "project")
+    LOAD_ORDER = ("global", "legacy_user", "user", "workspace", "project")
 
     def __init__(self, paths: dict[str, Path | str] | None = None) -> None:
         self.paths = {key: Path(value) for key, value in (paths or {}).items()}
@@ -44,7 +45,7 @@ class LayeredConfigStore:
     def _load_merged(self, *, override: tuple[str, dict[str, Any]] | None = None) -> dict[str, Any]:
         merged: dict[str, Any] = {"version": 1}
         override_layer, override_payload = override or (None, None)
-        for layer in self.ORDER:
+        for layer in self.LOAD_ORDER:
             if layer == override_layer:
                 payload = override_payload
             else:
@@ -203,8 +204,10 @@ def default_config_paths(data_dir: Path | str | None = None) -> dict[str, Path]:
     project_path = Path(
         os.environ.get("CUTCTX_ORCHESTRATION_CONFIG", Path.cwd() / ".cutctx" / "orchestration.json")
     ).expanduser()
+    legacy_user_path = root.parent / "orchestration.json"
     return {
         "global": root / "global.json",
+        "legacy_user": legacy_user_path,
         "user": root / "user.json",
         "workspace": root / "workspace.json",
         "project": project_path,

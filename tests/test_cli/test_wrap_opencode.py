@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -456,6 +456,7 @@ def _opencode_go_run(
     manifest: object | None = None,
     free_port: int = 54321,
     reusable: bool = True,
+    launch: Callable[..., object] | None = None,
 ) -> Iterator[None]:
     """Patch `wrap opencode` down to the opencode-go routing decision.
 
@@ -467,6 +468,12 @@ def _opencode_go_run(
 
     def fake_launch_tool(**kwargs):  # noqa: ANN003
         captured.update(kwargs)
+        override = kwargs["env"].get("OPENCODE_CONFIG")
+        if override is not None:
+            captured["opencode_config"] = json.loads(Path(override).read_text())
+        if launch is not None:
+            return launch(**kwargs)
+        return None
 
     with ExitStack() as stack:
         stack.enter_context(patch("cutctx.cli.wrap.shutil.which", return_value="opencode"))
@@ -510,9 +517,41 @@ def test_wrap_opencode_routes_opencode_go_through_proxy(
     env = captured["env"]
     assert isinstance(env, dict)
     override_path = Path(env["OPENCODE_CONFIG"])
-    assert override_path.is_file()
-    data = json.loads(override_path.read_text())
+    assert not override_path.exists()
+    data = captured["opencode_config"]
+    assert isinstance(data, dict)
     assert data["provider"]["opencode-go"]["options"]["baseURL"] == "http://127.0.0.1:8787/v1"
+
+
+@pytest.mark.parametrize("launch_raises", [False, True], ids=["success", "exception"])
+def test_wrap_opencode_removes_generated_override_after_launch(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, launch_raises: bool
+) -> None:
+    """The generated secret config exists for opencode only, even if launch fails."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CUTCTX_WORKSPACE_DIR", str(tmp_path / "workspace"))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    observed_paths: list[Path] = []
+
+    def inspect_launch(**kwargs):  # noqa: ANN003
+        override_path = Path(kwargs["env"]["OPENCODE_CONFIG"])
+        assert override_path.is_file()
+        observed_paths.append(override_path)
+        if launch_raises:
+            raise RuntimeError("opencode failed to launch")
+
+    with _opencode_go_run(
+        capability=False,
+        api_key="oc-key",
+        captured={},
+        launch=inspect_launch,
+    ):
+        result = runner.invoke(main, ["wrap", "opencode", "--no-rtk"])
+
+    assert result.exit_code == (1 if launch_raises else 0), result.output
+    assert len(observed_paths) == 1
+    assert not observed_paths[0].exists()
 
 
 def test_wrap_opencode_auto_reassigns_port_when_shared_proxy_cant_route_opencode_go(
@@ -539,7 +578,9 @@ def test_wrap_opencode_auto_reassigns_port_when_shared_proxy_cant_route_opencode
     assert env["OPENAI_BASE_URL"] == "http://127.0.0.1:54321/v1"
     assert env["CUTCTX_BASE_URL"] == "http://127.0.0.1:54321"
     override_path = Path(env["OPENCODE_CONFIG"])
-    data = json.loads(override_path.read_text())
+    assert not override_path.exists()
+    data = captured["opencode_config"]
+    assert isinstance(data, dict)
     assert data["provider"]["opencode-go"]["options"]["baseURL"] == "http://127.0.0.1:54321/v1"
 
 
@@ -570,8 +611,10 @@ def test_wrap_opencode_stays_on_shared_port_when_proxy_honors_per_request_upstre
     assert env["OPENAI_BASE_URL"] == "http://127.0.0.1:8787/v1"
     assert env["CUTCTX_BASE_URL"] == "http://127.0.0.1:8787"
     override_path = Path(env["OPENCODE_CONFIG"])
-    assert override_path.is_file()
-    options = json.loads(override_path.read_text())["provider"]["opencode-go"]["options"]
+    assert not override_path.exists()
+    data = captured["opencode_config"]
+    assert isinstance(data, dict)
+    options = data["provider"]["opencode-go"]["options"]
     assert options["baseURL"] == "http://127.0.0.1:8787/v1"
     # Staying on the shared port is only safe because the override names the
     # upstream per request instead of relying on the proxy's process-wide one.

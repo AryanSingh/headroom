@@ -1,0 +1,25 @@
+schema_version: 1
+handbook:
+  id: enterprise-engineering-manual
+  title: Enterprise Engineering Manual
+  edition: "2026.1"
+  status: foundation
+  owners:
+    - Engineering Enablement
+  canonical_format: modular-markdown
+  publication_authority: docx
+  generated_artifact_policy: source-only
+canonical_roots:
+  - chapters
+  - examples
+  - governance
+  - runbooks
+  - checklists
+  - standards
+  - prompts
+  - templates
+validation:
+  orphan_severity: error
+  unsupported_html: error
+  mermaid_timeout_seconds: 30
+suppressions: []

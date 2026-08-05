@@ -70,18 +70,23 @@ jobs:
             --output dist-ee-compiled/release-evidence.json
 
       - name: Smoke test installed EE wheel
+        env:
+          CUTCTX_LICENSE_HMAC_SECRET: ${{ secrets.CUTCTX_LICENSE_HMAC_SECRET }}
         run: |
           EE_WHEEL=$(find "$GITHUB_WORKSPACE/dist-ee-compiled" -maxdepth 1 -name '*.whl' -print -quit)
           python -m venv /tmp/cutctx-ee-smoke
           /tmp/cutctx-ee-smoke/bin/python -m pip install --upgrade pip
-          /tmp/cutctx-ee-smoke/bin/python -m pip install "$GITHUB_WORKSPACE"
           /tmp/cutctx-ee-smoke/bin/python -m pip install "$EE_WHEEL"
           cd /tmp
           /tmp/cutctx-ee-smoke/bin/python -I -c '
           import tempfile
+          import sqlalchemy
           from pathlib import Path
           from types import SimpleNamespace
           from cutctx_ee.billing.license_db import LicenseDB
+          from cutctx_ee.memory_service import models as memory_models
+          assert sqlalchemy.__version__
+          assert memory_models is not None
           with tempfile.TemporaryDirectory() as directory:
               db = LicenseDB(Path(directory) / "licenses.db")
               now = 1.0
@@ -89,6 +94,22 @@ jobs:
               replay, replay_created = db.fulfill_checkout(SimpleNamespace(license_key="candidate-b", tier="team", customer_email="buyer@example.com", seats=1, stripe_customer_id="cus_1", stripe_subscription_id="sub_1", created_at=now, expires_at=now + 3600, active=True))
               assert created and not replay_created and first.license_key == replay.license_key
           '
+
+      - name: Tamper test installed EE wheel
+        env:
+          CUTCTX_LICENSE_HMAC_SECRET: ${{ secrets.CUTCTX_LICENSE_HMAC_SECRET }}
+        run: |
+          EE_NATIVE=$(/tmp/cutctx-ee-smoke/bin/python -I -c '
+          import pathlib, cutctx_ee
+          root = pathlib.Path(cutctx_ee.__file__).parent
+          print(next(iter(sorted(root.rglob("*.so")) + sorted(root.rglob("*.pyd")))))
+          ')
+          printf '\ncutctx-release-tamper-test\n' >> "$EE_NATIVE"
+          cd /tmp
+          if /tmp/cutctx-ee-smoke/bin/python -I -c 'import cutctx_ee'; then
+            echo "FAIL: strict runtime integrity verification accepted a tampered native module"
+            exit 1
+          fi
 
       - name: Leak guard — EE wheel must NOT contain OSS-only modules
         run: |

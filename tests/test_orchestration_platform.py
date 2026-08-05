@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from cutctx.orchestration.audit import ReceiptAuditStore
-from cutctx.orchestration.config import LayeredConfigStore
+from cutctx.orchestration.config import LayeredConfigStore, default_config_paths
 from cutctx.orchestration.contracts import ReliabilityBudget, WorkloadContract
 from cutctx.orchestration.credentials import EncryptedCredentialStore, ResolverBackedCredentialStore
 from cutctx.orchestration.engine import DeterministicRoutingEngine, RoutingUnavailableError
@@ -173,6 +173,107 @@ def test_given_role_assignment_when_routing_then_assigned_model_is_enforced() ->
     assert decision.provider == "kimi"
     assert decision.fallback_used is False
     assert decision.binding_id == "implementer-kimi"
+
+
+def test_relaxed_cheapest_policy_selects_cheapest_eligible_model() -> None:
+    config = OrchestrationConfig(
+        roles=[Role(id="worker", name="Worker")],
+        bindings=[RouteBinding(id="worker-primary", role="worker", model="openai:model-a")],
+        settings=RoutingSettings(mode=RoutingMode.RELAXED.value),
+    )
+    expensive = _model("openai", "model-a")
+    expensive.input_cost_per_million = 10.0
+    expensive.output_cost_per_million = 30.0
+    cheap = _model("anthropic", "model-b")
+    cheap.input_cost_per_million = 1.0
+    cheap.output_cost_per_million = 2.0
+    engine = _engine(config, expensive, cheap)
+
+    decision = engine.route(
+        RoutingRequest(
+            role="worker",
+            mode=RoutingMode.RELAXED.value,
+            policy="cheapest",
+            estimated_input_tokens=1_000,
+            estimated_output_tokens=1_000,
+        ),
+        allow_overrides=True,
+    )
+
+    assert decision.actual_model == "model-b"
+    assert decision.provider == "anthropic"
+    assert decision.reason == "policy:cheapest"
+    assert decision.fallback_used is False
+
+
+def test_relaxed_cheapest_policy_never_selects_a_cooling_deployment() -> None:
+    config = OrchestrationConfig(
+        roles=[Role(id="worker", name="Worker")],
+        bindings=[RouteBinding(id="worker-primary", role="worker", model="openai:model-a")],
+        settings=RoutingSettings(mode=RoutingMode.RELAXED.value),
+    )
+    primary = _model("openai", "model-a")
+    primary.input_cost_per_million = 10.0
+    primary.output_cost_per_million = 30.0
+    cooling = _model("anthropic", "model-b")
+    cooling.input_cost_per_million = 1.0
+    cooling.output_cost_per_million = 2.0
+    engine = _engine(config, primary, cooling)
+    engine.registry.cool_down(cooling.deployment_key, 30)
+
+    decision = engine.route(
+        RoutingRequest(role="worker", policy="cheapest"),
+        allow_overrides=True,
+    )
+
+    assert decision.actual_model == "model-a"
+
+
+@pytest.mark.parametrize(
+    ("primary", "expected_reason"),
+    [
+        (
+            ModelRecord(provider="openai", id="small-input", max_input_tokens=1_000),
+            "input_context_exceeded",
+        ),
+        (
+            ModelRecord(provider="openai", id="small-output", max_output_tokens=100),
+            "output_limit_exceeded",
+        ),
+    ],
+)
+def test_routing_rejects_models_that_cannot_fit_requested_token_estimates(
+    primary: ModelRecord,
+    expected_reason: str,
+) -> None:
+    primary.capabilities = {Capability.STREAMING.value, Capability.TOOL_CALLING.value}
+    fallback = _model("anthropic", "large")
+    fallback.context_length = 10_000
+    fallback.max_output_tokens = 1_000
+    config = OrchestrationConfig(
+        roles=[Role(id="worker", name="Worker")],
+        bindings=[
+            RouteBinding(
+                id="worker-primary",
+                role="worker",
+                model=primary.key,
+                fallback_chain=[fallback.key],
+            )
+        ],
+        settings=RoutingSettings(mode=RoutingMode.RELAXED.value),
+    )
+    engine = _engine(config, primary, fallback)
+
+    decision = engine.route(
+        RoutingRequest(
+            role="worker",
+            estimated_input_tokens=2_000,
+            estimated_output_tokens=200,
+        )
+    )
+
+    assert decision.actual_model == "large"
+    assert decision.fallback_trigger == expected_reason
 
 
 def test_versioned_routing_profile_resolves_role_and_narrows_budget(tmp_path: Path) -> None:
@@ -958,6 +1059,33 @@ def test_layered_config_merges_entities_by_id_and_round_trips(tmp_path: Path) ->
     assert config.settings.policy == "cheapest"
     store.save(config)
     assert store.load() == config
+
+
+def test_default_config_paths_loads_legacy_user_orchestration_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data_dir = tmp_path / "orchestration"
+    legacy_path = tmp_path / "orchestration.json"
+    legacy_path.write_text(
+        json.dumps({"version": 1, "settings": {"policy": "cheapest"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CUTCTX_ORCHESTRATION_CONFIG", raising=False)
+
+    paths = default_config_paths(data_dir)
+    config = LayeredConfigStore(paths).load()
+
+    assert paths["legacy_user"] == legacy_path
+    assert paths["user"] == data_dir / "user.json"
+    assert config.settings.policy == "cheapest"
+
+    data_dir.mkdir()
+    (data_dir / "user.json").write_text(
+        json.dumps({"version": 1, "settings": {"policy": "balanced"}}),
+        encoding="utf-8",
+    )
+    assert LayeredConfigStore(paths).load().settings.policy == "balanced"
 
 
 def test_layered_policy_allow_lists_can_only_narrow(tmp_path: Path) -> None:

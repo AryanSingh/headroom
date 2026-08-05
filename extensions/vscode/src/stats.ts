@@ -6,6 +6,30 @@ export interface CutctxStats {
     requestsCompressed: number;
 }
 
+function finiteNumber(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+export function parseStatsPayload(payload: unknown): CutctxStats {
+    const root = payload && typeof payload === 'object'
+        ? payload as Record<string, unknown>
+        : {};
+    const summary = root.summary && typeof root.summary === 'object'
+        ? root.summary as Record<string, unknown>
+        : {};
+    const cost = root.cost && typeof root.cost === 'object'
+        ? root.cost as Record<string, unknown>
+        : {};
+    const requests = root.requests && typeof root.requests === 'object'
+        ? root.requests as Record<string, unknown>
+        : {};
+    return {
+        tokensSaved: finiteNumber(summary.saved),
+        dollarsSaved: finiteNumber(cost.savings_usd),
+        requestsCompressed: finiteNumber(requests.total),
+    };
+}
+
 export class StatsPoller {
     private timer: NodeJS.Timeout | null = null;
     private latest: CutctxStats | null = null;
@@ -33,12 +57,7 @@ export class StatsPoller {
             res.on('end', () => {
                 try {
                     const json = JSON.parse(data);
-                    const summary = json?.summary;
-                    this.latest = {
-                        tokensSaved: summary?.compression?.total_tokens_removed ?? 0,
-                        dollarsSaved: summary?.cost?.total_saved_usd ?? 0,
-                        requestsCompressed: summary?.compression?.requests_compressed ?? 0,
-                    };
+                    this.latest = parseStatsPayload(json);
                 } catch {}
             });
         });

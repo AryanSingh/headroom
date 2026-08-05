@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH07-AGENT-INTEGRATION-RUN
+title: Product Atlas agent webhook integration fixture
+command: [python3, agent_integration_fixture.py]
+timeout_seconds: 15
+cleanup: []
+dependencies: [Python 3 standard library]
+fixtures: [agent_integration_fixture.py, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}

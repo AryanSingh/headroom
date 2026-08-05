@@ -40,6 +40,34 @@ def test_scenario_schema_rejects_unknown_actions() -> None:
         validate_scenario(scenario)
 
 
+def test_scenario_schema_accepts_opencode_as_a_distinct_client() -> None:
+    scenario = {
+        "schema_version": 1,
+        "id": "opencode-restart",
+        "client": "opencode",
+        "client_version": "test",
+        "tags": ["http-json", "resume", "proxy-restart"],
+        "runtimes": ["python"],
+        "unsupported_runtimes": [
+            {
+                "runtime": "native",
+                "reason": "not implemented",
+                "tracking_issue": "TEST-OPENCODE-NATIVE",
+            }
+        ],
+        "steps": [
+            {
+                "action": "request",
+                "transport": "http-json",
+                "path": "/v1/chat/completions",
+            }
+        ],
+        "assertions": {},
+    }
+
+    validate_scenario(scenario)
+
+
 def test_scenario_schema_requires_explicit_unsupported_runtime_reason() -> None:
     scenario = {
         "schema_version": 1,

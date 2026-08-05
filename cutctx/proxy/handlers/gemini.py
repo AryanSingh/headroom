@@ -849,6 +849,12 @@ class GeminiHandlerMixin:
                     status_code=response.status_code,
                     headers=response_headers,
                 )
+        except HTTPException:
+            # Deliberate status codes raised from the upstream path
+            # (503 circuit-breaker open, 504 total-deadline exceeded) carry
+            # the correct semantics already — collapsing them into the 502
+            # catch-all below would lose them.
+            raise
         except Exception as e:
             fallback_provider = getattr(self.config, "fallback_provider", None)
             fallback_backend = getattr(self, "fallback_backend", None) or getattr(

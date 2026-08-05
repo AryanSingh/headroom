@@ -30,6 +30,23 @@ def separated_client() -> TestClient:
         yield client
 
 
+@pytest.fixture
+def separated_provider_client() -> TestClient:
+    app = create_app(
+        ProxyConfig(
+            host="127.0.0.1",
+            admin_api_key="admin-secret",
+            client_api_key="client-secret",
+            proxy_api_key="proxy-secret",
+            optimize=False,
+            cache_enabled=False,
+            rate_limit_enabled=False,
+        )
+    )
+    with TestClient(app, base_url="http://127.0.0.1") as client:
+        yield client
+
+
 def test_client_key_can_compress_but_cannot_read_admin_stats(
     separated_client: TestClient,
 ) -> None:
@@ -145,6 +162,35 @@ def test_tool_call_route_uses_agent_client_auth(
     assert rejected.status_code == 401
     assert rejected.json()["error"]["type"] == "client_authentication_error"
     assert accepted.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("POST", "/v1/messages/batches"),
+        ("GET", "/v1/messages/batches"),
+        ("GET", "/v1/messages/batches/batch-1"),
+        ("GET", "/v1/messages/batches/batch-1/results"),
+        ("POST", "/v1/messages/batches/batch-1/cancel"),
+        ("POST", "/v1/batches"),
+        ("GET", "/v1/batches"),
+        ("GET", "/v1/batches/batch-1"),
+        ("POST", "/v1/batches/batch-1/cancel"),
+        ("POST", "/v1beta/models/gemini-pro:batchGenerateContent"),
+        ("GET", "/v1beta/batches/batch-1"),
+        ("POST", "/v1beta/batches/batch-1:cancel"),
+        ("DELETE", "/v1beta/batches/batch-1"),
+    ],
+)
+def test_every_provider_batch_route_requires_agent_client_auth(
+    separated_provider_client: TestClient,
+    method: str,
+    path: str,
+) -> None:
+    response = separated_provider_client.request(method, path)
+
+    assert response.status_code == 401
+    assert response.json()["detail"]["message"].startswith("Missing or invalid proxy client")
 
 
 def test_non_loopback_requires_dedicated_agent_client_key() -> None:

@@ -135,8 +135,14 @@ class TokenizerRegistry:
             TokenCounter instance for the model.
 
         Raises:
+            TypeError: If ``model`` is not a string.
             ValueError: If backend not found and fallback=False.
         """
+        # Defence in depth behind the proxy's request-shape validation: a
+        # non-string model used to blow up on ``.lower()`` with an opaque
+        # AttributeError several frames from the caller.
+        if not isinstance(model, str):
+            raise TypeError(f"Tokenizer model name must be a string, got {type(model).__name__}.")
         registry = cls()
         model_lower = model.lower()
 

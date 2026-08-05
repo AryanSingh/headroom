@@ -52,3 +52,92 @@ rtk pytest
 ```
 
 The targeted run passed 359 tests before the final outbox hardening. The final full run passed 9,919 tests and skipped 271; no test failed.
+
+---
+
+# Codex multi-agent dispatch bridge mismatch
+
+**Date:** 2026-08-04
+**Scope:** Codex desktop task running from this workspace, with Cutctx configured as its OpenAI-compatible endpoint
+**Status:** Reproduced; root cause isolated to the Codex orchestration layer. No project code or configuration was modified.
+
+## Finding
+
+`spawn_agent` is advertised to this task but the runtime that receives the
+dispatch request does not implement it. The request fails before an agent is
+created with:
+
+```text
+unsupported call: spawn_agent
+```
+
+This is a **tool-registry/handler mismatch**: the task context declares the
+collaboration tool, while its backing orchestration bridge rejects that tool
+name. It is not a Cutctx proxy failure.
+
+### Reproduction steps
+
+1. Open this Codex task in the `headroom` workspace.
+2. Confirm `/Users/aryansingh/.codex/config.toml` contains:
+
+   ```toml
+   [features]
+   multi_agent = true
+   ```
+
+3. Request a minimal, read-only child agent via `spawn_agent` (the attempted
+   task was to calculate `(37 * 48) + (125 * 16) - 91`).
+4. Observe the immediate bridge response: `unsupported call: spawn_agent`.
+
+### Expected vs actual
+
+| Expected | Actual |
+| --- | --- |
+| With `multi_agent = true` and `spawn_agent` advertised in the task, Codex creates the child agent and returns its task identifier. | The orchestration bridge rejects the call as unsupported; no child agent exists and no workspace state changes. |
+
+### Evidence
+
+| Check | Result | Implication |
+| --- | --- | --- |
+| Direct dispatch | `unsupported call: spawn_agent` | Failure occurs at the host-side collaboration call boundary. |
+| Current Codex configuration | `[features] multi_agent = true` | The documented local feature gate is enabled. |
+| Pre-Cutctx config snapshot | Also contains `multi_agent = true` | Cutctx did not add, remove, or alter the agent feature flag. |
+| `cutctx/cli/wrap.py::_inject_codex_provider_config` | Writes only `openai_base_url`, `base_url`, and `supports_websockets` in the shown injected block | The wrapper changes model transport configuration, not Codex collaboration-tool registration. |
+| `GET http://127.0.0.1:8787/livez` | Proxy healthy; upstream readiness healthy | No proxy outage or rejected-session condition is present. |
+| Proxy runtime health | `codex_ws_gated: false` | The proxy reports no Codex WebSocket gating. |
+
+## Severity
+
+**Medium (developer-workflow blocking).** Any task depending on child-agent
+delegation cannot run. The fault does not affect repository data integrity,
+does not create an orphan process, and does not affect normal single-agent
+work.
+
+## Suggested fix
+
+The owning Codex runtime should make its advertised tool set match the enabled
+handlers: either register the `spawn_agent` dispatch handler for this task or
+omit the tool from the task context when multi-agent dispatch is unavailable.
+
+For the local user, restart Codex and create a new task so the desktop runtime
+reloads `/Users/aryansingh/.codex/config.toml`. If a fresh task still returns
+the same error, capture the task ID, the exact `unsupported call: spawn_agent`
+response, and the Codex desktop version (`/Users/aryansingh/.codex/version.json`
+reported `0.145.0` as the latest known version) in a Codex support report.
+Changing Cutctx settings is not a justified remediation because the failure
+precedes proxy/model traffic.
+
+## Boundary and reliability checks
+
+- **Input validation:** The dispatch used a valid lowercase task name and a
+  small plain-text instruction, so no argument-size or schema boundary was
+  reached.
+- **Concurrency/race condition:** The first dispatch failed synchronously;
+  no agent ID, running child, reservation, or cleanup path was created. A
+  concurrent-dispatch test would not isolate a different component and was not
+  run.
+- **Timeout/resource cleanup:** The call returned immediately rather than
+  timing out. No child process or workspace modification resulted.
+- **Error handling:** The error is explicit but not actionable: it contradicts
+  the tool advertised to the model. The suggested runtime fix makes this state
+  impossible rather than asking callers to retry blindly.

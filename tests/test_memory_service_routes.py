@@ -72,7 +72,11 @@ def test_memory_router_mounts_sync_review_and_query(tmp_path, monkeypatch) -> No
         },
     )
     assert review_resp.status_code == 200, review_resp.text
-    assert review_resp.json()["state"] == "APPROVE"
+    # Audit H18: this asserted "APPROVE" — the raw verb, stored verbatim into
+    # review_state. That identity mapping is the bug: DEPRECATE stored
+    # "DEPRECATE" while /query filters on review_state != "DEPRECATED".
+    # Review verbs now map onto the documented states.
+    assert review_resp.json()["state"] == "APPROVED"
 
     query_resp = client.get("/v1/memory/query?org_id=org-a&workspace_id=ws-a&limit=5")
     assert query_resp.status_code == 200, query_resp.text
@@ -88,4 +92,4 @@ def test_memory_router_mounts_sync_review_and_query(tmp_path, monkeypatch) -> No
     with store.SessionLocal() as session:
         record = session.query(MemoryRecord).filter_by(id="mem-1", org_id="org-a").first()
         assert record is not None
-        assert record.review_state == "APPROVE"
+        assert record.review_state == "APPROVED"

@@ -62,17 +62,32 @@ def _derive_buyer_honesty_fields(row: dict[str, Any]) -> dict[str, bool]:
     return {"compressed": compressed, "bypassed_small": bypassed_small}
 
 
-def build_buyer_report_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def build_buyer_report_payload(
+    rows: list[dict[str, Any]],
+    *,
+    requests_total: int | None = None,
+    scope: str = "retained_history",
+    coverage: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build honesty fields for the buyer ROI report.
 
     Separates Cutctx-created compression savings from observed provider
     cache discounts, and reports eligible vs all-traffic compression rates.
+
+    RC-2 (audit C7): ``requests_total`` used to be ``len(rows)`` — the size
+    of the savings ring buffer, so every report claimed exactly 5,000
+    requests against a true lifetime of 139k+. Callers that know the real
+    count must pass it; ``requests_rows_observed`` keeps reporting how many
+    rows the rates were actually computed from.
     """
-    requests_total = len(rows)
+    from cutctx.proxy.savings_tracker import split_savings_by_attribution
+
+    rows_observed = len(rows)
     requests_compressed = 0
     requests_bypassed_small = 0
     created_savings_tokens = 0
     observed_provider_cache_tokens = 0
+    aggregate_sources: dict[str, int] = {}
 
     for row in rows:
         sources = row.get("savings_by_source_tokens") or {}
@@ -80,6 +95,10 @@ def build_buyer_report_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
             sources = {}
         created_savings_tokens += int(sources.get("cutctx_compression", 0) or 0)
         observed_provider_cache_tokens += int(sources.get("provider_prompt_cache", 0) or 0)
+        for source, tokens in sources.items():
+            aggregate_sources[str(source)] = aggregate_sources.get(str(source), 0) + int(
+                tokens or 0
+            )
 
         bypassed = bool(row.get("bypassed_small"))
         if bypassed:
@@ -91,9 +110,17 @@ def build_buyer_report_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if compressed and not bypassed:
             requests_compressed += 1
 
-    eligible = max(0, requests_total - requests_bypassed_small)
+    cutctx_attributable_tokens, provider_native_tokens = split_savings_by_attribution(
+        aggregate_sources
+    )
+    # Rates are only measurable over the rows we actually have. Dividing a
+    # rate measured on 5,000 rows by a lifetime request count would be a
+    # different lie from the one being fixed.
+    requests_total = rows_observed if requests_total is None else max(0, int(requests_total))
+    rate_denominator = rows_observed
+    eligible = max(0, rate_denominator - requests_bypassed_small)
     eligible_rate = (requests_compressed / eligible) if eligible else 0.0
-    all_traffic_rate = (requests_compressed / requests_total) if requests_total else 0.0
+    all_traffic_rate = (requests_compressed / rate_denominator) if rate_denominator else 0.0
 
     # The eligible/all-traffic split is only a real distinction when the
     # request path recorded a below-threshold decline reason. Today most
@@ -104,6 +131,10 @@ def build_buyer_report_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
     return {
         "requests_total": requests_total,
+        "requests_rows_observed": rows_observed,
+        "rates_measured_over_requests": rate_denominator,
+        "scope": scope,
+        "history_coverage": coverage or {},
         "requests_compressed": requests_compressed,
         "requests_bypassed_small": requests_bypassed_small,
         "eligible_compression_rate": eligible_rate,
@@ -111,11 +142,80 @@ def build_buyer_report_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "bypass_telemetry_available": bypass_telemetry_available,
         "created_savings_tokens": created_savings_tokens,
         "observed_provider_cache_tokens": observed_provider_cache_tokens,
+        # RC-3: the split every buyer-facing surface must show.
+        "cutctx_attributable_tokens": cutctx_attributable_tokens,
+        "provider_native_tokens": provider_native_tokens,
         "caveat": _BUYER_CAVEAT,
         "eligibility_note": (
             _BUYER_ELIGIBLE_NOTE if bypass_telemetry_available else _BUYER_NO_BYPASS_NOTE
         ),
+        "request_count_note": (
+            f"Compression rates are measured over the {rows_observed} savings rows "
+            f"retained on disk; requests_total ({requests_total}) is the request "
+            "count for the scope. They are different denominators — do not mix them."
+            if requests_total != rows_observed
+            else (
+                f"Compression rates and requests_total both cover the same "
+                f"{rows_observed} retained savings rows."
+            )
+        ),
     }
+
+
+def _tracker_scope_facts(days: int) -> dict[str, Any]:
+    """Real request counts and retention coverage from the durable tracker.
+
+    RC-1/RC-2 (audit C7): reports used to infer their request count from
+    ``len(history_rows)`` — the ring-buffer size — and had no way to say
+    whether the requested window was even answerable.
+    """
+    from cutctx.proxy.savings_tracker import SavingsTracker, get_default_savings_storage_path
+
+    facts: dict[str, Any] = {
+        "scope": "all_time" if days <= 0 else "window",
+        "requests_total": None,
+        "lifetime_requests": None,
+        "window_covered": True,
+        "window_note": None,
+        "history_coverage": {},
+    }
+    try:
+        path = Path(get_default_savings_storage_path())
+        if not path.exists():
+            return facts
+        tracker = SavingsTracker(path=path)
+        now = datetime.now(timezone.utc)
+        from datetime import timedelta
+
+        start = now - timedelta(days=days) if days > 0 else None
+        stats = tracker.get_summary_stats(start_time=start)
+    except Exception as exc:  # noqa: BLE001 — a report must not die on telemetry
+        facts["window_note"] = f"Could not read the savings tracker: {exc}"
+        return facts
+
+    facts["scope"] = stats.get("scope", facts["scope"])
+    facts["lifetime_requests"] = stats.get("lifetime_requests")
+    facts["window_covered"] = bool(stats.get("window_covered", True))
+    facts["window_note"] = stats.get("window_note")
+    facts["history_coverage"] = stats.get("history_coverage", {})
+    facts["requests_total"] = (
+        stats.get("lifetime_requests") if days <= 0 else stats.get("total_requests")
+    )
+    # The report layer aggregates retained history ROWS, so an "all time"
+    # request count paired with row-derived token totals would be two
+    # different scopes side by side — the defect this fix exists to remove.
+    coverage = facts["history_coverage"] or {}
+    if days <= 0 and coverage.get("history_complete") is False:
+        facts["scope"] = "all_time_partial_retained_history"
+        facts["window_covered"] = False
+        facts["window_note"] = (
+            "Token and USD totals below are aggregated from the "
+            f"{coverage.get('history_points_retained', 0)} savings rows still on disk "
+            f"(~{coverage.get('retained_window_hours', 0)}h of history); older rows were "
+            "trimmed. They are a LOWER BOUND on all-time savings. The request count is "
+            "the true lifetime figure — the two cover different spans."
+        )
+    return facts
 
 
 def _get_schedule_path() -> Path:
@@ -173,7 +273,12 @@ def _collect_data(days: int) -> list[dict[str, Any]]:
                 * 100,
                 1,
             ),
-            "requests": filtered_stats.get("request_count", 0),
+            # RC-2: the tracker/storage contract is ``total_requests``;
+            # ``request_count`` never existed, so this column was always 0.
+            "requests": filtered_stats.get(
+                "total_requests", filtered_stats.get("request_count", 0)
+            ),
+            "scope": filtered_stats.get("scope", "all_time" if days <= 0 else "window"),
         }
     ]
 
@@ -680,12 +785,44 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
             compression_usd += row_compression_usd
             cache_usd += row_cache_usd
 
-    honesty = build_buyer_report_payload(data)
+    from cutctx.proxy.savings_tracker import split_savings_by_attribution
+
+    scope_facts = _tracker_scope_facts(days)
+    honesty = build_buyer_report_payload(
+        data,
+        requests_total=scope_facts.get("requests_total"),
+        scope=scope_facts.get("scope", "retained_history"),
+        coverage=scope_facts.get("history_coverage") or {},
+    )
+    cutctx_attributable_tokens, provider_native_tokens = split_savings_by_attribution(by_source)
+    scope_label = scope_facts.get("scope", "retained_history")
+    scope_lines = [
+        f"Scope: {scope_label}"
+        + ("" if scope_facts.get("window_covered", True) else " (LOWER BOUND)"),
+        f"Requests in scope: {honesty['requests_total']:,} "
+        f"(rates measured over {honesty['requests_rows_observed']:,} retained savings rows; "
+        f"{int(scope_facts.get('lifetime_requests') or 0):,} lifetime)",
+        f"Cutctx-attributable tokens: {cutctx_attributable_tokens:,}",
+        f"Provider-native tokens (not Cutctx): {provider_native_tokens:,}",
+    ]
+    if scope_facts.get("window_note"):
+        scope_lines.insert(1, str(scope_facts["window_note"]))
 
     if fmt == "json":
         payload = {
             "period_days": days,
+            "scope": scope_label,
+            "window_covered": scope_facts.get("window_covered", True),
+            "window_note": scope_facts.get("window_note"),
+            "history_coverage": scope_facts.get("history_coverage", {}),
+            "lifetime_requests": scope_facts.get("lifetime_requests"),
+            # ``total_tokens_saved`` is every source added up, including the
+            # provider's own cache. The Cutctx claim is the split below.
             "total_tokens_saved": total_tokens,
+            "cutctx_attributable_tokens": cutctx_attributable_tokens,
+            "provider_native_tokens": provider_native_tokens,
+            "headline_tokens": cutctx_attributable_tokens,
+            "headline_basis": "cutctx_attributable_tokens",
             "total_usd_saved": round(total_usd, 4),
             "compression_savings_usd": round(compression_usd, 4),
             "cache_savings_usd": round(cache_usd, 4),
@@ -721,15 +858,24 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         lines.append(f"> {honesty['caveat']}")
         lines.append(">")
         lines.append(f"> {honesty['eligibility_note']}")
+        lines.append(">")
+        lines.append(f"> {honesty['request_count_note']}")
+        lines.append("")
+        lines.append("## Scope")
+        lines.append("")
+        lines.extend(f"- {line}" for line in scope_lines)
         lines.append("")
         lines.append("## Combined savings")
         lines.append("")
-        lines.append(f"- **Total tokens saved:** {total_tokens:,}")
+        lines.append(f"- **Cutctx-attributable tokens saved:** {cutctx_attributable_tokens:,}")
+        lines.append(f"- **Provider-native tokens (not Cutctx):** {provider_native_tokens:,}")
+        lines.append(f"- **Total tokens saved (all sources):** {total_tokens:,}")
         lines.append(f"- **Total USD saved:** ${total_usd:,.2f}")
         lines.append(
-            f"- **Requests:** {honesty['requests_total']} total, "
+            f"- **Requests:** {honesty['requests_total']:,} total, "
             f"{honesty['requests_compressed']} compressed, "
-            f"{honesty['requests_bypassed_small']} bypassed (too small)"
+            f"{honesty['requests_bypassed_small']} bypassed (too small) "
+            f"— rates over {honesty['requests_rows_observed']:,} retained rows"
         )
         lines.append(f"- **Eligible compression rate:** {honesty['eligible_compression_rate']:.1%}")
         lines.append(
@@ -781,13 +927,19 @@ def report_buyer(output: str | None, days: int, fmt: str) -> None:
         lines.append("")
         lines.append(honesty["caveat"])
         lines.append(honesty["eligibility_note"])
+        lines.append(honesty["request_count_note"])
         lines.append("")
-        lines.append(f"Total tokens saved:        {total_tokens:>12,}")
+        lines.extend(scope_lines)
+        lines.append("")
+        lines.append(f"Cutctx-attributable tokens:{cutctx_attributable_tokens:>12,}")
+        lines.append(f"Provider-native tokens:    {provider_native_tokens:>12,}")
+        lines.append(f"Total tokens saved (all):  {total_tokens:>12,}")
         lines.append(f"Total USD saved:            ${total_usd:>11,.2f}")
         lines.append(
-            f"Requests (compressed/bypassed/total): "
+            f"Requests (compressed/bypassed/rows/total): "
             f"{honesty['requests_compressed']}/"
             f"{honesty['requests_bypassed_small']}/"
+            f"{honesty['requests_rows_observed']}/"
             f"{honesty['requests_total']}"
         )
         lines.append(f"Eligible compression rate:  {honesty['eligible_compression_rate']:>11.1%}")
@@ -854,23 +1006,69 @@ def _build_agent_context_report(days: int) -> dict[str, Any]:
 
     rows = _collect_savings_history(days)
     telemetry = _collect_request_telemetry(days)
-    total_tokens = sum(int(row.get("tokens_saved") or 0) for row in rows)
+    raw_pipeline_delta_tokens = sum(int(row.get("tokens_saved") or 0) for row in rows)
     total_usd = sum(float(row.get("cost_savings_usd") or 0.0) for row in rows)
     source_tokens: dict[str, int] = {}
     for row in rows:
         for source, tokens in (row.get("savings_by_source_tokens") or {}).items():
             source_tokens[source] = source_tokens.get(source, 0) + int(tokens or 0)
 
+    from cutctx.proxy.savings_tracker import (
+        RAW_PIPELINE_DELTA_NOTE,
+        SAVINGS_ATTRIBUTION_INVARIANT,
+        split_savings_by_attribution,
+    )
     from cutctx.proxy.session_replay import is_replay_enabled
 
+    cutctx_attributable_tokens, provider_native_tokens = split_savings_by_attribution(source_tokens)
+    by_source_total = cutctx_attributable_tokens + provider_native_tokens
+    scope_facts = _tracker_scope_facts(days)
+    requests_total = scope_facts.get("requests_total")
+    if not requests_total:
+        requests_total = len(rows)
+
+    # RC-5 (audit C7): this object used to print the sum of per-request
+    # ``delta_tokens_saved`` as "Tokens saved" directly above a by-source
+    # table that summed to a different number (76.7M apart on production
+    # data), with nothing saying they measured different things. They are
+    # now named separately, reconciled, and each explained.
     return {
         "schema_version": "agent_context_report_v1",
         "period_days": days,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "scope": scope_facts.get("scope", "all_time" if days <= 0 else "window"),
+        "window_covered": scope_facts.get("window_covered", True),
+        "window_note": scope_facts.get("window_note"),
+        "history_coverage": scope_facts.get("history_coverage", {}),
         "summary": {
-            "requests": len(rows),
-            "tokens_saved": total_tokens,
+            # Real request count for the scope; ``savings_rows_observed`` is
+            # how many durable savings rows those figures were computed from.
+            "requests": requests_total,
+            "savings_rows_observed": len(rows),
+            # The one buyer-facing savings number.
+            "tokens_saved": cutctx_attributable_tokens,
+            "cutctx_attributable_tokens_saved": cutctx_attributable_tokens,
+            "provider_native_tokens_saved": provider_native_tokens,
+            "raw_pipeline_delta_tokens": raw_pipeline_delta_tokens,
             "usd_saved": round(total_usd, 4),
+        },
+        "savings_reconciliation": {
+            "invariant": SAVINGS_ATTRIBUTION_INVARIANT,
+            "cutctx_attributable_tokens": cutctx_attributable_tokens,
+            "provider_native_tokens": provider_native_tokens,
+            "by_source_total_tokens": by_source_total,
+            "invariant_ok": (cutctx_attributable_tokens + provider_native_tokens)
+            == by_source_total,
+            "raw_pipeline_delta_tokens": raw_pipeline_delta_tokens,
+            "raw_vs_by_source_difference": by_source_total - raw_pipeline_delta_tokens,
+            "raw_pipeline_delta_note": RAW_PIPELINE_DELTA_NOTE,
+            "explanation": (
+                "raw_pipeline_delta_tokens sums per-request outcome.tokens_saved; "
+                "by_source_total_tokens sums the per-source ledger. They differ "
+                "because the ledger also carries provider-native cache reads and "
+                "because the cutctx_compression residual is floor-clamped at zero. "
+                "Only cutctx_attributable_tokens is a Cutctx claim."
+            ),
         },
         "savings_by_source_tokens": dict(sorted(source_tokens.items())),
         "telemetry": telemetry,
@@ -904,22 +1102,54 @@ def _render_agent_context_report(payload: dict[str, Any], fmt: str) -> str:
     optimization_latency = telemetry.get("optimization_latency_ms") or {}
     fallback = telemetry.get("fallback") or {}
     routing = telemetry.get("routing") or {}
+    reconciliation = payload.get("savings_reconciliation") or {}
     lines = [
         f"# Agent Context Report — last {payload['period_days']} days",
         "",
         "## Executive Summary",
         "",
-        f"- Requests analyzed: {summary['requests']:,}",
-        f"- Tokens saved: {summary['tokens_saved']:,}",
+        f"- Scope: {payload.get('scope', 'unknown')}"
+        + ("" if payload.get("window_covered", True) else " (LOWER BOUND)"),
+        f"- Requests in scope: {summary['requests']:,}",
+        f"- Savings rows analyzed: {summary.get('savings_rows_observed', 0):,}",
+        f"- Cutctx-attributable tokens saved: {summary['tokens_saved']:,}",
+        f"- Provider-native tokens (not Cutctx): "
+        f"{summary.get('provider_native_tokens_saved', 0):,}",
+        f"- Raw pipeline delta (not a savings claim): "
+        f"{summary.get('raw_pipeline_delta_tokens', 0):,}",
         f"- Estimated USD saved: ${summary['usd_saved']:,.2f}",
-        "",
-        "## Savings By Source",
-        "",
     ]
+    if payload.get("window_note"):
+        lines.append(f"- Coverage: {payload['window_note']}")
+    lines.extend(
+        [
+            "",
+            "## Savings Reconciliation",
+            "",
+            f"- Invariant: `{reconciliation.get('invariant', 'n/a')}` — "
+            f"holds: {reconciliation.get('invariant_ok', False)}",
+            f"- By-source total: {int(reconciliation.get('by_source_total_tokens', 0)):,} "
+            f"= {int(reconciliation.get('cutctx_attributable_tokens', 0)):,} Cutctx "
+            f"+ {int(reconciliation.get('provider_native_tokens', 0)):,} provider-native",
+            f"- Raw pipeline delta differs from the by-source total by "
+            f"{int(reconciliation.get('raw_vs_by_source_difference', 0)):,} tokens: "
+            f"{reconciliation.get('explanation', '')}",
+            "",
+            "## Savings By Source",
+            "",
+        ]
+    )
     if source_tokens:
-        lines.extend(["| Source | Tokens |", "|---|---:|"])
+        lines.extend(["| Source | Tokens | Attribution |", "|---|---:|---|"])
+        from cutctx.proxy.savings_tracker import PROVIDER_NATIVE_SAVINGS_SOURCES
+
         for source, tokens in source_tokens.items():
-            lines.append(f"| {source} | {tokens:,} |")
+            attribution = (
+                "provider-native"
+                if source in PROVIDER_NATIVE_SAVINGS_SOURCES
+                else "cutctx-attributable"
+            )
+            lines.append(f"| {source} | {tokens:,} | {attribution} |")
     else:
         lines.append("No savings-source rows found for this period.")
 

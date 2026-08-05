@@ -879,6 +879,35 @@ class CompressionStore:
                 "backend": backend_stats,
             }
 
+    def _retention_candidate_keys(self, max_age_seconds: int, max_entries: int) -> set[str]:
+        """Return the retention candidate union with the store lock held."""
+        now = time.time()
+        cutoff = now - max_age_seconds
+        entries = list(self._backend.items())
+        expired_keys = {key for key, entry in entries if entry.created_at < cutoff}
+        active_entries = [(key, entry) for key, entry in entries if key not in expired_keys]
+        active_entries.sort(key=lambda item: item[1].created_at)
+        over_limit = max(0, len(active_entries) - max_entries)
+        over_limit_keys = {key for key, _entry in active_entries[:over_limit]}
+        return expired_keys | over_limit_keys
+
+    def preview_cleanup(self, max_age_seconds: int, max_entries: int) -> int:
+        """Count retention candidates without mutating the store."""
+        with self._lock:
+            return len(self._retention_candidate_keys(max_age_seconds, max_entries))
+
+    def cleanup_retention(self, max_age_seconds: int, max_entries: int) -> int:
+        """Delete the retention candidate snapshot and return its count."""
+        with self._lock:
+            candidate_keys = self._retention_candidate_keys(max_age_seconds, max_entries)
+            for key in candidate_keys:
+                if self._backend.get(key) is not None:
+                    self._backend.delete(key)
+                    self._stale_heap_entries += 1
+            if candidate_keys:
+                self._rebuild_heap()
+            return len(candidate_keys)
+
     def get_memory_stats(self) -> ComponentStats:
         """Get memory statistics for the MemoryTracker.
 

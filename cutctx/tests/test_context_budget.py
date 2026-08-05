@@ -157,6 +157,18 @@ class TestContextBudgetController:
         result = controller.apply([])
         assert result == []
 
+    def test_apply_critical_preserves_single_oversized_user_message(self):
+        """A one-turn request must never be replaced by a synthetic summary."""
+        controller = ContextBudgetController(max_tokens=1)
+        messages = [{"role": "user", "content": "Explain this failure in detail. " * 100}]
+
+        with patch.object(controller, "_count_tokens", return_value=10_000):
+            result = controller.apply(messages)
+
+        assert result == messages
+        assert controller.status.zone == BudgetZone.CRITICAL
+        assert controller.status.compression_applied is False
+
     def test_apply_green_zone_passthrough(self):
         """In GREEN zone, messages pass through unchanged."""
         controller = ContextBudgetController(max_tokens=100_000)

@@ -73,14 +73,15 @@ def install_nuitka():
     print("Nuitka installed.")
 
 
-def nuitka_module_command(module_path: Path, output_dir: Path, *, dev: bool = False) -> list[str]:
+def nuitka_module_command(
+    module_path: Path, output_dir: Path, *, dev: bool = False
+) -> list[str]:
     """Return the supported Nuitka command for one importable EE module."""
     command = [
         sys.executable,
         "-m",
         "nuitka",
         "--module",
-        "--module-name-choice=runtime",
         f"--output-dir={output_dir}",
         "--assume-yes-for-downloads",
         "--python-flag=no_docstrings",
@@ -110,9 +111,16 @@ def compile_ee_module(
     Returns list of output files (.so + .pyi stubs).
     """
     module_name = module_path.stem
+    try:
+        relative_parent = module_path.relative_to(EE_SOURCE).parent
+    except ValueError:
+        module_output_dir = output_dir
+    else:
+        module_output_dir = output_dir / "cutctx_ee" / relative_parent
+    module_output_dir.mkdir(parents=True, exist_ok=True)
     print(f"  Compiling {module_path.name}...")
 
-    cmd = nuitka_module_command(module_path, output_dir, dev=dev)
+    cmd = nuitka_module_command(module_path, module_output_dir, dev=dev)
 
     try:
         result = subprocess.run(
@@ -130,11 +138,10 @@ def compile_ee_module(
         print(f"  WARNING: Nuitka timed out for {module_name}")
         return []
 
-    # Nuitka writes the extension beside this module's output directory. Do
-    # not recursively accept artifacts from a previous or neighboring build.
+    # Find output .so files
     outputs = []
     for ext in ("so", "pyd", "pyi"):
-        outputs.extend(output_dir.glob(f"{module_name}*.{ext}"))
+        outputs.extend(module_output_dir.glob(f"{module_name}*.{ext}"))
     return outputs
 
 
@@ -163,8 +170,7 @@ def compile_all_ee(
 
     for py_file in py_files:
         rel = py_file.relative_to(ROOT)
-        module_output_dir = output_dir / py_file.relative_to(EE_SOURCE).parent
-        outputs = compile_ee_module(py_file, module_output_dir, dev=dev)
+        outputs = compile_ee_module(py_file, output_dir, dev=dev)
         if outputs:
             results[str(rel)] = outputs
             success += 1
@@ -186,9 +192,7 @@ def verify_no_source_in_wheel(wheel_dir: Path) -> bool:
     for whl in wheel_dir.glob("*.whl"):
         with zipfile.ZipFile(whl) as z:
             py_files = [
-                name
-                for name in z.namelist()
-                if name.endswith(".py") and name != "cutctx_ee/__init__.py"
+                n for n in z.namelist() if n.endswith(".py") and n != "cutctx_ee/__init__.py"
             ]
             pyc_files = [n for n in z.namelist() if n.endswith(".pyc")]
 
@@ -235,6 +239,13 @@ def native_wheel_tag() -> tuple[str, str, str]:
 
 def retag_native_wheel(wheel: Path) -> Path:
     """Replace a misleading pure-Python tag with the native build target."""
+    try:
+        _prefix, _python_tag, abi_tag, platform_tag = wheel.stem.rsplit("-", 3)
+    except ValueError:
+        pass
+    else:
+        if abi_tag != "none" and platform_tag != "any":
+            return wheel
     python_tag, abi_tag, platform_tag = native_wheel_tag()
     result = subprocess.run(
         [
@@ -258,49 +269,69 @@ def retag_native_wheel(wheel: Path) -> Path:
 
 
 def prepare_ee_package(compile_dir: Path, version: str) -> Path:
-    """Stage compiled EE modules in the exact package directory to be signed."""
+    """Stage only final native modules and the guarded package initializer."""
     build_dir = compile_dir / "_build_root"
 
     def is_final_native_module(path: Path) -> bool:
-        """Exclude artifacts from a previous staging or Nuitka temporary build."""
         return build_dir not in path.parents and not any(
             parent.name.endswith(".build") for parent in path.parents
         )
 
-    so_files = [path for path in compile_dir.rglob("*.so") if is_final_native_module(path)]
-    pyd_files = [path for path in compile_dir.rglob("*.pyd") if is_final_native_module(path)]
+    native_files = [
+        path
+        for suffix in ("*.so", "*.pyd")
+        for path in compile_dir.rglob(suffix)
+        if is_final_native_module(path)
+    ]
     if build_dir.exists():
         shutil.rmtree(build_dir)
     pkg_dir = build_dir / "cutctx_ee"
     pkg_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy only compiled extensions
-    for so_file in so_files:
-        dest = pkg_dir / so_file.relative_to(compile_dir)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(so_file, dest)
-        strip_debug_symbols(dest)
+    compiled_pkg_dir = compile_dir / "cutctx_ee"
+    for native_file in native_files:
+        try:
+            relative = native_file.relative_to(compiled_pkg_dir)
+        except ValueError:
+            relative = native_file.relative_to(compile_dir)
+        destination = pkg_dir / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(native_file, destination)
+        if destination.suffix == ".so":
+            strip_debug_symbols(destination)
 
-    for pyd_file in pyd_files:
-        dest = pkg_dir / pyd_file.relative_to(compile_dir)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(pyd_file, dest)
-
-    # Create minimal __init__.py that imports from compiled extensions
     init_content = textwrap.dedent(f'''\
         # SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
         # Copyright (c) 2025-2026 Cutctx Labs.
         # Auto-generated stub for compiled extensions — no source shipped.
         """Cutctx Enterprise Edition v{version} (compiled)."""
+
+        try:
+            from cutctx.security.antidebug import guard_ee_entry
+        except ImportError:
+            pass
+        else:
+            guard_ee_entry()
+
+        from cutctx.security.integrity import verify_ee_manifest
+        verify_ee_manifest(strict=True)
+
         __version__ = "{version}"
     ''')
     (pkg_dir / "__init__.py").write_text(init_content)
-
     return pkg_dir
 
 
-def build_ee_wheel(build_dir: Path, output_dir: Path, version: str) -> Path | None:
-    """Build a wheel from a prepared EE package directory."""
+def build_ee_wheel(
+    compile_dir: Path,
+    output_dir: Path,
+    version: str,
+    *,
+    dev: bool = False,
+) -> Path | None:
+    """Build a wheel from compiled extensions only (no .py source)."""
+    pkg_dir = prepare_ee_package(compile_dir, version)
+    build_dir = pkg_dir.parent
 
     # Create pyproject.toml for the compiled wheel
     pyproject_content = textwrap.dedent(f'''\
@@ -314,6 +345,12 @@ def build_ee_wheel(build_dir: Path, output_dir: Path, version: str) -> Path | No
         description = "Cutctx Enterprise Edition — compiled extensions (no source)"
         license = {{text = "LicenseRef-Cutctx-Commercial"}}
         requires-python = ">=3.10"
+        dependencies = [
+            "cutctx-ai=={version}",
+            "cryptography>=41.0.0",
+            "PyJWT[crypto]>=2.8.0",
+            "sqlalchemy>=2.0,<3.0",
+        ]
 
         [tool.setuptools.packages.find]
         include = ["cutctx_ee*"]
@@ -329,8 +366,38 @@ def build_ee_wheel(build_dir: Path, output_dir: Path, version: str) -> Path | No
     ''')
     (build_dir / "pyproject.toml").write_text(pyproject_content)
 
+    setup_content = textwrap.dedent("""\
+        from setuptools import Distribution, find_namespace_packages, setup
+
+        class BinaryDistribution(Distribution):
+            def has_ext_modules(self):
+                return True
+
+        setup(
+            packages=find_namespace_packages(include=["cutctx_ee*"]),
+            package_data={"": ["*.so", "*.pyd", "MANIFEST.sha256.json"]},
+            include_package_data=True,
+            distclass=BinaryDistribution,
+        )
+    """)
+    (build_dir / "setup.py").write_text(setup_content)
+
+    manifest_command = [
+        sys.executable,
+        str(ROOT / "scripts" / "build_ee_manifest.py"),
+        "--ee-dir",
+        str(pkg_dir),
+        "--output",
+        str(pkg_dir / "MANIFEST.sha256.json"),
+    ]
+    if dev:
+        manifest_command.append("--unsigned")
+    subprocess.check_call(manifest_command, timeout=120, cwd=str(ROOT))
+
     # Build wheel
     output_dir.mkdir(parents=True, exist_ok=True)
+    for stale_wheel in output_dir.glob("cutctx_ee-*.whl"):
+        stale_wheel.unlink()
     subprocess.check_call(
         [sys.executable, "-m", "build", "--wheel", f"--outdir={output_dir}", str(build_dir)],
         timeout=120,
@@ -386,45 +453,17 @@ def main():
         print("ERROR: No modules compiled successfully")
         sys.exit(1)
 
-    pkg_dir_in_wheel = prepare_ee_package(compile_dir, args.version)
-
-    # Build signed integrity manifest from the compiled .so files.
-    # The manifest is written into the EE package dir so it ships inside
-    # the wheel and can be verified at runtime by cutctx.security.integrity.
-    if not args.dev:
-        print("\nBuilding signed EE integrity manifest…")
-        manifest_script = ROOT / "scripts" / "build_ee_manifest.py"
-        # Hash the prepared package directory so the manifest covers exactly
-        # the native modules that will be added to the wheel.
-        manifest_result = subprocess.run(
-            [
-                sys.executable,
-                str(manifest_script),
-                "--ee-dir",
-                str(pkg_dir_in_wheel),
-                "--output",
-                str(pkg_dir_in_wheel / "MANIFEST.sha256.json"),
-            ],
-            capture_output=False,
-            cwd=str(ROOT),
-        )
-        if manifest_result.returncode != 0:
-            print("ERROR: manifest build failed — refusing to ship an unverifiable EE wheel")
-            sys.exit(1)
-        else:
-            print("Integrity manifest built and included in wheel.")
-    else:
-        print("\nDev build — skipping signed manifest (use --unsigned for local testing)")
-
-    wheel = build_ee_wheel(pkg_dir_in_wheel.parent, output_dir, args.version)
+    # Build wheel from compiled extensions
+    wheel = build_ee_wheel(compile_dir, output_dir, args.version, dev=args.dev)
     if wheel:
         print(f"\nBuilt compiled EE wheel: {wheel}")
     else:
         print("ERROR: Wheel build failed")
         sys.exit(1)
 
+    # Verify no source
     if verify_no_source_in_wheel(output_dir):
-        print("\nSP-3 verification PASSED: no source in wheel")
+        print("\nSP-3 verification PASSED: no .py source in wheel")
     else:
         print("\nSP-3 verification FAILED: source detected in wheel")
         sys.exit(1)

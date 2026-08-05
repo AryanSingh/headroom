@@ -45,6 +45,14 @@ def _ee_dir() -> Path:
         return Path("/nonexistent")
 
 
+def _compiled_extensions(ee_dir: Path) -> list[Path]:
+    """Return every compiled extension module actually present under ``ee_dir``."""
+    found: list[Path] = []
+    for pattern in ("**/*.cpython-*.so", "**/*.cpython-*.pyd", "**/*.abi3.so"):
+        found.extend(ee_dir.glob(pattern))
+    return sorted(set(found))
+
+
 def _load_manifest(ee_dir: Path) -> dict[str, Any] | None:
     """Load and parse the manifest file. Returns None if missing."""
     manifest_path = ee_dir / _MANIFEST_FILENAME
@@ -112,11 +120,23 @@ def verify_ee_manifest(strict: bool = True) -> None:
         # cutctx_ee not installed — nothing to verify
         return
 
+    # A pure-source checkout has no compiled extensions at all (they are
+    # gitignored build artifacts). There is nothing to tamper with, so the
+    # guard has nothing to say. Decided from the filesystem, not from the
+    # manifest, so a *missing* manifest alongside real binaries is still an
+    # error rather than a silent pass.
+    if not _compiled_extensions(ee_dir):
+        logger.debug(
+            "No compiled cutctx_ee extensions present — source/uncompiled "
+            "install detected, skipping integrity check."
+        )
+        return
+
     manifest = _load_manifest(ee_dir)
     if manifest is None:
         msg = (
             f"cutctx_ee integrity manifest not found at "
-            f"{ee_dir / _MANIFEST_FILENAME}. "
+            f"{ee_dir / _MANIFEST_FILENAME} while compiled extensions are present. "
             "Run `python scripts/build_ee_manifest.py` to regenerate."
         )
         if strict:
@@ -149,19 +169,15 @@ def verify_ee_manifest(strict: bool = True) -> None:
         logger.warning("EE integrity manifest has no file entries — skipping hash check.")
         return
 
-    # If NONE of the manifest entries exist on disk, this is a source/uncompiled
-    # install (e.g. a fresh clone before `scripts/compile_ee.py` has been run, or
-    # a developer running from the Python source tree on a different platform than
-    # the manifest was built on). Compiled .so files are gitignored and not shipped
-    # in the source tree, so an all-missing manifest is expected in this case.
-    # In this scenario the integrity check has nothing to verify, so we skip it
-    # rather than failing hard — the guard is only meaningful when compiled
-    # binaries are present.
+    # A manifest built on a different platform (e.g. a linux manifest read on
+    # macOS) references extension names none of which exist here. That is a
+    # platform mismatch, not tampering, and the local binaries are covered by
+    # the locally generated manifest instead.
     present_count = sum(1 for p in files if (ee_dir / p).exists())
     if present_count == 0:
         logger.debug(
-            "EE integrity manifest references %d .so file(s) but none are present "
-            "on disk — source/uncompiled install detected, skipping hash check.",
+            "EE integrity manifest references %d extension(s), none of which exist "
+            "on this platform — skipping hash check.",
             len(files),
         )
         return

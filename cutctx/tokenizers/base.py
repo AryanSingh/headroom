@@ -82,10 +82,22 @@ class BaseTokenizer(ABC):
 
         Returns:
             Total token count.
+
+        Raises:
+            TypeError: If ``messages`` is not a list of dicts.
         """
+        # Defence in depth behind the proxy's request-shape validation. A
+        # ``None`` or object-shaped ``messages`` used to surface as
+        # "object of type 'NoneType' has no len()" / "'str' object has no
+        # attribute 'get'" from deep inside the counting loop.
+        if not isinstance(messages, list):
+            raise TypeError(f"messages must be a list, got {type(messages).__name__}.")
+
         total = 0
 
-        for message in messages:
+        for index, message in enumerate(messages):
+            if not isinstance(message, dict):
+                raise TypeError(f"messages[{index}] must be a dict, got {type(message).__name__}.")
             # Base message overhead
             total += self.MESSAGE_OVERHEAD
 

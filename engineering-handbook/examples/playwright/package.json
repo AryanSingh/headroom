@@ -1,0 +1,12 @@
+{
+  "name": "product-atlas-playwright-fixture",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Offline deterministic fixture for Chapter 14 browser evidence.",
+  "scripts": {
+    "test": "NODE_PATH=\"$(npm root -g)\" node tests/local-visual-test.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.61.1"
+  }
+}

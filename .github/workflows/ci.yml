@@ -390,13 +390,17 @@ jobs:
           npm --prefix dashboard ci
           npm --prefix dashboard run build
           python scripts/sync_dashboard_assets.py
-      - name: Core pytest gate
+      - name: Core and EE pytest coverage gate
         run: |
           pytest tests \
             -k "not slow and not real_llm and not live and not e2e" \
-            --cov=cutctx --cov-branch --cov-report=xml:coverage-python.xml \
-            --cov-report=term-missing --cov-fail-under=70 \
+            --cov=cutctx --cov=cutctx_ee --cov-branch \
+            --cov-report=xml:coverage-python.xml \
+            --cov-report=json:coverage-python.json \
+            --cov-report=term-missing --cov-fail-under=0 \
             --tb=short -q
+          python scripts/check_python_coverage.py coverage-python.json \
+            --core-min 70 --ee-min 60
       - name: Upload Python coverage
         if: ${{ env.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@v5

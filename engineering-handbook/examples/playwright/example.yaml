@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH14-PLAYWRIGHT
+title: Product Atlas local visual recovery fixture
+command: [python3, manifest_check.py]
+timeout_seconds: 10
+cleanup: []
+dependencies: [Node.js, cached Playwright 1.61.1 for the separate browser command]
+fixtures: [index.html, fixture.js, static-server.cjs, tests/local-visual-test.cjs]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}

@@ -21,6 +21,27 @@ _DEFAULT_LICENSE_API_URL = (
 )
 
 
+def _env_positive_int(name: str, default: int) -> int:
+    """Read a non-negative int from the environment, failing fast on garbage.
+
+    Silently falling back to the default would let a typo'd timeout look
+    applied while the old value stayed in force — the same fail-open class of
+    bug as the env-bool coercion in ``server._get_env_bool``.
+    """
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        raise ValueError(
+            f"Invalid value for environment variable {name}: {raw!r} is not an integer."
+        ) from None
+    if value < 0:
+        raise ValueError(f"Invalid value for environment variable {name}: {raw!r} must be >= 0.")
+    return value
+
+
 def _load_user_token_secret() -> str | None:
     """Read the shared user-token secret, without provisioning one.
 
@@ -425,7 +446,22 @@ class ProxyConfig:
     fallback_provider: str | None = None
 
     # Timeouts
-    request_timeout_seconds: int = 300
+    # Per-read / inter-byte upstream timeout handed to httpx. httpx resets
+    # this on every byte received, so it does not impose an absolute lifetime
+    # on a streamed response body that keeps making progress.
+    # Env: CUTCTX_UPSTREAM_READ_TIMEOUT_SECONDS.
+    request_timeout_seconds: int = field(
+        default_factory=lambda: _env_positive_int("CUTCTX_UPSTREAM_READ_TIMEOUT_SECONDS", 300)
+    )
+    # Total wall-clock budget for the non-streaming upstream exchange,
+    # including every retry attempt and backoff sleep. The streaming path
+    # applies this budget to response-header acquisition; after headers, the
+    # streamed body remains governed by the inter-byte timeout above.
+    # Exceeding the applicable budget surfaces as a clean 504.
+    # 0 disables the deadline. Env: CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS.
+    request_total_timeout_seconds: int = field(
+        default_factory=lambda: _env_positive_int("CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS", 300)
+    )
     connect_timeout_seconds: int = 10
 
     # Connection pool

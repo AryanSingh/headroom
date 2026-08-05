@@ -272,8 +272,10 @@ def test_ci_enforces_and_uploads_python_coverage() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     codecov = (ROOT / "codecov.yml").read_text(encoding="utf-8")
 
-    assert "--cov=cutctx --cov-branch" in workflow
-    assert "--cov-fail-under=70" in workflow
+    assert "--cov=cutctx --cov=cutctx_ee --cov-branch" in workflow
+    assert "--cov-report=json:coverage-python.json" in workflow
+    assert "scripts/check_python_coverage.py coverage-python.json" in workflow
+    assert "--core-min 70 --ee-min 60" in workflow
     assert "coverage-python.xml" in workflow
     assert "flags: python" in workflow
     assert codecov.count("target: 70%") == 2

@@ -41,6 +41,30 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     return TestClient(create_app(config))
 
 
+@pytest.fixture
+def entitled_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """A client whose proxy holds an ENTERPRISE entitlement.
+
+    Audit-2026-08-03 C3.3: these route modules carried no tier check at all,
+    so the original "authenticated" tests below asserted HTTP 200 while the
+    proxy sat at the *builder* tier — i.e. they pinned the licensing bypass in
+    place. They now assert 403 at builder (see the ``*_requires_entitlement``
+    tests) and keep their 200 coverage against an entitled proxy.
+    """
+    monkeypatch.setenv("CUTCTX_ADMIN_API_KEY", "test-route-modules-1234")
+    monkeypatch.setenv("CUTCTX_SECRETS_KEY", "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=")
+    app = create_app(ProxyConfig(cache_enabled=False, rate_limit_enabled=False, log_requests=False))
+    _entitle(app)
+    return TestClient(app)
+
+
+def _entitle(app, plan: str = "enterprise") -> None:
+    """Put the app's proxy on ``plan`` the same way a validated licence would."""
+    from cutctx.proxy.server import _load_entitlement_checker
+
+    app.state.proxy.entitlement_checker = _load_entitlement_checker(plan)
+
+
 def _auth() -> dict[str, str]:
     return {"authorization": "Bearer test-route-modules-1234"}
 
@@ -53,8 +77,16 @@ def test_airgap_status_unauthenticated_rejected(client: TestClient) -> None:
     assert r.status_code == 401, r.text
 
 
-def test_airgap_status_authenticated(client: TestClient) -> None:
+def test_airgap_status_requires_entitlement(client: TestClient) -> None:
+    """C3.3: air-gap is an ENTERPRISE capability; builder tier must be 403."""
     r = client.get("/v1/airgap/status", headers=_auth())
+    assert r.status_code == 403, r.text
+    r = client.get("/v1/airgap/policy", headers=_auth())
+    assert r.status_code == 403, r.text
+
+
+def test_airgap_status_authenticated(entitled_client: TestClient) -> None:
+    r = entitled_client.get("/v1/airgap/status", headers=_auth())
     assert r.status_code == 200, r.text
     body = r.json()
     # Audit-Deep-2026-06-21 Blocker 3a: the response now reports
@@ -84,11 +116,17 @@ def test_rate_limit_stats_unauthenticated_rejected(client: TestClient) -> None:
     assert r.status_code == 401, r.text
 
 
-def test_rate_limit_stats_authenticated_no_limiter(client: TestClient) -> None:
+def test_rate_limit_stats_requires_entitlement(client: TestClient) -> None:
+    """C3.3: rate limiting is a BUSINESS capability; builder tier must be 403."""
+    r = client.get("/v1/rate_limit/stats", headers=_auth())
+    assert r.status_code == 403, r.text
+
+
+def test_rate_limit_stats_authenticated_no_limiter(entitled_client: TestClient) -> None:
     """When no rate limiter is configured, the endpoint reports
     enabled=False rather than erroring.
     """
-    r = client.get("/v1/rate_limit/stats", headers=_auth())
+    r = entitled_client.get("/v1/rate_limit/stats", headers=_auth())
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["enabled"] is False
@@ -106,6 +144,7 @@ def test_rate_limit_stats_expose_recorded_denials() -> None:
         log_requests=False,
     )
     app = create_app(config)
+    _entitle(app)
     app.state.proxy.rate_limiter = TokenBucketRateLimiter(
         requests_per_minute=1,
         tokens_per_minute=5,
@@ -149,13 +188,19 @@ def test_rbac_list_assignments_unauthenticated_rejected(
     assert r.status_code == 401, r.text
 
 
-def test_rbac_list_assignments_authenticated_no_ee(client: TestClient) -> None:
+def test_rbac_list_assignments_requires_entitlement(client: TestClient) -> None:
+    """C3.3: RBAC is an ENTERPRISE capability; builder tier must be 403."""
+    r = client.get("/v1/rbac/assignments", headers=_auth())
+    assert r.status_code == 403, r.text
+
+
+def test_rbac_list_assignments_authenticated_no_ee(entitled_client: TestClient) -> None:
     """When cutctx_ee is not installed in this checkout but
     the test env does have it, the endpoint returns the empty
     assignments dict (200) or a 501 if EE is genuinely absent.
     Both are acceptable.
     """
-    r = client.get("/v1/rbac/assignments", headers=_auth())
+    r = entitled_client.get("/v1/rbac/assignments", headers=_auth())
     # Acceptable outcomes: 200 with an empty dict (EE present
     # but no assignments), or 501 (EE absent).
     assert r.status_code in (200, 501), r.text
@@ -163,12 +208,12 @@ def test_rbac_list_assignments_authenticated_no_ee(client: TestClient) -> None:
         assert "Enterprise" in r.json()["detail"]
 
 
-def test_rbac_assign_role_invalid_role_rejected(client: TestClient) -> None:
+def test_rbac_assign_role_invalid_role_rejected(entitled_client: TestClient) -> None:
     """Assigning an invalid role name returns 400 from the
     Pydantic validation on the path-param enum, even when
     cutctx_ee is not installed.
     """
-    r = client.post("/v1/rbac/assignments/alice?role=not-a-role", headers=_auth())
+    r = entitled_client.post("/v1/rbac/assignments/alice?role=not-a-role", headers=_auth())
     # 400 (Pydantic enum validation) or 501 (EE not installed)
     # depending on which fails first. Both are acceptable.
     assert r.status_code in (400, 422, 501)
@@ -234,11 +279,17 @@ def test_sso_config_unauthenticated_rejected(client: TestClient) -> None:
     assert r.status_code == 401, r.text
 
 
-def test_sso_config_authenticated_no_ee(client: TestClient) -> None:
+def test_sso_config_requires_entitlement(client: TestClient) -> None:
+    """C3.3: SSO/SAML is an ENTERPRISE capability; builder tier must be 403."""
+    r = client.get("/v1/sso/config", headers=_auth())
+    assert r.status_code == 403, r.text
+
+
+def test_sso_config_authenticated_no_ee(entitled_client: TestClient) -> None:
     """When cutctx_ee is not installed, the SSO config
     endpoint reports sso_configured=False rather than 500.
     """
-    r = client.get("/v1/sso/config", headers=_auth())
+    r = entitled_client.get("/v1/sso/config", headers=_auth())
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["sso_configured"] is False
@@ -249,21 +300,21 @@ def test_sso_validate_unauthenticated_rejected(client: TestClient) -> None:
     assert r.status_code == 401, r.text
 
 
-def test_sso_validate_accepts_body_token(client: TestClient) -> None:
-    r = client.post("/v1/sso/validate", headers=_auth(), json={"token": "abc"})
+def test_sso_validate_accepts_body_token(entitled_client: TestClient) -> None:
+    r = entitled_client.post("/v1/sso/validate", headers=_auth(), json={"token": "abc"})
     assert r.status_code in (200, 501), r.text
     if r.status_code == 200:
         body = r.json()
         assert body.get("valid") is False
 
 
-def test_sso_validate_authenticated_no_ee(client: TestClient) -> None:
+def test_sso_validate_authenticated_no_ee(entitled_client: TestClient) -> None:
     """When cutctx_ee is not installed, the SSO validate
     endpoint either returns 501 (genuinely missing) or 200
     with valid=False (EE present but no validator configured
     on the proxy). Both are acceptable.
     """
-    r = client.post("/v1/sso/validate?token=abc", headers=_auth())
+    r = entitled_client.post("/v1/sso/validate?token=abc", headers=_auth())
     assert r.status_code in (200, 501), r.text
     if r.status_code == 200:
         body = r.json()
@@ -294,11 +345,17 @@ def test_residency_proof_requires_auth(client: TestClient) -> None:
     )
 
 
+def test_residency_proof_requires_entitlement(client: TestClient) -> None:
+    """C3.3: residency proof is an ENTERPRISE capability; builder must be 403."""
+    r = client.get("/v1/residency/proof?tenant_id=default", headers=_auth())
+    assert r.status_code == 403, r.text
+
+
 def test_residency_proof_authenticated_returns_attestation(
-    client: TestClient,
+    entitled_client: TestClient,
 ) -> None:
     """An authenticated admin can fetch the residency attestation."""
-    r = client.get("/v1/residency/proof?tenant_id=default", headers=_auth())
+    r = entitled_client.get("/v1/residency/proof?tenant_id=default", headers=_auth())
     # 200 (prover available) or 503 (module missing) are both acceptable
     # — what matters is that auth was enforced and the route is reachable.
     assert r.status_code in (200, 503), r.text

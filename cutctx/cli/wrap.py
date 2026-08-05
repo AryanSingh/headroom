@@ -33,6 +33,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 # Fix Windows cp1252 encoding — box-drawing characters require UTF-8
@@ -1158,27 +1159,9 @@ def _apply_user_token_header(env: dict[str, str], *, verbose: bool = False) -> b
 
 def _resolve_license_key() -> str | None:
     """Find the active licence key the same way the proxy does."""
-    from_env = os.environ.get("CUTCTX_LICENSE_KEY")
-    if from_env and from_env.strip():
-        return from_env.strip()
-    key_file = Path.home() / ".cutctx" / "license_key.txt"
-    if key_file.exists():
-        try:
-            value = key_file.read_text(encoding="utf-8").strip()
-            if value:
-                return value
-        except OSError:
-            pass
-    try:
-        import json as _json
+    from cutctx.proxy.deployment_security import effective_license_key
 
-        from cutctx import paths as _p
-
-        payload = _json.loads(_p.license_cache_path().read_text(encoding="utf-8"))
-        key = (payload.get("payload") or {}).get("license_key")
-        return str(key).strip() or None if key else None
-    except Exception:
-        return None
+    return effective_license_key(SimpleNamespace(license_key=None))
 
 
 def _inject_codex_provider_config(port: int) -> None:
@@ -3511,6 +3494,7 @@ def codex(
     # call repeatedly. Crucially this must run before MCP install, which
     # writes its marker block to the same file.
     _codex_config_file, _codex_backup_file = _codex_config_paths()
+    _codex_config_file.parent.mkdir(parents=True, exist_ok=True)
     _snapshot_codex_config_if_unwrapped(_codex_config_file, _codex_backup_file)
 
     # Setup CLI context tool for Codex.
@@ -5085,23 +5069,27 @@ def opencode(
             "`cutctx wrap opencode --port <other-port>` for a private proxy."
         )
 
-    _launch_tool(
-        binary=opencode_bin,
-        args=opencode_args,
-        env=env,
-        port=port,
-        no_proxy=no_proxy,
-        tool_label="OPENCODE",
-        env_vars_display=env_vars_display,
-        learn=learn,
-        memory=memory,
-        agent_type="opencode",
-        backend=backend,
-        openai_api_url=openai_api_url,
-        client_credential_origin=f"http://127.0.0.1:{requested_port}",
-        reuse_only=share_proxy_port,
-        post_proxy_check=_confirm_shared_upstream_capability if share_proxy_port else None,
-    )
+    try:
+        _launch_tool(
+            binary=opencode_bin,
+            args=opencode_args,
+            env=env,
+            port=port,
+            no_proxy=no_proxy,
+            tool_label="OPENCODE",
+            env_vars_display=env_vars_display,
+            learn=learn,
+            memory=memory,
+            agent_type="opencode",
+            backend=backend,
+            openai_api_url=openai_api_url,
+            client_credential_origin=f"http://127.0.0.1:{requested_port}",
+            reuse_only=share_proxy_port,
+            post_proxy_check=_confirm_shared_upstream_capability if share_proxy_port else None,
+        )
+    finally:
+        if route_opencode_go:
+            override_path.unlink(missing_ok=True)
 
 
 # =============================================================================

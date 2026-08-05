@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "json": {
+    "id": "chatcmpl_fixture_resume",
+    "object": "chat.completion",
+    "created": 2,
+    "model": "gpt-5.4",
+    "choices": [
+      {
+        "index": 0,
+        "message": {"role": "assistant", "content": "<synthetic:text:complete>"},
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {"prompt_tokens": 18, "completion_tokens": 4, "total_tokens": 22}
+  }
+}

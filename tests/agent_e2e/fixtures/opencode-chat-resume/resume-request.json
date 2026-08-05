@@ -1,0 +1,9 @@
+{
+  "model": "gpt-5.4",
+  "messages": [
+    {"role": "user", "content": "<synthetic:text:first>"},
+    {"role": "assistant", "content": "<synthetic:text:assistant>"},
+    {"role": "user", "content": "<synthetic:text:resume>"}
+  ],
+  "stream": false
+}

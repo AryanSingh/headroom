@@ -26,6 +26,7 @@ from .batch_store import (
     BatchContextStore,
     BatchRequestContext,
 )
+from .markers import CCR_HASH_LENGTH
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +61,11 @@ class CCRStore:
             The content-hash key that can be used to retrieve the payload
             via ``get()``.
         """
-        # Compute a stable key from the content (MD5 for backward compat)
-        key = hashlib.md5(original.encode("utf-8")).hexdigest()[:24]
+        # Compute a stable key from the content (MD5 for backward compat).
+        # The truncation length is the shared CCR contract — the marker
+        # parsers in `markers.py` are built from the same constant, so the
+        # key this returns is always matchable.
+        key = hashlib.md5(original.encode("utf-8")).hexdigest()[:CCR_HASH_LENGTH]
 
         context = BatchContext(
             batch_id=key,

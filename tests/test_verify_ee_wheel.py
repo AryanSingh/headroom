@@ -34,10 +34,28 @@ def _write_wheel(
     *,
     manifest_files: dict[str, bytes] | None = None,
     include_manifest: bool = True,
+    include_core_dependency: bool = True,
 ) -> Path:
-    wheel = tmp_path / "cutctx_ee-1.2.3-py3-none-any.whl"
+    wheel = tmp_path / "cutctx_ee-1.2.3-cp311-cp311-test_platform.whl"
     with zipfile.ZipFile(wheel, "w") as archive:
         archive.writestr("cutctx_ee/__init__.py", '__version__ = "1.2.3"\n')
+        dependency = (
+            "Requires-Dist: cutctx-ai==1.2.3\n"
+            "Requires-Dist: cryptography>=41.0.0\n"
+            "Requires-Dist: PyJWT[crypto]>=2.8.0\n"
+            "Requires-Dist: sqlalchemy<3.0,>=2.0\n"
+            if include_core_dependency
+            else ""
+        )
+        archive.writestr(
+            "cutctx_ee-1.2.3.dist-info/METADATA",
+            "Metadata-Version: 2.1\nName: cutctx-ee\nVersion: 1.2.3\n"
+            + dependency,
+        )
+        archive.writestr(
+            "cutctx_ee-1.2.3.dist-info/WHEEL",
+            "Wheel-Version: 1.0\nRoot-Is-Purelib: false\nTag: cp311-cp311-test_platform\n",
+        )
         for name, data in files.items():
             archive.writestr(name, data)
         if include_manifest:
@@ -93,3 +111,76 @@ def test_verify_wheel_rejects_ee_source_leak(tmp_path: Path) -> None:
 
     with pytest.raises(WheelVerificationError, match="source"):
         verify_wheel(wheel, secret)
+
+
+@pytest.mark.parametrize(
+    "leaked_name",
+    [
+        "cutctx_ee/module.pyc",
+        "cutctx_ee/module.c",
+        "cutctx_ee/module.cpp",
+        "cutctx_ee/module.map",
+        "cutctx_ee/module.build/generated.o",
+        "commercial/license.txt",
+    ],
+)
+def test_verify_wheel_rejects_non_release_artifacts(
+    tmp_path: Path, leaked_name: str
+) -> None:
+    secret = "test-secret"
+    wheel = _write_wheel(
+        tmp_path,
+        {"cutctx_ee/module.abi3.so": b"native", leaked_name: b"leaked"},
+        secret,
+        manifest_files={"cutctx_ee/module.abi3.so": b"native"},
+    )
+
+    with pytest.raises(WheelVerificationError, match="unexpected wheel entries"):
+        verify_wheel(wheel, secret)
+
+
+def test_verify_wheel_rejects_missing_exact_core_dependency(tmp_path: Path) -> None:
+    secret = "test-secret"
+    wheel = _write_wheel(
+        tmp_path,
+        {"cutctx_ee/module.abi3.so": b"native"},
+        secret,
+        include_core_dependency=False,
+    )
+
+    with pytest.raises(WheelVerificationError, match="exact core dependency"):
+        verify_wheel(wheel, secret)
+
+
+def test_verify_wheel_rejects_missing_ee_runtime_dependencies(tmp_path: Path) -> None:
+    secret = "test-secret"
+    wheel = _write_wheel(
+        tmp_path,
+        {"cutctx_ee/module.abi3.so": b"native"},
+        secret,
+        include_core_dependency=False,
+    )
+
+    with zipfile.ZipFile(wheel, "r") as source:
+        entries = [(info, source.read(info.filename)) for info in source.infolist()]
+    with zipfile.ZipFile(wheel, "w") as archive:
+        for info, data in entries:
+            if info.filename.endswith(".dist-info/METADATA"):
+                data = (
+                    b"Metadata-Version: 2.1\nName: cutctx-ee\nVersion: 1.2.3\n"
+                    b"Requires-Dist: cutctx-ai==1.2.3\n"
+                )
+            archive.writestr(info, data)
+
+    with pytest.raises(WheelVerificationError, match="runtime dependencies"):
+        verify_wheel(wheel, secret)
+
+
+def test_verify_wheel_rejects_pure_python_tag(tmp_path: Path) -> None:
+    secret = "test-secret"
+    wheel = _write_wheel(tmp_path, {"cutctx_ee/module.abi3.so": b"native"}, secret)
+    pure_wheel = wheel.with_name("cutctx_ee-1.2.3-py3-none-any.whl")
+    wheel.rename(pure_wheel)
+
+    with pytest.raises(WheelVerificationError, match="native platform tag"):
+        verify_wheel(pure_wheel, secret)

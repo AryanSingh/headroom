@@ -1120,6 +1120,8 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
                 cache_read_tokens=cache_read_tokens,
                 cache_write_tokens=cache_write_tokens,
             )
+        if request_cost_usd is not None:
+            cost_tracker.record_cost(request_cost_usd)
 
     if request_logger is not None:
         # RequestLog imports optional provider-facing configuration. It is

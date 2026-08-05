@@ -258,6 +258,27 @@ def test_pipeline_extension_records_llm_request_sent(tmp_path: Path, monkeypatch
     }
 
 
+def test_pipeline_extension_does_not_create_a_phantom_session_without_identity(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("CUTCTX_REPLAY", "1")
+    monkeypatch.setenv("CUTCTX_REPLAY_DB_PATH", str(tmp_path / "replay.sqlite3"))
+    reset_replay_store()
+
+    ReplayPipelineExtension().on_pipeline_event(
+        PipelineEvent(
+            stage=PipelineStage.PRE_SEND,
+            operation="proxy.request",
+            request_id="req-1",
+            provider="openai",
+            model="gpt-test",
+        )
+    )
+
+    phantom = ReplayEventStore(db_path=tmp_path / "replay.sqlite3").get("_pipeline")
+    assert phantom["event_count"] == 0
+
+
 def test_reduce_replay_events_counts_sent_requests_without_a_response() -> None:
     state = reduce_replay_events(
         [

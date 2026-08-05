@@ -1096,7 +1096,12 @@ def verify(
     else:
         click.echo(content)
 
-    if ci and not report["pass"]:
+    # H12: a verification gate that prints "Status: FAIL" must exit non-zero.
+    # This used to be gated on --ci, so the default invocation reported FAIL
+    # and still exited 0 — a CI job that forgot the flag went green on a
+    # failing benchmark. The verdict now drives the exit code unconditionally;
+    # --ci is retained for backwards compatibility but is no longer required.
+    if not report["pass"]:
         raise SystemExit(1)
 
 

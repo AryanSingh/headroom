@@ -20,6 +20,29 @@ from cutctx.proxy.models import ProxyConfig
 from cutctx.proxy.routes.license_validation import create_license_validation_router
 from cutctx.proxy.server import _apply_validated_license, create_app
 from cutctx.telemetry.reporter import LicenseInfo, UsageReporter
+from cutctx_ee.billing.license_token import sign_license
+
+
+def _issuer_keypair() -> tuple[str, str, str]:
+    """Return ``(kid, private_key_hex, public_key_hex)`` for a throwaway issuer."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+
+    private = ed25519.Ed25519PrivateKey.generate()
+    priv_hex = private.private_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PrivateFormat.Raw,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).hex()
+    pub_hex = (
+        private.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw,
+        )
+        .hex()
+    )
+    return "test-kid", priv_hex, pub_hex
 
 
 def _user_token(*, subject: str = "user-1") -> str:
@@ -122,15 +145,32 @@ def test_remote_unavailability_preserves_local_fallback(monkeypatch) -> None:
     local_db.validate.assert_called_once_with("offline-license")
 
 
-def test_usage_reporter_normalizes_valid_tier_response(tmp_path) -> None:
+def test_usage_reporter_normalizes_valid_tier_response(tmp_path, monkeypatch) -> None:
+    """`tier` is normalised to `plan` for a *signed* response.
+
+    Audit-2026-08-03 C3.1: this test used to point the reporter at an
+    arbitrary host (``https://licenses.example``) and assert that a bare
+    ``{"valid": true, "tier": "business"}`` body applied the business tier —
+    i.e. it asserted the licence bypass. The normalisation contract is kept,
+    but the response now has to carry a signature the client can verify
+    offline, exactly as a real off-pin licence server must.
+    """
+
     async def scenario() -> None:
+        kid, priv, pub = _issuer_keypair()
+        monkeypatch.setenv("CUTCTX_LICENSE_PUBLIC_KEYS", f"{kid}={pub}")
+        token = sign_license("business", kid, priv)
+
         def validate(request: httpx.Request) -> httpx.Response:
             # `verify-license` with a `key` field, not `/v1/license/validate`
             # with `license_key`. The old path was never served by the
             # marketing site and answered HTTP 405 for every POST.
             assert request.url.path == "/fn/verify-license"
             assert json.loads(request.content) == {"key": "lic_test"}
-            return httpx.Response(200, json={"valid": True, "tier": "business", "seats": 3})
+            return httpx.Response(
+                200,
+                json={"valid": True, "tier": "business", "seats": 3, "license_token": token},
+            )
 
         reporter = UsageReporter(
             license_key="lic_test",
@@ -154,11 +194,13 @@ def test_usage_reporter_does_not_reuse_active_cache_after_definitive_rejection(
     tmp_path,
 ) -> None:
     async def scenario() -> None:
+        # C3.2: the cache is written signed, so seed it the same way the
+        # reporter would rather than with hand-written plain JSON (which is
+        # exactly the forgery the reader now rejects).
+        from cutctx.security.state_crypto import write_hmac_json
+
         cache_path = tmp_path / "license.json"
-        cache_path.write_text(
-            json.dumps(LicenseInfo(status="active", plan="business").to_dict()),
-            encoding="utf-8",
-        )
+        write_hmac_json(cache_path, LicenseInfo(status="active", plan="business").to_dict())
 
         def validate(_request: httpx.Request) -> httpx.Response:
             return httpx.Response(
@@ -177,9 +219,11 @@ def test_usage_reporter_does_not_reuse_active_cache_after_definitive_rejection(
         finally:
             await reporter._http_client.aclose()
 
+        from cutctx.security.state_crypto import read_hmac_json
+
         assert info.status == "revoked"
         assert info.plan is None
-        assert json.loads(cache_path.read_text(encoding="utf-8"))["status"] == "revoked"
+        assert read_hmac_json(cache_path)["status"] == "revoked"
 
     asyncio.run(scenario())
 

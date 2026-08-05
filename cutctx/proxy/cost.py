@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import math
 from collections import deque
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -872,6 +873,16 @@ class CostTracker:
         # Remove entries from the left (oldest) while they're older than cutoff
         while self._costs and self._costs[0][0] < cutoff:
             self._costs.popleft()
+
+    def record_cost(self, cost_usd: float) -> None:
+        """Record one completed request cost in the enforceable period ledger."""
+        value = float(cost_usd)
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("cost_usd must be a finite non-negative number")
+        if value == 0:
+            return
+        self._prune_old_costs()
+        self._costs.append((datetime.now(), value))
 
     def record_tokens(
         self,

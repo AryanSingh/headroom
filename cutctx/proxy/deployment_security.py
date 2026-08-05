@@ -8,6 +8,11 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
+from cutctx.auth.operator_credentials import (
+    CUTCTX_LICENSE_ACCOUNT,
+    read_operator_credential,
+)
+
 
 class DeploymentSecurityError(ValueError):
     """Raised when a network-facing proxy lacks required safeguards."""
@@ -73,6 +78,10 @@ def _license_key_from_local_store() -> str | None:
     except Exception:
         return None
 
+    keyring_key = _normalize_secret(read_operator_credential(CUTCTX_LICENSE_ACCOUNT))
+    if keyring_key:
+        return keyring_key
+
     key_file = paths.workspace_dir() / "license_key.txt"
     try:
         if key_file.is_file():
@@ -109,8 +118,8 @@ def _license_key_from_local_store() -> str | None:
 def effective_license_key(config: Any) -> str | None:
     """Resolve the active commercial license key for local operator auth.
 
-    Order: proxy config → ``CUTCTX_LICENSE_KEY`` → ``~/.cutctx/license_key.txt``
-    → activated ``license_cache.json``.
+    Order: proxy config → ``CUTCTX_LICENSE_KEY`` → desktop OS keychain →
+    ``~/.cutctx/license_key.txt`` → activated ``license_cache.json``.
     """
     return (
         _normalize_secret(getattr(config, "license_key", None))

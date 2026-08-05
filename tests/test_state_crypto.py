@@ -115,12 +115,31 @@ class TestHMACSigning:
         tampered = {"plan": "enterprise"}
         assert not verify_payload(tampered, sig, secret="key")
 
-    def test_no_secret_skips(self):
-        """Without a secret, signing returns empty string, verify returns True."""
+    def test_no_configured_secret_still_signs_and_never_accepts_unsigned(self, monkeypatch):
+        """CORRECTED (Audit-2026-08-03 C3.2).
+
+        This test previously asserted ``verify_payload(data, "", secret=None)
+        is True`` — i.e. that an *unsigned* payload verifies whenever
+        ``CUTCTX_LICENSE_HMAC_SECRET`` is unset, which it is on essentially
+        every install. That is the licence-cache forgery: write a plain
+        ``license_cache.json`` saying ``plan: enterprise`` and it verified.
+
+        With no configured secret there is now a machine-derived fallback
+        secret, so a real signature is produced and an empty one is rejected.
+        """
+        monkeypatch.delenv("CUTCTX_LICENSE_HMAC_SECRET", raising=False)
         data = {"key": "value"}
         sig = sign_payload(data, secret=None)
-        assert sig == ""
-        assert verify_payload(data, "", secret=None)
+        assert len(sig) == 64
+        assert verify_payload(data, sig, secret=None)
+        assert not verify_payload(data, "", secret=None)
+        assert not verify_payload({"key": "tampered"}, sig, secret=None)
+
+    def test_explicitly_empty_secret_disables_signing(self):
+        """An explicit empty secret opts out of signing and never verifies."""
+        data = {"key": "value"}
+        assert sign_payload(data, secret="") == ""
+        assert not verify_payload(data, "", secret="")
 
     def test_deterministic_signature(self):
         data = {"a": 1, "b": 2}
@@ -214,12 +233,18 @@ class TestHMACFileIO:
         result = read_hmac_json(path)
         assert result is None
 
-    def test_legacy_plain_json(self, tmp_path):
-        """Legacy plain JSON without HMAC envelope should be read as-is."""
+    def test_legacy_plain_json_rejected_by_default(self, tmp_path):
+        """CORRECTED (Audit-2026-08-03 C3.2).
+
+        This previously asserted that an unsigned plain-JSON document is
+        returned as-is "for migration". That acceptance is the second half of
+        the licence-cache forgery: no signature was needed at all. Unsigned
+        documents are now rejected unless a caller explicitly opts in.
+        """
         path = tmp_path / "legacy.json"
         path.write_text(json.dumps({"legacy": True}))
-        result = read_hmac_json(path)
-        assert result == {"legacy": True}
+        assert read_hmac_json(path) is None
+        assert read_hmac_json(path, allow_unsigned=True) == {"legacy": True}
 
     def test_corrupt_file(self, tmp_path):
         path = tmp_path / "corrupt.json"

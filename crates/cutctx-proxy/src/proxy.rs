@@ -52,6 +52,13 @@ use cutctx_core::transforms::context_strategy::ContextStrategy;
 #[derive(Clone, Debug)]
 pub struct RequestedModel(pub String);
 
+fn policy_allows_model(allowed_models: &str, requested_model: &str) -> bool {
+    allowed_models
+        .split(',')
+        .map(str::trim)
+        .any(|allowed| allowed == "*" || allowed == requested_model)
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Config>,
@@ -209,6 +216,13 @@ pub fn build_app(state: AppState) -> Router {
         // proxy for everything else.
         .route(
             "/v1/chat/completions",
+            post(crate::handlers::chat_completions::handle_chat_completions),
+        )
+        // Anthropic messages also carries its policy-controlled model in
+        // the JSON body. Reuse the buffered model-extraction handler so the
+        // signed allowlist is applied before any upstream request.
+        .route(
+            "/v1/messages",
             post(crate::handlers::chat_completions::handle_chat_completions),
         )
         // PR-C3: explicit POST route for /v1/responses. Same forward
@@ -501,8 +515,6 @@ pub(crate) async fn forward_http(
 
             // Enforce model allowlist
             if let Some(allowed) = &p.models {
-                let allowed_list: Vec<&str> = allowed.split(',').map(|s| s.trim()).collect();
-
                 // For OpenAI endpoints we inserted it into extensions in the handler
                 let mut requested_model = req
                     .extensions()
@@ -532,7 +544,7 @@ pub(crate) async fn forward_http(
                 }
 
                 if let Some(m) = requested_model {
-                    if !allowed_list.contains(&m.as_str()) && !allowed_list.contains(&"*") {
+                    if !policy_allows_model(allowed, &m) {
                         tracing::warn!(
                             event = "policy_rejected",
                             request_id = %request_id,
@@ -2134,5 +2146,18 @@ mod tests {
         let uri: Uri = "/".parse().unwrap();
         let out = build_upstream_url(&base, &uri).unwrap();
         assert_eq!(out.as_str(), "http://up:8080/");
+    }
+
+    #[test]
+    fn signed_policy_model_allowlist_is_exact_or_wildcard() {
+        assert!(policy_allows_model(
+            "gpt-5.4-mini, claude-sonnet-4",
+            "gpt-5.4-mini"
+        ));
+        assert!(!policy_allows_model(
+            "gpt-5.4-mini, claude-sonnet-4",
+            "gpt-5"
+        ));
+        assert!(policy_allows_model("*", "unlisted-model"));
     }
 }

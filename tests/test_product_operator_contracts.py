@@ -24,6 +24,18 @@ def test_kubernetes_deployment_has_matching_readiness_and_liveness_contracts() -
     assert "`/livez` | Liveness + startup" in readme
 
 
+def test_kubernetes_nonroot_runtime_has_a_writable_home_contract() -> None:
+    raw_deployment = (ROOT / "k8s" / "deployment.yaml").read_text(encoding="utf-8")
+    helm_deployment = (ROOT / "helm" / "cutctx" / "templates" / "deployment.yaml").read_text(
+        encoding="utf-8"
+    )
+
+    for deployment in (raw_deployment, helm_deployment):
+        assert "- name: HOME" in deployment
+        assert 'value: "/home/nonroot"' in deployment
+        assert "mountPath: /home/nonroot/.cutctx" in deployment
+
+
 def test_docker_compose_keeps_local_first_proxy_configuration_explicit() -> None:
     compose = (ROOT / "docker" / "docker-compose.native.yml").read_text(encoding="utf-8")
 

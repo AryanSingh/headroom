@@ -29,6 +29,10 @@ def intercept_group() -> None:
 
     Enable with: CUTCTX_EXPERIMENTAL=1
     """
+
+
+def _require_experimental_opt_in() -> None:
+    """Gate execution without making command discovery or help fail."""
     if os.environ.get("CUTCTX_EXPERIMENTAL") != "1":
         raise click.ClickException(
             "cutctx intercept is experimental; set CUTCTX_EXPERIMENTAL=1 to use it."
@@ -78,6 +82,7 @@ def install_cmd(port: int, extra_domains: tuple[str, ...]) -> None:
     binary gRPC/protobuf will still fail to parse if intercepted; use the
     app's Anthropic/OpenAI-compatible surface instead where one exists.
     """
+    _require_experimental_opt_in()
     if sys.platform != "darwin":
         raise click.ClickException("cutctx intercept is only supported on macOS.")
 
@@ -150,6 +155,7 @@ def install_cmd(port: int, extra_domains: tuple[str, ...]) -> None:
 @intercept_group.command("uninstall")
 def uninstall_cmd() -> None:
     """Remove transparent HTTPS interception."""
+    _require_experimental_opt_in()
     if sys.platform != "darwin":
         raise click.ClickException("cutctx intercept is only supported on macOS.")
 
@@ -189,6 +195,7 @@ def uninstall_cmd() -> None:
 @intercept_group.command("status")
 def status_cmd() -> None:
     """Show current intercept configuration status."""
+    _require_experimental_opt_in()
     if sys.platform != "darwin":
         raise click.ClickException("cutctx intercept is only supported on macOS.")
 

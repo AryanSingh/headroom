@@ -9,6 +9,7 @@ import pytest
 
 from cutctx.mcp_registry.base import RegisterStatus, ServerSpec
 from cutctx.mcp_registry.codex import CodexRegistrar
+from cutctx.mcp_registry.install import DEFAULT_PROXY_URL, build_cutctx_spec
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -234,6 +235,26 @@ def test_register_force_overwrites_block(tmp_path: Path) -> None:
     assert result.status == RegisterStatus.REGISTERED
     text = _config_path(tmp_path).read_text()
     assert "9999" not in text
+
+
+def test_force_reregister_default_preserves_proxy_env(tmp_path: Path) -> None:
+    reg = _make_registrar(tmp_path)
+    initial_result = reg.register_server(
+        build_cutctx_spec("http://127.0.0.1:9999"),
+    )
+    assert initial_result.status == RegisterStatus.REGISTERED
+    initial_parsed = tomllib.loads(_config_path(tmp_path).read_text())
+    assert initial_parsed["mcp_servers"]["cutctx"]["env"] == {
+        "CUTCTX_PROXY_URL": "http://127.0.0.1:9999",
+    }
+
+    result = reg.register_server(build_cutctx_spec(), force=True)
+
+    assert result.status == RegisterStatus.REGISTERED
+    parsed = tomllib.loads(_config_path(tmp_path).read_text())
+    assert parsed["mcp_servers"]["cutctx"]["env"] == {
+        "CUTCTX_PROXY_URL": DEFAULT_PROXY_URL,
+    }
 
 
 def test_register_force_preserves_user_managed_entry(tmp_path: Path) -> None:

@@ -1,56 +1,109 @@
-# Final Release Verdict — Private EE 0.31.0
+# First Paid Pilot Final Verdict
 
-**Date:** 2026-08-02
-**Candidate source:** `a33f67831a2e17f8fa229a5e08909a742c3dbe7d`
+**Date:** 2026-07-22  
+**Candidate:** `b88669e3a19db4b42b2a71a15edf91c3725f67d5`  
+**Evidence:** `audit/pilot-verification.json`
 
 ## Launch recommendation
 
-**Engineering decision: Go.**
-**Customer production decision: Conditional Go pending external sign-offs.**
+**Decision: Conditional Go**
+
+The software release gate is Go for the supported assisted-pilot lane. All 13
+required automated checks pass, with zero failures and zero skips. The paid
+launch remains conditional because the release owner and customer have not
+completed the external agreement, payment, named-support, live-provider, and
+customer-cluster recovery sign-offs.
 
 | Dimension | Score | Verdict |
 | --- | ---: | --- |
-| Feature completeness | 93/100 | Complete for assisted private EE distribution |
-| Security | 94/100 | No verified Critical/High supported-path finding |
-| Production readiness | 92/100 | Build, verify, smoke, monitor, backup, and rollback contracts ready |
-| QA | 96/100 | Full Python, Rust, dashboard, billing, and artifact gates pass |
+| Feature completeness | 92/100 | Supported client, provider, deployment, licensing, and operations paths are implemented and tested. |
+| Security | 94/100 | No open Critical or High supported-path finding; external penetration testing remains outside this pass. |
+| Production readiness | 90/100 | Automated release, deployment, native, dashboard, and recovery contracts pass; customer infrastructure drills remain open. |
+| Product readiness | 88/100 | Assisted onboarding and support materials exist; human commercial sign-offs remain open. |
+
+## Supported pilot matrix
+
+- Providers: OpenAI and Anthropic.
+- Clients: Codex, Claude Code, Claude Desktop MCP gateway, and compatible SDKs.
+- Workstations: macOS and Linux.
+- Deployments: local loopback, customer-managed Docker, and customer-managed
+  Kubernetes or Helm.
+- Commercial flow: manual payment confirmation and manual license issuance.
+- Support model: assisted onboarding with a named direct support owner.
+
+Claude Desktop hosted model traffic does not pass through the Cutctx proxy. The
+pilot supports Claude Desktop through MCP registration and the MCP tool-output
+gateway.
+
+## Automated evidence
+
+The required automated checks pass:
+
+1. Pilot document contracts.
+2. Network and deployment security, 40 tests.
+3. License and SQLite durability, 46 tests.
+4. Supported provider and client paths, 215 tests.
+5. Python lint for changed release files.
+6. Dashboard unit tests, 13 tests.
+7. Dashboard production build.
+8. Rust formatting.
+9. Rust workspace tests.
+10. Version alignment at 0.31.0.
+11. Commercial SPDX and package-boundary check.
+12. Helm rendering with distinct network credentials.
+13. Docker Compose validation with private state services and persistent
+    Cutctx state.
+
+The Python release clusters pass 304 tests. The machine-readable report records
+the command, return code, and output tail for each check.
 
 ## Closed Critical and High findings
 
-- Eliminated stale EE binary/manifest drift by compiling current source during release.
-- Made partial compilation and unsigned manifest generation fail closed.
-- Added signed archive verification and deterministic release evidence.
-- Added real private-index publishing with required secret checks.
-- Corrected native wheel ABI/platform tagging.
-- Aligned EE and core package versions.
-- Redacted credentials before reversible CCR persistence.
-- Restored origin-scoped MCP authentication and actionable auth remediation.
-- Closed EE billing type-ratchet errors without expanding the baseline.
-- Synchronized the embedded dashboard and current Orchestrator E2E journeys.
+- Non-loopback provider HTTP and WebSocket routes fail closed without a
+  provider-route credential.
+- Compose and Helm require distinct admin, provider-route, and agent-client
+  credentials.
+- Helm rejects missing or reused credentials before deployment.
+- Root Compose no longer publishes Qdrant or Neo4j host ports, requires an
+  explicit Neo4j password, and persists `/home/nonroot/.cutctx`.
+- Cross-connection tests prove bounded SQLite lock waiting for request metrics
+  and license activation.
+- The pilot has onboarding, acceptance, support, incident, backup, restore,
+  upgrade, rollback, license/billing, and limitation documents.
+- Every commercial Python file passes the SPDX boundary scan.
+- The dashboard unit contract matches the current overview layout and the
+  production dashboard build passes.
 
-## Verification summary
+## Required external sign-offs
 
-- Python: **9,848 passed, 456 skipped, 0 failed**.
-- Rust: **1,495 passed, 3 ignored**.
-- Dashboard: **31 unit tests passed**, production build passed, dependency audit found zero vulnerabilities.
-- Pinned Ruff and format checks passed across 1,540 files.
-- Mypy ratchet, secret scan, and diff check passed.
-- Signed wheel verification and isolated installed-wheel billing replay smoke passed.
+The release owner must close each item before giving the customer paid access:
 
-## Candidate artifact
+- contracting entity and approved pilot agreement;
+- legal review of terms, privacy terms, and any required DPA;
+- payment or invoice confirmation;
+- named support owner and written response target;
+- customer approval of data handling and telemetry settings;
+- live OpenAI and Anthropic acceptance in the customer environment;
+- customer-cluster backup restore and rollback drill;
+- production change window and rollback owner.
 
-- Path: `/tmp/cutctx-ee-release.PT4EH6/cutctx_ee-0.31.0-cp312-cp312-macosx_26_0_arm64.whl`
-- Wheel SHA-256: `c7b871a79a495ee6ad97f5eaa68969df12910586e4787c1315ad173a82f1fca2`
-- Manifest SHA-256: `974fe7146aedbc76776cbccdf1ee8ffcb2ca4a2bd09bb2f4a2c26128bdd5acc2`
-- Native modules: 33
+These items require people, customer credentials, and customer infrastructure.
+The repository cannot close them.
 
-## External sign-offs before customer production access
+## Open Medium and Low risks
 
-1. Production signing and private-index secrets.
-2. Legal approval of terms and any required DPA.
-3. Named support, incident, alert receiver, and acknowledgement owners.
-4. Live provider acceptance with customer credentials.
-5. Customer-environment backup restore and rollback drill.
-6. External license-email transport if customer delivery promises email.
+| Risk | Severity | Pilot control |
+| --- | --- | --- |
+| No external penetration test in this pass | Medium | Keep the deployment private, terminate TLS, use distinct secrets, and schedule third-party testing before a broader release. |
+| Live provider behavior was not exercised with customer credentials | Medium | Run `docs/pilot/customer-acceptance-test.md` during onboarding before production traffic. |
+| Restore and rollback were not executed on the customer's cluster | Medium | Treat the documented drill as a launch sign-off. |
+| Windows and non-OpenAI/Anthropic paths lack pilot certification | Low for this contract | Keep them outside the order form and known-limitations statement. |
+| Whole-product accessibility and broad SDK coverage remain below a GA bar | Low for the supported operator-assisted pilot | Keep the dashboard operator-only and limit the commitment to the tested clients. |
 
-No external publication or deployment was performed in this audit.
+## Release decision rule
+
+- Release the candidate to the pilot after every external sign-off is recorded.
+- Keep the decision at Conditional Go while any external sign-off remains open.
+- Change the decision to No-Go if the customer acceptance test reveals a
+  Critical or High issue, a restore drill fails, or the release artifact differs
+  from candidate `b88669e3a19db4b42b2a71a15edf91c3725f67d5`.

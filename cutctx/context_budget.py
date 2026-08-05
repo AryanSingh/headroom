@@ -228,6 +228,14 @@ class ContextBudgetController:
             return result
 
         elif action_zone == BudgetZone.CRITICAL:
+            if len(messages) <= 1:
+                # There is no historical context to summarize. Replacing the
+                # only turn would discard the active user request while still
+                # returning a syntactically successful payload.
+                logger.warning(
+                    "Context in CRITICAL zone, but the sole active message cannot be summarized"
+                )
+                return messages
             # Emergency: summarize oldest 20%
             result = self._summarize_critical_zone(messages)
             self._compression_applied = True

@@ -421,6 +421,44 @@ class TestMemoryExportImport:
         show_result = runner.invoke(main, ["memory", "show", "--db-path", temp_db, "imported-001"])
         assert "Imported memory" in show_result.output
 
+    def test_import_reports_actionable_details_for_malformed_entries(
+        self, runner: CliRunner, temp_db: str, tmp_path: Path
+    ) -> None:
+        """Malformed rows name the entry, field/reason, and accepted schema."""
+        import_file = tmp_path / "malformed.json"
+        import_file.write_text(
+            json.dumps(
+                [
+                    {
+                        "id": "missing-content",
+                        "created_at": datetime.now().isoformat(),
+                        "valid_from": datetime.now().isoformat(),
+                    },
+                    {
+                        "id": "bad-created-at",
+                        "content": "Bad timestamp",
+                        "created_at": "yesterday",
+                        "valid_from": datetime.now().isoformat(),
+                    },
+                ]
+            )
+        )
+        SQLiteMemoryStore(temp_db)
+
+        result = runner.invoke(
+            main,
+            ["memory", "import", "--db-path", temp_db, str(import_file), "--force"],
+        )
+
+        assert result.exit_code == 0
+        assert "Skipped 2 malformed entries" in result.output
+        assert "Entry 1" in result.output
+        assert "content" in result.output
+        assert "Entry 2" in result.output
+        assert "created_at" in result.output
+        assert "Required fields:" in result.output
+        assert "id, content, created_at, valid_from" in result.output
+
     def test_export_import_roundtrip(
         self, runner: CliRunner, populated_db: str, tmp_path: Path
     ) -> None:

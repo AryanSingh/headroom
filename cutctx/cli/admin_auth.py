@@ -5,7 +5,38 @@ from __future__ import annotations
 import os
 from urllib.parse import urlparse
 
+import httpx
+
 from cutctx import paths
+
+
+class CliApiError(RuntimeError):
+    """An API error already translated into an operator-facing message."""
+
+
+def _feature_label(feature: object) -> str:
+    value = str(feature or "feature").replace("_", " ")
+    return "RBAC" if value.lower() == "rbac" else value.capitalize()
+
+
+def raise_for_cli_status(response: httpx.Response) -> None:
+    """Preserve typed API denials instead of collapsing them to raw HTTP errors."""
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as error:
+        try:
+            payload = response.json()
+        except (TypeError, ValueError):
+            raise
+        detail = payload.get("detail", payload) if isinstance(payload, dict) else None
+        if isinstance(detail, dict) and detail.get("error") == "feature_not_available":
+            required = str(detail.get("required_tier") or "a higher").capitalize()
+            current = detail.get("current_tier")
+            message = f"{_feature_label(detail.get('feature'))} requires the {required} tier"
+            if current:
+                message += f" (current tier: {str(current).capitalize()})"
+            raise CliApiError(message) from error
+        raise
 
 
 def is_loopback_proxy(proxy_url: str) -> bool:

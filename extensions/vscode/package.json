@@ -32,6 +32,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
+    "test": "npm run compile && node --test tests/*.test.js",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./"
   },

@@ -1,4 +1,4 @@
-"""Versioned scenario fixtures for Codex and Claude protocol replay."""
+"""Versioned scenario fixtures for supported coding-agent protocol replay."""
 
 from __future__ import annotations
 
@@ -62,6 +62,7 @@ UPSTREAM_EVENT_TYPES = {
         "message_stop",
         "ping",
     },
+    "opencode": {"error"},
 }
 
 
@@ -85,8 +86,8 @@ def validate_scenario(scenario: dict[str, Any]) -> None:
     if scenario.get("schema_version") != 1:
         raise FixtureValidationError("schema_version must be 1")
     _required(scenario, "id", str)
-    if scenario.get("client") not in {"codex", "claude"}:
-        raise FixtureValidationError("client must be codex or claude")
+    if scenario.get("client") not in {"codex", "claude", "opencode"}:
+        raise FixtureValidationError("client must be codex, claude, or opencode")
     _required(scenario, "client_version", str)
     tags = _required(scenario, "tags", list)
     if not all(isinstance(tag, str) and tag for tag in tags):
@@ -169,7 +170,11 @@ def validate_coverage(scenarios: list[dict[str, Any]], coverage: dict[str, Any])
     required_tags = coverage.get("required_tags")
     if not isinstance(required_tags, dict):
         raise FixtureValidationError("coverage.required_tags must be an object")
-    seen_by_client: dict[str, set[str]] = {"codex": set(), "claude": set()}
+    seen_by_client: dict[str, set[str]] = {
+        "codex": set(),
+        "claude": set(),
+        "opencode": set(),
+    }
     for scenario in scenarios:
         client = scenario.get("client")
         if client in seen_by_client:

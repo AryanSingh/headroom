@@ -51,12 +51,21 @@ class _FakeRegistrar(MCPRegistrar):
 # ----------------------------------------------------------------------
 
 
-def test_build_spec_default_proxy_no_env() -> None:
+def test_build_spec_default_proxy_pins_env() -> None:
+    """The default proxy URL is written out, not omitted.
+
+    Corrected assertion: this test previously asserted ``spec.env == {}``,
+    which encoded a defect. Registrars rewrite their whole marker block, so
+    an omitted ``CUTCTX_PROXY_URL`` made a default-port ``wrap`` run *delete*
+    the ``[mcp_servers.cutctx.env]`` sub-table a previous non-default run had
+    written, leaving ``cutctx_retrieve`` with no proxy binding. The spec now
+    pins the URL unconditionally.
+    """
     spec = build_cutctx_spec()
     assert spec.name == "cutctx"
     assert spec.command == "cutctx"
     assert spec.args == ("mcp", "serve")
-    assert spec.env == {}
+    assert spec.env == {"CUTCTX_PROXY_URL": DEFAULT_PROXY_URL}
 
 
 def test_build_spec_custom_proxy_sets_env() -> None:
@@ -73,8 +82,20 @@ def test_build_spec_never_persists_client_key(monkeypatch) -> None:
     assert "client-secret" not in repr(spec)
 
 
-def test_build_spec_default_url_omits_env() -> None:
+def test_build_spec_default_url_still_emits_env() -> None:
+    """Passing the default URL explicitly behaves like any other URL.
+
+    Corrected assertion: previously ``spec.env == {}``. Special-casing the
+    default URL is exactly what dropped the env sub-table on rewrite; the
+    default must be as explicit in the agent config as any custom port.
+    """
     spec = build_cutctx_spec(DEFAULT_PROXY_URL)
+    assert spec.env == {"CUTCTX_PROXY_URL": DEFAULT_PROXY_URL}
+
+
+def test_build_spec_empty_proxy_url_omits_env() -> None:
+    """An explicitly empty URL is the only way to get no env binding."""
+    spec = build_cutctx_spec("")
     assert spec.env == {}
 
 

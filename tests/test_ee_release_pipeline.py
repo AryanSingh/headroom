@@ -51,6 +51,13 @@ def test_publish_workflow_builds_and_verifies_a_compiled_release_candidate() -> 
     assert "secrets.PRIVATE_PYPI_TOKEN" in workflow
     assert "Configure PRIVATE_PYPI_URL" not in workflow
     assert "uv build" not in workflow
+    assert 'pip install "$GITHUB_WORKSPACE"' not in workflow
+    assert "import sqlalchemy" in workflow
+    assert "from cutctx_ee.memory_service import models as memory_models" in workflow
+    assert "Tamper test installed EE wheel" in workflow
+    assert "if /tmp/cutctx-ee-smoke/bin/python -I -c 'import cutctx_ee'" in workflow
+    assert 'test -n "$TWINE_REPOSITORY_URL"' in workflow
+    assert 'test -n "$TWINE_PASSWORD"' in workflow
 
 
 def test_editable_ee_package_version_matches_the_release_version() -> None:
@@ -71,6 +78,8 @@ def test_manual_compile_workflow_uses_the_same_signing_and_verification_gates() 
     assert "CUTCTX_LICENSE_HMAC_SECRET" in workflow
     assert "scripts/verify_ee_wheel.py" in workflow
     assert "wheel-verification.json" in workflow
+    assert "scripts/check_ee_freshness.py" in workflow
+    assert "dist-ee-compiled" in workflow
 
 
 def test_nuitka_module_command_uses_supported_runtime_module_naming(tmp_path: Path) -> None:
@@ -82,7 +91,7 @@ def test_nuitka_module_command_uses_supported_runtime_module_naming(tmp_path: Pa
 
     assert "--module" in command
     assert "--module-name" not in command
-    assert "--module-name-choice=runtime" in command
+    assert "--module-name-choice=runtime" not in command
     assert "--python-flag=no_docstrings" in command
     assert "--strip-docstrings" not in command
     assert "--no-pgo" not in command
@@ -111,7 +120,11 @@ def test_wheel_builder_retags_the_native_artifact(monkeypatch, tmp_path: Path) -
     output_dir.mkdir()
     generic_wheel = output_dir / "cutctx_ee-1.2.3-py3-none-any.whl"
     generic_wheel.write_bytes(b"wheel")
-    monkeypatch.setattr(compile_ee.subprocess, "check_call", lambda *args, **kwargs: None)
+    def fake_check_call(command, **_kwargs):
+        if command[1:3] == ["-m", "build"]:
+            generic_wheel.write_bytes(b"wheel")
+
+    monkeypatch.setattr(compile_ee.subprocess, "check_call", fake_check_call)
     monkeypatch.setattr(
         compile_ee,
         "retag_native_wheel",
@@ -124,6 +137,18 @@ def test_wheel_builder_retags_the_native_artifact(monkeypatch, tmp_path: Path) -
     assert "none-any" not in wheel.name
 
 
+def test_retag_preserves_an_existing_native_platform_tag(monkeypatch, tmp_path: Path) -> None:
+    wheel = tmp_path / "cutctx_ee-1.2.3-cp312-cp312-macosx_11_0_arm64.whl"
+    wheel.write_bytes(b"wheel")
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("a correctly tagged native wheel must not be retagged")
+
+    monkeypatch.setattr(compile_ee.subprocess, "run", fail_if_called)
+
+    assert compile_ee.retag_native_wheel(wheel) == wheel
+
+
 def test_wheel_builder_includes_the_signed_manifest_as_package_data(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -134,7 +159,7 @@ def test_wheel_builder_includes_the_signed_manifest_as_package_data(
 
     compile_ee.build_ee_wheel(build_dir, tmp_path / "dist", "1.2.3")
 
-    pyproject = (build_dir / "pyproject.toml").read_text()
+    pyproject = (build_dir / "_build_root" / "pyproject.toml").read_text()
     assert "[tool.setuptools.package-data]" in pyproject
     assert '"MANIFEST.sha256.json"' in pyproject
     assert '"*.so"' in pyproject

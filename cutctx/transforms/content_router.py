@@ -49,6 +49,7 @@ from typing import Any
 
 from ..config import DEFAULT_EXCLUDE_TOOLS, ReadLifecycleConfig, TransformResult
 from ..tokenizer import Tokenizer
+from ..tokenizers.bpe_guard import iter_bpe_safe_chunks
 from .base import Transform
 from .content_detector import ContentType, DetectionResult
 from .content_detector import detect_content_type as _regex_detect_content_type
@@ -137,7 +138,11 @@ def token_len(text: str | None) -> int:
     if cached is not None:
         return cached
     try:
-        count = len(enc.encode(text))
+        # H16: tiktoken's BPE merge loop is quadratic in the length of a single
+        # non-whitespace run, so one 100 KB whitespace-free message costs ~2.9 s
+        # here. Slicing over-long runs makes the cost linear. Same guard as the
+        # other two call sites — see cutctx/tokenizers/bpe_guard.py.
+        count = sum(len(enc.encode(chunk)) for chunk in iter_bpe_safe_chunks(text))
     except Exception:
         return len(text.split())
     if len(_TOKEN_LEN_MEMO) >= _TOKEN_LEN_MEMO_MAX:

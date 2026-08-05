@@ -19,21 +19,6 @@
         "title": "ActivateRequest",
         "type": "object"
       },
-      "AgentPackagePutPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "yaml": {
-            "minLength": 1,
-            "title": "Yaml",
-            "type": "string"
-          }
-        },
-        "required": [
-          "yaml"
-        ],
-        "title": "AgentPackagePutPayload",
-        "type": "object"
-      },
       "AuditEventCreate": {
         "properties": {
           "action": {
@@ -61,6 +46,134 @@
           "payload"
         ],
         "title": "AuditEventCreate",
+        "type": "object"
+      },
+      "AuditLoggingUnavailable": {
+        "description": "Stable response shape when audit logging is unavailable.",
+        "properties": {
+          "detail": {
+            "const": "Audit logging not available",
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "AuditLoggingUnavailable",
+        "type": "object"
+      },
+      "AuditVerificationFailure": {
+        "description": "Stable response shape for a verifier failure.",
+        "properties": {
+          "detail": {
+            "const": "Audit verification failed",
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "AuditVerificationFailure",
+        "type": "object"
+      },
+      "AuditVerificationVerdict": {
+        "description": "Stable response shape for a completed audit verification.",
+        "properties": {
+          "broken_at": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Broken At"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "hash_chain": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hash Chain"
+          },
+          "lightweight": {
+            "additionalProperties": true,
+            "title": "Lightweight",
+            "type": "object"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "enum": [
+              "valid",
+              "tampered"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "status",
+          "valid",
+          "tenant_id",
+          "event_id",
+          "reason",
+          "broken_at",
+          "lightweight",
+          "hash_chain"
+        ],
+        "title": "AuditVerificationVerdict",
         "type": "object"
       },
       "Body_check_url_against_policy_v1_airgap_check_post": {
@@ -166,94 +279,6 @@
         "title": "CheckoutSeatRequest",
         "type": "object"
       },
-      "ContractDraftPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "contract": {
-            "additionalProperties": true,
-            "title": "Contract",
-            "type": "object"
-          },
-          "expected_revision": {
-            "minimum": 0.0,
-            "title": "Expected Revision",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "contract",
-          "expected_revision"
-        ],
-        "title": "ContractDraftPayload",
-        "type": "object"
-      },
-      "ContractEvidencePayload": {
-        "additionalProperties": false,
-        "properties": {
-          "abstention_reasons": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "title": "Abstention Reasons",
-            "type": "object"
-          },
-          "accepted": {
-            "default": 0,
-            "minimum": 0.0,
-            "title": "Accepted",
-            "type": "integer"
-          },
-          "fallbacks": {
-            "default": 0,
-            "minimum": 0.0,
-            "title": "Fallbacks",
-            "type": "integer"
-          },
-          "quality_scores": {
-            "items": {
-              "type": "number"
-            },
-            "title": "Quality Scores",
-            "type": "array"
-          },
-          "routed_savings_usd": {
-            "items": {
-              "type": "number"
-            },
-            "title": "Routed Savings Usd",
-            "type": "array"
-          },
-          "samples": {
-            "minimum": 0.0,
-            "title": "Samples",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "samples"
-        ],
-        "title": "ContractEvidencePayload",
-        "type": "object"
-      },
-      "ContractSimulationPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "contract": {
-            "additionalProperties": true,
-            "title": "Contract",
-            "type": "object"
-          },
-          "scenario": {
-            "$ref": "#/components/schemas/RoutingPayload"
-          }
-        },
-        "required": [
-          "contract",
-          "scenario"
-        ],
-        "title": "ContractSimulationPayload",
-        "type": "object"
-      },
       "DSRDeleteRequest": {
         "properties": {
           "user_id": {
@@ -268,35 +293,6 @@
           "user_id"
         ],
         "title": "DSRDeleteRequest",
-        "type": "object"
-      },
-      "DriftDetectionPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "max_quality_drop": {
-            "default": 0.15,
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Max Quality Drop",
-            "type": "number"
-          },
-          "task_type": {
-            "minLength": 1,
-            "title": "Task Type",
-            "type": "string"
-          },
-          "window_size": {
-            "default": 10,
-            "maximum": 500.0,
-            "minimum": 1.0,
-            "title": "Window Size",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "task_type"
-        ],
-        "title": "DriftDetectionPayload",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -399,11 +395,20 @@
         "title": "PolicyCreate",
         "type": "object"
       },
+      "ReviewAction": {
+        "description": "The only review verbs ``POST /v1/memory/review`` accepts.",
+        "enum": [
+          "APPROVE",
+          "DEPRECATE",
+          "PROPOSE"
+        ],
+        "title": "ReviewAction",
+        "type": "string"
+      },
       "ReviewRequest": {
         "properties": {
           "action": {
-            "title": "Action",
-            "type": "string"
+            "$ref": "#/components/schemas/ReviewAction"
           },
           "memory_id": {
             "title": "Memory Id",
@@ -420,640 +425,6 @@
           "action"
         ],
         "title": "ReviewRequest",
-        "type": "object"
-      },
-      "RoutingPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "allowed_data_classifications": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Allowed Data Classifications",
-            "type": "array"
-          },
-          "allowed_providers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Allowed Providers",
-            "type": "array"
-          },
-          "allowed_regions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Allowed Regions",
-            "type": "array"
-          },
-          "data_classification": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data Classification"
-          },
-          "estimated_input_tokens": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Estimated Input Tokens"
-          },
-          "estimated_output_tokens": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Estimated Output Tokens"
-          },
-          "max_cost_usd": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Cost Usd"
-          },
-          "mode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mode"
-          },
-          "model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model"
-          },
-          "policy": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Policy"
-          },
-          "profile": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Profile"
-          },
-          "provider": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider"
-          },
-          "request_id": {
-            "default": "",
-            "title": "Request Id",
-            "type": "string"
-          },
-          "requested_model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Requested Model"
-          },
-          "requested_provider": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Requested Provider"
-          },
-          "required_capabilities": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Required Capabilities",
-            "type": "array"
-          },
-          "role": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Role"
-          },
-          "selectors": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Selectors",
-            "type": "object"
-          },
-          "task_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Task Type"
-          }
-        },
-        "title": "RoutingPayload",
-        "type": "object"
-      },
-      "SchedulerRecommendationPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "allowed_data_classifications": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Allowed Data Classifications",
-            "type": "array"
-          },
-          "allowed_providers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Allowed Providers",
-            "type": "array"
-          },
-          "allowed_regions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Allowed Regions",
-            "type": "array"
-          },
-          "canary_sample_rate": {
-            "default": 0,
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Canary Sample Rate",
-            "type": "number"
-          },
-          "data_classification": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data Classification"
-          },
-          "estimated_input_tokens": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Estimated Input Tokens"
-          },
-          "estimated_output_tokens": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Estimated Output Tokens"
-          },
-          "max_cost_usd": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Cost Usd"
-          },
-          "min_observations": {
-            "default": 5,
-            "maximum": 10000.0,
-            "minimum": 1.0,
-            "title": "Min Observations",
-            "type": "integer"
-          },
-          "min_quality_score": {
-            "default": 0.8,
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Min Quality Score",
-            "type": "number"
-          },
-          "mode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mode"
-          },
-          "model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model"
-          },
-          "policy": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Policy"
-          },
-          "profile": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Profile"
-          },
-          "provider": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider"
-          },
-          "request_id": {
-            "default": "",
-            "title": "Request Id",
-            "type": "string"
-          },
-          "requested_model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Requested Model"
-          },
-          "requested_provider": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Requested Provider"
-          },
-          "required_capabilities": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Required Capabilities",
-            "type": "array"
-          },
-          "role": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Role"
-          },
-          "selectors": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Selectors",
-            "type": "object"
-          },
-          "task_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Task Type"
-          }
-        },
-        "title": "SchedulerRecommendationPayload",
-        "type": "object"
-      },
-      "ShadowRoutingPayload": {
-        "additionalProperties": false,
-        "description": "A no-call route comparison with one optional candidate override.",
-        "properties": {
-          "allowed_data_classifications": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Allowed Data Classifications",
-            "type": "array"
-          },
-          "allowed_providers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Allowed Providers",
-            "type": "array"
-          },
-          "allowed_regions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Allowed Regions",
-            "type": "array"
-          },
-          "candidate_model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Candidate Model"
-          },
-          "candidate_policy": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Candidate Policy"
-          },
-          "candidate_profile": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Candidate Profile"
-          },
-          "data_classification": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data Classification"
-          },
-          "estimated_input_tokens": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Estimated Input Tokens"
-          },
-          "estimated_output_tokens": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Estimated Output Tokens"
-          },
-          "max_cost_usd": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Cost Usd"
-          },
-          "mode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mode"
-          },
-          "model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model"
-          },
-          "policy": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Policy"
-          },
-          "profile": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Profile"
-          },
-          "provider": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider"
-          },
-          "request_id": {
-            "default": "",
-            "title": "Request Id",
-            "type": "string"
-          },
-          "requested_model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Requested Model"
-          },
-          "requested_provider": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Requested Provider"
-          },
-          "required_capabilities": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Required Capabilities",
-            "type": "array"
-          },
-          "role": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Role"
-          },
-          "selectors": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Selectors",
-            "type": "object"
-          },
-          "task_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Task Type"
-          }
-        },
-        "title": "ShadowRoutingPayload",
         "type": "object"
       },
       "SpendEventPayload": {
@@ -1371,120 +742,6 @@
           "secret"
         ],
         "title": "WebhookSubscriptionInput",
-        "type": "object"
-      },
-      "WorkflowPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "minLength": 1,
-            "title": "Id",
-            "type": "string"
-          },
-          "idempotency_key": {
-            "default": "",
-            "maxLength": 256,
-            "title": "Idempotency Key",
-            "type": "string"
-          },
-          "tasks": {
-            "items": {
-              "$ref": "#/components/schemas/WorkflowTaskPayload"
-            },
-            "maxItems": 128,
-            "minItems": 1,
-            "title": "Tasks",
-            "type": "array"
-          }
-        },
-        "required": [
-          "id",
-          "tasks"
-        ],
-        "title": "WorkflowPayload",
-        "type": "object"
-      },
-      "WorkflowTaskPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "artifact": {
-            "additionalProperties": true,
-            "title": "Artifact",
-            "type": "object"
-          },
-          "depends_on": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Depends On",
-            "type": "array"
-          },
-          "id": {
-            "minLength": 1,
-            "title": "Id",
-            "type": "string"
-          },
-          "max_attempts": {
-            "default": 3,
-            "maximum": 10.0,
-            "minimum": 1.0,
-            "title": "Max Attempts",
-            "type": "integer"
-          },
-          "messages": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Messages",
-            "type": "array"
-          },
-          "parameters": {
-            "additionalProperties": true,
-            "title": "Parameters",
-            "type": "object"
-          },
-          "requires_approval": {
-            "default": false,
-            "title": "Requires Approval",
-            "type": "boolean"
-          },
-          "requires_verification": {
-            "default": false,
-            "title": "Requires Verification",
-            "type": "boolean"
-          },
-          "retry_delay_seconds": {
-            "default": 0.25,
-            "maximum": 60.0,
-            "minimum": 0.0,
-            "title": "Retry Delay Seconds",
-            "type": "number"
-          },
-          "role": {
-            "minLength": 1,
-            "title": "Role",
-            "type": "string"
-          },
-          "timeout_seconds": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0.0,
-                "maximum": 3600.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Timeout Seconds"
-          }
-        },
-        "required": [
-          "id",
-          "role"
-        ],
-        "title": "WorkflowTaskPayload",
         "type": "object"
       }
     }
@@ -1841,7 +1098,7 @@
     },
     "/audit/verify": {
       "get": {
-        "description": "Lightweight integrity check for the audit log.\n\nMedium-32 (production-audit-progress-2026-06-20.md): the simple\nSQLite audit log is not tamper-evident on its own. This\nendpoint exposes a monotonicity + schema check via\n``AuditLogger.verify_chain`` (lightweight) and also tries\nthe hash-chain store's ``verify_chain`` for full\ncryptographic integrity when one is configured. Returns\n200 if the lightweight check passes; returns 503 if no\naudit log is configured; returns 500 if the lightweight\ncheck fails (so the operator's monitoring catches it).",
+        "description": "Lightweight integrity check for the audit log.\n\nMedium-32 (production-audit-progress-2026-06-20.md): the simple\nSQLite audit log is not tamper-evident on its own. This\nendpoint exposes a monotonicity + schema check via\n``AuditLogger.verify_chain`` (lightweight) and also tries\nthe hash-chain store's ``verify_chain`` for full\ncryptographic integrity when one is configured.\n\nH8 follow-up: a detected tamper is a *verdict*, not a server\nfault. This used to raise ``HTTPException(500, detail={...})``,\nwhich FastAPI renders as ``{\"detail\": \"{'lightweight': {...}}\"}``\n— a stringified Python dict under a ``server_error`` shape. That\nmade \"the chain is broken\" indistinguishable from \"the verifier\ncrashed\" for both monitoring and machine clients.\n\nNow: 200 with a structured body in every case where the check\nactually ran. ``ok`` carries the verdict, ``event_id`` names the\noffending entry when one was found. 503 still means no audit log\nis configured, and a genuine 5xx once again means only that the\nverifier itself failed. Callers alert on ``ok is false``.",
         "operationId": "audit_verify_audit_verify_get",
         "parameters": [
           {
@@ -1865,7 +1122,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/AuditVerificationVerdict"
+                }
               }
             },
             "description": "Successful Response"
@@ -1879,6 +1138,26 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditVerificationFailure"
+                }
+              }
+            },
+            "description": "Audit verification failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLoggingUnavailable"
+                }
+              }
+            },
+            "description": "Audit logging not available"
           }
         },
         "summary": "Audit Verify",
@@ -2845,6 +2124,45 @@
       }
     },
     "/orgs/{org_id}": {
+      "delete": {
+        "description": "Delete an organization and cascade to its workspaces/projects/agents.\n\nH11a: ``cutctx orgs delete`` always 404'd because no route existed,\neven though ``OrgStore.delete_org`` did. The CLI's only destructive\norg operation was unreachable.",
+        "operationId": "delete_org_orgs__org_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Org",
+        "tags": [
+          "enterprise"
+        ]
+      },
       "get": {
         "description": "Get organization with full hierarchy.",
         "operationId": "get_org_orgs__org_id__get",
@@ -5194,11 +4512,37 @@
           },
           {
             "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "include_deprecated",
             "required": false,
             "schema": {
               "default": false,
               "title": "Include Deprecated",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "all_orgs",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "All Orgs",
               "type": "boolean"
             }
           }
@@ -5322,11 +4666,37 @@
           },
           {
             "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "include_deprecated",
             "required": false,
             "schema": {
               "default": false,
               "title": "Include Deprecated",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "all_orgs",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "All Orgs",
               "type": "boolean"
             }
           }
@@ -5639,1967 +5009,6 @@
           }
         },
         "summary": "Openai Moderations"
-      }
-    },
-    "/v1/orchestration/agent-packages": {
-      "get": {
-        "operationId": "list_agent_packages_v1_orchestration_agent_packages_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List Agent Packages V1 Orchestration Agent Packages Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "List Agent Packages",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/agent-packages/{package_id}": {
-      "get": {
-        "operationId": "get_agent_package_v1_orchestration_agent_packages__package_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "package_id",
-            "required": true,
-            "schema": {
-              "title": "Package Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Agent Package V1 Orchestration Agent Packages  Package Id  Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Agent Package",
-        "tags": [
-          "orchestration"
-        ]
-      },
-      "put": {
-        "operationId": "put_agent_package_v1_orchestration_agent_packages__package_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "package_id",
-            "required": true,
-            "schema": {
-              "title": "Package Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AgentPackagePutPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Put Agent Package V1 Orchestration Agent Packages  Package Id  Put",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Put Agent Package",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/capability-manifest": {
-      "get": {
-        "operationId": "capability_manifest_v1_orchestration_capability_manifest_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Capability Manifest V1 Orchestration Capability Manifest Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Capability Manifest",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/config": {
-      "get": {
-        "operationId": "get_config_v1_orchestration_config_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Config V1 Orchestration Config Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Config",
-        "tags": [
-          "orchestration"
-        ]
-      },
-      "put": {
-        "operationId": "put_config_v1_orchestration_config_put",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "title": "Payload",
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Put Config V1 Orchestration Config Put",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Put Config",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/contracts": {
-      "get": {
-        "operationId": "contracts_v1_orchestration_contracts_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Contracts V1 Orchestration Contracts Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Contracts",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/contracts/{contract_id}/draft": {
-      "put": {
-        "operationId": "put_contract_draft_v1_orchestration_contracts__contract_id__draft_put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ContractDraftPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Put Contract Draft V1 Orchestration Contracts  Contract Id  Draft Put",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Put Contract Draft",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/contracts/{contract_id}/simulate": {
-      "post": {
-        "operationId": "simulate_contract_v1_orchestration_contracts__contract_id__simulate_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ContractSimulationPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Simulate Contract V1 Orchestration Contracts  Contract Id  Simulate Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Simulate Contract",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/contracts/{contract_id}/versions/{version}": {
-      "get": {
-        "operationId": "get_contract_v1_orchestration_contracts__contract_id__versions__version__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "title": "Version",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Contract V1 Orchestration Contracts  Contract Id  Versions  Version  Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Contract",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/contracts/{contract_id}/versions/{version}/canary": {
-      "post": {
-        "operationId": "canary_contract_v1_orchestration_contracts__contract_id__versions__version__canary_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "title": "Version",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Canary Contract V1 Orchestration Contracts  Contract Id  Versions  Version  Canary Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Canary Contract",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/contracts/{contract_id}/versions/{version}/evidence": {
-      "get": {
-        "operationId": "contract_evidence_v1_orchestration_contracts__contract_id__versions__version__evidence_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "title": "Version",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Contract Evidence V1 Orchestration Contracts  Contract Id  Versions  Version  Evidence Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Contract Evidence",
-        "tags": [
-          "orchestration"
-        ]
-      },
-      "put": {
-        "operationId": "put_contract_evidence_v1_orchestration_contracts__contract_id__versions__version__evidence_put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "title": "Version",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ContractEvidencePayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Put Contract Evidence V1 Orchestration Contracts  Contract Id  Versions  Version  Evidence Put",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Put Contract Evidence",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/contracts/{contract_id}/versions/{version}/pause": {
-      "post": {
-        "operationId": "pause_contract_v1_orchestration_contracts__contract_id__versions__version__pause_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "title": "Version",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Pause Contract V1 Orchestration Contracts  Contract Id  Versions  Version  Pause Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Pause Contract",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/contracts/{contract_id}/versions/{version}/promote": {
-      "post": {
-        "operationId": "promote_contract_v1_orchestration_contracts__contract_id__versions__version__promote_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "title": "Version",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Promote Contract V1 Orchestration Contracts  Contract Id  Versions  Version  Promote Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Promote Contract",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/contracts/{contract_id}/versions/{version}/rollback": {
-      "post": {
-        "operationId": "rollback_contract_v1_orchestration_contracts__contract_id__versions__version__rollback_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "title": "Version",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Rollback Contract V1 Orchestration Contracts  Contract Id  Versions  Version  Rollback Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Rollback Contract",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/contracts/{contract_id}/versions/{version}/shadow": {
-      "post": {
-        "operationId": "shadow_contract_v1_orchestration_contracts__contract_id__versions__version__shadow_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "contract_id",
-            "required": true,
-            "schema": {
-              "title": "Contract Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "version",
-            "required": true,
-            "schema": {
-              "title": "Version",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Shadow Contract V1 Orchestration Contracts  Contract Id  Versions  Version  Shadow Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Shadow Contract",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/executions": {
-      "get": {
-        "operationId": "executions_v1_orchestration_executions_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Executions V1 Orchestration Executions Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Executions",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/harness-compatibility": {
-      "get": {
-        "operationId": "harness_compatibility_v1_orchestration_harness_compatibility_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Harness Compatibility V1 Orchestration Harness Compatibility Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Harness Compatibility",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/models": {
-      "get": {
-        "operationId": "list_models_v1_orchestration_models_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "provider",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Provider"
-            }
-          },
-          {
-            "in": "query",
-            "name": "capability",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Capability"
-            }
-          },
-          {
-            "in": "query",
-            "name": "available_only",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Available Only",
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response List Models V1 Orchestration Models Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Models",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/models/refresh/{account_id}": {
-      "post": {
-        "operationId": "refresh_models_v1_orchestration_models_refresh__account_id__post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "title": "Account Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Refresh Models V1 Orchestration Models Refresh  Account Id  Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Refresh Models",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/models/{deployment_key}/certify": {
-      "post": {
-        "operationId": "certify_model_v1_orchestration_models__deployment_key__certify_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "deployment_key",
-            "required": true,
-            "schema": {
-              "title": "Deployment Key",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Certify Model V1 Orchestration Models  Deployment Key  Certify Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Certify Model",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/outcomes": {
-      "get": {
-        "operationId": "outcomes_v1_orchestration_outcomes_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Outcomes V1 Orchestration Outcomes Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Outcomes",
-        "tags": [
-          "orchestration"
-        ]
-      },
-      "post": {
-        "operationId": "record_outcome_v1_orchestration_outcomes_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "title": "Payload",
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Record Outcome V1 Orchestration Outcomes Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Record Outcome",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/policy-bundle": {
-      "get": {
-        "operationId": "policy_bundle_v1_orchestration_policy_bundle_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Policy Bundle V1 Orchestration Policy Bundle Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Policy Bundle",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/profiles": {
-      "get": {
-        "operationId": "profiles_v1_orchestration_profiles_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Profiles V1 Orchestration Profiles Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Profiles",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/providers": {
-      "get": {
-        "operationId": "providers_v1_orchestration_providers_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Providers V1 Orchestration Providers Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Providers",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/providers/{account_id}": {
-      "put": {
-        "operationId": "put_provider_v1_orchestration_providers__account_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "title": "Account Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "title": "Payload",
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Put Provider V1 Orchestration Providers  Account Id  Put",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Put Provider",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/providers/{account_id}/credential": {
-      "delete": {
-        "operationId": "delete_credential_v1_orchestration_providers__account_id__credential_delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "title": "Account Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Delete Credential V1 Orchestration Providers  Account Id  Credential Delete",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Credential",
-        "tags": [
-          "orchestration"
-        ]
-      },
-      "put": {
-        "operationId": "put_credential_v1_orchestration_providers__account_id__credential_put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "title": "Account Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "title": "Payload",
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Put Credential V1 Orchestration Providers  Account Id  Credential Put",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Put Credential",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/providers/{account_id}/test": {
-      "post": {
-        "operationId": "test_provider_v1_orchestration_providers__account_id__test_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "account_id",
-            "required": true,
-            "schema": {
-              "title": "Account Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Test Provider V1 Orchestration Providers  Account Id  Test Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Test Provider",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/receipt-audit/export": {
-      "get": {
-        "operationId": "export_receipt_audit_v1_orchestration_receipt_audit_export_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Export Receipt Audit",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/receipt-audit/verify": {
-      "get": {
-        "operationId": "verify_receipt_audit_v1_orchestration_receipt_audit_verify_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Verify Receipt Audit V1 Orchestration Receipt Audit Verify Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Verify Receipt Audit",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/receipts/{request_id}": {
-      "get": {
-        "operationId": "receipt_v1_orchestration_receipts__request_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "request_id",
-            "required": true,
-            "schema": {
-              "title": "Request Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Receipt V1 Orchestration Receipts  Request Id  Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Receipt",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/route": {
-      "post": {
-        "operationId": "preview_route_v1_orchestration_route_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RoutingPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Preview Route V1 Orchestration Route Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Preview Route",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/route/shadow": {
-      "post": {
-        "operationId": "shadow_route_v1_orchestration_route_shadow_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ShadowRoutingPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Shadow Route V1 Orchestration Route Shadow Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Shadow Route",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/routing/evidence": {
-      "get": {
-        "operationId": "routing_evidence_v1_orchestration_routing_evidence_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "minimum_samples",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "maximum": 100000,
-              "minimum": 1,
-              "title": "Minimum Samples",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "minimum_mean_quality",
-            "required": false,
-            "schema": {
-              "default": 0.9,
-              "maximum": 1,
-              "minimum": 0,
-              "title": "Minimum Mean Quality",
-              "type": "number"
-            }
-          },
-          {
-            "in": "query",
-            "name": "maximum_unsafe_rate",
-            "required": false,
-            "schema": {
-              "default": 0.01,
-              "maximum": 1,
-              "minimum": 0,
-              "title": "Maximum Unsafe Rate",
-              "type": "number"
-            }
-          },
-          {
-            "in": "query",
-            "name": "quality_floor",
-            "required": false,
-            "schema": {
-              "default": 0.8,
-              "maximum": 1,
-              "minimum": 0,
-              "title": "Quality Floor",
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Routing Evidence V1 Orchestration Routing Evidence Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Routing Evidence",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/safe-savings/status": {
-      "get": {
-        "description": "Return the read-only Safe Savings operator representation.",
-        "operationId": "safe_savings_status_v1_orchestration_safe_savings_status_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Safe Savings Status V1 Orchestration Safe Savings Status Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Safe Savings Status",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/scheduler/drift": {
-      "post": {
-        "operationId": "scheduler_drift_v1_orchestration_scheduler_drift_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DriftDetectionPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Scheduler Drift V1 Orchestration Scheduler Drift Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Scheduler Drift",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/scheduler/recommend": {
-      "post": {
-        "operationId": "scheduler_recommendation_v1_orchestration_scheduler_recommend_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SchedulerRecommendationPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Scheduler Recommendation V1 Orchestration Scheduler Recommend Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Scheduler Recommendation",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/workflows": {
-      "post": {
-        "operationId": "submit_workflow_v1_orchestration_workflows_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WorkflowPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Submit Workflow V1 Orchestration Workflows Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Submit Workflow",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/workflows/{workflow_id}": {
-      "get": {
-        "operationId": "get_workflow_v1_orchestration_workflows__workflow_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "workflow_id",
-            "required": true,
-            "schema": {
-              "title": "Workflow Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Workflow V1 Orchestration Workflows  Workflow Id  Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Workflow",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/workflows/{workflow_id}/cancel": {
-      "post": {
-        "operationId": "cancel_workflow_v1_orchestration_workflows__workflow_id__cancel_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "workflow_id",
-            "required": true,
-            "schema": {
-              "title": "Workflow Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Cancel Workflow V1 Orchestration Workflows  Workflow Id  Cancel Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Cancel Workflow",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/workflows/{workflow_id}/tasks/{task_id}/approve": {
-      "post": {
-        "operationId": "approve_workflow_task_v1_orchestration_workflows__workflow_id__tasks__task_id__approve_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "workflow_id",
-            "required": true,
-            "schema": {
-              "title": "Workflow Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "task_id",
-            "required": true,
-            "schema": {
-              "title": "Task Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Approve Workflow Task V1 Orchestration Workflows  Workflow Id  Tasks  Task Id  Approve Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Approve Workflow Task",
-        "tags": [
-          "orchestration"
-        ]
-      }
-    },
-    "/v1/orchestration/workflows/{workflow_id}/tasks/{task_id}/verify": {
-      "post": {
-        "operationId": "verify_workflow_task_v1_orchestration_workflows__workflow_id__tasks__task_id__verify_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "workflow_id",
-            "required": true,
-            "schema": {
-              "title": "Workflow Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "task_id",
-            "required": true,
-            "schema": {
-              "title": "Task Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Verify Workflow Task V1 Orchestration Workflows  Workflow Id  Tasks  Task Id  Verify Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Verify Workflow Task",
-        "tags": [
-          "orchestration"
-        ]
       }
     },
     "/v1/policies": {

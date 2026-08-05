@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "opencode-chat-resume",
+  "client": "opencode",
+  "client_version": "1.x-captured-shape",
+  "tags": [
+    "api-key-auth",
+    "http-json",
+    "first-turn",
+    "multi-turn",
+    "resume",
+    "proxy-restart",
+    "field-preservation"
+  ],
+  "runtimes": ["python"],
+  "unsupported_runtimes": [
+    {
+      "runtime": "native",
+      "reason": "The native runtime does not expose the OpenAI chat-completions compatibility route.",
+      "tracking_issue": "CUTCTX-NATIVE-OPENCODE-CHAT"
+    }
+  ],
+  "steps": [
+    {
+      "action": "request",
+      "transport": "http-json",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers_fixture": "headers.json",
+      "body_fixture": "request.json",
+      "upstream_script": "success.json"
+    },
+    {"action": "restart_proxy"},
+    {
+      "action": "request",
+      "transport": "http-json",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers_fixture": "headers.json",
+      "body_fixture": "resume-request.json",
+      "upstream_script": "resume-success.json"
+    }
+  ],
+  "assertions": {
+    "preserved_paths": ["$.model", "$.messages"]
+  }
+}

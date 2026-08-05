@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH03-CLI-CONTRACT-RUN
+title: Product Atlas Deploy CLI contract runner
+command: [python3, run_cli_fixture.py]
+timeout_seconds: 15
+cleanup: []
+dependencies: [Python 3 standard library, bash]
+fixtures: [run_cli_fixture.py, atlasctl, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}

@@ -236,10 +236,18 @@ def test_aggressive_mode_falls_back_when_kompress_declines(router, monkeypatch):
 
     router.config.compression_mode = CompressionMode.AGGRESSIVE
     monkeypatch.setattr(router, "_get_kompress", lambda: NoopKompress())
+    # The prose fallback now pays a fixed ~30-token disclosure footer (dropped
+    # count + CCR retrieval handle) whenever it drops a sentence, so the
+    # payload has to be large enough for the selection to beat that footer.
+    # The router's own `min_chars_for_block_compression` (500) already assumes
+    # as much on the real message path; the previous 173-char fixture only
+    # "compressed" because the drop was silent.
     content = (
         "The deployment succeeded. CUTCTX_TIMEOUT is 30 seconds. "
         "Routine diagnostics are available. Audit records are stored in audit.jsonl. "
-        "Additional implementation detail follows."
+        "Additional implementation detail follows. "
+        + "Routine background reconciliation continued without incident. "
+        * 20
     )
 
     result = router.compress(content)
