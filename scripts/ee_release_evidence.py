@@ -37,8 +37,10 @@ def build_release_evidence(
         raise ValueError("verification result is missing manifest_sha256")
     if not isinstance(native_module_count, int) or native_module_count < 1:
         raise ValueError("verification result is missing native_module_count")
-    if not isinstance(native_modules, list) or not native_modules or not all(
-        isinstance(name, str) and name for name in native_modules
+    if (
+        not isinstance(native_modules, list)
+        or not native_modules
+        or not all(isinstance(name, str) and name for name in native_modules)
     ):
         raise ValueError("verification result is missing native_modules")
     actual_wheel_sha256 = _sha256_file(wheel)

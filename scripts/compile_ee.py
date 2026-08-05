@@ -73,9 +73,7 @@ def install_nuitka():
     print("Nuitka installed.")
 
 
-def nuitka_module_command(
-    module_path: Path, output_dir: Path, *, dev: bool = False
-) -> list[str]:
+def nuitka_module_command(module_path: Path, output_dir: Path, *, dev: bool = False) -> list[str]:
     """Return the supported Nuitka command for one importable EE module."""
     command = [
         sys.executable,

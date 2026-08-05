@@ -108,9 +108,7 @@ def verify_wheel(wheel_path: Path, secret: str) -> dict[str, object]:
                 continue
             unexpected_entries.append(name)
         if unexpected_entries:
-            raise WheelVerificationError(
-                f"unexpected wheel entries: {sorted(unexpected_entries)}"
-            )
+            raise WheelVerificationError(f"unexpected wheel entries: {sorted(unexpected_entries)}")
 
         raw_manifest = archive.read(MANIFEST_NAME)
         try:

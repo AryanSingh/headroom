@@ -1791,7 +1791,7 @@ dev = [
 
 [[package]]
 name = "cutctx-ee"
-version = "0.26.1"
+version = "0.31.0"
 source = { editable = "packaging/cutctx-ee" }
 dependencies = [
     { name = "cryptography" },

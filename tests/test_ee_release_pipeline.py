@@ -120,6 +120,7 @@ def test_wheel_builder_retags_the_native_artifact(monkeypatch, tmp_path: Path) -
     output_dir.mkdir()
     generic_wheel = output_dir / "cutctx_ee-1.2.3-py3-none-any.whl"
     generic_wheel.write_bytes(b"wheel")
+
     def fake_check_call(command, **_kwargs):
         if command[1:3] == ["-m", "build"]:
             generic_wheel.write_bytes(b"wheel")

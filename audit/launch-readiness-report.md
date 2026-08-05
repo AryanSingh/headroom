@@ -1,63 +1,59 @@
-<!-- markdownlint-disable MD013 -->
+# Launch Readiness Report
 
-# Verified Launch Readiness Report
+**Candidate:** `main` at `be75d107` plus the release-prep correction in this change
 
-**Date:** 2026-07-31
-**Final verification:** 2026-08-01
-**Recommendation:** Engineering-ready for controlled pilot; broad GA remains contingent on organizational sign-off
+**Assessment date:** 2026-08-05
 
-## Code and product gates
+**Decision:** **No-go for an unrestricted public/GA release. Go for a controlled pilot only after the remote CI run for this exact commit passes and the named operational owners accept the listed holds.**
 
-| Gate | Status | Evidence |
+## Engineering release gates
+
+| Gate | Result | Evidence | Sign-off |
+| --- | --- | --- | --- |
+| Working tree baseline | Passed before release-prep work | `main` was clean and 166 commits ahead of `origin/main`; no unreviewed user changes were present. | Release engineering |
+| Python regression suite | Passed | `.venv/bin/python -m pytest tests scripts/tests -q` collected 10,708 tests with one environment-dependent skip and completed without a failure. | Engineering |
+| CI-pinned lint and format | Passed after remediation | `uvx ruff@0.9.4 check .` and `uvx ruff@0.9.4 format --check .` pass after formatting five EE release files. | Engineering |
+| Type ratchet, secrets, repository hygiene | Passed | `scripts/mypy_ratchet.py`, `scripts/check_secret_patterns.py`, and `scripts/check_repo_hygiene.py` completed successfully. | Engineering |
+| EE release path | Passed | `tests/test_compile_ee_script.py`, `tests/test_ee_release_evidence.py`, `tests/test_verify_ee_wheel.py`, and `tests/test_ee_release_pipeline.py`: 32 passed. | Engineering |
+| OSS package artifact | Passed | `maturin build --release` produced the macOS ABI3 wheel; `scripts/assert_oss_wheel_clean.py` accepted it and the native extension imported. | Engineering |
+| Dashboard unit, lint, and production build | Passed | 31 Node tests passed; ESLint passed with zero warnings; Vite production build completed. | Engineering |
+| Dashboard accessibility and visual E2E | Passed | `dashboard/e2e/accessibility.spec.js` and `dashboard/e2e/visual-identity.spec.js` completed from the release check. | Engineering |
+| Dependency audit | Passed | `npm --prefix dashboard audit --audit-level=high` completed without a high-severity finding. | Engineering |
+| Version coherence | Passed | Python, Rust, TypeScript, OpenClaw, Helm, and release-please metadata each state `0.31.0`; `uv.lock` now matches the EE package version. | Release engineering |
+| Remote CI for exact candidate | Pending | The 166 candidate commits have not yet been pushed, so GitHub has no CI result for their exact SHA. | Release engineering |
+
+## Release automation and artifact status
+
+| Item | Status | Required action |
 | --- | --- | --- |
-| WebSocket capacity | Complete | Configured pre-upstream admission, health/metrics, rejection alert. |
-| Retained cache memory | Complete | 64 MiB per-session value budget, 4 MiB entry cap, eviction and telemetry. |
-| Billing replay safety | Complete at persistence and hook boundary | Sequential and concurrent duplicate fulfillment returns one license. Failed delivery-hook calls remain retryable, and recorded success is not replayed. |
-| Customer email transport | Not implemented in this repository | The current `_send_license_email` hook logs issuance; an external mail provider and its idempotency contract require an owner before paid checkout can rely on email delivery. |
-| Dashboard accessibility | Complete for automated gate | Contrast token test plus Axe serious/critical scan, keyboard flows, and inspected visual baseline. |
-| Python support claim | Gated | CI smoke matrix covers 3.10, 3.11, 3.12, 3.13, and 3.14. |
-| TestClient compatibility | Complete | `httpx2` development dependency; focused suite runs without Starlette's legacy warning. |
-| Dashboard supply chain | Complete for current lock | `npm audit` reports zero vulnerabilities. |
-| DeepSeek V4 Flash | Complete | Shared-listener header routing and dedicated-listener documentation for any OpenAI-compatible harness. |
-| Restore procedure | Already complete | `docs/runbooks/backup-restore.md` exists and records the restore workflow/rehearsal. |
-| Error tracking | Already implemented | Optional error-tracking integration exists and is initialized by the server. |
+| `v0.31.0` tag | Present | Create the missing GitHub Release object to unblock release-please. |
+| `v0.31.0` GitHub Release object | Blocked before this pass | Requires a repository writer account; the documented recovery command is `gh release create v0.31.0 --verify-tag --title "v0.31.0" --generate-notes`. |
+| Current candidate | Not remote | Commit this release-prep correction, push `main`, and wait for required GitHub Actions gates. |
+| Next semantic release | Not created | Once the old release object exists and the candidate reaches GitHub, release-please should create the next release PR. Its merge remains subject to the operational holds below. |
 
-## Remaining pre-customer organizational gates
+## Operational sign-offs still required
 
-1. Qualified legal review of `TERMS.md` and any DPA/customer contract.
-2. Name alert receivers, routing, on-call owner, and acknowledgement SLA.
-3. Exercise a staging test alert through the real receiver path.
-4. Name the customer/status communication owner and channel.
-5. Confirm support contact details in the pilot materials.
-6. Configure and verify an external license-email transport before enabling paid checkout that depends on email delivery.
+These are not source-code defects and cannot be completed from this repository.
 
-These cannot be truthfully completed from source code alone.
+| Gate | Current state | Required owner/action |
+| --- | --- | --- |
+| Alert delivery and on-call response | No Alertmanager receiver, route, escalation target, acknowledgement SLA, or staging delivery test is recorded. | Operations: configure receiver/routing, name on-call owner, and execute a staging alert test. |
+| Release authority and rollback execution | Runbooks exist, but no release window, named release manager, deployed artifact digest, or production telemetry snapshot applies to this candidate. | Release Manager and SRE: approve the change record, cohort plan, stop authority, and rollback verification. |
+| Support and customer communications | Support channel and customer-status owner are not named in the pilot materials. | Support Lead: name contact path, escalation owner, and customer communication channel. |
+| Paid checkout email | The current license-email hook only logs issuance; it is not a customer email transport. | Commercial/Operations: configure and verify an idempotent external email provider before enabling checkout that relies on email delivery. |
+| Legal and compliance | No qualified legal approval for customer terms/DPA is recorded. | Legal: approve the customer-facing terms and applicable DPA. |
 
-## GA roadmap, not launch defects
+## Go/no-go conditions
 
-- Direct Stripe checkout fallback and self-serve billing UI.
-- Enterprise admin UI for SCIM, fleet, secrets, retention, and webhooks.
-- Hosted analytics/digests.
-- Multi-replica deployment after external state is available.
-- SOC 2/HIPAA/ISO work and certification evidence.
+- **Controlled pilot:** Proceed only when the release-prep commit is pushed, the required GitHub Actions checks pass for that exact SHA, and the Release Manager/SRE accept the operational risk with an explicit rollout and rollback record.
+- **Broad public GA:** Hold until every operational sign-off above has a named owner and recorded evidence. Do not represent alerting, support response, or license-email delivery as production-ready before then.
 
-## Corrected generated conditions
-
-The prior report incorrectly listed missing Sentry, missing restore documentation, and missing `subscription.created` fulfillment as launch blockers. Those claims were stale or based on the wrong Stripe lifecycle event. Subscription replay safety and durable hook state are remediated. Real customer email transport remains an explicit organizational and integration gate.
-
-## Reproduction record
+## Reproduction commands
 
 ```bash
-rtk pytest
-rtk proxy uvx ruff@0.9.4 check .
-rtk proxy uvx ruff@0.9.4 format --check .
-rtk proxy .venv/bin/python scripts/mypy_ratchet.py
-rtk proxy .venv/bin/python scripts/check_secret_patterns.py
-rtk npm test
-rtk npm run lint
-rtk npm run build
-rtk npm run test:e2e -- --reporter=line dashboard/e2e/accessibility.spec.js dashboard/e2e/visual-identity.spec.js
-rtk npm audit --audit-level=high
+rtk proxy zsh -lc '.venv/bin/python -m pytest tests scripts/tests -q'
+rtk proxy zsh -lc 'uvx ruff@0.9.4 check .; uvx ruff@0.9.4 format --check .'
+rtk proxy zsh -lc '.venv/bin/python scripts/mypy_ratchet.py; .venv/bin/python scripts/check_secret_patterns.py; .venv/bin/python scripts/check_repo_hygiene.py'
+rtk proxy zsh -lc '.venv/bin/maturin build --release --out /tmp/cutctx-release-dist; .venv/bin/python scripts/assert_oss_wheel_clean.py /tmp/cutctx-release-dist'
+rtk proxy zsh -lc 'npm --prefix dashboard test; npm --prefix dashboard run lint; npm --prefix dashboard run build; npm --prefix dashboard run test:e2e -- --reporter=line dashboard/e2e/accessibility.spec.js dashboard/e2e/visual-identity.spec.js; npm --prefix dashboard audit --audit-level=high'
 ```
-
-The final Python suite passed 9,919 tests with 271 skips. Dashboard unit tests passed 31 tests, Playwright passed 9 tests, lint and build passed, and npm reported zero vulnerabilities. Run the npm commands from `dashboard/`.

@@ -49,8 +49,7 @@ def _write_wheel(
         )
         archive.writestr(
             "cutctx_ee-1.2.3.dist-info/METADATA",
-            "Metadata-Version: 2.1\nName: cutctx-ee\nVersion: 1.2.3\n"
-            + dependency,
+            "Metadata-Version: 2.1\nName: cutctx-ee\nVersion: 1.2.3\n" + dependency,
         )
         archive.writestr(
             "cutctx_ee-1.2.3.dist-info/WHEEL",
@@ -124,9 +123,7 @@ def test_verify_wheel_rejects_ee_source_leak(tmp_path: Path) -> None:
         "commercial/license.txt",
     ],
 )
-def test_verify_wheel_rejects_non_release_artifacts(
-    tmp_path: Path, leaked_name: str
-) -> None:
+def test_verify_wheel_rejects_non_release_artifacts(tmp_path: Path, leaked_name: str) -> None:
     secret = "test-secret"
     wheel = _write_wheel(
         tmp_path,
