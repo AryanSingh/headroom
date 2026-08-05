@@ -152,7 +152,7 @@ def update_deployment_versions(root: Path, version: str) -> None:
     _replace_version_field(chart, r"^appVersion:\s*[^\n]+$", f'appVersion: "{version}"')
 
     values = root / "helm" / "cutctx" / "values.yaml"
-    _replace_version_field(values, r'^\s{2}tag:\s*"[^"]+"$', f'  tag: "{version}"')
+    _replace_version_field(values, r"^\s{2}tag:\s*[^\n]+$", f'  tag: "{version}"')
 
     deployment = root / "k8s" / "deployment.yaml"
     _replace_version_field(
