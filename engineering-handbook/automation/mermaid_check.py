@@ -7,11 +7,15 @@ import html
 import re
 from pathlib import Path
 
-SUPPORTED = re.compile(r"^(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram)\b")
+SUPPORTED = re.compile(
+    r"^(?:graph|flowchart|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram)\b"
+)
 
 
 def compile_mermaid(source: Path, output: Path) -> None:
-    lines = [line.rstrip() for line in source.read_text(encoding="utf-8").splitlines() if line.strip()]
+    lines = [
+        line.rstrip() for line in source.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
     if not lines or not SUPPORTED.match(lines[0]):
         raise ValueError("Mermaid source must start with a supported diagram declaration.")
     if any(re.search(r"(?:-->|---|==>)\s*$", line) for line in lines):

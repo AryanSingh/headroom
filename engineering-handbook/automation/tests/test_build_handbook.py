@@ -7,9 +7,15 @@ def test_build_markdown_preserves_summary_order_and_strips_front_matter(tmp_path
     root = tmp_path / "handbook"
     root.mkdir()
     (root / "metadata.yaml").write_text("handbook:\n  title: Pilot Manual\n", encoding="utf-8")
-    (root / "SUMMARY.md").write_text("- [Second](second.md)\n- [First](first.md)\n", encoding="utf-8")
-    (root / "first.md").write_text("---\nid: first\n---\n# First\n\nFirst body.\n", encoding="utf-8")
-    (root / "second.md").write_text("---\nid: second\n---\n# Second\n\nSecond body.\n", encoding="utf-8")
+    (root / "SUMMARY.md").write_text(
+        "- [Second](second.md)\n- [First](first.md)\n", encoding="utf-8"
+    )
+    (root / "first.md").write_text(
+        "---\nid: first\n---\n# First\n\nFirst body.\n", encoding="utf-8"
+    )
+    (root / "second.md").write_text(
+        "---\nid: second\n---\n# Second\n\nSecond body.\n", encoding="utf-8"
+    )
 
     output = tmp_path / "manual.md"
     build_markdown(root, output)

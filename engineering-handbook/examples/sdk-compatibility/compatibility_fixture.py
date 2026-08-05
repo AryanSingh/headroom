@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 SUPPORTED_REQUEST_FIELDS = {"tenant_id", "account_id", "include_usage"}
 REQUIRED_RESPONSE_FIELDS = {"account_id", "plan", "usage"}
 

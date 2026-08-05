@@ -203,12 +203,19 @@ def test_linked_prompt_must_belong_to_the_chapter(handbook: Path, write_md) -> N
     chapter = chapter.replace("## Audit prompts", "## Audit prompts\n[Opus](../prompts/opus.md)")
     write_md(handbook, "chapters/01.md", CHAPTER_META, chapter)
     prompt = {
-        "id": "PROMPT-OTHER-OPUS-01", "kind": "prompt", "chapter": "CH-02",
-        "model_family": "opus", "workload_type": "architecture review",
-        "objective": "Review architecture", "inputs": ["evidence"],
-        "boundaries": ["local files"], "evidence": ["paths"],
-        "output_schema": {"type": "report"}, "uncertainty": "Mark unknowns.",
-        "stop_conditions": ["missing evidence"], "escalation": "Ask the owner.",
+        "id": "PROMPT-OTHER-OPUS-01",
+        "kind": "prompt",
+        "chapter": "CH-02",
+        "model_family": "opus",
+        "workload_type": "architecture review",
+        "objective": "Review architecture",
+        "inputs": ["evidence"],
+        "boundaries": ["local files"],
+        "evidence": ["paths"],
+        "output_schema": {"type": "report"},
+        "uncertainty": "Mark unknowns.",
+        "stop_conditions": ["missing evidence"],
+        "escalation": "Ask the owner.",
     }
     write_md(handbook, "prompts/opus.md", prompt, "# Opus")
     (handbook / "standards" / "README.md").write_text("# Standards\n\n## NIST SSDF {#nist-ssdf}\n")
@@ -385,17 +392,24 @@ def test_prompt_family_rejects_duplicate_workload_or_output_declaration(
     handbook: Path, write_md, field: str
 ) -> None:
     base = {
-        "kind": "prompt", "chapter": "CH-01", "objective": "Review evidence",
-        "inputs": ["evidence"], "boundaries": ["local files only"],
-        "evidence": ["file paths"], "output_schema": {"type": "finding-list"},
-        "uncertainty": "mark unknowns", "stop_conditions": ["missing inputs"],
+        "kind": "prompt",
+        "chapter": "CH-01",
+        "objective": "Review evidence",
+        "inputs": ["evidence"],
+        "boundaries": ["local files only"],
+        "evidence": ["file paths"],
+        "output_schema": {"type": "finding-list"},
+        "uncertainty": "mark unknowns",
+        "stop_conditions": ["missing inputs"],
         "escalation": "ask the owner",
     }
     entries = []
     for index, family in enumerate(("opus", "sonnet", "haiku")):
         meta = dict(base, id=f"PROMPT-{family.upper()}-01", model_family=family)
         meta["workload_type"] = "same workload" if field == "workload_type" else f"workload-{index}"
-        meta["output_schema"] = {"type": "same"} if field == "output_schema" else {"type": f"output-{index}"}
+        meta["output_schema"] = (
+            {"type": "same"} if field == "output_schema" else {"type": f"output-{index}"}
+        )
         relative = f"prompts/{family}/01.md"
         write_md(handbook, relative, meta, f"# {family.title()} prompt")
         entries.append(relative)

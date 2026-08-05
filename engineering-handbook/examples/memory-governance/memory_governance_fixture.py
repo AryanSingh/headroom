@@ -8,7 +8,7 @@ cache). Records are stored as IDs and hashes, never as preference text.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 TODAY = "2026-08-04"
 APPROVED_PURPOSES = {"support-assist", "billing-assist", "product-recommendation"}

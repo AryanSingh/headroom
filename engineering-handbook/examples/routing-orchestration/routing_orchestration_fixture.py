@@ -22,7 +22,9 @@ class Provider:
 
 PROVIDERS = {
     "eu-fast-v2": Provider("eu-fast-v2", frozenset({"eu"}), cost_per_job=10, latency_ms=120),
-    "eu-accurate-v1": Provider("eu-accurate-v1", frozenset({"eu"}), cost_per_job=25, latency_ms=400),
+    "eu-accurate-v1": Provider(
+        "eu-accurate-v1", frozenset({"eu"}), cost_per_job=25, latency_ms=400
+    ),
     "us-general-v3": Provider("us-general-v3", frozenset({"us"}), cost_per_job=5, latency_ms=90),
 }
 

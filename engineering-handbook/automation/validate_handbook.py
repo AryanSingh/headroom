@@ -330,7 +330,15 @@ def _validate_chapter(
         for _, item in linked
         if item["metadata"].get("chapter") == chapter_id
         and item["metadata"].get("kind")
-        in {"chapter-asset", "worked-example", "prompt", "checklist", "runbook", "kpi-catalog", "template"}
+        in {
+            "chapter-asset",
+            "worked-example",
+            "prompt",
+            "checklist",
+            "runbook",
+            "kpi-catalog",
+            "template",
+        }
     ]
     headings = set(document["headings"])
     for item in linked_assets:
@@ -529,7 +537,9 @@ def _validate_mermaid(relative: Path, document: dict[str, Any], findings: list[F
                 )
             except (OSError, subprocess.TimeoutExpired) as exc:
                 findings.append(
-                    _finding("MERMAID_COMPILE_FAILED", relative, f"Mermaid compilation failed: {exc}.")
+                    _finding(
+                        "MERMAID_COMPILE_FAILED", relative, f"Mermaid compilation failed: {exc}."
+                    )
                 )
                 continue
             if completed.returncode != 0 or not output.is_file():

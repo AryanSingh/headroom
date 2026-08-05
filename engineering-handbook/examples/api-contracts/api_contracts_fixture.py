@@ -8,7 +8,6 @@ authenticated principal, never from a client-supplied tenant header.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -39,19 +38,17 @@ class TransferService:
         self._by_key: dict[str, Transfer] = {}
         self._next_id = 104
 
-    def _tenant_for(self, token: str) -> Optional[str]:
+    def _tenant_for(self, token: str) -> str | None:
         return self._principals.get(token)
 
     def create_transfer(
         self, token: str, account: str, cents: int, idempotency_key: str
-    ) -> tuple[Optional[Transfer], Optional[Problem]]:
+    ) -> tuple[Transfer | None, Problem | None]:
         tenant = self._tenant_for(token)
         if tenant is None:
             return None, Problem("unauthorized", "principal is not recognized")
         if account not in self._accounts.get(tenant, set()):
-            return None, Problem(
-                "not_found", "account is not scoped to the authenticated tenant"
-            )
+            return None, Problem("not_found", "account is not scoped to the authenticated tenant")
         if not isinstance(cents, int) or cents <= 0 or cents > 10_000_000:
             return None, Problem("malformed", "cents must be a positive integer")
         if not idempotency_key or len(idempotency_key) > 64:
@@ -66,14 +63,12 @@ class TransferService:
                 )
             return existing, None
 
-        transfer = Transfer(
-            id=f"tr-{self._next_id}", tenant=tenant, account=account, cents=cents
-        )
+        transfer = Transfer(id=f"tr-{self._next_id}", tenant=tenant, account=account, cents=cents)
         self._next_id += 1
         self._by_key[idempotency_key] = transfer
         return transfer, None
 
-    def status_by_key(self, token: str, idempotency_key: str) -> Optional[Transfer]:
+    def status_by_key(self, token: str, idempotency_key: str) -> Transfer | None:
         """Timeout-after-accept retry path: return the original, never a duplicate."""
         tenant = self._tenant_for(token)
         if tenant is None:

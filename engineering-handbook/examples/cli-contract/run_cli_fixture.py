@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 
 
 def _run_atlasctl(argv: list[str], profile: str) -> subprocess.CompletedProcess[str]:

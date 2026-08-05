@@ -84,8 +84,7 @@ def _offline_environment(workdir: Path, manifest_environment: dict[str, Any]) ->
         "    def connect_ex(self, *args, **kwargs):\n"
         "        _blocked(*args, **kwargs)\n"
         "socket.socket = _OfflineSocket\n"
-        "socket.create_connection = _blocked\n"
-        ,
+        "socket.create_connection = _blocked\n",
         encoding="utf-8",
     )
     node_guard = guard_dir / "node-offline-guard.cjs"

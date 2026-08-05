@@ -6,7 +6,6 @@ import argparse
 import json
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent
 
 
@@ -24,11 +23,17 @@ def main() -> int:
     args = parser.parse_args()
     cases = json.loads((ROOT / "cases.json").read_text(encoding="utf-8"))
     results = [{"id": case["id"], **evaluate(case)} for case in cases]
-    quality = all(result["outcome"] == case["expected_outcome"] for case, result in zip(cases, results))
+    quality = all(
+        result["outcome"] == case["expected_outcome"] for case, result in zip(cases, results)
+    )
     routes = all(result["route"] == case["expected_route"] for case, result in zip(cases, results))
     safety = all(result["safety"] == case["safety"] for case, result in zip(cases, results))
     approved = quality and routes and safety
-    report = {"fixture": "atlas-ai-eval-v1", "results": results, "release_decision": "approved" if approved else "blocked"}
+    report = {
+        "fixture": "atlas-ai-eval-v1",
+        "results": results,
+        "release_decision": "approved" if approved else "blocked",
+    }
     if args.report:
         args.report.write_text(json.dumps(report, sort_keys=True) + "\n", encoding="utf-8")
     print(

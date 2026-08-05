@@ -9,12 +9,12 @@ import re
 import shutil
 import subprocess
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import yaml
+from document_model import Node
 from docx import Document
-from docx.enum.section import WD_SECTION
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
@@ -22,10 +22,9 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 from pypdf import PdfReader
 
-from document_model import Node
-
-
-SOFFICE = Path("/Users/aryansingh/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override/soffice")
+SOFFICE = Path(
+    "/Users/aryansingh/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override/soffice"
+)
 PDFTOPPM = shutil.which("pdftoppm") or "/opt/homebrew/bin/pdftoppm"
 STYLE_PATH = Path(__file__).parents[1] / "build/styles/publication.yaml"
 LINK = re.compile(r"\[[^\]]+\]\(([^)#]+)")
@@ -39,7 +38,9 @@ def _read_yaml(path: Path) -> dict:
 
 
 def manifest_paths(root: Path) -> list[Path]:
-    return [Path(value) for value in LINK.findall((root / "SUMMARY.md").read_text(encoding="utf-8"))]
+    return [
+        Path(value) for value in LINK.findall((root / "SUMMARY.md").read_text(encoding="utf-8"))
+    ]
 
 
 def manifest_headings(root: Path, paths: Iterable[Path] | None = None) -> list[Node]:
@@ -73,7 +74,13 @@ def parse_document(content: str) -> list[Node]:
             while index < len(lines) and not lines[index].startswith("```"):
                 code.append(lines[index])
                 index += 1
-            nodes.append(Node("mermaid" if language == "mermaid" else "code", "\n".join(code), language=language))
+            nodes.append(
+                Node(
+                    "mermaid" if language == "mermaid" else "code",
+                    "\n".join(code),
+                    language=language,
+                )
+            )
             index += 1
             continue
         if match := re.match(r"^(#{1,6})\s+(.+)$", line):
@@ -84,7 +91,11 @@ def parse_document(content: str) -> list[Node]:
             nodes.append(Node("bullet", re.sub(r"^\s*[-*]\s+", "", line)))
         elif re.match(r"^\s*\d+\.\s+", line):
             nodes.append(Node("ordered", re.sub(r"^\s*\d+\.\s+", "", line)))
-        elif line.startswith("|") and index + 1 < len(lines) and re.match(r"^\|?\s*:?-{3,}", lines[index + 1]):
+        elif (
+            line.startswith("|")
+            and index + 1 < len(lines)
+            and re.match(r"^\|?\s*:?-{3,}", lines[index + 1])
+        ):
             headers = [cell.strip() for cell in line.strip("|").split("|")]
             rows, index = [headers], index + 2
             while index < len(lines) and lines[index].startswith("|"):
@@ -106,7 +117,11 @@ def parse_document(content: str) -> list[Node]:
 
 def build_markdown(root: Path, output: Path, paths: Iterable[Path] | None = None) -> Path:
     root = root.resolve()
-    title = _read_yaml(root / "metadata.yaml").get("handbook", {}).get("title", "Enterprise Engineering Manual")
+    title = (
+        _read_yaml(root / "metadata.yaml")
+        .get("handbook", {})
+        .get("title", "Enterprise Engineering Manual")
+    )
     selected = list(paths or manifest_paths(root))
     bodies = [f"# {title}"]
     for relative in selected:
@@ -164,7 +179,10 @@ def _configure_styles(document: Document) -> None:
         style = styles[f"Heading {number}"]
         style.font.name, style.font.size, style.font.bold = typeface, Pt(size), True
         style.font.color.rgb = RGBColor.from_string(color)
-        style.paragraph_format.space_before, style.paragraph_format.space_after = Pt(14 if number == 1 else 10), Pt(6)
+        style.paragraph_format.space_before, style.paragraph_format.space_after = (
+            Pt(14 if number == 1 else 10),
+            Pt(6),
+        )
     if "Handbook Code" not in styles:
         code = styles.add_style("Handbook Code", WD_STYLE_TYPE.PARAGRAPH)
         code.font.name, code.font.size = tokens["typography"]["code_font"], Pt(8)
@@ -207,7 +225,9 @@ def _append_table(document: Document, rows: list[list[str]]) -> None:
     document.add_paragraph()
 
 
-def _append_node(document: Document, node: Node, page_break_before: bool = False, bookmark_id: int = 0) -> None:
+def _append_node(
+    document: Document, node: Node, page_break_before: bool = False, bookmark_id: int = 0
+) -> None:
     if node.kind == "heading":
         paragraph = document.add_paragraph(node.text, style=f"Heading {min(node.level, 3)}")
         paragraph.paragraph_format.page_break_before = page_break_before
@@ -241,7 +261,12 @@ def _append_node(document: Document, node: Node, page_break_before: bool = False
         return
 
 
-def build_docx(root: Path, output: Path, toc_page_numbers: dict[str, int] | None = None, paths: Iterable[Path] | None = None) -> Path:
+def build_docx(
+    root: Path,
+    output: Path,
+    toc_page_numbers: dict[str, int] | None = None,
+    paths: Iterable[Path] | None = None,
+) -> Path:
     """Build authoritative DOCX with deterministic static contents."""
     root = root.resolve()
     document = Document()
@@ -252,8 +277,15 @@ def build_docx(root: Path, output: Path, toc_page_numbers: dict[str, int] | None
     heading = document.add_paragraph()
     heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = heading.add_run(title)
-    run.font.name, run.font.size, run.font.bold, run.font.color.rgb = "Calibri", Pt(24), True, RGBColor(11, 37, 69)
-    document.add_paragraph("Professional operating standards, controls, and reusable engineering procedures.").alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run.font.name, run.font.size, run.font.bold, run.font.color.rgb = (
+        "Calibri",
+        Pt(24),
+        True,
+        RGBColor(11, 37, 69),
+    )
+    document.add_paragraph(
+        "Professional operating standards, controls, and reusable engineering procedures."
+    ).alignment = WD_ALIGN_PARAGRAPH.CENTER
     document.add_page_break()
     document.add_paragraph("Contents", style="Heading 1")
     all_nodes: list[Node] = []
@@ -267,7 +299,9 @@ def build_docx(root: Path, output: Path, toc_page_numbers: dict[str, int] | None
     contents.autofit = False
     for node in toc_rows:
         cells = contents.add_row().cells
-        _add_internal_link(cells[0].paragraphs[0], ("  " * (node.level - 1)) + node.text, _anchor(node.text))
+        _add_internal_link(
+            cells[0].paragraphs[0], ("  " * (node.level - 1)) + node.text, _anchor(node.text)
+        )
         cells[1].text = str((toc_page_numbers or {}).get(node.text, "?"))
         for paragraph in cells[0].paragraphs + cells[1].paragraphs:
             paragraph.paragraph_format.space_after = Pt(1)
@@ -296,10 +330,28 @@ def build_pdf(docx: Path, output: Path) -> Path:
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="handbook-soffice-") as profile:
         environment = {**os.environ, "HOME": profile, "UserInstallation": f"file://{profile}/lo"}
-        completed = subprocess.run([str(SOFFICE), "--headless", "--convert-to", "pdf", "--outdir", str(output.parent), str(docx)], capture_output=True, text=True, env=environment, check=False)
+        completed = subprocess.run(
+            [
+                str(SOFFICE),
+                "--headless",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                str(output.parent),
+                str(docx),
+            ],
+            capture_output=True,
+            text=True,
+            env=environment,
+            check=False,
+        )
     converted = output.parent / f"{docx.stem}.pdf"
     if completed.returncode != 0 or not converted.is_file():
-        raise RuntimeError(completed.stderr.strip() or completed.stdout.strip() or "LibreOffice PDF conversion failed")
+        raise RuntimeError(
+            completed.stderr.strip()
+            or completed.stdout.strip()
+            or "LibreOffice PDF conversion failed"
+        )
     if converted != output:
         converted.replace(output)
     return output
@@ -314,10 +366,22 @@ def write_reference_style(output: Path) -> Path:
     document.add_paragraph("Publication style reference: compact, readable, and operational.")
     document.add_paragraph("Heading level two", style="Heading 2")
     document.add_paragraph("Heading level three", style="Heading 3")
-    document.add_paragraph("A body paragraph demonstrates the production prose rhythm and line spacing.")
+    document.add_paragraph(
+        "A body paragraph demonstrates the production prose rhythm and line spacing."
+    )
     document.add_paragraph("A controlled checklist item", style="List Bullet")
-    _append_table(document, [["Field", "Expected treatment"], ["Control", "Stable ID, owner, frequency, and evidence"], ["KPI", "Calculation, target, warning, and anti-gaming guard"]])
-    _append_node(document, Node("code", "rtk pytest engineering-handbook/automation/tests -q", language="shell"))
+    _append_table(
+        document,
+        [
+            ["Field", "Expected treatment"],
+            ["Control", "Stable ID, owner, frequency, and evidence"],
+            ["KPI", "Calculation, target, warning, and anti-gaming guard"],
+        ],
+    )
+    _append_node(
+        document,
+        Node("code", "rtk pytest engineering-handbook/automation/tests -q", language="shell"),
+    )
     output.parent.mkdir(parents=True, exist_ok=True)
     document.save(output)
     return output
@@ -344,7 +408,12 @@ def _render_pdf(pdf: Path, destination: Path) -> list[Path]:
     for image in destination.glob("page-*.png"):
         image.unlink()
     prefix = destination / "page"
-    completed = subprocess.run([PDFTOPPM, "-png", "-r", "110", str(pdf), str(prefix)], capture_output=True, text=True, check=False)
+    completed = subprocess.run(
+        [PDFTOPPM, "-png", "-r", "110", str(pdf), str(prefix)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     pages = sorted(destination.glob("page-*.png"))
     if completed.returncode != 0 or not pages:
         raise RuntimeError(completed.stderr.strip() or "Poppler PNG rendering failed")
@@ -371,20 +440,47 @@ def build_publication_spike(root: Path, destination: Path) -> dict[str, Path]:
     nodes = parse_document((root / pilot).read_text(encoding="utf-8"))
     headings = [node.text for node in nodes if node.kind == "heading"]
     markdown = build_markdown(root, destination / "Enterprise_Engineering_Manual_Pilot.md", [pilot])
-    provisional = build_docx(root, destination / "Enterprise_Engineering_Manual_Pilot.provisional.docx", paths=[pilot])
-    provisional_pdf = build_pdf(provisional, destination / "Enterprise_Engineering_Manual_Pilot.provisional.pdf")
+    provisional = build_docx(
+        root, destination / "Enterprise_Engineering_Manual_Pilot.provisional.docx", paths=[pilot]
+    )
+    provisional_pdf = build_pdf(
+        provisional, destination / "Enterprise_Engineering_Manual_Pilot.provisional.pdf"
+    )
     pages = _heading_pages(provisional_pdf, headings)
     missing = sorted(set(headings) - set(pages))
     if missing:
         raise RuntimeError(f"Pilot headings missing from provisional PDF: {', '.join(missing)}")
-    docx = build_docx(root, destination / "Enterprise_Engineering_Manual_Pilot.docx", pages, [pilot])
+    docx = build_docx(
+        root, destination / "Enterprise_Engineering_Manual_Pilot.docx", pages, [pilot]
+    )
     pdf = build_pdf(docx, destination / "Enterprise_Engineering_Manual_Pilot.pdf")
     final_pages = _heading_pages(pdf, headings)
     if any(final_pages.get(item) != page for item, page in pages.items()):
         raise RuntimeError("Static contents page references changed after the final DOCX build")
     pngs = _render_pdf(pdf, destination / "visual-qa/pilot")
     ledger = destination / "visual-qa/pilot-ledger.json"
-    ledger.write_text(json.dumps({"status": "rendered", "pages": len(pngs), "reviewed_pages": [{"page": index + 1, "image": image.name, "status": "pending", "findings": [], "correction_cycle": 0} for index, image in enumerate(pngs)], "toc_pages": pages}, indent=2) + "\n", encoding="utf-8")
+    ledger.write_text(
+        json.dumps(
+            {
+                "status": "rendered",
+                "pages": len(pngs),
+                "reviewed_pages": [
+                    {
+                        "page": index + 1,
+                        "image": image.name,
+                        "status": "pending",
+                        "findings": [],
+                        "correction_cycle": 0,
+                    }
+                    for index, image in enumerate(pngs)
+                ],
+                "toc_pages": pages,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return {"markdown": markdown, "docx": docx, "pdf": pdf, "ledger": ledger}
 
 
@@ -394,7 +490,9 @@ def build_full_publication(root: Path, destination: Path) -> dict[str, Path]:
     headings = [node.text for node in manifest_headings(root)]
     markdown = build_markdown(root, destination / "Enterprise_Engineering_Manual.md")
     provisional = build_docx(root, destination / "Enterprise_Engineering_Manual.provisional.docx")
-    provisional_pdf = build_pdf(provisional, destination / "Enterprise_Engineering_Manual.provisional.pdf")
+    provisional_pdf = build_pdf(
+        provisional, destination / "Enterprise_Engineering_Manual.provisional.pdf"
+    )
     pages = _heading_pages(provisional_pdf, headings)
     missing = sorted(set(headings) - set(pages))
     if missing:
@@ -409,10 +507,33 @@ def build_full_publication(root: Path, destination: Path) -> dict[str, Path]:
             break
         pages = final_pages
     else:
-        raise RuntimeError("Static contents page references did not stabilize after three manual DOCX builds")
+        raise RuntimeError(
+            "Static contents page references did not stabilize after three manual DOCX builds"
+        )
     pngs = _render_pdf(pdf, destination / "visual-qa/final")
     ledger = destination / "visual-qa/final-ledger.json"
-    ledger.write_text(json.dumps({"status": "rendered", "pages": len(pngs), "reviewed_pages": [{"page": index + 1, "image": image.name, "status": "pending", "findings": [], "correction_cycle": 0} for index, image in enumerate(pngs)], "toc_pages": pages}, indent=2) + "\n", encoding="utf-8")
+    ledger.write_text(
+        json.dumps(
+            {
+                "status": "rendered",
+                "pages": len(pngs),
+                "reviewed_pages": [
+                    {
+                        "page": index + 1,
+                        "image": image.name,
+                        "status": "pending",
+                        "findings": [],
+                        "correction_cycle": 0,
+                    }
+                    for index, image in enumerate(pngs)
+                ],
+                "toc_pages": pages,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return {"markdown": markdown, "docx": docx, "pdf": pdf, "ledger": ledger}
 
 
@@ -426,7 +547,9 @@ def main() -> int:
     parser.add_argument("--reviewer")
     args = parser.parse_args()
     if args.approve_pilot:
-        mark_visual_review(args.output_dir / "visual-qa/pilot-ledger.json", args.reviewer or "unspecified")
+        mark_visual_review(
+            args.output_dir / "visual-qa/pilot-ledger.json", args.reviewer or "unspecified"
+        )
     elif args.reference_style:
         write_reference_style(args.root / "build/styles/reference.docx")
     elif args.pilot:

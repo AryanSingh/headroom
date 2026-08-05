@@ -18,7 +18,9 @@ def main() -> None:
     assert release_decision(checks, evidence) == "blocked"
     checks["migration-reconciliation"] = True
     assert release_decision(checks, evidence) == "approved"
-    print("CONTINUOUS_VERIFICATION_FIXTURE_PASS failed-check-blocked evidence-linked promotion-approved")
+    print(
+        "CONTINUOUS_VERIFICATION_FIXTURE_PASS failed-check-blocked evidence-linked promotion-approved"
+    )
 
 
 if __name__ == "__main__":

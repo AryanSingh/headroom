@@ -9,9 +9,18 @@ from typing import Any
 
 import yaml
 
-
 CONTROL_COLUMNS = ("id", "title", "requirement", "applicability", "owner", "frequency", "standard")
-KPI_COLUMNS = ("id", "name", "decision", "calculation", "source", "frequency", "owner", "target", "warning")
+KPI_COLUMNS = (
+    "id",
+    "name",
+    "decision",
+    "calculation",
+    "source",
+    "frequency",
+    "owner",
+    "target",
+    "warning",
+)
 
 
 def _front_matter(path: Path) -> dict[str, Any]:
@@ -26,7 +35,12 @@ def _front_matter(path: Path) -> dict[str, Any]:
 def _manifest(root: Path) -> list[Path]:
     import re
 
-    return [Path(item) for item in re.findall(r"\[[^\]]+\]\(([^)#]+)", (root / "SUMMARY.md").read_text(encoding="utf-8"))]
+    return [
+        Path(item)
+        for item in re.findall(
+            r"\[[^\]]+\]\(([^)#]+)", (root / "SUMMARY.md").read_text(encoding="utf-8")
+        )
+    ]
 
 
 def export_catalogs(root: Path, output_dir: Path) -> dict[str, Path]:
@@ -42,15 +56,20 @@ def export_catalogs(root: Path, output_dir: Path) -> dict[str, Path]:
         metadata = _front_matter(path)
         for item in metadata.get("controls", []):
             if isinstance(item, dict):
-                controls.append({
-                    **{key: str(item.get(key, "")) for key in CONTROL_COLUMNS[:-1]},
-                    "standard": "; ".join(str(value) for value in item.get("standards", [])),
-                })
+                controls.append(
+                    {
+                        **{key: str(item.get(key, "")) for key in CONTROL_COLUMNS[:-1]},
+                        "standard": "; ".join(str(value) for value in item.get("standards", [])),
+                    }
+                )
         for item in metadata.get("kpis", []):
             if isinstance(item, dict):
                 kpis.append({key: str(item.get(key, "")) for key in KPI_COLUMNS})
     paths = {"controls": output_dir / "control-catalog.csv", "kpis": output_dir / "kpi-catalog.csv"}
-    for name, columns, rows in (("controls", CONTROL_COLUMNS, controls), ("kpis", KPI_COLUMNS, kpis)):
+    for name, columns, rows in (
+        ("controls", CONTROL_COLUMNS, controls),
+        ("kpis", KPI_COLUMNS, kpis),
+    ):
         with paths[name].open("w", encoding="utf-8", newline="") as stream:
             writer = csv.DictWriter(stream, fieldnames=columns)
             writer.writeheader()

@@ -88,7 +88,9 @@ def test_blocks_credentials_and_mutable_network_commands(handbook: Path) -> None
     assert any("network" in result.message.lower() for result in results)
 
 
-def test_strips_inherited_credentials_and_blocks_runtime_network(handbook: Path, monkeypatch) -> None:
+def test_strips_inherited_credentials_and_blocks_runtime_network(
+    handbook: Path, monkeypatch
+) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "parent-secret")
     script = (
         "import os, socket\n"
