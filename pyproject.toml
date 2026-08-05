@@ -72,7 +72,7 @@ dependencies = [
     "aiohttp>=3.14.1",            # outbound HTTP
     "pyjwt>=2.12.0",              # JWT verification for enterprise SSO
     "openai>=2.14.0",             # OpenAI API format support
-    "mcp>=1.27.2",                # MCP server (>=1.27.2: PYSEC-2026-3481/3482/3483)
+    "mcp>=1.27.2,<2.0.0",         # MCP server (>=1.27.2: PYSEC-2026-3481/3482/3483)
     "magika>=0.6.0",              # ML content detection for ContentRouter
     "zstandard>=0.20.0",          # Decompress zstd request bodies (Codex, etc.)
     "websockets>=15.0",           # WebSocket proxy for /v1/responses (Codex gpt-5.4+); legacy client API available in 14+ (GHSA-f4xh-w4cj-qxq8 blocker resolved)
@@ -228,7 +228,7 @@ strands = [
 ]
 # MCP server for Claude Code integration
 mcp = [
-    "mcp>=1.0.0",
+    "mcp>=1.27.2,<2.0.0",
     "httpx>=0.24.0",
 ]
 # Voice filler detection

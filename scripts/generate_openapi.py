@@ -19,6 +19,16 @@ import sys
 from pathlib import Path
 from typing import Any
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Running ``python scripts/generate_openapi.py`` puts ``scripts/`` rather than
+# the repository root first on sys.path.  CI installs the built wheel before
+# running the drift test, so without this guard the generator can inspect that
+# stale installed copy instead of the checked-out implementation.
+project_root_str = str(PROJECT_ROOT)
+if sys.path[0] != project_root_str:
+    sys.path.insert(0, project_root_str)
+
 
 def _setup_env() -> None:
     """Configure environment for app construction without starting a server."""
