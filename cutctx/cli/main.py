@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from importlib import import_module
+from importlib import import_module, reload
 
 import click
 
@@ -156,7 +156,14 @@ def _ensure_command_loaded(command_name: str) -> None:
 
     try:
         if command_name in _SIDE_EFFECT_COMMAND_MODULES:
-            import_module(f"cutctx.cli.{_SIDE_EFFECT_COMMAND_MODULES[command_name]}")
+            module = import_module(f"cutctx.cli.{_SIDE_EFFECT_COMMAND_MODULES[command_name]}")
+            # A long-lived embedding or test process can import a command module
+            # before replacing/rebuilding the root Click group. Importing the
+            # cached module again then performs no decorators and leaves the
+            # advertised lazy command unresolved. Re-execute only when the
+            # expected registration is still missing.
+            if command_name not in main.commands:
+                reload(module)
         else:
             module_name, attr_name = _MANUAL_COMMAND_MODULES[command_name]
             module = import_module(f"cutctx.cli.{module_name}")

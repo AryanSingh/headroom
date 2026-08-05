@@ -3,7 +3,7 @@ from __future__ import annotations
 import click
 from click.testing import CliRunner
 
-from cutctx.cli.main import main
+from cutctx.cli.main import _LOAD_FAILURES, _ensure_command_loaded, main
 
 
 def _leaf_commands(command: click.Command, path: tuple[str, ...] = ()) -> list[tuple[str, ...]]:
@@ -17,6 +17,16 @@ def _leaf_commands(command: click.Command, path: tuple[str, ...] = ()) -> list[t
         assert child is not None, f"registered command {path + (name,)} did not load"
         leaves.extend(_leaf_commands(child, path + (name,)))
     return leaves
+
+
+def test_cached_side_effect_module_can_reregister_a_missing_lazy_command() -> None:
+    _ensure_command_loaded("init")
+    assert main.commands.pop("init", None) is not None
+    _LOAD_FAILURES.pop("init", None)
+
+    _ensure_command_loaded("init")
+
+    assert main.commands.get("init") is not None
 
 
 def test_every_cli_leaf_has_loadable_help_in_an_isolated_home(tmp_path, monkeypatch) -> None:
