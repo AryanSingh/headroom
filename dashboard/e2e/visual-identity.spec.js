@@ -63,6 +63,7 @@ test.describe('Context Command Center visual identity', () => {
     await page.goto('/dashboard');
     await expect(page.locator('.topbar-title-row h2')).toHaveText('Dashboard');
     await expect(page.getByText('Loading module…')).toBeHidden({ timeout: 15_000 });
+    await expect(page.getByText('Money saved', { exact: true })).toBeVisible();
 
     await expect(page).toHaveScreenshot('overview-shell-dark.png', {
       animations: 'disabled',
