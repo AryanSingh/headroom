@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH15-CHAOS
+title: Product Atlas bounded queue-partition fixture
+command: [python3, chaos_fixture.py]
+timeout_seconds: 10
+cleanup: []
+dependencies: [Python 3 standard library]
+fixtures: [chaos_fixture.py, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}

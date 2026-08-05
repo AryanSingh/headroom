@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH18-SDK-COMPATIBILITY
+title: Product Atlas offline SDK contract compatibility fixture
+command: [python3, compatibility_fixture.py]
+timeout_seconds: 10
+cleanup: []
+dependencies: [Python 3 standard library]
+fixtures: [compatibility_fixture.py, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}

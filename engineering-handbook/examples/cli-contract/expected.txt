@@ -1,0 +1,1 @@
+CLI_CONTRACT_FIXTURE_PASS success-json protected-profile-blocked exit-0-exit-77

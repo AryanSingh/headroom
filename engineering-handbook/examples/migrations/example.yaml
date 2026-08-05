@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH16-MIGRATION
+title: Product Atlas resumable tenant-scoped migration fixture
+command: [python3, migration_fixture.py]
+timeout_seconds: 10
+cleanup: []
+dependencies: [Python 3 standard library]
+fixtures: [migration_fixture.py, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}

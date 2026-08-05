@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH17-AI-EVALUATION
+title: Product Atlas offline quality and route-policy evaluation fixture
+command: [python3, evaluate_fixture.py]
+timeout_seconds: 10
+cleanup: []
+dependencies: [Python 3 standard library]
+fixtures: [evaluate_fixture.py, cases.json, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}

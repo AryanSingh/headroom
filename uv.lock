@@ -1647,6 +1647,7 @@ voice-train = [
 dev = [
     { name = "drain3" },
     { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "pytest-timeout" },
 ]
 
@@ -1784,6 +1785,7 @@ provides-extras = ["ee", "proxy", "sentry", "proxy-prod", "code", "ml", "memory"
 dev = [
     { name = "drain3", specifier = ">=0.9.11" },
     { name = "pytest", specifier = ">=9.0.3" },
+    { name = "pytest-asyncio", specifier = ">=0.21.0" },
     { name = "pytest-timeout", specifier = ">=2.4.0" },
 ]
 

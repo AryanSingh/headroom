@@ -1,0 +1,1 @@
+MEMORY_GOVERNANCE_FIXTURE_PASS tenant-isolated expiry-enforced deletion-complete

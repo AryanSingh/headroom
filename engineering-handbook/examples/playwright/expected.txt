@@ -1,0 +1,1 @@
+PLAYWRIGHT_MANIFEST_PASS local-fixture-assets-present

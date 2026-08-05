@@ -1,0 +1,1 @@
+AI_EVALUATION_FIXTURE_PASS quality=1.00 route=1.00 safety=1.00 release=approved

@@ -1,0 +1,12 @@
+schema_version: 1
+id: EX-CH19-OBSERVABILITY
+title: Product Atlas correlated and redacted telemetry fixture
+command: [python3, observability_fixture.py]
+timeout_seconds: 10
+cleanup: []
+dependencies: [Python 3 standard library]
+fixtures: [observability_fixture.py, expected.txt]
+expected_output: expected.txt
+offline: true
+mutable_network: false
+environment: {}
