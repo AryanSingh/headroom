@@ -222,7 +222,35 @@ def test_node_and_docker_publish_failures_are_not_downgraded() -> None:
 def test_macos_native_wrapper_dependency_install_retries_pypi_downloads() -> None:
     content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
-    assert "python -m pip install --retries 10 --timeout 60 pytest" in content
+    assert 'python -m pip install --retries 10 --timeout 60 -e ".[proxy]" pytest' in content
+
+
+def test_graphiti_contract_job_installs_async_pytest_runtime() -> None:
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    start = content.index("\n  graphiti-upstream-contract:")
+    end = content.index("\n  build-wheel:", start)
+    job = content[start:end]
+
+    assert "pytest-asyncio" in job, (
+        "Graphiti contract tests contain async functions and must install "
+        "pytest-asyncio explicitly in their isolated CI environment"
+    )
+
+
+def test_native_wrapper_jobs_install_project_runtime_dependencies() -> None:
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    windows_start = content.index("\n  windows-native-wrapper:")
+    windows_end = content.index("\n  macos-native-wrapper:", windows_start)
+    windows_job = content[windows_start:windows_end]
+
+    macos_start = windows_end
+    macos_end = content.index("\n  redis-orchestration-integration:", macos_start)
+    macos_job = content[macos_start:macos_end]
+
+    assert 'python -m pip install -e ".[proxy]" pytest' in windows_job
+    assert 'python -m pip install --retries 10 --timeout 60 -e ".[proxy]" pytest' in macos_job
 
 
 def test_chaos_workflow_skips_optional_prometheus_rule_without_operator_crd() -> None:
