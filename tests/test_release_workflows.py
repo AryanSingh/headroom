@@ -1417,6 +1417,10 @@ def test_release_please_config_and_manifest_are_present_and_consistent() -> None
     root_pkg = config["packages"]["."]
     assert root_pkg["release-type"] == "python"
     assert root_pkg["package-name"] == "cutctx-ai"
+    assert config.get("group-pull-request-title-pattern") == "chore: release ${version}", (
+        "manifest releases use the group title pattern; without it release-please "
+        "falls back to the misleading title 'chore: release main'"
+    )
 
     # Tag format: existing tags in this repo are `vX.Y.Z`, NOT
     # `cutctx-ai-vX.Y.Z`. release-please's default for manifest
