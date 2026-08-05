@@ -149,7 +149,7 @@ def update_deployment_versions(root: Path, version: str) -> None:
     """Align Helm and Kubernetes deployment metadata with the release version."""
     chart = root / "helm" / "cutctx" / "Chart.yaml"
     _replace_version_field(chart, r"^version:\s*[^\n]+$", f"version: {version}")
-    _replace_version_field(chart, r'^appVersion:\s*"[^"]+"$', f'appVersion: "{version}"')
+    _replace_version_field(chart, r"^appVersion:\s*[^\n]+$", f'appVersion: "{version}"')
 
     values = root / "helm" / "cutctx" / "values.yaml"
     _replace_version_field(values, r'^\s{2}tag:\s*"[^"]+"$', f'  tag: "{version}"')

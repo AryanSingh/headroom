@@ -185,6 +185,26 @@ def test_version_sync_explicit_version(temp_project: dict[str, Path]) -> None:
     assert metadata["packages"]["agent-hooks-plugin"] == "0.7.0"
 
 
+def test_version_sync_accepts_release_please_unquoted_helm_versions(
+    temp_project: dict[str, Path],
+) -> None:
+    """Release Please's YAML writer emits plain scalars for Helm versions."""
+    root = temp_project["root"]
+    script = Path(__file__).parent.parent / "version-sync.py"
+    temp_project["helm_chart"].write_text("apiVersion: v2\nversion: 0.32.0\nappVersion: 0.32.0\n")
+
+    result = subprocess.run(
+        [sys.executable, str(script), "--root", str(root), "--version", "0.32.0"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"Script failed: {result.stderr}"
+    chart = temp_project["helm_chart"].read_text()
+    assert "version: 0.32.0" in chart
+    assert 'appVersion: "0.32.0"' in chart
+
+
 def test_bump_patch(temp_project: dict[str, Path]) -> None:
     """Test --bump patch bumps 0.5.25 to 0.5.26."""
     root = temp_project["root"]
