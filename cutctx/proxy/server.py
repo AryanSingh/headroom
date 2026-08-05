@@ -2237,12 +2237,15 @@ class CutctxProxy(
                 circuit_provider,
             )
             _set_telemetry_tag("upstream_total_deadline_exceeded", True)
-            return HTTPException(
-                status_code=504,
-                detail=(
-                    f"Upstream did not complete within the total request deadline of "
-                    f"{total_budget:.0f}s. Increase CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS "
-                    f"if this provider is legitimately slower."
+            return cast(
+                Exception,
+                HTTPException(
+                    status_code=504,
+                    detail=(
+                        f"Upstream did not complete within the total request deadline of "
+                        f"{total_budget:.0f}s. Increase CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS "
+                        f"if this provider is legitimately slower."
+                    ),
                 ),
             )
 
@@ -2987,14 +2990,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "/v1/audio/speech",
         }:
             return True
-        return path.endswith(
-            (
-                ":generateContent",
-                ":streamGenerateContent",
-                ":embedContent",
-                ":batchEmbedContents",
-                ":rawPredict",
-                ":streamRawPredict",
+        return bool(
+            path.endswith(
+                (
+                    ":generateContent",
+                    ":streamGenerateContent",
+                    ":embedContent",
+                    ":batchEmbedContents",
+                    ":rawPredict",
+                    ":streamRawPredict",
+                )
             )
         )
 

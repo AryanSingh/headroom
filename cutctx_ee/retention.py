@@ -112,7 +112,7 @@ class RetentionManager:
         self.config = config or RetentionConfig()
         self._task: asyncio.Task | None = None
         self._running = False
-        self._stats = {
+        self._stats: dict[str, Any] = {
             "ccr_deleted": 0,
             "audit_deleted": 0,
             "spend_deleted": 0,
@@ -205,7 +205,7 @@ class RetentionManager:
 
         Returns dict of cleanup counts per category.
         """
-        results = {
+        results: dict[str, int] = {
             "ccr_deleted": 0,
             "audit_deleted": 0,
             "spend_deleted": 0,
