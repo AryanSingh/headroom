@@ -20,6 +20,7 @@ The original Claude audit is retained as a historical baseline in `AUDIT_INDEPEN
 - `77cc5b6` preserves typed entitlement-denial details across CLI/API/dashboard surfaces.
 - `29dd3ca` makes lazy CLI registration recover correctly in long-lived embedding/test hosts.
 - `551e1a3` replaces stale competitive claims with a dated, primary-source review.
+- The final dependency closeout refreshes `uv.lock` so it contains the already-committed `graphiti-core` and `httpx2` requirements instead of relying on a stale pre-change resolution.
 
 ## Verification evidence
 
@@ -31,6 +32,7 @@ The original Claude audit is retained as a historical baseline in `AUDIT_INDEPEN
 - Agent replay: 20 passed across Codex, Claude, and OpenCode restart/resume fixtures.
 - Deployment: local arm64 image smoke passed; disposable kind rollout, authenticated stats, upgrade, and known-good rollback passed; 27 deployment/operator tests passed.
 - Java SDK: 7 tests passed with Java 17 compiling the Java 11 target. Python, Go, and TypeScript SDK verification also passed in their locally runnable matrices.
+- Dependency lock: `uv lock --check` and deterministic regeneration passed; Graphiti/docs/release-workflow verification passed 119 tests with one expected skip.
 
 ## Remaining external handoffs
 
@@ -48,4 +50,4 @@ The original Claude audit is retained as a historical baseline in `AUDIT_INDEPEN
 
 ## Working-tree note
 
-`uv.lock` remains modified and intentionally uncommitted because it pre-dated this closeout and is user-owned. No audit remediation commit includes it.
+The previously held `uv.lock` was independently reviewed rather than discarded. It is a valid deterministic refresh for requirements already present in committed `pyproject.toml`, and is included only after the focused dependency and release-contract verification passed.
