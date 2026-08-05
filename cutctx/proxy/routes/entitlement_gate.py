@@ -181,30 +181,42 @@ def install_entitlement_gate(app: Any, proxy: Any) -> int:
     from fastapi.dependencies.utils import get_parameterless_sub_dependant
     from fastapi.routing import APIRoute, request_response
 
-    gated = 0
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
+    def _has_gate(route: Any) -> bool:
+        return any(
+            getattr(dependency.call, "_cutctx_entitlement_gate", False)
+            for dependency in route.dependant.dependencies
+        )
+
+    def _attach_gate(route: Any, original_route: APIRoute | None = None) -> bool:
         endpoint_module = getattr(route.endpoint, "__module__", "")
         feature = resolve_required_feature(route.path, endpoint_module)
         if feature is None:
-            continue
-        if any(
-            getattr(dependency.call, "_cutctx_entitlement_gate", False)
-            for dependency in route.dependant.dependencies
-        ):
-            continue
+            return False
+        if _has_gate(route):
+            return False
         dependency = Depends(make_entitlement_gate(proxy, feature))
         route.dependencies.append(dependency)
         # Appended last so admin auth / RBAC still answer first (401 before 403).
         route.dependant.dependencies.append(
             get_parameterless_sub_dependant(depends=dependency, path=route.path_format)
         )
-        # APIRoute builds its ASGI request handler during construction. Updating
-        # ``route.dependant`` alone only changes introspection; the already-built
-        # handler keeps the old dependency graph and silently bypasses the gate.
-        route.app = request_response(route.get_route_handler())
-        gated += 1
+
+        if original_route is None:
+            # FastAPI <= 0.140 eagerly flattens included routers into APIRoutes.
+            # Those routes build their ASGI handler during construction, so the
+            # handler must be rebuilt after changing the dependency graph.
+            route.app = request_response(route.get_route_handler())
+        elif not _has_gate(original_route):
+            # FastAPI >= 0.141 keeps included routers lazy. Requests execute an
+            # effective route context rather than the original APIRoute, so the
+            # live context above must be updated. Persist the same dependency on
+            # the original route as well so a later cache rebuild retains it.
+            original_route.dependencies.append(dependency)
+            original_route.dependant.dependencies.append(
+                get_parameterless_sub_dependant(depends=dependency, path=original_route.path_format)
+            )
+            original_route.app = request_response(original_route.get_route_handler())
+
         if feature is _UNMAPPED:
             logger.warning(
                 "Route %s (%s) is an enterprise surface with no entitlement mapping — "
@@ -212,6 +224,29 @@ def install_entitlement_gate(app: Any, proxy: Any) -> int:
                 route.path,
                 endpoint_module,
             )
+        return True
+
+    gated = 0
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            gated += _attach_gate(route)
+            continue
+
+        # FastAPI 0.141 introduced lazy ``_IncludedRouter`` entries. Avoid a
+        # private-class import and use its route-context iterator as the stable
+        # capability boundary. Calling it also materializes the contexts that
+        # the request path will execute, allowing us to update the live graph.
+        effective_route_contexts = getattr(route, "effective_route_contexts", None)
+        if not callable(effective_route_contexts):
+            continue
+        for context in effective_route_contexts():
+            original_route = getattr(context, "original_route", None)
+            if not isinstance(original_route, APIRoute):
+                continue
+            if getattr(context, "dependant", None) is None:
+                continue
+            gated += _attach_gate(context, original_route)
+
     logger.info("Entitlement gate installed on %d route(s).", gated)
     return gated
 
