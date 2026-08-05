@@ -382,7 +382,5 @@ def test_org_delete_route_exists_and_cascades(tmp_path, monkeypatch):
 def test_org_delete_unknown_id_is_404(tmp_path, monkeypatch):
     monkeypatch.setenv("CUTCTX_TELEMETRY", "off")
     with _make_client(tmp_path, monkeypatch, tier="business") as client:
-        response = client.delete(
-            "/orgs/does-not-exist", headers={"X-Cutctx-Admin-Key": "secret"}
-        )
+        response = client.delete("/orgs/does-not-exist", headers={"X-Cutctx-Admin-Key": "secret"})
         assert response.status_code == 404

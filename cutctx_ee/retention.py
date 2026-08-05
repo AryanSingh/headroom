@@ -40,9 +40,7 @@ from typing import Any
 logger = logging.getLogger("cutctx.retention")
 
 _STRICT_NUMERIC_TEXT = re.compile(r"^[0-9]+(?:\.[0-9]+)?$")
-_CANONICAL_UTC_ISO = re.compile(
-    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+00:00$"
-)
+_CANONICAL_UTC_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+00:00$")
 
 
 @dataclass
@@ -332,9 +330,7 @@ class RetentionManager:
 
                 deleted = 0
                 for rowid in candidates:
-                    cursor = conn.execute(
-                        "DELETE FROM audit_events WHERE rowid = ?", (rowid,)
-                    )
+                    cursor = conn.execute("DELETE FROM audit_events WHERE rowid = ?", (rowid,))
                     deleted += max(0, cursor.rowcount or 0)
 
                 # End the delete transaction before maintenance statements.

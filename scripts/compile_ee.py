@@ -183,9 +183,7 @@ def verify_no_source_in_wheel(wheel_dir: Path) -> bool:
     for whl in wheel_dir.glob("*.whl"):
         with zipfile.ZipFile(whl) as z:
             py_files = [
-                n
-                for n in z.namelist()
-                if n.endswith(".py") and n != "cutctx_ee/__init__.py"
+                n for n in z.namelist() if n.endswith(".py") and n != "cutctx_ee/__init__.py"
             ]
             pyc_files = [n for n in z.namelist() if n.endswith(".pyc")]
 
@@ -290,7 +288,7 @@ def build_ee_wheel(
     ''')
     (build_dir / "pyproject.toml").write_text(pyproject_content)
 
-    setup_content = textwrap.dedent('''\
+    setup_content = textwrap.dedent("""\
         from setuptools import Distribution, find_namespace_packages, setup
 
         class BinaryDistribution(Distribution):
@@ -303,7 +301,7 @@ def build_ee_wheel(
             include_package_data=True,
             distclass=BinaryDistribution,
         )
-    ''')
+    """)
     (build_dir / "setup.py").write_text(setup_content)
 
     manifest_command = [
@@ -391,6 +389,7 @@ def main():
     else:
         print("\nSP-3 verification FAILED: source detected in wheel")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

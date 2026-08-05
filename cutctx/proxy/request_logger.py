@@ -30,8 +30,14 @@ from collections import deque
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
+from threading import Lock
+from typing import TYPE_CHECKING, Any
 
+from cutctx.proxy.models import RequestLog
 from cutctx.security.redaction import redact_structure, register_secret_value
+
+if TYPE_CHECKING:
+    from ..memory.tracker import ComponentStats
 
 #: Env vars whose values are credentials with no guessable shape. Registered
 #: for exact-match redaction so they can never be written to the JSONL log.
@@ -52,13 +58,7 @@ def _register_known_secrets_from_env() -> None:
     """Register literal credential values so every sink redacts them."""
     for name in _SECRET_ENV_VARS:
         register_secret_value(os.environ.get(name))
-from threading import Lock
-from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    from ..memory.tracker import ComponentStats
-
-from cutctx.proxy.models import RequestLog
 
 logger = logging.getLogger(__name__)
 

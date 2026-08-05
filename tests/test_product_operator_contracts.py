@@ -26,9 +26,9 @@ def test_kubernetes_deployment_has_matching_readiness_and_liveness_contracts() -
 
 def test_kubernetes_nonroot_runtime_has_a_writable_home_contract() -> None:
     raw_deployment = (ROOT / "k8s" / "deployment.yaml").read_text(encoding="utf-8")
-    helm_deployment = (
-        ROOT / "helm" / "cutctx" / "templates" / "deployment.yaml"
-    ).read_text(encoding="utf-8")
+    helm_deployment = (ROOT / "helm" / "cutctx" / "templates" / "deployment.yaml").read_text(
+        encoding="utf-8"
+    )
 
     for deployment in (raw_deployment, helm_deployment):
         assert "- name: HOME" in deployment

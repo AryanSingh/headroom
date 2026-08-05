@@ -175,9 +175,7 @@ class KeyringClientCredentialStore:
                 "The OS credential store did not respond before the safety deadline."
             ) from None
         if not succeeded:
-            raise ClientCredentialStoreError(
-                "The OS credential store operation failed."
-            ) from None
+            raise ClientCredentialStoreError("The OS credential store operation failed.") from None
         return value
 
     def get(self, proxy_origin: str) -> str | None:

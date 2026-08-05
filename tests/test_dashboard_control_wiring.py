@@ -13,8 +13,8 @@ def test_global_search_reaches_capabilities_and_replay() -> None:
     app = _read("src/App.jsx")
     replay = _read("src/pages/Replay.jsx")
 
-    assert '<Capabilities searchQuery={searchQuery}' in app
-    assert 'searchQuery={searchQuery} setSearchQuery={setSearchQuery}' in app
+    assert "<Capabilities searchQuery={searchQuery}" in app
+    assert "searchQuery={searchQuery} setSearchQuery={setSearchQuery}" in app
     assert "export default function Replay({ searchQuery" in replay
 
 
@@ -24,7 +24,7 @@ def test_new_contract_and_trend_bars_are_actionable() -> None:
 
     assert "onNew={() =>" in studio
     assert "setDraft(newDraft())" in studio
-    assert 'className={`trend-bar ' in overview
+    assert "className={`trend-bar " in overview
     assert 'type="button"' in overview
     assert "onKeyDown={moveTrendFocus}" in overview
 

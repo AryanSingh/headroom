@@ -1105,9 +1105,7 @@ class StreamingMixin:
                     )
                     _remaining = _connect_remaining()
                     if _remaining is None:
-                        upstream_response = await self.http_client.send(
-                            _upstream_req, stream=True
-                        )
+                        upstream_response = await self.http_client.send(_upstream_req, stream=True)
                     elif _remaining <= 0:
                         raise _streaming_deadline_exceeded(_total_budget, request_id)
                     else:
@@ -1117,9 +1115,7 @@ class StreamingMixin:
                                 timeout=_remaining,
                             )
                         except asyncio.TimeoutError:
-                            raise _streaming_deadline_exceeded(
-                                _total_budget, request_id
-                            ) from None
+                            raise _streaming_deadline_exceeded(_total_budget, request_id) from None
                     if _codex_wire_debug:
                         capture_codex_wire_debug(
                             "http_stream_upstream_response_headers",

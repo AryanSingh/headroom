@@ -91,9 +91,7 @@ class TestRetentionManager:
         assert "config" in stats
         assert stats["cleanup_count"] == 0
 
-    def test_resolve_audit_db_path_explicit_config_wins_over_both_envs(
-        self, monkeypatch, tmp_path
-    ):
+    def test_resolve_audit_db_path_explicit_config_wins_over_both_envs(self, monkeypatch, tmp_path):
         monkeypatch.setenv("CUTCTX_RETENTION_AUDIT_DB_PATH", str(tmp_path / "retention.db"))
         monkeypatch.setenv("CUTCTX_AUDIT_DB_PATH", str(tmp_path / "canonical.db"))
         manager = RetentionManager(RetentionConfig(audit_db_path="~/explicit.db"))
@@ -225,12 +223,8 @@ class TestRetentionManager:
         db_path = tmp_path / "audit-iso.db"
         monkeypatch.setenv("CUTCTX_AUDIT_DB_PATH", str(db_path))
         audit = AuditLogger(db_path=str(db_path))
-        old_iso = datetime.fromtimestamp(
-            time.time() - (100 * 86400), timezone.utc
-        ).isoformat()
-        recent_iso = datetime.fromtimestamp(
-            time.time() - (10 * 86400), timezone.utc
-        ).isoformat()
+        old_iso = datetime.fromtimestamp(time.time() - (100 * 86400), timezone.utc).isoformat()
+        recent_iso = datetime.fromtimestamp(time.time() - (10 * 86400), timezone.utc).isoformat()
         audit.log(AuditEvent(action="test", actor="user", timestamp=old_iso, event_id="old1"))
         audit.log(AuditEvent(action="test", actor="user", timestamp=recent_iso, event_id="new1"))
         audit.close()
@@ -238,9 +232,7 @@ class TestRetentionManager:
         # Sanity-check we really are exercising the TEXT column, not REAL.
         probe = sqlite3.connect(str(db_path))
         try:
-            types = {
-                row[0] for row in probe.execute("SELECT typeof(timestamp) FROM audit_events")
-            }
+            types = {row[0] for row in probe.execute("SELECT typeof(timestamp) FROM audit_events")}
         finally:
             probe.close()
         assert types == {"text"}, f"expected ISO TEXT timestamps, got {types}"
@@ -537,21 +529,21 @@ class TestRetentionManager:
         monkeypatch.setattr(
             "cutctx.cache.compression_store.get_compression_store", lambda: FakeStore()
         )
-        manager = RetentionManager(RetentionConfig(dry_run=True, audit_enabled=False, spend_enabled=False, episodic_enabled=False))
+        manager = RetentionManager(
+            RetentionConfig(
+                dry_run=True, audit_enabled=False, spend_enabled=False, episodic_enabled=False
+            )
+        )
 
         assert manager._cleanup_ccr_entries() == 0
 
-    def test_ccr_real_store_preview_is_read_only_and_normal_cleanup_matches(
-        self, monkeypatch
-    ):
+    def test_ccr_real_store_preview_is_read_only_and_normal_cleanup_matches(self, monkeypatch):
         from cutctx.cache.compression_store import CompressionStore
 
         store = CompressionStore(max_entries=10)
         for index in range(3):
             store.store(f"original-{index}", f"compressed-{index}")
-        monkeypatch.setattr(
-            "cutctx.cache.compression_store.get_compression_store", lambda: store
-        )
+        monkeypatch.setattr("cutctx.cache.compression_store.get_compression_store", lambda: store)
         manager = RetentionManager(
             RetentionConfig(
                 dry_run=True,

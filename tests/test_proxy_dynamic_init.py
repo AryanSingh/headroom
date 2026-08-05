@@ -516,9 +516,7 @@ def test_legacy_config_flags_always_includes_unknown_field() -> None:
 
 def test_legacy_config_flags_accepts_canonical_keys() -> None:
     """H9: canonical keys were ignored wholesale by the legacy endpoint."""
-    config = ProxyConfig(
-        admin_api_key="test_admin", optimize=False, ccr_context_tracking=False
-    )
+    config = ProxyConfig(admin_api_key="test_admin", optimize=False, ccr_context_tracking=False)
     app = create_app(config)
 
     with TestClient(app) as client:

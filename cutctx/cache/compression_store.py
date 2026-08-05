@@ -879,12 +879,8 @@ class CompressionStore:
         now = time.time()
         cutoff = now - max_age_seconds
         entries = list(self._backend.items())
-        expired_keys = {
-            key for key, entry in entries if entry.created_at < cutoff
-        }
-        active_entries = [
-            (key, entry) for key, entry in entries if key not in expired_keys
-        ]
+        expired_keys = {key for key, entry in entries if entry.created_at < cutoff}
+        active_entries = [(key, entry) for key, entry in entries if key not in expired_keys]
         active_entries.sort(key=lambda item: item[1].created_at)
         over_limit = max(0, len(active_entries) - max_entries)
         over_limit_keys = {key for key, _entry in active_entries[:over_limit]}

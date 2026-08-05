@@ -244,9 +244,7 @@ def _describe_import_error(entry: Any, error: Exception) -> str:
     return f"invalid value or type ({type(error).__name__})"
 
 
-def _import_memories(
-    store: SQLiteMemoryStore, memories: list[Any]
-) -> tuple[int, list[str]]:
+def _import_memories(store: SQLiteMemoryStore, memories: list[Any]) -> tuple[int, list[str]]:
     """Import memories and return the count plus actionable row diagnostics."""
     if not memories:
         return 0, []
@@ -509,8 +507,7 @@ def show_stats(ctx: click.Context, db_path: str) -> None:
     store = get_store_readonly(db_path)
     if store is None:
         print_error(
-            f"No memory database at {db_path}. "
-            "Pass --db-path to point at an existing store."
+            f"No memory database at {db_path}. Pass --db-path to point at an existing store."
         )
         sys.exit(1)
 

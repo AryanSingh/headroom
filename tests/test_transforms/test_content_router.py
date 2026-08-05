@@ -246,7 +246,8 @@ def test_aggressive_mode_falls_back_when_kompress_declines(router, monkeypatch):
         "The deployment succeeded. CUTCTX_TIMEOUT is 30 seconds. "
         "Routine diagnostics are available. Audit records are stored in audit.jsonl. "
         "Additional implementation detail follows. "
-        + "Routine background reconciliation continued without incident. " * 20
+        + "Routine background reconciliation continued without incident. "
+        * 20
     )
 
     result = router.compress(content)

@@ -50,9 +50,7 @@ def test_dashboard_runtime_serves_entry_and_imported_chunks(client):
     html_response = client.get("/dashboard")
     assert html_response.status_code == 200
 
-    asset_urls = set(
-        re.findall(r'(?:src|href)="(/assets/[^"]+\.(?:js|css))"', html_response.text)
-    )
+    asset_urls = set(re.findall(r'(?:src|href)="(/assets/[^"]+\.(?:js|css))"', html_response.text))
     assert asset_urls
 
     pending = deque(sorted(url for url in asset_urls if url.endswith(".js")))
@@ -65,7 +63,7 @@ def test_dashboard_runtime_serves_entry_and_imported_chunks(client):
         visited.add(asset_url)
         response = client.get(asset_url)
         assert response.status_code == 200, asset_url
-        for chunk in re.findall(r'''(?:from|import\()\s*["'`]\./([^"'`]+\.js)''', response.text):
+        for chunk in re.findall(r"""(?:from|import\()\s*["'`]\./([^"'`]+\.js)""", response.text):
             imported_url = f"/assets/{chunk}"
             discovered_imported_urls.add(imported_url)
             pending.append(imported_url)

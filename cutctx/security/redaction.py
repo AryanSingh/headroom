@@ -182,7 +182,7 @@ def redact_structure(value: Any, *, _depth: int = 0) -> Any:
             else:
                 redacted[key] = redact_structure(item, _depth=_depth + 1)
         return redacted
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         rebuilt = [redact_structure(item, _depth=_depth + 1) for item in value]
         return type(value)(rebuilt) if isinstance(value, tuple) else rebuilt
     if isinstance(value, str):

@@ -240,10 +240,10 @@ def _check_validity_window(claims: Mapping[str, Any], now: float | None) -> None
     """Reject claims outside their ``nbf``/``exp``/``expiry`` window."""
     current = time.time() if now is None else now
     nbf = claims.get("nbf")
-    if isinstance(nbf, (int, float)) and current + _CLOCK_SKEW < nbf:
+    if isinstance(nbf, int | float) and current + _CLOCK_SKEW < nbf:
         raise LicenseSignatureError("licence is not valid yet")
     exp = claims.get("exp")
-    if isinstance(exp, (int, float)) and current - _CLOCK_SKEW > exp:
+    if isinstance(exp, int | float) and current - _CLOCK_SKEW > exp:
         raise LicenseSignatureError("licence has expired")
     expiry = claims.get("expiry")
     if isinstance(expiry, str) and expiry:

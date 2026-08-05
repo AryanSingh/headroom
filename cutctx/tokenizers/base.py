@@ -97,9 +97,7 @@ class BaseTokenizer(ABC):
 
         for index, message in enumerate(messages):
             if not isinstance(message, dict):
-                raise TypeError(
-                    f"messages[{index}] must be a dict, got {type(message).__name__}."
-                )
+                raise TypeError(f"messages[{index}] must be a dict, got {type(message).__name__}.")
             # Base message overhead
             total += self.MESSAGE_OVERHEAD
 

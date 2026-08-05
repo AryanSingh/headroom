@@ -3005,9 +3005,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     content={
                         "error": {
                             "type": "budget_exceeded",
-                            "message": (
-                                f"Budget exceeded for {tracker.budget_period} period"
-                            ),
+                            "message": (f"Budget exceeded for {tracker.budget_period} period"),
                             "remaining_usd": remaining,
                         }
                     },
@@ -3052,8 +3050,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     "error": {
                         "type": "service_unavailable",
                         "message": (
-                            "Server is at its in-flight request memory limit. "
-                            "Please retry shortly."
+                            "Server is at its in-flight request memory limit. Please retry shortly."
                         ),
                     },
                 },

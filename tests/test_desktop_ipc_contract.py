@@ -12,11 +12,7 @@ def test_every_registered_desktop_command_is_reachable_from_the_frontend() -> No
 
     handler_match = re.search(r"generate_handler!\[([^]]+)]", rust, re.DOTALL)
     assert handler_match is not None
-    registered = {
-        name.strip()
-        for name in handler_match.group(1).split(",")
-        if name.strip()
-    }
+    registered = {name.strip() for name in handler_match.group(1).split(",") if name.strip()}
     invoked = set(re.findall(r"call(?:<[^>]+>)?\(\s*['\"]([^'\"]+)['\"]", frontend))
 
     assert registered == invoked

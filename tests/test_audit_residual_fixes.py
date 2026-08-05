@@ -20,7 +20,6 @@ from cutctx.ccr.markers import (
 )
 from cutctx.transforms.content_router import token_len
 
-
 # --------------------------------------------------------------------------
 # Residual 1 — BPE guard in content_router.token_len
 # --------------------------------------------------------------------------
@@ -87,13 +86,11 @@ def test_token_len_still_correct_for_ordinary_text():
 # --------------------------------------------------------------------------
 
 
-CCR_CODE_SAMPLE = (
-    '''"""Module docstring that is long enough to be worth compressing."""
+CCR_CODE_SAMPLE = '''"""Module docstring that is long enough to be worth compressing."""
 
 
-'''
-    + "\n\n".join(
-        f'''def function_number_{index}(alpha, beta, gamma):
+''' + "\n\n".join(
+    f'''def function_number_{index}(alpha, beta, gamma):
     """Docstring for function {index} with enough prose to matter."""
     accumulator = 0
     for step in range(alpha):
@@ -103,8 +100,7 @@ CCR_CODE_SAMPLE = (
     result = {{"index": {index}, "value": accumulator}}
     return result
 '''
-        for index in range(30)
-    )
+    for index in range(30)
 )
 
 

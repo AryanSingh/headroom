@@ -3417,9 +3417,7 @@ def validate_request_body_shape(body: dict[str, Any]) -> None:
         # bool is a subclass of int; no int-typed field here, but keep the
         # check order explicit for future entries.
         if not isinstance(value, allowed):
-            raise ValueError(
-                f"Field {field!r} must be {described}, got {type(value).__name__}."
-            )
+            raise ValueError(f"Field {field!r} must be {described}, got {type(value).__name__}.")
 
     for field in _REQUEST_OBJECT_ARRAY_FIELDS:
         items = body.get(field)
@@ -3428,8 +3426,7 @@ def validate_request_body_shape(body: dict[str, Any]) -> None:
         for index, item in enumerate(items):
             if not isinstance(item, dict):
                 raise ValueError(
-                    f"Field '{field}[{index}]' must be a JSON object, "
-                    f"got {type(item).__name__}."
+                    f"Field '{field}[{index}]' must be a JSON object, got {type(item).__name__}."
                 )
 
 

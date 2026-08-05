@@ -30,9 +30,7 @@ def test_exhausted_budget_blocks_openai_and_gemini_before_upstream(monkeypatch) 
         calls.append(request.url.path)
         return JSONResponse({"unexpected": "openai upstream reached"})
 
-    async def fake_gemini(
-        self, request, model, upstream_base_url=None, provider_name="gemini"
-    ):  # type: ignore[no-untyped-def]
+    async def fake_gemini(self, request, model, upstream_base_url=None, provider_name="gemini"):  # type: ignore[no-untyped-def]
         calls.append(request.url.path)
         return JSONResponse({"unexpected": "gemini upstream reached"})
 
