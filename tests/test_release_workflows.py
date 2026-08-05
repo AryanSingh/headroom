@@ -315,6 +315,19 @@ def test_ci_installs_enterprise_workspace_for_entitlement_suites() -> None:
     assert workflow.count("pip install --no-deps ./packaging/cutctx-ee") >= 2
 
 
+def test_signing_workflow_downloads_and_scans_actual_release_assets() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "sign-artifacts.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'gh release download "$RELEASE_TAG"' in workflow
+    assert "--dir release-assets" in workflow
+    assert "find release-assets -type f -print -quit | grep -q ." in workflow
+    assert "scan-secrets --path release-assets/" in workflow
+    assert "scan_secrets(pathlib.Path('.'))" not in workflow
+    assert "actions/download-artifact" not in workflow
+
+
 def test_rust_ci_generates_and_retains_llvm_coverage_artifact() -> None:
     workflow = (ROOT / ".github" / "workflows" / "rust.yml").read_text(encoding="utf-8")
 
