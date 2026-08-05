@@ -192,6 +192,9 @@ def test_version_sync_accepts_release_please_unquoted_helm_versions(
     root = temp_project["root"]
     script = Path(__file__).parent.parent / "version-sync.py"
     temp_project["helm_chart"].write_text("apiVersion: v2\nversion: 0.32.0\nappVersion: 0.32.0\n")
+    temp_project["helm_values"].write_text(
+        "image:\n  repository: ghcr.io/cutctx/cutctx\n  tag: 0.32.0\n"
+    )
 
     result = subprocess.run(
         [sys.executable, str(script), "--root", str(root), "--version", "0.32.0"],
@@ -203,6 +206,7 @@ def test_version_sync_accepts_release_please_unquoted_helm_versions(
     chart = temp_project["helm_chart"].read_text()
     assert "version: 0.32.0" in chart
     assert 'appVersion: "0.32.0"' in chart
+    assert 'tag: "0.32.0"' in temp_project["helm_values"].read_text()
 
 
 def test_bump_patch(temp_project: dict[str, Path]) -> None:
