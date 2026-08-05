@@ -57,6 +57,8 @@ scripts/*
 !scripts/license_keygen.py
 !scripts/generate_license.py
 !scripts/compile_ee.py
+!scripts/verify_ee_wheel.py
+!scripts/ee_release_evidence.py
 !scripts/sync-plugin-versions.py
 !scripts/verify-versions.py
 !scripts/mypy_ratchet.py

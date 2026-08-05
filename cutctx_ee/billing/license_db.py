@@ -12,6 +12,7 @@ import secrets
 import sqlite3
 import time
 from pathlib import Path
+from typing import Protocol, cast
 
 from cutctx.storage.sqlite_schema import register_migration, stamp_schema_version
 
@@ -24,6 +25,18 @@ LICENSE_DB_ENV = "CUTCTX_LICENSE_DB_PATH"
 LICENSE_DELIVERY_STALE_SECONDS = 300
 
 _SCHEMA_VERSION = 2
+
+
+class _LicenseLike(Protocol):
+    license_key: str
+    tier: str
+    customer_email: str
+    seats: int
+    stripe_customer_id: str
+    stripe_subscription_id: str
+    created_at: float
+    expires_at: float
+    active: bool
 
 
 def resolve_db_path() -> Path:
@@ -220,7 +233,7 @@ class LicenseDB:
         """Return a normalized database tuple for records and legacy tuples."""
         if not hasattr(record, "license_key"):
             return tuple(record)  # type: ignore[arg-type]
-        r = record
+        r = cast(_LicenseLike, record)
         return (
             r.license_key,
             r.tier,
@@ -233,7 +246,7 @@ class LicenseDB:
             1 if r.active else 0,
         )
 
-    def fulfill_checkout(self, record: object) -> tuple[object, bool]:
+    def fulfill_checkout(self, record: _LicenseLike) -> tuple[_LicenseLike, bool]:
         """Persist a checkout exactly once for a Stripe subscription.
 
         ``BEGIN IMMEDIATE`` serializes the subscription lookup and insert
@@ -291,7 +304,7 @@ class LicenseDB:
             self._conn.rollback()
             raise
 
-    def _queue_delivery(self, record: object) -> None:
+    def _queue_delivery(self, record: _LicenseLike) -> None:
         """Create a pending outbox entry while the license transaction is open."""
         self._conn.execute(
             """INSERT OR IGNORE INTO license_deliveries
@@ -362,7 +375,7 @@ class LicenseDB:
         self._conn.commit()
         return bool(cursor.rowcount)
 
-    def get(self, license_key: str) -> object | None:
+    def get(self, license_key: str) -> _LicenseRecord | None:
         """Retrieve a license by key."""
         row = self._conn.execute(
             "SELECT * FROM licenses WHERE license_key = ?", (license_key,)
@@ -372,7 +385,7 @@ class LicenseDB:
         cols = [d[0] for d in self._conn.execute("SELECT * FROM licenses LIMIT 0").description]
         return _LicenseRecord(**dict(zip(cols, row)))
 
-    def get_by_subscription_id(self, subscription_id: str) -> object | None:
+    def get_by_subscription_id(self, subscription_id: str) -> _LicenseRecord | None:
         """Retrieve a license by Stripe subscription ID."""
         row = self._conn.execute(
             "SELECT * FROM licenses WHERE stripe_subscription_id = ?",
@@ -634,6 +647,16 @@ class LicenseDB:
 
 class _LicenseRecord:
     """Internal license record (mirrors LicenseRecord without import)."""
+
+    license_key: str
+    tier: str
+    customer_email: str
+    seats: int
+    stripe_customer_id: str
+    stripe_subscription_id: str
+    created_at: float
+    expires_at: float
+    active: bool
 
     def __init__(self, **kwargs: object) -> None:
         for k, v in kwargs.items():

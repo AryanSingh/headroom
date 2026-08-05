@@ -21,6 +21,8 @@ import sys
 import textwrap
 from pathlib import Path
 
+from packaging.tags import sys_tags
+
 try:
     import tomllib
 except ImportError:  # pragma: no cover - Python 3.10 fallback
@@ -71,6 +73,34 @@ def install_nuitka():
     print("Nuitka installed.")
 
 
+def nuitka_module_command(
+    module_path: Path, output_dir: Path, *, dev: bool = False
+) -> list[str]:
+    """Return the supported Nuitka command for one importable EE module."""
+    command = [
+        sys.executable,
+        "-m",
+        "nuitka",
+        "--module",
+        f"--output-dir={output_dir}",
+        "--assume-yes-for-downloads",
+        "--python-flag=no_docstrings",
+        "--remove-output",
+    ]
+    if not dev:
+        command.extend(
+            [
+                "--nofollow-import-to=unittest",
+                "--nofollow-import-to=pytest",
+                "--nofollow-import-to=typing_extensions",
+            ]
+        )
+    else:
+        command.extend(["--debug", "--unstripped"])
+    command.append(str(module_path))
+    return command
+
+
 def compile_ee_module(
     module_path: Path,
     output_dir: Path,
@@ -81,40 +111,16 @@ def compile_ee_module(
     Returns list of output files (.so + .pyi stubs).
     """
     module_name = module_path.stem
-    relative_parent = module_path.relative_to(EE_SOURCE).parent
-    module_output_dir = output_dir / "cutctx_ee" / relative_parent
+    try:
+        relative_parent = module_path.relative_to(EE_SOURCE).parent
+    except ValueError:
+        module_output_dir = output_dir
+    else:
+        module_output_dir = output_dir / "cutctx_ee" / relative_parent
     module_output_dir.mkdir(parents=True, exist_ok=True)
     print(f"  Compiling {module_path.name}...")
 
-    cmd = [
-        sys.executable,
-        "-m",
-        "nuitka",
-        "--module",  # Produce .so extension module, not standalone
-        f"--output-dir={module_output_dir}",
-        "--assume-yes-for-downloads",
-        # Strip docstrings and assertions in release
-        "--python-flag=no_docstrings",
-        "--remove-output",  # Remove .c source after compilation
-    ]
-
-    if not dev:
-        cmd.extend(
-            [
-                "--nofollow-import-to=unittest",
-                "--nofollow-import-to=pytest",
-                "--nofollow-import-to=typing_extensions",
-            ]
-        )
-    else:
-        cmd.extend(
-            [
-                "--debug",
-                "--unstripped",
-            ]
-        )
-
-    cmd.append(str(module_path))
+    cmd = nuitka_module_command(module_path, module_output_dir, dev=dev)
 
     try:
         result = subprocess.run(
@@ -134,8 +140,8 @@ def compile_ee_module(
 
     # Find output .so files
     outputs = []
-    for ext in ("*.so", "*.pyd", "*.pyi"):
-        outputs.extend(module_output_dir.glob(ext))
+    for ext in ("so", "pyd", "pyi"):
+        outputs.extend(module_output_dir.glob(f"{module_name}*.{ext}"))
     return outputs
 
 
@@ -172,6 +178,9 @@ def compile_all_ee(
             failed += 1
 
     print(f"\nCompilation complete: {success} succeeded, {failed} failed")
+    if failed:
+        print("ERROR: One or more EE modules failed to compile")
+        return {}
     return results
 
 
@@ -222,33 +231,75 @@ def strip_debug_symbols(module_path: Path):
             pass  # strip not available on all platforms
 
 
-def build_ee_wheel(
-    compile_dir: Path,
-    output_dir: Path,
-    version: str,
-    *,
-    dev: bool = False,
-) -> Path | None:
-    """Build a wheel from compiled extensions only (no .py source)."""
-    # Create a temporary package structure with only .so/.pyd files
+def native_wheel_tag() -> tuple[str, str, str]:
+    """Return the most specific supported tag for this build interpreter."""
+    tag = next(sys_tags())
+    return tag.interpreter, tag.abi, tag.platform
+
+
+def retag_native_wheel(wheel: Path) -> Path:
+    """Replace a misleading pure-Python tag with the native build target."""
+    try:
+        _prefix, _python_tag, abi_tag, platform_tag = wheel.stem.rsplit("-", 3)
+    except ValueError:
+        pass
+    else:
+        if abi_tag != "none" and platform_tag != "any":
+            return wheel
+    python_tag, abi_tag, platform_tag = native_wheel_tag()
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "wheel",
+            "tags",
+            "--remove",
+            f"--python-tag={python_tag}",
+            f"--abi-tag={abi_tag}",
+            f"--platform-tag={platform_tag}",
+            str(wheel),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+    output_name = result.stdout.strip().splitlines()[-1]
+    return wheel.with_name(output_name)
+
+
+def prepare_ee_package(compile_dir: Path, version: str) -> Path:
+    """Stage only final native modules and the guarded package initializer."""
     build_dir = compile_dir / "_build_root"
+
+    def is_final_native_module(path: Path) -> bool:
+        return build_dir not in path.parents and not any(
+            parent.name.endswith(".build") for parent in path.parents
+        )
+
+    native_files = [
+        path
+        for suffix in ("*.so", "*.pyd")
+        for path in compile_dir.rglob(suffix)
+        if is_final_native_module(path)
+    ]
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
     pkg_dir = build_dir / "cutctx_ee"
     pkg_dir.mkdir(parents=True, exist_ok=True)
+
     compiled_pkg_dir = compile_dir / "cutctx_ee"
+    for native_file in native_files:
+        try:
+            relative = native_file.relative_to(compiled_pkg_dir)
+        except ValueError:
+            relative = native_file.relative_to(compile_dir)
+        destination = pkg_dir / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(native_file, destination)
+        if destination.suffix == ".so":
+            strip_debug_symbols(destination)
 
-    # Copy only compiled extensions
-    for so_file in list(compiled_pkg_dir.rglob("*.so")):
-        dest = pkg_dir / so_file.relative_to(compiled_pkg_dir)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(so_file, dest)
-        strip_debug_symbols(dest)
-
-    for pyd_file in list(compiled_pkg_dir.rglob("*.pyd")):
-        dest = pkg_dir / pyd_file.relative_to(compiled_pkg_dir)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(pyd_file, dest)
-
-    # Create minimal __init__.py that imports from compiled extensions
     init_content = textwrap.dedent(f'''\
         # SPDX-License-Identifier: LicenseRef-Cutctx-Commercial
         # Copyright (c) 2025-2026 Cutctx Labs.
@@ -268,6 +319,19 @@ def build_ee_wheel(
         __version__ = "{version}"
     ''')
     (pkg_dir / "__init__.py").write_text(init_content)
+    return pkg_dir
+
+
+def build_ee_wheel(
+    compile_dir: Path,
+    output_dir: Path,
+    version: str,
+    *,
+    dev: bool = False,
+) -> Path | None:
+    """Build a wheel from compiled extensions only (no .py source)."""
+    pkg_dir = prepare_ee_package(compile_dir, version)
+    build_dir = pkg_dir.parent
 
     # Create pyproject.toml for the compiled wheel
     pyproject_content = textwrap.dedent(f'''\
@@ -281,10 +345,24 @@ def build_ee_wheel(
         description = "Cutctx Enterprise Edition — compiled extensions (no source)"
         license = {{text = "LicenseRef-Cutctx-Commercial"}}
         requires-python = ">=3.10"
-        dependencies = ["cutctx-ai=={version}"]
+        dependencies = [
+            "cutctx-ai=={version}",
+            "cryptography>=41.0.0",
+            "PyJWT[crypto]>=2.8.0",
+            "sqlalchemy>=2.0,<3.0",
+        ]
 
         [tool.setuptools.packages.find]
         include = ["cutctx_ee*"]
+
+        [tool.setuptools.package-data]
+        cutctx_ee = [
+            "MANIFEST.sha256.json",
+            "*.so",
+            "**/*.so",
+            "*.pyd",
+            "**/*.pyd",
+        ]
     ''')
     (build_dir / "pyproject.toml").write_text(pyproject_content)
 
@@ -327,7 +405,7 @@ def build_ee_wheel(
 
     # Find and return the built wheel
     wheels = list(output_dir.glob("*.whl"))
-    return wheels[0] if wheels else None
+    return retag_native_wheel(wheels[0]) if wheels else None
 
 
 def main():

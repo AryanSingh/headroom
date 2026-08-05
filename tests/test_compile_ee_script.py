@@ -67,6 +67,10 @@ def test_wheel_staging_preserves_nested_extensions_without_recursing_into_itself
     pyproject = (compile_dir / "_build_root" / "pyproject.toml").read_text()
     assert 'build-backend = "setuptools.build_meta"' in pyproject
     assert "setuptools.backends._legacy" not in pyproject
+    assert '"cutctx-ai==0.31.0"' in pyproject
+    assert '"cryptography>=41.0.0"' in pyproject
+    assert '"PyJWT[crypto]>=2.8.0"' in pyproject
+    assert '"sqlalchemy>=2.0,<3.0"' in pyproject
     setup = (compile_dir / "_build_root" / "setup.py").read_text()
     assert "class BinaryDistribution" in setup
     assert '"*.so"' in setup

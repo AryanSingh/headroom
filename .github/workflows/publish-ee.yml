@@ -36,22 +36,87 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-
-      - name: Build cutctx-ee wheel
-        working-directory: packaging/cutctx-ee
+      - name: Install compiled-EE build dependencies
         run: |
-          uv build --wheel --out-dir ../../dist-ee
+          python -m pip install --upgrade pip
+          python -m pip install nuitka ordered-set zstandard build setuptools wheel pytest twine
+
+      - name: Build signed compiled EE release candidate
+        env:
+          CUTCTX_LICENSE_HMAC_SECRET: ${{ secrets.CUTCTX_LICENSE_HMAC_SECRET }}
+        run: |
+          python scripts/compile_ee.py --output-dir dist-ee-compiled
           echo "Built wheel:"
-          ls -lh ../../dist-ee/
+          ls -lh dist-ee-compiled/*.whl
+
+      - name: Verify compiled wheel integrity
+        env:
+          CUTCTX_LICENSE_HMAC_SECRET: ${{ secrets.CUTCTX_LICENSE_HMAC_SECRET }}
+        run: |
+          EE_WHEEL=$(find dist-ee-compiled -maxdepth 1 -name '*.whl' -print -quit)
+          test -n "$EE_WHEEL"
+          python scripts/verify_ee_wheel.py \
+            --wheel "$EE_WHEEL" \
+            --evidence dist-ee-compiled/wheel-verification.json
+
+      - name: Record release candidate evidence
+        run: |
+          EE_WHEEL=$(find dist-ee-compiled -maxdepth 1 -name '*.whl' -print -quit)
+          python scripts/ee_release_evidence.py \
+            --wheel "$EE_WHEEL" \
+            --verification dist-ee-compiled/wheel-verification.json \
+            --git-sha "$GITHUB_SHA" \
+            --version "$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')" \
+            --output dist-ee-compiled/release-evidence.json
+
+      - name: Smoke test installed EE wheel
+        env:
+          CUTCTX_LICENSE_HMAC_SECRET: ${{ secrets.CUTCTX_LICENSE_HMAC_SECRET }}
+        run: |
+          EE_WHEEL=$(find "$GITHUB_WORKSPACE/dist-ee-compiled" -maxdepth 1 -name '*.whl' -print -quit)
+          python -m venv /tmp/cutctx-ee-smoke
+          /tmp/cutctx-ee-smoke/bin/python -m pip install --upgrade pip
+          /tmp/cutctx-ee-smoke/bin/python -m pip install "$EE_WHEEL"
+          cd /tmp
+          /tmp/cutctx-ee-smoke/bin/python -I -c '
+          import tempfile
+          import sqlalchemy
+          from pathlib import Path
+          from types import SimpleNamespace
+          from cutctx_ee.billing.license_db import LicenseDB
+          from cutctx_ee.memory_service import models as memory_models
+          assert sqlalchemy.__version__
+          assert memory_models is not None
+          with tempfile.TemporaryDirectory() as directory:
+              db = LicenseDB(Path(directory) / "licenses.db")
+              now = 1.0
+              first, created = db.fulfill_checkout(SimpleNamespace(license_key="candidate-a", tier="team", customer_email="buyer@example.com", seats=1, stripe_customer_id="cus_1", stripe_subscription_id="sub_1", created_at=now, expires_at=now + 3600, active=True))
+              replay, replay_created = db.fulfill_checkout(SimpleNamespace(license_key="candidate-b", tier="team", customer_email="buyer@example.com", seats=1, stripe_customer_id="cus_1", stripe_subscription_id="sub_1", created_at=now, expires_at=now + 3600, active=True))
+              assert created and not replay_created and first.license_key == replay.license_key
+          '
+
+      - name: Tamper test installed EE wheel
+        env:
+          CUTCTX_LICENSE_HMAC_SECRET: ${{ secrets.CUTCTX_LICENSE_HMAC_SECRET }}
+        run: |
+          EE_NATIVE=$(/tmp/cutctx-ee-smoke/bin/python -I -c '
+          import pathlib, cutctx_ee
+          root = pathlib.Path(cutctx_ee.__file__).parent
+          print(next(iter(sorted(root.rglob("*.so")) + sorted(root.rglob("*.pyd")))))
+          ')
+          printf '\ncutctx-release-tamper-test\n' >> "$EE_NATIVE"
+          cd /tmp
+          if /tmp/cutctx-ee-smoke/bin/python -I -c 'import cutctx_ee'; then
+            echo "FAIL: strict runtime integrity verification accepted a tampered native module"
+            exit 1
+          fi
 
       - name: Leak guard — EE wheel must NOT contain OSS-only modules
         run: |
           # Check that cutctx_ee wheel doesn't accidentally bundle cutctx (OSS)
           python3 -c "
           import zipfile, sys, pathlib
-          dist = pathlib.Path('dist-ee')
+          dist = pathlib.Path('dist-ee-compiled')
           for whl in dist.glob('*.whl'):
               with zipfile.ZipFile(whl) as z:
                   names = z.namelist()
@@ -87,16 +152,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cutctx-ee-wheel
-          path: dist-ee/*.whl
+          path: |
+            dist-ee-compiled/*.whl
+            dist-ee-compiled/wheel-verification.json
+            dist-ee-compiled/release-evidence.json
 
       - name: Publish to GitHub Packages (Private Index)
         if: ${{ github.event.inputs.dry_run != 'true' && github.event_name != 'workflow_dispatch' }}
-        run: |
-          # Publish to GitHub Packages — only accessible to holders of a valid license key
-          # For customer delivery: use a private PyPI server (e.g., Gemfury, Cloudsmith, or self-hosted)
-          # uv publish --index-url https://pypi.pkg.github.com/cutctxlabs dist-ee/*.whl
-          echo "Publishing to private index..."
-          echo "Configure PRIVATE_PYPI_URL and PRIVATE_PYPI_TOKEN secrets to enable"
         env:
-          PRIVATE_PYPI_URL: ${{ secrets.PRIVATE_PYPI_URL }}
-          PRIVATE_PYPI_TOKEN: ${{ secrets.PRIVATE_PYPI_TOKEN }}
+          TWINE_REPOSITORY_URL: ${{ secrets.PRIVATE_PYPI_URL }}
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PRIVATE_PYPI_TOKEN }}
+        run: |
+          test -n "$TWINE_REPOSITORY_URL"
+          test -n "$TWINE_PASSWORD"
+          python -m twine upload \
+            --non-interactive \
+            --disable-progress-bar \
+            dist-ee-compiled/*.whl

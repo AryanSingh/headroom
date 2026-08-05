@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from cutctx import paths as _paths
+from cutctx.auth.client_credentials import ClientCredentialError, resolve_client_credential
 
 # fcntl is Unix-only; on Windows we skip file locking (stats are best-effort).
 # Keep the module typed as Any so Windows mypy runs don't try to resolve Unix-only attrs.
@@ -395,6 +396,13 @@ class CutctxMCPServer:
         self.proxy_url = proxy_url
         self.check_proxy = check_proxy
         self.api_key = api_key or os.getenv("CUTCTX_API_KEY") or None
+        if self.api_key is None:
+            try:
+                credential = resolve_client_credential(self.proxy_url)
+            except ClientCredentialError:
+                credential = None
+            if credential is not None:
+                self.api_key = credential.value
         self._http_client: httpx.AsyncClient | None = None  # type: ignore[assignment]
         self._stats = SessionStats()
         self._local_store: Any = None  # Lazy-initialized CompressionStore
@@ -511,6 +519,8 @@ class CutctxMCPServer:
                     result["source"] = "proxy"
                     self._stats.record_retrieval(hash_key)
                     return result
+                if result["error"] == "Proxy client authentication failed.":
+                    return result
             except Exception:
                 pass  # Proxy unavailable, that's fine
 
@@ -540,6 +550,21 @@ class CutctxMCPServer:
             json=payload,
             headers=self._agent_headers(),
         )
+
+        if response.status_code in {401, 403}:
+            remediation = f"Run `cutctx auth login --proxy-url {self.proxy_url}`."
+            try:
+                response_error = response.json().get("error", {})
+                candidate = response_error.get("remediation")
+                if isinstance(candidate, str) and candidate:
+                    remediation = candidate
+            except (AttributeError, TypeError, ValueError):
+                pass
+            return {
+                "error": "Proxy client authentication failed.",
+                "hash": hash_key,
+                "remediation": remediation,
+            }
 
         if response.status_code == 404:
             return {"error": "Not found in proxy store", "hash": hash_key}

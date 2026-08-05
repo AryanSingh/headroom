@@ -269,7 +269,7 @@ def verify_signed_token(signed_token: str, public_key_pem: str) -> dict[str, Any
     try:
         from cryptography.exceptions import InvalidSignature
         from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.asymmetric.ec import ECDSA
+        from cryptography.hazmat.primitives.asymmetric.ec import ECDSA, EllipticCurvePublicKey
         from cryptography.hazmat.primitives.serialization import load_pem_public_key
     except ImportError:
         logger.error("cryptography library not available — cannot verify signed tokens")
@@ -310,6 +310,9 @@ def verify_signed_token(signed_token: str, public_key_pem: str) -> dict[str, Any
 
         # Load public key and verify
         public_key = load_pem_public_key(public_key_pem.encode("ascii"))
+        if not isinstance(public_key, EllipticCurvePublicKey):
+            logger.warning("Signed token public key is not an elliptic-curve key")
+            return None
         public_key.verify(der_sig, signed_data, ECDSA(hashes.SHA256()))
 
         # Signature valid — decode and return payload
