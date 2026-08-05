@@ -8,6 +8,11 @@ from cutctx.cli.main import _LOAD_FAILURES, _ensure_command_loaded, main
 
 def _leaf_commands(command: click.Command, path: tuple[str, ...] = ()) -> list[tuple[str, ...]]:
     if not isinstance(command, click.Group):
+        # Passthrough commands deliberately disable Click's help option and
+        # forward ``--help`` to the bundled binary via os.execv.  Invoking one
+        # through CliRunner would replace the pytest process itself.
+        if not command.add_help_option:
+            return []
         return [path]
 
     context = click.Context(command, info_name=path[-1] if path else "cutctx")
@@ -27,6 +32,14 @@ def test_cached_side_effect_module_can_reregister_a_missing_lazy_command() -> No
     _ensure_command_loaded("init")
 
     assert main.commands.get("init") is not None
+
+
+def test_help_inventory_excludes_exec_passthrough_commands() -> None:
+    leaves = _leaf_commands(main)
+
+    assert ("sg",) not in leaves
+    assert ("diff",) not in leaves
+    assert ("loc",) not in leaves
 
 
 def test_every_cli_leaf_has_loadable_help_in_an_isolated_home(tmp_path, monkeypatch) -> None:

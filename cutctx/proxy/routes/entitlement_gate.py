@@ -32,15 +32,21 @@ is being changed in parallel.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request
 
 logger = logging.getLogger("cutctx.proxy.routes.entitlement_gate")
 
+
 #: Sentinel: the path belongs to an enterprise surface but has no registered
 #: feature. Fail closed.
-_UNMAPPED = object()
+class _UnmappedFeature:
+    pass
+
+
+_UNMAPPED = _UnmappedFeature()
 
 #: Path prefix -> required feature name from ``cutctx.entitlements.FEATURE_TIERS``.
 #: ``None`` means "deliberately reachable at every tier" and must carry a
@@ -101,7 +107,7 @@ _SELF_GATED_MODULES = frozenset(
 )
 
 
-def resolve_required_feature(path: str, endpoint_module: str) -> str | None | Any:
+def resolve_required_feature(path: str, endpoint_module: str) -> str | None | _UnmappedFeature:
     """Return the feature a path needs, ``None`` if open, ``_UNMAPPED`` if denied.
 
     Routes outside an enterprise route module return ``None`` (not gated).
@@ -122,11 +128,13 @@ def resolve_required_feature(path: str, endpoint_module: str) -> str | None | An
     return None
 
 
-def make_entitlement_gate(proxy: Any, feature: str | None | Any):
+def make_entitlement_gate(
+    proxy: Any, feature: str | _UnmappedFeature
+) -> Callable[[Request], Awaitable[None]]:
     """Build the dependency that enforces ``feature`` for one route."""
 
     async def _gate(request: Request) -> None:  # noqa: ARG001
-        if feature is _UNMAPPED:
+        if isinstance(feature, _UnmappedFeature):
             raise HTTPException(
                 status_code=403,
                 detail={
@@ -160,6 +168,7 @@ def make_entitlement_gate(proxy: Any, feature: str | None | Any):
             },
         )
 
+    _gate._cutctx_entitlement_gate = True  # type: ignore[attr-defined]
     return _gate
 
 
@@ -170,23 +179,44 @@ def install_entitlement_gate(app: Any, proxy: Any) -> int:
     all routers are mounted, so route modules cannot opt out by omission.
     """
     from fastapi.dependencies.utils import get_parameterless_sub_dependant
-    from fastapi.routing import APIRoute
+    from fastapi.routing import APIRoute, request_response
 
-    gated = 0
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
+    def _has_gate(route: Any) -> bool:
+        return any(
+            getattr(dependency.call, "_cutctx_entitlement_gate", False)
+            for dependency in route.dependant.dependencies
+        )
+
+    def _attach_gate(route: Any, original_route: APIRoute | None = None) -> bool:
         endpoint_module = getattr(route.endpoint, "__module__", "")
         feature = resolve_required_feature(route.path, endpoint_module)
         if feature is None:
-            continue
+            return False
+        if _has_gate(route):
+            return False
         dependency = Depends(make_entitlement_gate(proxy, feature))
         route.dependencies.append(dependency)
         # Appended last so admin auth / RBAC still answer first (401 before 403).
         route.dependant.dependencies.append(
             get_parameterless_sub_dependant(depends=dependency, path=route.path_format)
         )
-        gated += 1
+
+        if original_route is None:
+            # FastAPI <= 0.140 eagerly flattens included routers into APIRoutes.
+            # Those routes build their ASGI handler during construction, so the
+            # handler must be rebuilt after changing the dependency graph.
+            route.app = request_response(route.get_route_handler())
+        elif not _has_gate(original_route):
+            # FastAPI >= 0.141 keeps included routers lazy. Requests execute an
+            # effective route context rather than the original APIRoute, so the
+            # live context above must be updated. Persist the same dependency on
+            # the original route as well so a later cache rebuild retains it.
+            original_route.dependencies.append(dependency)
+            original_route.dependant.dependencies.append(
+                get_parameterless_sub_dependant(depends=dependency, path=original_route.path_format)
+            )
+            original_route.app = request_response(original_route.get_route_handler())
+
         if feature is _UNMAPPED:
             logger.warning(
                 "Route %s (%s) is an enterprise surface with no entitlement mapping — "
@@ -194,6 +224,29 @@ def install_entitlement_gate(app: Any, proxy: Any) -> int:
                 route.path,
                 endpoint_module,
             )
+        return True
+
+    gated = 0
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            gated += _attach_gate(route)
+            continue
+
+        # FastAPI 0.141 introduced lazy ``_IncludedRouter`` entries. Avoid a
+        # private-class import and use its route-context iterator as the stable
+        # capability boundary. Calling it also materializes the contexts that
+        # the request path will execute, allowing us to update the live graph.
+        effective_route_contexts = getattr(route, "effective_route_contexts", None)
+        if not callable(effective_route_contexts):
+            continue
+        for context in effective_route_contexts():
+            original_route = getattr(context, "original_route", None)
+            if not isinstance(original_route, APIRoute):
+                continue
+            if getattr(context, "dependant", None) is None:
+                continue
+            gated += _attach_gate(context, original_route)
+
     logger.info("Entitlement gate installed on %d route(s).", gated)
     return gated
 

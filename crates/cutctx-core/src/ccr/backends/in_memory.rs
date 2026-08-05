@@ -75,6 +75,15 @@ impl InMemoryCcrStore {
             self.map.remove(&oldest);
         }
     }
+
+    /// Re-check expiry while holding the shard write lock and remove only the
+    /// entry that is still stale. A same-key `put` may have refreshed it after
+    /// a reader first observed expiry.
+    fn remove_if_expired(&self, hash: &str) -> bool {
+        self.map
+            .remove_if(hash, |_, entry| entry.inserted.elapsed() > self.ttl)
+            .is_some()
+    }
 }
 
 impl Default for InMemoryCcrStore {
@@ -141,10 +150,7 @@ impl CcrStore for InMemoryCcrStore {
         // under the shard write lock; if it's still expired, evict.
         // Otherwise (a concurrent `put` refreshed it) leave it alone
         // and re-fetch its payload.
-        let was_removed = self
-            .map
-            .remove_if(hash, |_, entry| entry.inserted.elapsed() > self.ttl)
-            .is_some();
+        let was_removed = self.remove_if_expired(hash);
         if was_removed {
             None
         } else {
@@ -255,63 +261,23 @@ mod tests {
 
     #[test]
     fn expired_get_does_not_wipe_concurrent_refresh() {
-        // Regression for the TOCTOU race fixed in the audit-cleanup PR.
-        // Two threads contend on the SAME key:
-        //   - Thread A: stores fresh value, then `get` it many times.
-        //   - Thread B: keeps re-storing the same key with FRESH
-        //     timestamps in a tight loop (simulating a second worker
-        //     touching the same payload).
-        // With the old 2-step check-then-remove, A's `get` could see
-        // an "expired" entry, drop the read lock, and remove B's
-        // freshly-inserted entry between drop and remove. With
-        // `remove_if`, the predicate runs under the shard write lock,
-        // so the race window is closed.
-        use std::sync::Arc;
-        use std::thread;
-
-        let store = Arc::new(InMemoryCcrStore::with_capacity_and_ttl(
-            64,
-            Duration::from_millis(20),
-        ));
+        // Deterministically reproduce the two states in the old TOCTOU race:
+        // a reader has observed an expired entry, then a writer refreshes the
+        // same key before the reader reaches cleanup. Cleanup must re-check the
+        // current entry instead of unconditionally removing by key.
+        let store = InMemoryCcrStore::with_capacity_and_ttl(64, Duration::from_millis(20));
         let key = "shared_key";
         let payload = "fresh";
 
-        // Seed.
         store.put(key, payload);
+        std::thread::sleep(Duration::from_millis(30));
+        assert!(store
+            .map
+            .get(key)
+            .is_some_and(|entry| entry.inserted.elapsed() > store.ttl));
 
-        let writer = {
-            let s = store.clone();
-            thread::spawn(move || {
-                // 200 fresh re-stores, racing the reader.
-                for _ in 0..200 {
-                    s.put(key, payload);
-                }
-            })
-        };
-
-        let reader = {
-            let s = store.clone();
-            thread::spawn(move || {
-                let mut hits = 0;
-                for _ in 0..200 {
-                    if s.get(key).as_deref() == Some(payload) {
-                        hits += 1;
-                    }
-                }
-                hits
-            })
-        };
-
-        writer.join().unwrap();
-        let hits = reader.join().unwrap();
-        // The entry must be live at the end (writer's last put won).
+        store.put(key, payload);
+        assert!(!store.remove_if_expired(key));
         assert_eq!(store.get(key).as_deref(), Some(payload));
-        // Reader should have observed the live entry the vast majority
-        // of the time. Allow some misses on first iterations / TTL
-        // transitions but require strong majority.
-        assert!(
-            hits > 100,
-            "reader should mostly observe live entry, hits={hits}"
-        );
     }
 }

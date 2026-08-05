@@ -35,5 +35,6 @@ dependencies = [
 [project.urls]
 Homepage = "https://cutctxlabs.ai"
 
-[tool.setuptools]
-packages = ["cutctx_ee"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cutctx_ee", "cutctx_ee.*"]

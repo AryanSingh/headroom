@@ -16,6 +16,27 @@ test.describe('Overview Metrics & Panels', () => {
   });
 
   test('successfully loads and displays mocked stats data', async ({ page }) => {
+    await page.route('**/stats-history*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          lifetime: {
+            requests: 125,
+            tokens_saved: 5000,
+            total_input_tokens: 40000,
+            total_savings_usd: 1.25,
+          },
+          display_session: {
+            requests: 20,
+            tokens_saved: 800,
+            total_input_tokens: 6000,
+            total_savings_usd: 0.2,
+          },
+        }),
+      });
+    });
+
     // Mock successful response with realistic dummy data
     await page.route('**/stats?*', async route => {
       await route.fulfill({

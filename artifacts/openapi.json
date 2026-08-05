@@ -2449,7 +2449,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "title": "Response Reports Usage Reports Usage Get"
+                }
               }
             },
             "description": "Successful Response"

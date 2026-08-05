@@ -1315,7 +1315,7 @@ test.describe("Orchestrator Modes", () => {
     ).toBeVisible();
     await expect(page.getByText("cooling_down", { exact: true })).toBeVisible();
     await expect(
-      page.getByText("Required capabilities", { exact: true }),
+      page.getByRole("heading", { name: "Required capabilities" }),
     ).toBeVisible();
     await expect(page.getByText("tool_calling", { exact: true })).toBeVisible();
     await expect(

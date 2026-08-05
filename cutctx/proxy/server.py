@@ -48,6 +48,8 @@ if TYPE_CHECKING:
     from ..backends.base import Backend
     from ..cache.compression_cache import CompressionCache
     from ..memory.tracker import MemoryTracker
+    from ..security.firewall import FirewallScanner
+    from .helpers import InFlightBodyBudget
     from .outcome import RequestOutcome
 
 
@@ -545,6 +547,9 @@ class CutctxProxy(
     GEMINI_API_URL = DEFAULT_GEMINI_API_URL
     CLOUDCODE_API_URL = DEFAULT_CLOUDCODE_API_URL
     VERTEX_API_URL = DEFAULT_VERTEX_API_URL
+
+    _firewall_scanner: FirewallScanner | None
+    inflight_body_budget: InFlightBodyBudget
 
     def __init__(self, config: ProxyConfig):
         self.config = config
@@ -2232,12 +2237,15 @@ class CutctxProxy(
                 circuit_provider,
             )
             _set_telemetry_tag("upstream_total_deadline_exceeded", True)
-            return HTTPException(
-                status_code=504,
-                detail=(
-                    f"Upstream did not complete within the total request deadline of "
-                    f"{total_budget:.0f}s. Increase CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS "
-                    f"if this provider is legitimately slower."
+            return cast(
+                Exception,
+                HTTPException(
+                    status_code=504,
+                    detail=(
+                        f"Upstream did not complete within the total request deadline of "
+                        f"{total_budget:.0f}s. Increase CUTCTX_REQUEST_TOTAL_TIMEOUT_SECONDS "
+                        f"if this provider is legitimately slower."
+                    ),
                 ),
             )
 
@@ -2982,14 +2990,16 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "/v1/audio/speech",
         }:
             return True
-        return path.endswith(
-            (
-                ":generateContent",
-                ":streamGenerateContent",
-                ":embedContent",
-                ":batchEmbedContents",
-                ":rawPredict",
-                ":streamRawPredict",
+        return bool(
+            path.endswith(
+                (
+                    ":generateContent",
+                    ":streamGenerateContent",
+                    ":embedContent",
+                    ":batchEmbedContents",
+                    ":rawPredict",
+                    ":streamRawPredict",
+                )
             )
         )
 

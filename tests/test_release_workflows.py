@@ -222,7 +222,35 @@ def test_node_and_docker_publish_failures_are_not_downgraded() -> None:
 def test_macos_native_wrapper_dependency_install_retries_pypi_downloads() -> None:
     content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
-    assert "python -m pip install --retries 10 --timeout 60 pytest" in content
+    assert 'python -m pip install --retries 10 --timeout 60 -e ".[proxy]" pytest' in content
+
+
+def test_graphiti_contract_job_installs_async_pytest_runtime() -> None:
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    start = content.index("\n  graphiti-upstream-contract:")
+    end = content.index("\n  build-wheel:", start)
+    job = content[start:end]
+
+    assert "pytest-asyncio" in job, (
+        "Graphiti contract tests contain async functions and must install "
+        "pytest-asyncio explicitly in their isolated CI environment"
+    )
+
+
+def test_native_wrapper_jobs_install_project_runtime_dependencies() -> None:
+    content = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    windows_start = content.index("\n  windows-native-wrapper:")
+    windows_end = content.index("\n  macos-native-wrapper:", windows_start)
+    windows_job = content[windows_start:windows_end]
+
+    macos_start = windows_end
+    macos_end = content.index("\n  redis-orchestration-integration:", macos_start)
+    macos_job = content[macos_start:macos_end]
+
+    assert 'python -m pip install -e ".[proxy]" pytest' in windows_job
+    assert 'python -m pip install --retries 10 --timeout 60 -e ".[proxy]" pytest' in macos_job
 
 
 def test_chaos_workflow_skips_optional_prometheus_rule_without_operator_crd() -> None:
@@ -279,6 +307,23 @@ def test_ci_enforces_and_uploads_python_coverage() -> None:
     assert "coverage-python.xml" in workflow
     assert "flags: python" in workflow
     assert codecov.count("target: 70%") == 2
+
+
+def test_ci_installs_enterprise_workspace_for_entitlement_suites() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert workflow.count("pip install --no-deps ./packaging/cutctx-ee") >= 2
+
+
+def test_signing_workflow_downloads_and_scans_actual_release_assets() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "sign-artifacts.yml").read_text(encoding="utf-8")
+
+    assert 'gh release download "$RELEASE_TAG"' in workflow
+    assert "--dir release-assets" in workflow
+    assert "find release-assets -type f -print -quit | grep -q ." in workflow
+    assert "scan-secrets --path release-assets/" in workflow
+    assert "scan_secrets(pathlib.Path('.'))" not in workflow
+    assert "actions/download-artifact" not in workflow
 
 
 def test_rust_ci_generates_and_retains_llvm_coverage_artifact() -> None:

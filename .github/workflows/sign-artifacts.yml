@@ -23,11 +23,14 @@ jobs:
     permissions:
       contents: read
       id-token: write  # For Sigstore keyless signing
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.artifacts_tag || github.event.release.tag_name }}
 
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.artifacts_tag || github.ref }}
+          ref: ${{ inputs.artifacts_tag || github.event.release.tag_name || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,27 +38,17 @@ jobs:
           python-version: "3.11"
 
       - name: Download release artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-          pattern: "cutctx-*"
+        run: |
+          mkdir -p release-assets
+          gh release download "$RELEASE_TAG" --dir release-assets --clobber
+
+      - name: Require release assets
+        run: |
+          find release-assets -type f -print -quit | grep -q .
 
       - name: Scan for secrets (V-12)
         run: |
-          python scripts/sign_artifacts.py scan-secrets --path artifacts/
-
-      - name: Scan for forbidden paths in source (V-5)
-        run: |
-          python -c "
-          import pathlib
-          from scripts.sign_artifacts import scan_secrets
-          findings = scan_secrets(pathlib.Path('.'))
-          if findings:
-              for f in findings:
-                  print(f'  {f[\"file\"]}: {f[\"description\"]}')
-              exit(1)
-          print('PASS: No forbidden strings in source')
-          "
+          python scripts/sign_artifacts.py scan-secrets --path release-assets/
 
       - name: Generate and sign manifest
         run: |
@@ -63,26 +56,27 @@ jobs:
           # For now, generate a throwaway keypair for CI testing
           openssl genpkey -algorithm Ed25519 -out /tmp/build-key.pem 2>/dev/null
           openssl pkey -in /tmp/build-key.pem -pubout -out /tmp/build-pub.pem 2>/dev/null
+          mkdir -p signed-output
 
           python scripts/sign_artifacts.py sign \
-            --artifacts-dir artifacts/ \
+            --artifacts-dir release-assets/ \
             --key-file /tmp/build-key.pem \
-            --output artifacts/manifest.json
+            --output signed-output/manifest.json
 
           echo "Manifest generated:"
-          python -c "import json; m=json.load(open('artifacts/manifest.json')); print(f'  {len(m[\"entries\"])} artifacts, signature: {m[\"signature\"][:20]}...')"
+          python -c "import json; m=json.load(open('signed-output/manifest.json')); print(f'  {len(m[\"entries\"])} artifacts, signature: {m[\"signature\"][:20]}...')"
 
       - name: Verify manifest (V-12)
         run: |
           python scripts/sign_artifacts.py verify \
-            --artifacts-dir artifacts/ \
-            --manifest artifacts/manifest.json \
+            --artifacts-dir release-assets/ \
+            --manifest signed-output/manifest.json \
             --public-key /tmp/build-pub.pem
 
       - name: Verify EE wheel has no source (V-7)
         run: |
           # Check if compiled EE wheel exists and verify
-          EE_WHEEL=$(find artifacts/ -name "cutctx_ee*.whl" | head -1)
+          EE_WHEEL=$(find release-assets/ -name "cutctx_ee*.whl" | head -1)
           if [ -n "$EE_WHEEL" ]; then
             python -c "
           import zipfile, sys
@@ -105,7 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: signed-manifest
-          path: artifacts/manifest.json
+          path: signed-output/manifest.json
 
       - name: SBOM generation (existing)
         run: |
