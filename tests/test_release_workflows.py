@@ -1431,6 +1431,16 @@ def test_release_please_config_and_manifest_are_present_and_consistent() -> None
         "changelog because the bot can't find its baseline."
     )
 
+    # v0.31.0 was repaired and tagged after its release-please PR had
+    # already merged, so the tag does not point at that PR's merge commit.
+    # Without an explicit history floor release-please treats PR #8 as an
+    # outstanding untagged release and refuses to open the next release PR.
+    last_release_sha = config.get("last-release-sha", "")
+    assert last_release_sha == "c76df414da108ca79bf86a27e6b405594c24bf0a", (
+        "release-please must start after the canonical v0.31.0 tag commit; "
+        "otherwise the merged legacy release PR blocks every future release"
+    )
+
     # extra-files: TypeScript SDK and openclaw plugin package.json
     # files must be in lockstep with pyproject.toml.
     extra_paths = {ef["path"] for ef in root_pkg.get("extra-files", [])}
