@@ -316,9 +316,7 @@ def test_ci_installs_enterprise_workspace_for_entitlement_suites() -> None:
 
 
 def test_signing_workflow_downloads_and_scans_actual_release_assets() -> None:
-    workflow = (ROOT / ".github" / "workflows" / "sign-artifacts.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = (ROOT / ".github" / "workflows" / "sign-artifacts.yml").read_text(encoding="utf-8")
 
     assert 'gh release download "$RELEASE_TAG"' in workflow
     assert "--dir release-assets" in workflow

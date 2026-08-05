@@ -39,6 +39,7 @@ from fastapi import Depends, HTTPException, Request
 
 logger = logging.getLogger("cutctx.proxy.routes.entitlement_gate")
 
+
 #: Sentinel: the path belongs to an enterprise surface but has no registered
 #: feature. Fail closed.
 class _UnmappedFeature:
@@ -106,9 +107,7 @@ _SELF_GATED_MODULES = frozenset(
 )
 
 
-def resolve_required_feature(
-    path: str, endpoint_module: str
-) -> str | None | _UnmappedFeature:
+def resolve_required_feature(path: str, endpoint_module: str) -> str | None | _UnmappedFeature:
     """Return the feature a path needs, ``None`` if open, ``_UNMAPPED`` if denied.
 
     Routes outside an enterprise route module return ``None`` (not gated).
