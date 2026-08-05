@@ -1,85 +1,49 @@
-# Cutctx Helm Chart — Default Values
-# Override via: helm install cutctx . -f custom-values.yaml
-# Or: helm install cutctx . --set key=value
-
-# The default persistence volume is ReadWriteOnce, so a stateful default must
-# stay on one replica. For horizontal scaling, use a shared RWX volume or an
-# external state backend, then explicitly enable autoscaling.
 replicaCount: 1
-
 image:
   repository: ghcr.io/cutctx/cutctx
-  # Pinned to the current release. Override with --set image.tag=X.Y.Z
-  # for rollouts, or --set image.tag=latest to opt in to floating tags.
-  tag: "0.31.0"
+  tag: 0.32.0
   pullPolicy: IfNotPresent
-
 imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
-
-# ── Proxy Configuration ───────────────────────────────────────────────
+nameOverride: ''
+fullnameOverride: ''
 proxy:
-  # Compression master switch
   compression: true
-  # Compression mode: "off" or "live_zone"
-  compressionMode: "live_zone"
-  # Backend: "anthropic", "litellm-*", or "anyllm"
-  backend: "anthropic"
-  # Optimization mode: "token" or "cache"
-  mode: "token"
-  # Upstream URL (REQUIRED)
-  upstream: ""
-  # Listen port (inside the container)
+  compressionMode: live_zone
+  backend: anthropic
+  mode: token
+  upstream: ''
   port: 8787
-  # Max body size for compression (MB)
   maxBodyMb: 50
-
-# ── Enterprise Features ───────────────────────────────────────────────
 enterprise:
-  # Required. Generate three distinct values before `helm install`.
-  adminApiKey: ""
-  # Provider HTTP/WebSocket clients send this as X-Cutctx-Proxy-Key.
-  proxyApiKey: ""
-  # SDK, MCP, and compression clients use this least-privilege credential.
-  clientApiKey: ""
-  corsOrigins: ""
-  entitlementTier: ""
-
-# ── SSO / OIDC ────────────────────────────────────────────────────────
+  adminApiKey: ''
+  proxyApiKey: ''
+  clientApiKey: ''
+  corsOrigins: ''
+  entitlementTier: ''
 sso:
   enabled: false
-  providerType: "oidc"
-  discoveryUrl: ""
-  jwksUri: ""
-  issuer: ""
-  audience: ""
-
-# ── Audit & Retention ─────────────────────────────────────────────────
+  providerType: oidc
+  discoveryUrl: ''
+  jwksUri: ''
+  issuer: ''
+  audience: ''
 audit:
   enabled: true
-
 retention:
   ccrMaxAgeSeconds: 604800
   auditMaxAgeDays: 90
   episodicMaxAgeDays: 30
-
-# ── Resource Limits ───────────────────────────────────────────────────
-resources:
-
+resources: null
 persistence:
   enabled: true
   accessMode: ReadWriteOnce
   size: 10Gi
-  # storageClass: "-"
   requests:
     cpu: 250m
     memory: 256Mi
   limits:
     cpu: 1000m
     memory: 512Mi
-
-# ── Probes ────────────────────────────────────────────────────────────
 livenessProbe:
   httpGet:
     path: /livez
@@ -88,7 +52,6 @@ livenessProbe:
   periodSeconds: 15
   timeoutSeconds: 5
   failureThreshold: 3
-
 readinessProbe:
   httpGet:
     path: /readyz
@@ -97,7 +60,6 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
-
 startupProbe:
   httpGet:
     path: /livez
@@ -105,37 +67,27 @@ startupProbe:
   initialDelaySeconds: 5
   periodSeconds: 5
   failureThreshold: 30
-
-# ── Autoscaling ───────────────────────────────────────────────────────
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
-
-# ── Pod Disruption Budget ─────────────────────────────────────────────
 podDisruptionBudget:
   enabled: true
   minAvailable: 1
-
-# ── Service ───────────────────────────────────────────────────────────
 service:
   type: ClusterIP
   port: 80
   targetPort: 8787
-
-# ── Prometheus Operator ───────────────────────────────────────────────
 serviceMonitor:
   enabled: false
   interval: 30s
   scrapeTimeout: 10s
   additionalLabels: {}
-
-# ── Ingress ───────────────────────────────────────────────────────────
 ingress:
   enabled: false
-  className: ""
+  className: ''
   annotations: {}
   hosts:
     - host: cutctx.example.com
@@ -143,45 +95,27 @@ ingress:
         - path: /
           pathType: Prefix
   tls: []
-
-# ── Security Context ──────────────────────────────────────────────────
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   runAsGroup: 1000
   fsGroup: 1000
-
 containerSecurityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
   capabilities:
     drop:
       - ALL
-
-# ── Service Account ───────────────────────────────────────────────────
 serviceAccount:
   create: true
-  name: ""
+  name: ''
   annotations: {}
-
-# ── RBAC ──────────────────────────────────────────────────────────────
 rbac:
   create: true
-
-# ── Node / Pod Scheduling ─────────────────────────────────────────────
 nodeSelector: {}
 tolerations: []
 affinity: {}
 topologySpreadConstraints: []
-
-# ── Environment Variables (extra) ─────────────────────────────────────
 extraEnv: []
-# - name: CUTCTX_LICENSE_KEY
-#   valueFrom:
-#     secretKeyRef:
-#       name: cutctx-secrets
-#       key: license-key
-
-# ── Volumes / Mounts ──────────────────────────────────────────────────
 extraVolumes: []
 extraVolumeMounts: []
