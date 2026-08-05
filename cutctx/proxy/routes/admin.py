@@ -966,7 +966,9 @@ def create_admin_router(
             _Dep(require_entitlement("usage_reports")),
         ],
     )
-    async def reports_usage(format: Literal["json", "csv"] = "json"):
+    async def reports_usage(
+        format: Literal["json", "csv"] = "json",
+    ) -> Any:
         """Usage report: requests by provider, model, stack, and time."""
         m = _proxy.metrics
         report = {

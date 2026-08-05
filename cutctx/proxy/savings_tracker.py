@@ -3128,7 +3128,7 @@ class SavingsTracker:
                 if source in OBSERVED_PROVIDER_SAVINGS_SOURCES
             )
 
-        state = {
+        state: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
             "lifetime": {
                 "requests": lifetime_requests,

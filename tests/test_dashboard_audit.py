@@ -476,6 +476,7 @@ def test_dashboard_skip_link_focuses_main_content(
         page.goto(f"{dashboard_server}/dashboard", wait_until="domcontentloaded")
 
         skip_link = page.get_by_role("link", name="Skip to main content")
+        expect(skip_link).to_be_visible()
         page.keyboard.press("Tab")
         expect(skip_link).to_be_focused()
 

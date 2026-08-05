@@ -48,6 +48,8 @@ if TYPE_CHECKING:
     from ..backends.base import Backend
     from ..cache.compression_cache import CompressionCache
     from ..memory.tracker import MemoryTracker
+    from ..security.firewall import FirewallScanner
+    from .helpers import InFlightBodyBudget
     from .outcome import RequestOutcome
 
 
@@ -545,6 +547,9 @@ class CutctxProxy(
     GEMINI_API_URL = DEFAULT_GEMINI_API_URL
     CLOUDCODE_API_URL = DEFAULT_CLOUDCODE_API_URL
     VERTEX_API_URL = DEFAULT_VERTEX_API_URL
+
+    _firewall_scanner: FirewallScanner | None
+    inflight_body_budget: InFlightBodyBudget
 
     def __init__(self, config: ProxyConfig):
         self.config = config

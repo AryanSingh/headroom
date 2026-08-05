@@ -32,6 +32,7 @@ is being changed in parallel.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request
@@ -40,7 +41,11 @@ logger = logging.getLogger("cutctx.proxy.routes.entitlement_gate")
 
 #: Sentinel: the path belongs to an enterprise surface but has no registered
 #: feature. Fail closed.
-_UNMAPPED = object()
+class _UnmappedFeature:
+    pass
+
+
+_UNMAPPED = _UnmappedFeature()
 
 #: Path prefix -> required feature name from ``cutctx.entitlements.FEATURE_TIERS``.
 #: ``None`` means "deliberately reachable at every tier" and must carry a
@@ -101,7 +106,9 @@ _SELF_GATED_MODULES = frozenset(
 )
 
 
-def resolve_required_feature(path: str, endpoint_module: str) -> str | None | Any:
+def resolve_required_feature(
+    path: str, endpoint_module: str
+) -> str | None | _UnmappedFeature:
     """Return the feature a path needs, ``None`` if open, ``_UNMAPPED`` if denied.
 
     Routes outside an enterprise route module return ``None`` (not gated).
@@ -122,11 +129,13 @@ def resolve_required_feature(path: str, endpoint_module: str) -> str | None | An
     return None
 
 
-def make_entitlement_gate(proxy: Any, feature: str | None | Any):
+def make_entitlement_gate(
+    proxy: Any, feature: str | _UnmappedFeature
+) -> Callable[[Request], Awaitable[None]]:
     """Build the dependency that enforces ``feature`` for one route."""
 
     async def _gate(request: Request) -> None:  # noqa: ARG001
-        if feature is _UNMAPPED:
+        if isinstance(feature, _UnmappedFeature):
             raise HTTPException(
                 status_code=403,
                 detail={

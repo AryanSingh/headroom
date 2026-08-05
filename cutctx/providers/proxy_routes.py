@@ -33,6 +33,16 @@ _POLICY_PATH_ATTR = "_context_policy_path"
 _POLICY_ENGINE_ATTR = "_context_policy_engine"
 
 
+def _string_text_parts(parts: list[Any]) -> list[str]:
+    return [
+        text
+        for part in parts
+        if isinstance(part, dict)
+        for text in [part.get("text")]
+        if isinstance(text, str)
+    ]
+
+
 def _context_policy_path() -> str:
     return os.environ.get("CUTCTX_CONTEXT_POLICY", "").strip()
 
@@ -86,11 +96,7 @@ def _extract_context_policy_messages(body: dict[str, Any]) -> list[dict[str, Any
                 extracted.append({"role": item.get("role", "user"), "content": content})
                 continue
             if isinstance(content, list):
-                text_parts = [
-                    part.get("text")
-                    for part in content
-                    if isinstance(part, dict) and isinstance(part.get("text"), str)
-                ]
+                text_parts = _string_text_parts(content)
                 if text_parts:
                     extracted.append(
                         {
@@ -260,11 +266,7 @@ def _extract_firewall_messages(body: dict[str, Any]) -> list[dict[str, Any]]:
         if isinstance(value, str) and value:
             messages.append({"role": "system", "content": value})
         elif isinstance(value, list):
-            text_parts = [
-                part.get("text")
-                for part in value
-                if isinstance(part, dict) and isinstance(part.get("text"), str)
-            ]
+            text_parts = _string_text_parts(value)
             if text_parts:
                 messages.append({"role": "system", "content": "\n".join(text_parts)})
 
@@ -281,11 +283,7 @@ def _extract_firewall_messages(body: dict[str, Any]) -> list[dict[str, Any]]:
                 parts = [parts]
             if not isinstance(parts, list):
                 continue
-            text_parts = [
-                part.get("text")
-                for part in parts
-                if isinstance(part, dict) and isinstance(part.get("text"), str)
-            ]
+            text_parts = _string_text_parts(parts)
             if text_parts:
                 messages.append(
                     {"role": item.get("role", "user"), "content": "\n".join(text_parts)}
@@ -296,11 +294,7 @@ def _extract_firewall_messages(body: dict[str, Any]) -> list[dict[str, Any]]:
         if isinstance(parts, dict):
             parts = [parts]
         if isinstance(parts, list):
-            text_parts = [
-                part.get("text")
-                for part in parts
-                if isinstance(part, dict) and isinstance(part.get("text"), str)
-            ]
+            text_parts = _string_text_parts(parts)
             if text_parts:
                 messages.append({"role": "system", "content": "\n".join(text_parts)})
 

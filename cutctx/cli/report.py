@@ -183,7 +183,7 @@ def _tracker_scope_facts(days: int) -> dict[str, Any]:
         path = Path(get_default_savings_storage_path())
         if not path.exists():
             return facts
-        tracker = SavingsTracker(path=path)
+        tracker = SavingsTracker(path=str(path))
         now = datetime.now(timezone.utc)
         from datetime import timedelta
 

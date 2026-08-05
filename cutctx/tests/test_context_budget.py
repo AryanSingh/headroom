@@ -454,7 +454,7 @@ class TestCompressionWindows:
         )
         assert conservative.policy.compression_window_red > balanced.policy.compression_window_red
 
-    def test_aggressive_windows_smaller(self):
+    def test_aggressive_windows_smaller(self) -> None:
         """Aggressive policy has smaller protection windows."""
         aggressive = ContextBudgetController(policy="aggressive")
         balanced = ContextBudgetController(policy="balanced")
