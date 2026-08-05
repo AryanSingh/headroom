@@ -309,6 +309,12 @@ def test_ci_enforces_and_uploads_python_coverage() -> None:
     assert codecov.count("target: 70%") == 2
 
 
+def test_ci_installs_enterprise_workspace_for_entitlement_suites() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert workflow.count("pip install --no-deps ./packaging/cutctx-ee") >= 2
+
+
 def test_rust_ci_generates_and_retains_llvm_coverage_artifact() -> None:
     workflow = (ROOT / ".github" / "workflows" / "rust.yml").read_text(encoding="utf-8")
 

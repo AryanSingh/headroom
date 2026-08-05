@@ -160,6 +160,7 @@ def make_entitlement_gate(proxy: Any, feature: str | None | Any):
             },
         )
 
+    _gate._cutctx_entitlement_gate = True  # type: ignore[attr-defined]
     return _gate
 
 
@@ -170,7 +171,7 @@ def install_entitlement_gate(app: Any, proxy: Any) -> int:
     all routers are mounted, so route modules cannot opt out by omission.
     """
     from fastapi.dependencies.utils import get_parameterless_sub_dependant
-    from fastapi.routing import APIRoute
+    from fastapi.routing import APIRoute, request_response
 
     gated = 0
     for route in app.routes:
@@ -180,12 +181,21 @@ def install_entitlement_gate(app: Any, proxy: Any) -> int:
         feature = resolve_required_feature(route.path, endpoint_module)
         if feature is None:
             continue
+        if any(
+            getattr(dependency.call, "_cutctx_entitlement_gate", False)
+            for dependency in route.dependant.dependencies
+        ):
+            continue
         dependency = Depends(make_entitlement_gate(proxy, feature))
         route.dependencies.append(dependency)
         # Appended last so admin auth / RBAC still answer first (401 before 403).
         route.dependant.dependencies.append(
             get_parameterless_sub_dependant(depends=dependency, path=route.path_format)
         )
+        # APIRoute builds its ASGI request handler during construction. Updating
+        # ``route.dependant`` alone only changes introspection; the already-built
+        # handler keeps the old dependency graph and silently bypasses the gate.
+        route.app = request_response(route.get_route_handler())
         gated += 1
         if feature is _UNMAPPED:
             logger.warning(
